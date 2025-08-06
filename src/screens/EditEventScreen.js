@@ -117,6 +117,7 @@ export default function EditEventScreen({ route, navigation }) {
   const [event, setEvent] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [isDeleted, setIsDeleted] = useState(false);
 
   // Suggestion visibility state
   const [suggestionVisibility, setSuggestionVisibility] = useState({
@@ -187,6 +188,7 @@ export default function EditEventScreen({ route, navigation }) {
 
   useFocusEffect(
     useCallback(() => {
+      if (isDeleted) return;
       const loadEvent = async () => {
         try {
           setLoading(true);
@@ -214,7 +216,7 @@ export default function EditEventScreen({ route, navigation }) {
       };
 
       loadEvent();
-    }, [eventId, populateFromEvent])
+    }, [eventId, populateFromEvent, isDeleted]) // FIXED: Added isDeleted to dependencies
   );
 
   // Get user permissions using utility
@@ -438,14 +440,23 @@ export default function EditEventScreen({ route, navigation }) {
 
   const performDelete = async () => {
     setDeleting(true);
+    setIsDeleted(true); // FIXED: Mark as deleted immediately
 
     try {
       await deleteDoc(doc(db, 'events', eventId));
       Alert.alert('Deleted', 'Event has been deleted successfully.', [
-        { text: 'OK', onPress: () => navigation.goBack() },
+        {
+          text: 'OK',
+          onPress: () =>
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Home' }],
+            }),
+        },
       ]);
     } catch (err) {
       console.error('Failed to delete event:', err);
+      setIsDeleted(false); // FIXED: Revert if deletion failed
       Alert.alert('Error', 'Failed to delete event. Please try again.');
       setDeleting(false);
     }
