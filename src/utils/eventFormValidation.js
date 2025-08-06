@@ -49,8 +49,17 @@ export const validateEventDateTime = (date, time) => {
  * @returns {Object} Validation result
  */
 export const validateEventForm = (formData) => {
-  const { title, location, dateSelected, timeSelected, maxGuests, date, time } =
-    formData;
+  const {
+    title,
+    location,
+    dateSelected,
+    timeSelected,
+    maxGuests,
+    date,
+    time,
+    hasFee,
+    entryFee,
+  } = formData;
 
   // Validate required fields
   if (!title?.trim()) {
@@ -74,6 +83,11 @@ export const validateEventForm = (formData) => {
     return { isValid: false, message: 'Max guests must be a positive number.' };
   }
 
+  // Validate entry fee if event has a fee
+  if (hasFee && !entryFee?.trim()) {
+    return { isValid: false, message: 'Please enter an entry fee amount.' };
+  }
+
   // Validate event time
   const timeValidation = validateEventDateTime(date, time);
   if (!timeValidation.isValid) {
@@ -90,7 +104,17 @@ export const validateEventForm = (formData) => {
  * @returns {Object} Formatted event data
  */
 export const formatEventForStorage = (formData, currentUserId) => {
-  const { title, location, details, date, time, maxGuests } = formData;
+  const {
+    title,
+    location,
+    details,
+    date,
+    time,
+    maxGuests,
+    hasFee,
+    entryFee,
+    feeDescription,
+  } = formData;
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const combined = DateTime.fromObject(
@@ -116,6 +140,9 @@ export const formatEventForStorage = (formData, currentUserId) => {
     originalDate: combined.toFormat('yyyy-MM-dd'),
     originalTime: combined.toFormat('HH:mm'),
     maxGuests: maxGuests ? parseInt(maxGuests) : null,
+    hasFee: hasFee ?? false,
+    entryFee: entryFee || '',
+    feeDescription: feeDescription || '',
     createdBy: currentUserId,
     subscribers: [currentUserId],
     subscriberCount: 1,

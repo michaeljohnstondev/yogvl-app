@@ -1,58 +1,186 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Alert } from 'react-native';
+// hooks/useEventTemplates.js - REFACTORED VERSION
+import { useState, useEffect } from 'react';
 import {
-  collection,
-  query,
-  where,
-  orderBy,
-  getDocs,
-  deleteDoc,
   doc,
+  updateDoc,
+  arrayUnion,
+  arrayRemove,
+  getDoc,
 } from 'firebase/firestore';
 import { db } from '../firebase';
 
-export const useEventTemplates = (userId) => {
+export const useEventTemplates = (currentUserId) => {
   const [templates, setTemplates] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const loadTemplates = useCallback(async () => {
-    if (!userId) return;
+  // Load templates from user document
+  useEffect(() => {
+    const loadTemplates = async () => {
+      if (!currentUserId) {
+        setTemplates([]);
+        setLoading(false);
+        return;
+      }
 
-    setLoading(true);
+      try {
+        const userRef = doc(db, 'users', currentUserId);
+        const userDoc = await getDoc(userRef);
+
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setTemplates(userData.templates || []);
+        } else {
+          setTemplates([]);
+        }
+      } catch (error) {
+        console.error('Error loading templates:', error);
+        setTemplates([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTemplates();
+  }, [currentUserId]);
+
+  // Save new template
+  const saveTemplate = async (templateData) => {
+    if (!currentUserId) throw new Error('User not logged in');
+
     try {
-      const templatesQuery = query(
-        collection(db, 'event_templates'),
-        where('createdBy', '==', userId),
-        orderBy('createdAt', 'desc')
-      );
+      const template = {
+        id: Date.now().toString(), // Simple ID generation
+        ...templateData,
+        createdAt: new Date().toISOString(),
+      };
 
-      const snapshot = await getDocs(templatesQuery);
-      const templateList = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const userRef = doc(db, 'users', currentUserId);
+      await updateDoc(userRef, {
+        templates: arrayUnion(template),
+      });
 
-      setTemplates(templateList);
+      setTemplates((prev) => [...prev, template]);
+      return template;
     } catch (error) {
-      console.error('Error loading templates:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [userId]);
-
-  const deleteTemplate = async (templateId) => {
-    try {
-      await deleteDoc(doc(db, 'event_templates', templateId));
-      setTemplates((prev) => prev.filter((t) => t.id !== templateId));
-    } catch (error) {
-      console.error('Error deleting template:', error);
-      Alert.alert('Error', 'Failed to delete template');
+      console.error('Error saving template:', error);
+      throw error;
     }
   };
 
-  useEffect(() => {
-    loadTemplates();
-  }, [loadTemplates]);
+  // Delete template
+  const deleteTemplate = async (templateId) => {
+    if (!currentUserId) throw new Error('User not logged in');
 
-  return { templates, loading, loadTemplates, deleteTemplate };
+    try {
+      const templateToDelete = templates.find((t) => t.id === templateId);
+      if (!templateToDelete) throw new Error('Template not found');
+
+      const userRef = doc(db, 'users', currentUserId);
+      await updateDoc(userRef, {
+        templates: arrayRemove(templateToDelete),
+      });
+
+      setTemplates((prev) => prev.filter((t) => t.id !== templateId));
+    } catch (error) {
+      console.error('Error deleting template:', error);
+      throw error;
+    }
+  };
+
+  return {
+    templates,
+    loading,
+    saveTemplate,
+    deleteTemplate,
+  };
+};
+
+// --------------------------------------------------
+
+// Updated CreateEventScreen.js - TEMPLATE SAVE FUNCTION
+// Replace your existing saveAsTemplate function with this:
+
+const saveAsTemplate = async () => {
+  if (!templateName.trim()) {
+    Alert.alert('Error', 'Please enter a template name');
+    return;
+  }
+
+  try {
+    const templateData = {
+      name: templateName.trim(),
+      title: formData.title,
+      location: formData.location,
+      details: formData.details,
+      maxGuests: formData.maxGuests,
+      hasFee: formData.hasFee || false,
+      entryFee: formData.entryFee || '',
+      feeDescription: formData.feeDescription || '',
+      // Don't save date/time - those should be fresh each time
+    };
+
+    await saveTemplate(templateData);
+    Alert.alert('Success', 'Template saved successfully!');
+    setShowSaveTemplate(false);
+    setTemplateName('');
+  } catch (error) {
+    console.error('Error saving template:', error);
+    Alert.alert('Error', 'Failed to save template');
+  }
+};
+
+// --------------------------------------------------
+
+// MIGRATION SCRIPT (run this once to move existing templates)
+// You can run this in your app or in Firebase console
+
+const migrateTemplates = async () => {
+  try {
+    console.log('Starting template migration...');
+
+    // Get all templates from event_templates collection
+    const templatesSnapshot = await getDocs(collection(db, 'event_templates'));
+    const userTemplates = {};
+
+    // Group templates by user
+    templatesSnapshot.docs.forEach((doc) => {
+      const data = doc.data();
+      const userId = data.createdBy;
+
+      if (!userTemplates[userId]) {
+        userTemplates[userId] = [];
+      }
+
+      userTemplates[userId].push({
+        id: doc.id,
+        name: data.name,
+        title: data.title,
+        location: data.location,
+        details: data.details,
+        maxGuests: data.maxGuests,
+        hasFee: data.hasFee || false,
+        entryFee: data.entryFee || '',
+        feeDescription: data.feeDescription || '',
+        createdAt:
+          data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+      });
+    });
+
+    // Update each user document with their templates
+    const updatePromises = Object.entries(userTemplates).map(
+      async ([userId, templates]) => {
+        const userRef = doc(db, 'users', userId);
+        await updateDoc(userRef, { templates });
+        console.log(`Updated ${templates.length} templates for user ${userId}`);
+      }
+    );
+
+    await Promise.all(updatePromises);
+    console.log('Migration completed successfully!');
+
+    // Optional: Delete the old event_templates collection
+    // (You should do this manually in Firebase Console after verifying migration worked)
+  } catch (error) {
+    console.error('Migration failed:', error);
+  }
 };

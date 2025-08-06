@@ -90,7 +90,8 @@ export default function CreateEventScreen({ navigation }) {
   const { showTips, closeTips, showTipsManually } = useEventTips('create');
   const { formData, updateField, resetForm } = useFormState();
   const { suggestions, isLoading, loadSuggestions } = useSuggestions();
-  const { templates, deleteTemplate } = useEventTemplates(currentUserId);
+  const { templates, saveTemplate, deleteTemplate } =
+    useEventTemplates(currentUserId);
 
   // UI State
   const [isCreating, setIsCreating] = useState(false);
@@ -131,7 +132,7 @@ export default function CreateEventScreen({ navigation }) {
 
     try {
       const templateData = {
-        name: templateName,
+        name: templateName.trim(),
         title: formData.title,
         location: formData.location,
         details: formData.details,
@@ -140,12 +141,9 @@ export default function CreateEventScreen({ navigation }) {
         entryFee: formData.entryFee || '',
         feeDescription: formData.feeDescription || '',
         // Don't save date/time - those should be fresh each time
-        createdBy: currentUserId,
-        createdAt: Timestamp.now(),
       };
 
-      await addDoc(collection(db, 'event_templates'), templateData);
-
+      await saveTemplate(templateData); // <-- This calls the hook function
       Alert.alert('Success', 'Template saved successfully!');
       setShowSaveTemplate(false);
       setTemplateName('');
@@ -264,9 +262,13 @@ export default function CreateEventScreen({ navigation }) {
     setIsCreating(true);
 
     try {
+      console.log('form data:');
+      console.log(formData);
       const eventData = formatEventForStorage(formData, currentUserId);
       eventData.createdAt = Timestamp.now();
       eventData.eventTimestamp = Timestamp.fromDate(eventData.eventTimestamp);
+      console.log('event data:');
+      console.log(eventData);
 
       const eventRef = await addDoc(collection(db, 'events'), eventData);
       await updateEventCreationMetrics(currentUserId, eventRef.id);

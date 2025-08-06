@@ -54,7 +54,7 @@ export const TemplateSelectionModal = ({
                     {template.title} • {template.location}
                   </Text>
                   <Text style={styles.templateDate}>
-                    Created {template.createdAt?.toDate().toLocaleDateString()}
+                    Created {new Date(template.createdAt).toLocaleDateString()}
                   </Text>
                 </Pressable>
 

@@ -1,689 +1,522 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
+  ActivityIndicator,
   ScrollView,
   Alert,
-  Pressable,
-  KeyboardAvoidingView,
+  Linking,
   Platform,
-  ActivityIndicator,
 } from 'react-native';
-import DateTimePickerModal from 'react-native-modal-datetime-picker';
-
-// Components
-import VibeButton from '../components/VibeButton';
-import VibeInput from '../components/VibeInput';
-import VibeButtonPlain from '../components/VibeButtonPlain';
-import ReliabilityWarning from '../components/ReliabilityWarning';
-import EventTipsModal, { useEventTips } from '../components/EventTipsModal';
-import VibeTimePicker from '../components/VibeTimePicker';
-import VibeAutoComplete from '../components/VibeAutoComplete';
-import VibeSegmentedControl from '../components/VibeSegmentedControl';
-import {
-  TemplateSelectionModal,
-  SaveTemplateModal,
-} from '../components/TemplateModals';
-
-// Hooks
-import { useSuggestions, filterSuggestions } from '../hooks/useSuggestions';
-import { useEventTemplates } from '../hooks/useEventTemplates';
-
-// Firebase
 import { db } from '../firebase';
 import {
-  Timestamp,
   doc,
   getDoc,
   updateDoc,
-  collection,
-  addDoc,
+  arrayUnion,
+  arrayRemove,
+  increment,
+  setDoc,
+  deleteDoc,
 } from 'firebase/firestore';
-
-// Utils and Context
+import VibeButton from '../components/VibeButton';
+import EventCreatorInfo from '../components/EventCreatorInfo';
+import HostProfileModal from '../components/HostProfileModal';
+import { useFocusEffect } from '@react-navigation/native';
+import { FormatDate } from '../utils/FormatDate';
 import { useAuth } from '../AuthContext';
+import { updateEventSubscription } from '../utils/userMetrics';
 import {
-  validateEventForm,
-  formatEventForStorage,
-} from '../utils/eventFormValidation';
-import { getUserEventPermissions } from '../utils/eventUtils';
-import theme from '../themes/themes';
+  getEventStatus,
+  getStatusColor,
+  isPastEvent,
+  isEventFull,
+  validateUserCanJoinEvent,
+  getUserEventPermissions,
+  validateEventJoinConstraints,
+} from '../utils/eventUtils';
 
-// Custom Hook for Form State (copied from CreateEventScreen)
-const useFormState = (initialData = {}) => {
-  const [formData, setFormData] = useState({
-    title: initialData.title || '',
-    location: initialData.location || '',
-    details: initialData.details || '',
-    maxGuests: initialData.maxGuests || '',
-    date: initialData.date || new Date(),
-    time: initialData.time || new Date(),
-    dateSelected: !!initialData.date,
-    timeSelected: !!initialData.time,
-    inputHeight: 80,
-    hasFee: initialData.hasFee || false,
-    entryFee: initialData.entryFee || '',
-    feeDescription: initialData.feeDescription || '',
-  });
-
-  const updateField = useCallback((field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  }, []);
-
-  const resetForm = useCallback(() => {
-    setFormData({
-      title: initialData.title || '',
-      location: initialData.location || '',
-      details: initialData.details || '',
-      maxGuests: initialData.maxGuests || '',
-      date: initialData.date || new Date(),
-      time: initialData.time || new Date(),
-      dateSelected: !!initialData.date,
-      timeSelected: !!initialData.time,
-      inputHeight: 80,
-      hasFee: initialData.hasFee || false,
-      entryFee: initialData.entryFee || '',
-      feeDescription: initialData.feeDescription || '',
-    });
-  }, [initialData]);
-
-  return { formData, updateField, resetForm };
-};
-
-// Main Component
-export default function EditEventScreen({ route, navigation }) {
+export default function EventDetailScreen({ route, navigation }) {
   const { eventId } = route.params;
+  const [event, setEvent] = useState(null);
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [creatorData, setCreatorData] = useState(null);
+  const [showHostProfile, setShowHostProfile] = useState(false);
+
+  // Get current user from Auth Context
   const { currentUserId, userData } = useAuth();
-  const { showTips, closeTips, showTipsManually } = useEventTips('edit');
 
-  // Event loading state
-  const [eventData, setEventData] = useState(null);
-  const [isLoadingEvent, setIsLoadingEvent] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      const fetchEvent = async () => {
+        try {
+          const ref = doc(db, 'events', eventId);
+          const snap = await getDoc(ref);
+          if (snap.exists()) {
+            const eventData = { id: snap.id, ...snap.data() };
+            setEvent(eventData);
 
-  // Initialize form with event data
-  const { formData, updateField, resetForm } = useFormState(eventData);
-  const { suggestions, isLoading, loadSuggestions } = useSuggestions();
-  const { templates, deleteTemplate } = useEventTemplates(currentUserId);
+            // Check if user is subscribed
+            const subscribers = eventData.subscribers || [];
+            setIsSubscribed(subscribers.includes(currentUserId));
 
-  // UI State
-  const [isSaving, setIsSaving] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [showTemplateModal, setShowTemplateModal] = useState(false);
-  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
-  const [templateName, setTemplateName] = useState('');
-
-  // Suggestion visibility state
-  const [suggestionVisibility, setSuggestionVisibility] = useState({
-    title: false,
-    location: false,
-    details: false,
-  });
-
-  // Load event data
-  useEffect(() => {
-    const loadEvent = async () => {
-      try {
-        setIsLoadingEvent(true);
-        const eventDoc = await getDoc(doc(db, 'events', eventId));
-
-        if (!eventDoc.exists()) {
-          Alert.alert('Error', 'Event not found', [
-            { text: 'OK', onPress: () => navigation.goBack() },
-          ]);
-          return;
+            // Fetch creator data for reliability display
+            if (eventData.createdBy) {
+              try {
+                const creatorRef = doc(db, 'users', eventData.createdBy);
+                const creatorSnap = await getDoc(creatorRef);
+                if (creatorSnap.exists()) {
+                  setCreatorData({ id: creatorSnap.id, ...creatorSnap.data() });
+                }
+              } catch (err) {
+                console.error('Failed to fetch creator data:', err);
+              }
+            }
+          } else {
+            Alert.alert(
+              'Event Not Found',
+              'This event may have been deleted.',
+              [{ text: 'OK', onPress: () => navigation.goBack() }]
+            );
+          }
+        } catch (err) {
+          console.error('Failed to fetch event:', err);
+          Alert.alert('Error', 'Failed to load event details.');
         }
-
-        const data = eventDoc.data();
-
-        // Check permissions
-        const permissions = getUserEventPermissions(currentUserId, userData, {
-          ...data,
-          id: eventId,
-        });
-        if (!permissions.canEdit) {
-          Alert.alert(
-            'Error',
-            'You do not have permission to edit this event',
-            [{ text: 'OK', onPress: () => navigation.goBack() }]
-          );
-          return;
-        }
-
-        // Convert Firestore timestamp to Date
-        const eventDateTime = data.eventTimestamp?.toDate() || new Date();
-
-        const eventInfo = {
-          title: data.title || '',
-          location: data.location || '',
-          details: data.details || data.desc || '', // handle both field names
-          maxGuests: data.maxGuests?.toString() || '',
-          date: eventDateTime,
-          time: eventDateTime,
-          hasFee: data.hasFee || false,
-          entryFee: data.entryFee || '',
-          feeDescription: data.feeDescription || '',
-        };
-
-        setEventData(eventInfo);
-      } catch (error) {
-        console.error('Error loading event:', error);
-        Alert.alert('Error', 'Failed to load event data', [
-          { text: 'OK', onPress: () => navigation.goBack() },
-        ]);
-      } finally {
-        setIsLoadingEvent(false);
-      }
-    };
-
-    loadEvent();
-    loadSuggestions();
-  }, [eventId, currentUserId, userData, navigation, loadSuggestions]);
-
-  // Filtered suggestions
-  const filteredSuggestions = useMemo(
-    () => ({
-      title: filterSuggestions(formData.title, suggestions.titles),
-      location: filterSuggestions(formData.location, suggestions.locations),
-      details: filterSuggestions(formData.details, suggestions.details),
-    }),
-    [formData.title, formData.location, formData.details, suggestions]
-  );
-
-  // Template save function
-  const saveAsTemplate = async () => {
-    if (!templateName.trim()) {
-      Alert.alert('Error', 'Please enter a template name');
-      return;
-    }
-
-    try {
-      const templateData = {
-        name: templateName,
-        title: formData.title,
-        location: formData.location,
-        details: formData.details,
-        maxGuests: formData.maxGuests,
-        hasFee: formData.hasFee || false,
-        entryFee: formData.entryFee || '',
-        feeDescription: formData.feeDescription || '',
-        createdBy: currentUserId,
-        createdAt: Timestamp.now(),
       };
 
-      await addDoc(collection(db, 'event_templates'), templateData);
+      fetchEvent();
+    }, [currentUserId, userData, eventId, navigation])
+  );
 
-      Alert.alert('Success', 'Template saved successfully!');
-      setShowSaveTemplate(false);
-      setTemplateName('');
-    } catch (error) {
-      console.error('Error saving template:', error);
-      Alert.alert('Error', 'Failed to save template');
+  const handleSubscribe = async () => {
+    if (!event || isLoading || !currentUserId) return;
+
+    // Validate user can join (reliability checks)
+    if (!isSubscribed) {
+      const canJoin = await validateUserCanJoinEvent(userData, event);
+      if (!canJoin) return;
+    }
+
+    setIsLoading(true);
+    try {
+      const eventRef = doc(db, 'events', eventId);
+      const userRef = doc(db, 'users', currentUserId);
+
+      // Check if user document exists, create if not
+      const userSnap = await getDoc(userRef);
+      if (!userSnap.exists()) {
+        await setDoc(userRef, {
+          subscribedEvents: [],
+          eventsCreated: 0,
+          eventsAttended: 0,
+          noShows: 0,
+          createdAt: new Date(),
+          uid: currentUserId,
+        });
+      }
+
+      if (isSubscribed) {
+        // Unsubscribe - update BOTH documents
+        await updateDoc(eventRef, {
+          subscribers: arrayRemove(currentUserId),
+          subscriberCount: increment(-1),
+        });
+
+        await updateDoc(userRef, {
+          subscribedEvents: arrayRemove(eventId),
+          lastActivity: new Date(),
+        });
+
+        setIsSubscribed(false);
+        Alert.alert('Unsubscribed', 'You have been removed from this event.');
+      } else {
+        // Subscribe - update BOTH documents and metrics
+        await updateDoc(eventRef, {
+          subscribers: arrayUnion(currentUserId),
+          subscriberCount: increment(1),
+        });
+
+        // Use the metrics utility function for subscription
+        await updateEventSubscription(currentUserId, eventId);
+
+        setIsSubscribed(true);
+        Alert.alert('Subscribed!', 'You have been added to this event.');
+      }
+
+      // Update local state
+      setEvent((prev) => ({
+        ...prev,
+        subscriberCount: (prev.subscriberCount || 0) + (isSubscribed ? -1 : 1),
+        subscribers: isSubscribed
+          ? (prev.subscribers || []).filter((id) => id !== currentUserId)
+          : [...(prev.subscribers || []), currentUserId],
+      }));
+    } catch (err) {
+      console.error('Failed to update subscription:', err);
+      Alert.alert('Error', 'Failed to update subscription. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Load template function
-  const loadFromTemplate = (template) => {
-    updateField('title', template.title);
-    updateField('location', template.location);
-    updateField('details', template.details);
-    updateField('maxGuests', template.maxGuests);
-    updateField('hasFee', template.hasFee || false);
-    updateField('entryFee', template.entryFee || '');
-    updateField('feeDescription', template.feeDescription || '');
-    // Keep current date/time
+  const handleInvite = async () => {
+    if (!event) return;
+
+    // Replace these URLs with your actual app store links when published
+    const appStoreUrl = 'https://apps.apple.com/app/your-app-name/id123456789';
+    const playStoreUrl =
+      'https://play.google.com/store/apps/details?id=com.yourapp.name';
+
+    const inviteMessage = `Hey! Thought you might be interested in this event: "${event.title}"
+
+📅 When: ${FormatDate(event.utcDateTime, event.eventTimeZone)}
+📍 Where: ${event.location}
+
+📱 Download our app to check it out:
+iPhone: ${appStoreUrl}
+Android: ${playStoreUrl}
+
+Let me know if you're going! 🎉`;
+
+    try {
+      const smsUrl =
+        Platform.OS === 'ios'
+          ? `sms:&body=${encodeURIComponent(inviteMessage)}`
+          : `sms:?body=${encodeURIComponent(inviteMessage)}`;
+
+      await Linking.openURL(smsUrl);
+    } catch (error) {
+      console.error('Failed to open SMS:', error);
+      Alert.alert('Error', 'Unable to open SMS app. Please try again.');
+    }
+  };
+
+  const handleDelete = () => {
+    if (!permissions.canDelete) {
+      Alert.alert('Error', 'You do not have permission to delete this event.');
+      return;
+    }
+
+    const subscriberCount = event.subscriberCount || 0;
+    const warningMessage =
+      subscriberCount > 1
+        ? `This event has ${subscriberCount} subscribers who will lose access. This action cannot be undone.`
+        : 'This action cannot be undone.';
 
     Alert.alert(
-      'Template Loaded',
-      `"${template.name}" has been loaded. Date and time remain unchanged.`
+      'Delete Event',
+      `Are you sure you want to delete "${event.title}"? ${warningMessage}`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: performDelete,
+        },
+      ]
     );
   };
 
-  // Input handlers
-  const handleInputChange = useCallback(
-    (field, value) => {
-      updateField(field, value);
-
-      if (['title', 'location'].includes(field) && !isLoading) {
-        setSuggestionVisibility((prev) => ({
-          ...prev,
-          [field]: true,
-        }));
-      }
-
-      if (field === 'details' && value.length < 5 && !isLoading) {
-        setSuggestionVisibility((prev) => ({ ...prev, details: true }));
-      } else if (field === 'details' && value.length >= 5) {
-        setSuggestionVisibility((prev) => ({ ...prev, details: false }));
-      }
-    },
-    [updateField, isLoading]
-  );
-
-  // Suggestion handlers
-  const handleSuggestionSelect = useCallback(
-    (field, suggestion) => {
-      if (field === 'details' && formData.details.length > 0) {
-        const separator = formData.details.match(/[.!?]$/) ? ' ' : '. ';
-        updateField('details', formData.details + separator + suggestion);
-      } else {
-        updateField(field, suggestion);
-      }
-      setSuggestionVisibility((prev) => ({ ...prev, [field]: false }));
-    },
-    [formData.details, updateField]
-  );
-
-  const hideSuggestions = useCallback((field) => {
-    setTimeout(() => {
-      setSuggestionVisibility((prev) => ({ ...prev, [field]: false }));
-    }, 150);
-  }, []);
-
-  // Date/Time handlers
-  const handleDateConfirm = useCallback(
-    (selectedDate) => {
-      updateField('date', selectedDate);
-      updateField('dateSelected', true);
-      setShowDatePicker(false);
-    },
-    [updateField]
-  );
-
-  const handleTimeConfirm = useCallback(
-    (selectedTime) => {
-      updateField('time', selectedTime);
-      updateField('timeSelected', true);
-      setShowTimePicker(false);
-    },
-    [updateField]
-  );
-
-  // Save event handler
-  const handleSave = useCallback(async () => {
-    if (!currentUserId) {
-      Alert.alert('Error', 'You must be logged in to edit events.');
-      return;
-    }
-
-    const validation = validateEventForm(formData);
-    if (!validation.isValid) {
-      Alert.alert('Error', validation.message);
-      return;
-    }
-
-    setIsSaving(true);
-
+  const performDelete = async () => {
     try {
-      const updatedEventData = formatEventForStorage(formData, currentUserId);
-      updatedEventData.updatedAt = Timestamp.now();
-      updatedEventData.eventTimestamp = Timestamp.fromDate(
-        updatedEventData.eventTimestamp
+      // Get all subscribers before deleting the event
+      const subscriberIds = event.subscribers || [];
+      const creatorId = event.createdBy;
+
+      // Delete the event first
+      await deleteDoc(doc(db, 'events', eventId));
+
+      // Clean up user metrics for all affected users
+      const cleanupPromises = [];
+
+      // Remove event from all subscribers' arrays
+      subscriberIds.forEach((userId) => {
+        const userRef = doc(db, 'users', userId);
+        cleanupPromises.push(
+          updateDoc(userRef, {
+            subscribedEvents: arrayRemove(eventId),
+            lastActivity: new Date(),
+          }).catch((err) => {
+            console.error(`Failed to cleanup subscriber ${userId}:`, err);
+          })
+        );
+      });
+
+      // Decrement eventsCreated for the creator (if they exist in subscribers)
+      if (creatorId && subscriberIds.includes(creatorId)) {
+        const creatorRef = doc(db, 'users', creatorId);
+        cleanupPromises.push(
+          updateDoc(creatorRef, {
+            eventsCreated: increment(-1),
+            lastActivity: new Date(),
+          }).catch((err) => {
+            console.error(`Failed to cleanup creator metrics:`, err);
+          })
+        );
+      }
+
+      // Wait for all cleanup operations to complete
+      await Promise.allSettled(cleanupPromises);
+
+      console.log(
+        `Event ${eventId} deleted and cleaned up metrics for ${subscriberIds.length} users`
       );
 
-      await updateDoc(doc(db, 'events', eventId), updatedEventData);
-
-      Alert.alert('Success!', 'Event updated successfully!', [
-        { text: 'OK', onPress: () => navigation.goBack() },
+      Alert.alert('Deleted', 'Event has been deleted successfully.', [
+        {
+          text: 'OK',
+          onPress: () => {
+            // Navigate back to the previous screen
+            navigation.goBack();
+          },
+        },
       ]);
-    } catch (error) {
-      console.error('Error updating event:', error);
-      Alert.alert('Error', 'Failed to update event. Please try again.');
-    } finally {
-      setIsSaving(false);
+    } catch (err) {
+      console.error('Failed to delete event:', err);
+      Alert.alert('Error', 'Failed to delete event. Please try again.');
     }
-  }, [currentUserId, formData, eventId, navigation]);
+  };
 
-  // Show loading screen while event loads
-  if (isLoadingEvent) {
+  if (!event) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text style={styles.loadingText}>Loading event...</Text>
+        <ActivityIndicator size="large" color="#fff" />
       </View>
     );
   }
 
+  // Use utility functions instead of local ones
+  const eventStatus = getEventStatus(event);
+  const statusColor = getStatusColor(eventStatus);
+  const isEventPast = isPastEvent(event);
+  const isFullEvent = isEventFull(event);
+  const permissions = getUserEventPermissions(currentUserId, userData, event);
+  const joinConstraints = validateEventJoinConstraints(event, isSubscribed);
+
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Header */}
-        <View style={styles.headerContainer}>
-          <Text style={styles.title}>✏️ Edit Event</Text>
-          <Pressable style={styles.helpButton} onPress={showTipsManually}>
-            <Text style={styles.helpButtonText}>💡</Text>
-          </Pressable>
-        </View>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <Text style={styles.title}>{event.title}</Text>
 
-        <ReliabilityWarning userData={userData} context="edit" />
+      {/* Event Status Badge */}
+      <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
+        <Text style={styles.statusText}>{eventStatus}</Text>
+      </View>
 
-        {isLoading && (
-          <Text style={styles.loadingText}>Loading suggestions...</Text>
-        )}
-
-        {/* Event Name */}
-        <Text style={styles.label}>Event Name *</Text>
-        <View style={styles.inputContainer}>
-          <VibeInput
-            value={formData.title}
-            onChangeText={(text) => handleInputChange('title', text)}
-            onFocus={() =>
-              !isLoading &&
-              setSuggestionVisibility((prev) => ({ ...prev, title: true }))
-            }
-            onBlur={() => hideSuggestions('title')}
-            placeholder="Enter event name"
-            maxLength={100}
-          />
-          <VibeAutoComplete
-            suggestions={filteredSuggestions.title}
-            onSelect={(suggestion) =>
-              handleSuggestionSelect('title', suggestion)
-            }
-            visible={suggestionVisibility.title && !isLoading}
-          />
-        </View>
-
-        {/* Date & Time */}
-        <Text style={styles.label}>When *</Text>
-        <View style={styles.row}>
-          <View style={styles.flex}>
-            <VibeButtonPlain
-              label={
-                formData.dateSelected
-                  ? formData.date.toLocaleDateString([], {
-                      weekday: 'short',
-                      month: 'short',
-                      day: 'numeric',
-                    })
-                  : '📅 Date'
-              }
-              onPress={() => setShowDatePicker(true)}
-              style={!formData.dateSelected && styles.unselectedButton}
-            />
-          </View>
-          <View style={styles.flex}>
-            <VibeButtonPlain
-              label={
-                formData.timeSelected
-                  ? formData.time.toLocaleTimeString([], {
-                      hour: 'numeric',
-                      minute: '2-digit',
-                    })
-                  : '⏰ Time'
-              }
-              onPress={() => setShowTimePicker(true)}
-              style={!formData.timeSelected && styles.unselectedButton}
-            />
-          </View>
-        </View>
-
-        {/* Location */}
-        <Text style={styles.label}>Location *</Text>
-        <View style={styles.inputContainer}>
-          <VibeInput
-            value={formData.location}
-            onChangeText={(text) => handleInputChange('location', text)}
-            onFocus={() =>
-              !isLoading &&
-              setSuggestionVisibility((prev) => ({ ...prev, location: true }))
-            }
-            onBlur={() => hideSuggestions('location')}
-            placeholder="Enter event location"
-            maxLength={200}
-          />
-          <VibeAutoComplete
-            suggestions={filteredSuggestions.location}
-            onSelect={(suggestion) =>
-              handleSuggestionSelect('location', suggestion)
-            }
-            visible={suggestionVisibility.location && !isLoading}
-          />
-        </View>
-
-        {/* Max Guests */}
-        <Text style={styles.label}>Max Guests (optional)</Text>
-        <VibeInput
-          value={formData.maxGuests}
-          onChangeText={(text) => updateField('maxGuests', text)}
-          keyboardType="numeric"
-          maxLength={4}
-          placeholder="Enter max guests"
-        />
-
-        {/* Entry Fee */}
-        <Text style={styles.label}>Entry Fee</Text>
-        <VibeSegmentedControl
-          options={[
-            { value: false, label: 'Free', icon: '🆓' },
-            { value: true, label: 'Paid', icon: '💰' },
-          ]}
-          selectedValue={formData.hasFee}
-          onSelect={(value) => updateField('hasFee', value)}
-        />
-
-        {/* Show fee inputs if paid is selected */}
-        {formData.hasFee && (
-          <>
-            <Text style={styles.label}>Entry Fee Amount *</Text>
-            <VibeInput
-              value={formData.entryFee}
-              onChangeText={(text) => updateField('entryFee', text)}
-              placeholder="$10.00"
-              keyboardType="numeric"
-            />
-
-            <Text style={styles.label}>What's Included? (optional)</Text>
-            <VibeInput
-              value={formData.feeDescription}
-              onChangeText={(text) => updateField('feeDescription', text)}
-              placeholder="Food, drinks, materials, etc."
-              maxLength={200}
-            />
-          </>
-        )}
-
-        {/* Details */}
-        <Text style={styles.label}>Details</Text>
-        <View style={styles.inputContainer}>
-          <VibeInput
-            value={formData.details}
-            onChangeText={(text) => handleInputChange('details', text)}
-            onFocus={() =>
-              !isLoading &&
-              formData.details.length < 5 &&
-              setSuggestionVisibility((prev) => ({ ...prev, details: true }))
-            }
-            onBlur={() => hideSuggestions('details')}
-            multiline
-            placeholder="Add any additional details about your event..."
-            style={{
-              minHeight: 80,
-              textAlignVertical: 'top',
-              height: Math.max(80, formData.inputHeight),
-            }}
-            onContentSizeChange={(e) =>
-              updateField('inputHeight', e.nativeEvent.contentSize.height)
-            }
-            maxLength={500}
-          />
-          <VibeAutoComplete
-            suggestions={filteredSuggestions.details}
-            onSelect={(suggestion) =>
-              handleSuggestionSelect('details', suggestion)
-            }
-            visible={suggestionVisibility.details && !isLoading}
-          />
-        </View>
-
-        {/* Template Buttons */}
-        <View style={styles.templateButtons}>
-          <VibeButtonPlain
-            label="📋 Use Template"
-            onPress={() => setShowTemplateModal(true)}
-            style={styles.templateButton}
-          />
-
-          <VibeButtonPlain
-            label="💾 Save as Template"
-            onPress={() => setShowSaveTemplate(true)}
-            style={styles.templateButton}
-          />
-        </View>
-
-        {/* Save Button */}
-        <VibeButton
-          label={isSaving ? 'SAVING...' : 'SAVE CHANGES'}
-          onPress={handleSave}
-          style={[styles.saveButton, isSaving && styles.disabledButton]}
-          disabled={isSaving}
-        />
-
-        <Text style={styles.helpText}>
-          * Required fields{'\n'}
-          💡 Use templates to quickly update similar events
+      <View style={styles.metaContainer}>
+        <Text style={styles.meta}>
+          📅 {FormatDate(event.utcDateTime, event.eventTimeZone)}
         </Text>
-      </ScrollView>
+        <Text style={styles.meta}>📍 {event.location}</Text>
 
-      {/* Modals */}
-      <DateTimePickerModal
-        isVisible={showDatePicker}
-        mode="date"
-        date={formData.date}
-        minimumDate={new Date()}
-        onConfirm={handleDateConfirm}
-        onCancel={() => setShowDatePicker(false)}
+        <View style={styles.guestInfo}>
+          <Text style={styles.meta}>
+            👥 {event.subscriberCount || 0} attending
+            {event.maxGuests && ` (max ${event.maxGuests})`}
+          </Text>
+          {isFullEvent && !isSubscribed && (
+            <Text style={styles.fullText}>Event is full</Text>
+          )}
+          {joinConstraints.reason && (
+            <Text
+              style={[
+                styles.constraintText,
+                { color: joinConstraints.canJoin ? '#FF9800' : '#F44336' },
+              ]}
+            >
+              {joinConstraints.reason}
+            </Text>
+          )}
+        </View>
+
+        {/* Creator Info with Reliability */}
+        <EventCreatorInfo
+          creatorData={creatorData}
+          showLabel={true}
+          showReliability={true}
+          onPress={() => setShowHostProfile(true)}
+        />
+      </View>
+
+      {/* Host Profile Modal */}
+      <HostProfileModal
+        visible={showHostProfile}
+        onClose={() => setShowHostProfile(false)}
+        hostData={creatorData}
+        currentUserId={currentUserId}
+        onFollow={(hostId, isFollowing) => {
+          // Future: implement follow functionality
+          console.log(
+            `${isFollowing ? 'Following' : 'Unfollowing'} host ${hostId}`
+          );
+        }}
       />
 
-      <VibeTimePicker
-        visible={showTimePicker}
-        initialTime={formData.time}
-        onConfirm={handleTimeConfirm}
-        onClose={() => setShowTimePicker(false)}
-      />
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Details</Text>
+        <Text style={styles.details}>
+          {event.desc || 'No details provided.'}
+        </Text>
+      </View>
 
-      <EventTipsModal type="edit" visible={showTips} onClose={closeTips} />
+      <View style={styles.buttonContainer}>
+        {!isEventPast && (
+          <VibeButton
+            label={isSubscribed ? 'LEAVE EVENT' : 'JOIN EVENT'}
+            onPress={handleSubscribe}
+            variant={isSubscribed ? 'outline' : 'filled'}
+            disabled={isLoading || (!isSubscribed && !joinConstraints.canJoin)}
+            style={[isSubscribed && styles.unsubscribeButton]}
+          />
+        )}
 
-      {/* Template Modals */}
-      <TemplateSelectionModal
-        visible={showTemplateModal}
-        onClose={() => setShowTemplateModal(false)}
-        templates={templates}
-        onSelectTemplate={loadFromTemplate}
-        onDeleteTemplate={deleteTemplate}
-      />
+        <VibeButton
+          label="INVITE FRIENDS"
+          onPress={handleInvite}
+          variant="outline"
+        />
 
-      <SaveTemplateModal
-        visible={showSaveTemplate}
-        onClose={() => setShowSaveTemplate(false)}
-        templateName={templateName}
-        setTemplateName={setTemplateName}
-        onSave={saveAsTemplate}
-      />
-    </KeyboardAvoidingView>
+        {/* Edit button for event creators/admins */}
+        {permissions.canEdit && (
+          <VibeButton
+            label="EDIT EVENT"
+            onPress={() => {
+              console.log('edit button pressed');
+              navigation.navigate('EditEvent', { eventId });
+            }}
+            variant="outline"
+          />
+        )}
+
+        {/* Delete button for event creators/admins */}
+        {permissions.canDelete && (
+          <VibeButton
+            label="DELETE EVENT"
+            onPress={handleDelete}
+            variant="outline"
+            style={styles.deleteButton}
+          />
+        )}
+
+        {/* Attendance management for past events */}
+        {permissions.canManageAttendance && (
+          <VibeButton
+            label="MANAGE ATTENDANCE"
+            onPress={() => navigation.navigate('EventAttendance', { eventId })}
+            variant="outline"
+            style={styles.attendanceButton}
+          />
+        )}
+      </View>
+
+      {isEventPast && (
+        <Text style={styles.pastEventText}>
+          {event.status === 'completed'
+            ? `Event completed with ${event.attendeeCount || 0} attendees`
+            : 'This event has ended'}
+        </Text>
+      )}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
-    padding: 20,
+    backgroundColor: '#000',
   },
-  scrollContent: {
-    paddingBottom: 100,
+  content: {
+    padding: 20,
+    paddingBottom: 40,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: theme.colors.background,
-  },
-  loadingText: {
-    color: theme.colors.textSecondary,
-    fontSize: 16,
-    marginTop: 10,
-    fontFamily: theme.fonts.main,
-  },
-  headerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
+    backgroundColor: '#000',
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: theme.colors.textPrimary,
-    fontFamily: theme.fonts.main,
-    flex: 1,
-  },
-  helpButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0, 198, 255, 0.15)',
-    borderWidth: 1,
-    borderColor: theme.colors.alertButton,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 12,
-  },
-  helpButtonText: {
-    fontSize: 18,
-  },
-  label: {
-    marginTop: 20,
-    marginBottom: 5,
-    fontWeight: '600',
-    color: theme.colors.textPrimary,
-    fontSize: 16,
-    fontFamily: theme.fonts.main,
-  },
-  inputContainer: {
-    position: 'relative',
-    zIndex: 1,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  flex: {
-    flex: 1,
-  },
-  templateButtons: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  templateButton: {
-    flex: 1,
-  },
-  saveButton: {
-    marginTop: 30,
-  },
-  disabledButton: {
-    opacity: 0.6,
-  },
-  unselectedButton: {
-    opacity: 0.7,
-  },
-  helpText: {
-    color: theme.colors.textSecondary,
-    fontSize: 12,
+    color: '#fff',
+    marginBottom: 16,
     textAlign: 'center',
+  },
+  statusBadge: {
+    alignSelf: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginBottom: 20,
+  },
+  statusText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  metaContainer: {
+    backgroundColor: '#1a1a1a',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 24,
+  },
+  meta: {
+    color: '#ccc',
+    fontSize: 16,
+    marginBottom: 8,
+    lineHeight: 22,
+  },
+  guestInfo: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#333',
+  },
+  fullText: {
+    color: '#ff6b6b',
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  constraintText: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 4,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    color: '#fff',
+    fontSize: 18,
+    marginBottom: 12,
+    fontWeight: '600',
+  },
+  details: {
+    color: '#ddd',
+    fontSize: 16,
+    lineHeight: 24,
+    backgroundColor: '#1a1a1a',
+    padding: 16,
+    borderRadius: 12,
+  },
+  unsubscribeButton: {
+    borderColor: '#ff6b6b',
+  },
+  attendanceButton: {
+    borderColor: '#4CAF50',
+  },
+  deleteButton: {
+    borderColor: '#F44336',
+  },
+  pastEventText: {
+    color: '#888',
+    fontSize: 16,
+    textAlign: 'center',
+    fontStyle: 'italic',
     marginTop: 16,
-    lineHeight: 16,
-    fontFamily: theme.fonts.main,
   },
 });
