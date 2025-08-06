@@ -1,0 +1,564 @@
+# 📱 Event App Reference Guide
+
+## 📁 Complete File Structure
+
+```
+├── App.js
+├── index.js
+├── .eslintrc.js
+├── .prettierrc
+├── package.json
+├── package-lock.json
+│
+├── /node_modules
+├── /assets
+│
+├── /src
+│   ├── AuthContext.js                  # Authentication context & user data
+│   ├── FirebaseAuthService.js          # Firebase auth methods
+│   ├── FirestoreService.js             # Firestore database operations
+│   ├── Navigation.js                   # App navigation structure
+│
+│   ├── /components
+│   │   ├── BrainstormCard.js           # Brainstorming/idea cards
+│   │   ├── EmptyStateView.js           # Empty states for no events
+│   │   ├── EventAttendanceManager.js   # Attendance tracking interface
+│   │   ├── EventCard.js                # Individual event display card
+│   │   ├── EventCreationInfo.js        # Event creation info display
+│   │   ├── EventTips.js                # Event tips components
+│   │   ├── EventTipsModals.js          # Smart tips modal system
+│   │   ├── HelpButton.js               # Help button components
+│   │   ├── HostProfileModals.js        # Host profile with metrics
+│   │   ├── ReliabilityWarning.js       # User warning component
+│   │   ├── UserReliabilityCard.js      # User stats display
+│   │   ├── VibeAlerts.js               # Custom alert components
+│   │   ├── VibeButton.js               # Main button component
+│   │   ├── VibeButtonPlain.js          # Plain button variant
+│   │   ├── VibeCarousel.js             # Horizontal scrolling carousel
+│   │   ├── VibeInputs.js               # Text input components
+│   │   ├── VibeScreens.js              # Screen wrapper components
+│   │   └── VibeWrappedScreen.js        # Screen container with common logic
+│
+│   ├── /screens
+│   │   ├── BigVibeCelebration.js       # Success/celebration screen
+│   │   ├── ContactInfoScreen.js        # User contact information
+│   │   ├── CreateEventScreen.js        # Event creation with utilities
+│   │   ├── EditEventScreen.js          # Event editing with change tracking
+│   │   ├── EventDetailScreen.js        # Event details with host profiles
+│   │   ├── HomeScreen.js               # Home with empty states
+│   │   ├── LandingScreen.js            # App landing/welcome screen
+│   │   ├── LoginScreen.js              # User authentication
+│   │   └── SignUpScreen.js             # User registration
+│
+│   ├── /themes
+│   │   └── themes.js                   # App theme/styling constants
+│
+│   ├── /utils
+│   │   ├── eventFormValidation.js      # Form validation utilities
+│   │   ├── eventStatus.js              # Event status utilities
+│   │   ├── eventUtils.js               # Central exports file
+│   │   ├── eventValidation.js          # User validation logic (*)
+│   │   ├── FormatDate.js               # Date formatting utility
+│   │   ├── notificationUtils.js        # Change notification system
+│   │   ├── userMetrics.js              # User metrics & tracking
+│   │   ├── constants.js                # App-wide constants (*)
+│   │   ├── helpers.js                  # General helper functions (*)
+│   │   └── apiUtils.js                 # API/Firebase helpers (*)
+
+(*) = Utilities that would be helpful to see/create
+```
+
+---
+
+## 🎨 Existing Components Reference
+
+### **VibeButton** - Main button component
+```javascript
+import VibeButton from '../components/VibeButton';
+
+<VibeButton
+  label="CREATE EVENT"
+  onPress={handlePress}
+  variant="filled" // 'filled', 'outline'
+  disabled={isLoading}
+  style={customStyles}
+/>
+```
+
+### **VibeButtonPlain** - Plain button variant
+```javascript
+import VibeButtonPlain from '../components/VibeButtonPlain';
+
+<VibeButtonPlain
+  label="📅 Date"
+  onPress={() => setPickerMode('date')}
+  style={unselectedStyle}
+/>
+```
+
+### **VibeInputs** - Styled text input components
+```javascript
+import VibeInput from '../components/VibeInputs'; // Note: plural filename
+
+<VibeInput
+  value={title}
+  onChangeText={setTitle}
+  placeholder="Enter event name"
+  multiline={false}
+  keyboardType="default"
+  maxLength={100}
+  style={customStyles}
+/>
+```
+
+### **VibeCarousel** - Horizontal event carousel
+```javascript
+import VibeCarousel from '../components/VibeCarousel';
+
+<VibeCarousel
+  data={events}
+  renderItem={(item, isScrolling) => (
+    <EventCard {...item} onPress={() => navigate(item.id)} />
+  )}
+/>
+```
+
+### **EventCard** - Individual event display
+```javascript
+import EventCard from '../components/EventCard';
+
+<EventCard
+  id={event.id}
+  title={event.title}
+  location={event.location}
+  eventTimestamp={event.eventTimestamp}
+  subscriberCount={event.subscriberCount}
+  maxGuests={event.maxGuests}
+  onPress={() => navigation.navigate('EventDetail', { eventId: event.id })}
+/>
+```
+
+### **VibeScreens & VibeWrappedScreen** - Screen containers
+```javascript
+import VibeWrappedScreen from '../components/VibeWrappedScreen';
+// OR
+import { SomeScreen } from '../components/VibeScreens';
+
+// Likely provides common screen layout, loading states, etc.
+```
+
+### **VibeAlerts** - Custom alert components
+```javascript
+import { SomeAlert } from '../components/VibeAlerts';
+
+// Custom alert/notification components with app styling
+```
+
+---
+
+## 🔧 Core Services Reference
+
+### **AuthContext** - Authentication state
+```javascript
+import { useAuth } from '../AuthContext';
+
+const { currentUserId, userData, isAuthenticated } = useAuth();
+// Provides: user ID, user data object, auth status
+```
+
+### **FirebaseAuthService** - Auth operations
+```javascript
+import FirebaseAuthService from '../FirebaseAuthService';
+
+// Likely contains: login, signup, logout, password reset, etc.
+```
+
+### **FirestoreService** - Database operations
+```javascript
+import FirestoreService from '../FirestoreService';
+
+// Likely contains: CRUD operations, queries, batch operations, etc.
+```
+
+### **FormatDate** - Date formatting utility
+```javascript
+import { FormatDate } from '../utils/FormatDate';
+
+const formattedDate = FormatDate(event.utcDateTime, event.eventTimeZone);
+// Returns formatted date string respecting timezone
+```
+
+### **themes.js** - Styling constants
+```javascript
+import { colors, fonts, spacing } from '../themes/themes';
+
+// App-wide styling constants and theme values
+```
+
+---
+
+## 💡 Utilities I'd Like to See (for future reference)
+
+### **constants.js** - App constants
+```javascript
+// Would be helpful to see:
+export const APP_CONSTANTS = {
+  MAX_EVENT_TITLE_LENGTH: 100,
+  MAX_EVENT_DESCRIPTION_LENGTH: 500,
+  MAX_EVENTS_PER_USER: 50,
+  DEFAULT_EVENT_DURATION: 2, // hours
+  MIN_ADVANCE_BOOKING: 30, // minutes
+};
+
+export const EVENT_STATUSES = {
+  UPCOMING: 'upcoming',
+  ONGOING: 'ongoing', 
+  COMPLETED: 'completed',
+  CANCELLED: 'cancelled'
+};
+```
+
+### **helpers.js** - General utilities
+```javascript
+// Would be helpful to see:
+export const truncateText = (text, maxLength) => { /* */ };
+export const generateUniqueId = () => { /* */ };
+export const debounce = (func, wait) => { /* */ };
+export const capitalizeFirst = (str) => { /* */ };
+```
+
+### **apiUtils.js** - API/Firebase helpers
+```javascript
+// Would be helpful to see:
+export const handleFirebaseError = (error) => { /* */ };
+export const batchUpdateUsers = (updates) => { /* */ };
+export const createBackup = (data) => { /* */ };
+```
+
+### **eventValidation.js** - Missing validation file
+```javascript
+// We created this but it's not in your structure yet:
+export const validateUserCanJoinEvent = (userData, event) => { /* */ };
+export const getUserEventPermissions = (userId, userData, event) => { /* */ };
+export const getReliabilityWarning = (userData) => { /* */ };
+```
+
+---
+
+## 🔧 Key Utilities Reference
+
+### **Event Status Utils** (`eventStatus.js`)
+```javascript
+import { getEventStatus, getStatusColor, isPastEvent, isEventFull } from '../utils/eventUtils';
+
+// Get event status
+const status = getEventStatus(event); // 'Upcoming', 'Starting Soon', 'Completed', 'Ended'
+const color = getStatusColor(status); // Returns hex color
+
+// Check event state
+const isPast = isPastEvent(event);
+const isFull = isEventFull(event);
+const timeUntil = formatTimeUntilEvent(event); // "2 hours away"
+```
+
+### **User Validation Utils** (`eventValidation.js`)
+```javascript
+import { 
+  validateUserCanJoinEvent, 
+  getUserEventPermissions,
+  getReliabilityWarning 
+} from '../utils/eventUtils';
+
+// Check if user can join (reliability checks)
+const canJoin = await validateUserCanJoinEvent(userData, event);
+
+// Get user permissions for event
+const permissions = getUserEventPermissions(currentUserId, userData, event);
+// Returns: { canEdit, canDelete, canManageAttendance, isCreator, isAdmin }
+
+// Get reliability warning info
+const warning = getReliabilityWarning(userData);
+// Returns: { shouldWarn, level, message, color }
+```
+
+### **Form Validation Utils** (`eventFormValidation.js`)
+```javascript
+import { validateEventForm, formatEventForStorage } from '../utils/eventUtils';
+
+// Validate form data
+const validation = validateEventForm({
+  title, location, dateSelected, timeSelected, maxGuests, date, time
+});
+
+// Format for database storage
+const eventData = formatEventForStorage(
+  { title, location, details, date, time, maxGuests }, 
+  currentUserId
+);
+```
+
+### **User Metrics Utils** (`userMetrics.js`)
+```javascript
+import { 
+  updateEventCreationMetrics,
+  updateEventSubscription,
+  getUserEventStats,
+  cleanupEventDeletion
+} from '../utils/eventUtils';
+
+// Track event creation
+await updateEventCreationMetrics(userId, eventId);
+
+// Track event subscription
+await updateEventSubscription(userId, eventId);
+
+// Get user statistics
+const stats = getUserEventStats(userData);
+// Returns: eventsCreated, eventsAttended, noShows, reliabilityScore, etc.
+
+// Clean up after event deletion
+await cleanupEventDeletion(eventId, subscriberIds, creatorId);
+```
+
+### **Notification Utils** (`notificationUtils.js`)
+```javascript
+import { 
+  processPendingNotifications,
+  generateChangeNotificationContent 
+} from '../utils/eventUtils';
+
+// Process all pending notifications
+const result = await processPendingNotifications();
+
+// Generate notification content
+const content = generateChangeNotificationContent(event);
+// Returns: { title, body, priority }
+```
+
+---
+
+## 🎯 Key Components Reference
+
+### **EmptyStateView** - Smart empty states
+```javascript
+import EmptyStateView from '../components/EmptyStateView';
+
+<EmptyStateView 
+  navigation={navigation} 
+  type="all" // 'all', 'myEvents', 'upcomingEvents', 'pastEvents'
+/>
+```
+
+### **EventTipsModal** - Dismissible tips system
+```javascript
+import EventTipsModal, { useEventTips } from '../components/EventTipsModal';
+
+const { showTips, closeTips, showTipsManually } = useEventTips('create');
+
+<EventTipsModal
+  type="create" // 'create', 'edit', 'first-time'
+  visible={showTips}
+  onClose={closeTips}
+/>
+```
+
+### **HostProfileModal** - Host profile with metrics
+```javascript
+import HostProfileModal from '../components/HostProfileModal';
+
+<HostProfileModal
+  visible={showProfile}
+  onClose={() => setShowProfile(false)}
+  hostData={creatorData}
+  currentUserId={currentUserId}
+  onFollow={(hostId, isFollowing) => {}} // Future implementation
+/>
+```
+
+### **EventCreatorInfo** - Clickable host display
+```javascript
+import EventCreatorInfo from '../components/EventCreatorInfo';
+
+<EventCreatorInfo 
+  creatorData={creatorData}
+  showLabel={true}
+  showReliability={true}
+  onPress={() => setShowHostProfile(true)} // Makes it clickable
+/>
+```
+
+### **ReliabilityWarning** - User warning system
+```javascript
+import ReliabilityWarning from '../components/ReliabilityWarning';
+
+<ReliabilityWarning 
+  userData={userData} 
+  context="create" // 'create', 'join', 'profile', 'general'
+/>
+```
+
+### **UserReliabilityCard** - User stats display
+```javascript
+import { UserReliabilityCard, UserReliabilityMini } from '../components/UserReliabilityCard';
+
+<UserReliabilityCard userData={userData} />
+<UserReliabilityMini userData={userData} /> // Compact version
+```
+
+---
+
+## 📊 Database Schema Additions
+
+### **Events Collection** - New fields
+```javascript
+{
+  // Existing fields...
+  
+  // New tracking fields
+  status: 'upcoming', // 'upcoming', 'ongoing', 'completed', 'cancelled'
+  attendeeCount: 0,
+  noShowCount: 0,
+  
+  // Change tracking for notifications
+  lastChanges: ['title', 'datetime'],
+  lastChangeTimestamp: Timestamp,
+  subscribersToNotify: [userId1, userId2],
+  changesRequireNotification: true,
+  
+  // Metadata
+  updatedBy: userId,
+  finalAttendees: [userId1, userId2], // After completion
+  noShows: [userId3, userId4]         // After completion
+}
+```
+
+### **Users Collection** - New fields
+```javascript
+{
+  // Existing fields...
+  
+  // Metrics
+  eventsCreated: 0,
+  eventsAttended: 0,
+  eventsJoined: 0,
+  noShows: 0,
+  
+  // Arrays
+  subscribedEvents: [eventId1, eventId2],
+  attendedEvents: [eventId1, eventId2],
+  noShowEvents: [eventId3],
+  
+  // Preferences
+  dismissedTips: ['create', 'edit', 'first-time'],
+  
+  // Timestamps
+  lastEventCreated: Timestamp,
+  lastEventAttended: Timestamp,
+  lastNoShow: Timestamp,
+  lastActivity: Timestamp,
+  
+  // Profile info (for host profiles)
+  firstName: 'John',
+  lastName: 'Doe',
+  displayName: 'John Doe',
+  bio: 'Event enthusiast...',
+  phone: '+1234567890',
+  website: 'https://...',
+  socialMedia: 'https://...'
+}
+```
+
+---
+
+## 🎨 Design Patterns Used
+
+### **Smart Component Pattern**
+- Components detect their own state needs
+- Self-contained logic and styling
+- Configurable through props
+
+### **Utility-First Architecture**
+- Business logic extracted to utilities
+- Reusable across components
+- Easy to test and maintain
+
+### **Progressive Enhancement**
+- Basic functionality first
+- Enhanced features added incrementally
+- Graceful degradation for missing data
+
+### **User-Centric Design**
+- Smart defaults and fallbacks
+- Contextual help and guidance
+- Respect for user preferences
+
+---
+
+## 🚀 Key Features Implemented
+
+### ✅ **Empty State System**
+- Context-aware empty states
+- Encouraging messaging
+- Clear next actions
+
+### ✅ **Tips & Help System**
+- Auto-showing tips for new users
+- Dismissible preferences
+- Context-specific guidance
+
+### ✅ **User Metrics & Reliability**
+- Comprehensive event tracking
+- Reliability scoring
+- Visual warnings and badges
+
+### ✅ **Host Profiles**
+- Rich host information
+- Clickable host displays
+- Contact and social features
+
+### ✅ **Change Tracking**
+- Detailed change detection
+- Notification preparation
+- Audit trail maintenance
+
+### ✅ **Event Management**
+- Full CRUD operations
+- Permission-based access
+- Metrics cleanup on deletion
+
+---
+
+## 📋 Next Steps / Future Enhancements
+
+### **Immediate Opportunities**
+- [ ] Implement push notifications
+- [ ] Add follow/unfollow functionality
+- [ ] Create user preference screens
+- [ ] Add event search and filtering
+
+### **Advanced Features**
+- [ ] Event categories and tags
+- [ ] Recurring events
+- [ ] Event templates
+- [ ] Advanced analytics dashboard
+- [ ] Event photo sharing
+- [ ] Check-in QR codes
+
+### **Social Features**
+- [ ] Event comments/discussion
+- [ ] Host ratings and reviews
+- [ ] Friend/follower system
+- [ ] Event recommendations
+
+---
+
+## 💡 Usage Tips
+
+1. **Always import from eventUtils.js** for consistency
+2. **Use the tips modal** for user guidance
+3. **Check permissions** before showing admin actions
+4. **Handle loading states** in all components
+5. **Provide fallbacks** for missing data
+6. **Log important actions** for debugging
+
+---

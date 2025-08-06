@@ -2,6 +2,7 @@
   "expo": {
     "name": "bvs-app",
     "slug": "bvs-app",
+    "scheme": "bvs-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,6 +17,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.bigvibestudios.bvs",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -24,6 +26,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": ["expo-font"],
+    "extra": {
+      "eas": {
+        "projectId": "c108b708-c480-4bd9-80ea-ee79dd8cf7b7"
+      }
     }
   }
 }

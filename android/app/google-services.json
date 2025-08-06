@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "824215388091",
+    "project_id": "bigvibestudios-b9839",
+    "storage_bucket": "bigvibestudios-b9839.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:824215388091:android:dc265c945e407e87ae8e9e",
+        "android_client_info": {
+          "package_name": "com.bigvibestudios.bvs"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "824215388091-4o9j33hu3029qc6gu0mp2eoipadcfqv8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.bigvibestudios.bvs",
+            "certificate_hash": "70669130aa0667597a40050f8426627331065b07"
+          }
+        },
+        {
+          "client_id": "824215388091-hfoep5l3nip6cgpph728q8rk7frpb6fa.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDkelWmTAeDfNwssRz3uh5vKyHkBbyi_OY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "824215388091-hfoep5l3nip6cgpph728q8rk7frpb6fa.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
