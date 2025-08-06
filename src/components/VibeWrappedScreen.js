@@ -5,7 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 export default function VibeWrappedScreen(Component) {
   return (props) => (
     <VibeScreen>
-      <StatusBar style="light" backgroundColor="#000000" />
+      <StatusBar style="light" />
       <Component {...props} />
     </VibeScreen>
   );
