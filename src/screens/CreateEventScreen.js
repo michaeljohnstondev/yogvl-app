@@ -1,3 +1,5 @@
+// FILE: screens/CreateEventScreen.js
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
@@ -81,25 +83,42 @@ const useFormState = () => {
     });
   }, []);
 
-  return { formData, updateField, resetForm };
+  const replaceFormData = useCallback((newFormData) => {
+    console.log('Replacing form data with:', newFormData);
+    setFormData(newFormData);
+  }, []);
+
+  return { formData, updateField, resetForm, replaceFormData };
 };
 
 // Main Component
 export default function CreateEventScreen({ navigation }) {
+  console.log('=== CreateEventScreen rendered ===');
+
   const { currentUserId, userData } = useAuth();
   const { showTips, closeTips, showTipsManually } = useEventTips('create');
-  const { formData, updateField, resetForm } = useFormState();
+  const { formData, updateField, resetForm, replaceFormData } = useFormState();
   const { suggestions, isLoading, loadSuggestions } = useSuggestions();
-  const { templates, saveTemplate, deleteTemplate } =
-    useEventTemplates(currentUserId);
+
+  // All template functionality from the hook
+  const {
+    templates,
+    loading: templatesLoading,
+    templateName,
+    setTemplateName,
+    showSaveTemplate,
+    saveAsTemplate,
+    showSaveTemplateModal,
+    hideSaveTemplateModal,
+    applyTemplate,
+    deleteTemplate,
+  } = useEventTemplates(currentUserId);
 
   // UI State
   const [isCreating, setIsCreating] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
-  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
-  const [templateName, setTemplateName] = useState('');
 
   // Suggestion visibility state
   const [suggestionVisibility, setSuggestionVisibility] = useState({
@@ -123,50 +142,36 @@ export default function CreateEventScreen({ navigation }) {
     loadSuggestions();
   }, [loadSuggestions]);
 
-  // Template save function
-  const saveAsTemplate = async () => {
-    if (!templateName.trim()) {
-      Alert.alert('Error', 'Please enter a template name');
-      return;
-    }
-
-    try {
-      const templateData = {
-        name: templateName.trim(),
-        title: formData.title,
-        location: formData.location,
-        details: formData.details,
-        maxGuests: formData.maxGuests,
-        hasFee: formData.hasFee || false,
-        entryFee: formData.entryFee || '',
-        feeDescription: formData.feeDescription || '',
-        // Don't save date/time - those should be fresh each time
-      };
-
-      await saveTemplate(templateData); // <-- This calls the hook function
-      Alert.alert('Success', 'Template saved successfully!');
-      setShowSaveTemplate(false);
-      setTemplateName('');
-    } catch (error) {
-      console.error('Error saving template:', error);
-      Alert.alert('Error', 'Failed to save template');
-    }
+  // Template handlers - FIXED VERSION
+  const handleSaveAsTemplate = () => {
+    console.log('=== handleSaveAsTemplate called ===');
+    console.log('Current form data:', formData);
+    saveAsTemplate(formData);
   };
 
-  // Load template function
-  const loadFromTemplate = (template) => {
-    updateField('title', template.title);
-    updateField('location', template.location);
-    updateField('details', template.details);
-    updateField('maxGuests', template.maxGuests);
-    updateField('hasFee', template.hasFee || false);
-    updateField('entryFee', template.entryFee || '');
-    updateField('feeDescription', template.feeDescription || '');
-    // Keep current date/time - don't overwrite
+  const handleShowSaveTemplate = () => {
+    console.log('=== handleShowSaveTemplate called ===');
+    showSaveTemplateModal(formData.title);
+  };
+
+  const handleApplyTemplate = (template) => {
+    console.log('=== handleApplyTemplate called ===');
+    console.log('Original template:', template);
+
+    const templateData = applyTemplate(template);
+    console.log('Processed template data:', templateData);
+    console.log('Template date:', templateData.date);
+    console.log('Template dateSelected:', templateData.dateSelected);
+    console.log('Template time:', templateData.time);
+    console.log('Template timeSelected:', templateData.timeSelected);
+
+    // Use template data directly - this fixes the date/time loading issue
+    replaceFormData(templateData);
+    setShowTemplateModal(false);
 
     Alert.alert(
       'Template Loaded',
-      `"${template.name}" has been loaded. Update the date and time as needed.`
+      `"${template.name}" has been loaded. Date and time have been applied from the template.`
     );
   };
 
@@ -214,6 +219,7 @@ export default function CreateEventScreen({ navigation }) {
   // Date/Time handlers
   const handleDateConfirm = useCallback(
     (selectedDate) => {
+      console.log('Date selected:', selectedDate);
       updateField('date', selectedDate);
       updateField('dateSelected', true);
       setShowDatePicker(false);
@@ -223,6 +229,7 @@ export default function CreateEventScreen({ navigation }) {
 
   const handleTimeConfirm = useCallback(
     (selectedTime) => {
+      console.log('Time selected:', selectedTime);
       updateField('time', selectedTime);
       updateField('timeSelected', true);
       setShowTimePicker(false);
@@ -232,6 +239,8 @@ export default function CreateEventScreen({ navigation }) {
 
   // Create event handler
   const handleCreate = useCallback(async () => {
+    console.log('=== handleCreate called ===');
+
     if (!currentUserId) {
       Alert.alert('Error', 'You must be logged in to create events.');
       return;
@@ -262,15 +271,18 @@ export default function CreateEventScreen({ navigation }) {
     setIsCreating(true);
 
     try {
-      console.log('form data:');
-      console.log(formData);
+      console.log('=== Creating event ===');
+      console.log('Form data:', formData);
+
       const eventData = formatEventForStorage(formData, currentUserId);
       eventData.createdAt = Timestamp.now();
       eventData.eventTimestamp = Timestamp.fromDate(eventData.eventTimestamp);
-      console.log('event data:');
-      console.log(eventData);
+
+      console.log('Event data for storage:', eventData);
 
       const eventRef = await addDoc(collection(db, 'events'), eventData);
+      console.log('Event created with ID:', eventRef.id);
+
       await updateEventCreationMetrics(currentUserId, eventRef.id);
 
       loadSuggestions();
@@ -301,6 +313,21 @@ export default function CreateEventScreen({ navigation }) {
     navigation,
   ]);
 
+  // Debug current form state
+  useEffect(() => {
+    console.log('Current form data state:', {
+      dateSelected: formData.dateSelected,
+      timeSelected: formData.timeSelected,
+      date: formData.date,
+      time: formData.time,
+    });
+  }, [
+    formData.dateSelected,
+    formData.timeSelected,
+    formData.date,
+    formData.time,
+  ]);
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -313,7 +340,7 @@ export default function CreateEventScreen({ navigation }) {
       >
         {/* Header */}
         <View style={styles.headerContainer}>
-          <Text style={styles.title}>🔥 Create Event</Text>
+          <Text style={styles.title}>Create Event</Text>
           <Pressable style={styles.helpButton} onPress={showTipsManually}>
             <Text style={styles.helpButtonText}>💡</Text>
           </Pressable>
@@ -321,8 +348,8 @@ export default function CreateEventScreen({ navigation }) {
 
         <ReliabilityWarning userData={userData} context="create" />
 
-        {isLoading && (
-          <Text style={styles.loadingText}>Loading suggestions...</Text>
+        {(isLoading || templatesLoading) && (
+          <Text style={styles.loadingText}>Loading...</Text>
         )}
 
         {/* Event Name */}
@@ -490,7 +517,7 @@ export default function CreateEventScreen({ navigation }) {
 
           <VibeButtonPlain
             label="💾 Save as Template"
-            onPress={() => setShowSaveTemplate(true)}
+            onPress={handleShowSaveTemplate}
             style={styles.templateButton}
           />
         </View>
@@ -534,16 +561,16 @@ export default function CreateEventScreen({ navigation }) {
         visible={showTemplateModal}
         onClose={() => setShowTemplateModal(false)}
         templates={templates}
-        onSelectTemplate={loadFromTemplate}
+        onSelectTemplate={handleApplyTemplate}
         onDeleteTemplate={deleteTemplate}
       />
 
       <SaveTemplateModal
         visible={showSaveTemplate}
-        onClose={() => setShowSaveTemplate(false)}
+        onClose={hideSaveTemplateModal}
         templateName={templateName}
         setTemplateName={setTemplateName}
-        onSave={saveAsTemplate}
+        onSave={handleSaveAsTemplate}
       />
     </KeyboardAvoidingView>
   );

@@ -1,5 +1,7 @@
-// hooks/useEventTemplates.js - REFACTORED VERSION
+// FILE: hooks/useEventTemplates.js - ALL TEMPLATE LOGIC HERE
+
 import { useState, useEffect } from 'react';
+import { Alert } from 'react-native';
 import {
   doc,
   updateDoc,
@@ -12,6 +14,8 @@ import { db } from '../firebase';
 export const useEventTemplates = (currentUserId) => {
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [templateName, setTemplateName] = useState('');
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
 
   // Load templates from user document
   useEffect(() => {
@@ -43,16 +47,46 @@ export const useEventTemplates = (currentUserId) => {
     loadTemplates();
   }, [currentUserId]);
 
-  // Save new template
+  // Low-level save function with undefined value cleaning
   const saveTemplate = async (templateData) => {
     if (!currentUserId) throw new Error('User not logged in');
 
     try {
+      // Deep clean the data to remove undefined values
+      const cleanData = (obj) => {
+        const cleaned = {};
+        for (const [key, value] of Object.entries(obj)) {
+          if (value !== undefined && value !== null) {
+            if (
+              typeof value === 'object' &&
+              !Array.isArray(value) &&
+              !(value instanceof Date)
+            ) {
+              const cleanedNested = cleanData(value);
+              if (Object.keys(cleanedNested).length > 0) {
+                cleaned[key] = cleanedNested;
+              }
+            } else {
+              cleaned[key] = value;
+            }
+          }
+        }
+        return cleaned;
+      };
+
+      const cleanedTemplateData = cleanData(templateData);
+
+      // Add debugging
+      console.log('Original template data:', templateData);
+      console.log('Cleaned template data:', cleanedTemplateData);
+
       const template = {
-        id: Date.now().toString(), // Simple ID generation
-        ...templateData,
+        id: Date.now().toString(),
+        ...cleanedTemplateData,
         createdAt: new Date().toISOString(),
       };
+
+      console.log('Final template to save:', template);
 
       const userRef = doc(db, 'users', currentUserId);
       await updateDoc(userRef, {
@@ -65,6 +99,89 @@ export const useEventTemplates = (currentUserId) => {
       console.error('Error saving template:', error);
       throw error;
     }
+  };
+
+  // High-level save function with UI logic
+  const saveAsTemplate = async (formData) => {
+    const finalTemplateName =
+      templateName.trim() || formData.title || 'Untitled Template';
+
+    if (!finalTemplateName.trim()) {
+      Alert.alert('Error', 'Please enter a template name');
+      return;
+    }
+
+    try {
+      // Create template data with explicit defaults and type checking
+      const templateData = {
+        name: String(finalTemplateName.trim()),
+        title: String(formData.title || ''),
+        location: String(formData.location || ''),
+        details: String(formData.details || ''),
+        maxGuests: String(formData.maxGuests || ''),
+        hasFee: Boolean(formData.hasFee),
+        entryFee: String(formData.entryFee || ''),
+        feeDescription: String(formData.feeDescription || ''),
+      };
+
+      // Only add date/time if they exist and are valid
+      if (
+        formData.date &&
+        formData.date instanceof Date &&
+        !isNaN(formData.date.getTime())
+      ) {
+        templateData.date = formData.date.toISOString();
+      }
+
+      if (
+        formData.time &&
+        formData.time instanceof Date &&
+        !isNaN(formData.time.getTime())
+      ) {
+        templateData.time = formData.time.toISOString();
+      }
+
+      console.log('About to save template data:', templateData);
+
+      await saveTemplate(templateData);
+      Alert.alert('Success', 'Template saved successfully!');
+      setShowSaveTemplate(false);
+      setTemplateName('');
+    } catch (error) {
+      console.error('Error saving template:', error);
+      Alert.alert('Error', 'Failed to save template');
+    }
+  };
+
+  // Show save template modal with pre-populated name
+  const showSaveTemplateModal = (eventTitle = '') => {
+    setTemplateName(eventTitle);
+    setShowSaveTemplate(true);
+  };
+
+  // Hide save template modal
+  const hideSaveTemplateModal = () => {
+    setShowSaveTemplate(false);
+    setTemplateName('');
+  };
+
+  // Apply template to form data
+  const applyTemplate = (template) => {
+    return {
+      title: template.title || '',
+      location: template.location || '',
+      details: template.details || '',
+      maxGuests: template.maxGuests || '',
+      hasFee: Boolean(template.hasFee),
+      entryFee: template.entryFee || '',
+      feeDescription: template.feeDescription || '',
+      date: template.date ? new Date(template.date) : new Date(),
+      time: template.time ? new Date(template.time) : new Date(),
+      // Set selection flags based on whether valid dates exist
+      dateSelected: Boolean(template.date),
+      timeSelected: Boolean(template.time),
+      inputHeight: 80, // Reset to default
+    };
   };
 
   // Delete template
@@ -88,99 +205,20 @@ export const useEventTemplates = (currentUserId) => {
   };
 
   return {
+    // Data
     templates,
     loading,
-    saveTemplate,
+
+    // Save template UI state
+    templateName,
+    setTemplateName,
+    showSaveTemplate,
+
+    // Functions
+    saveAsTemplate, // Main function to call from UI
+    showSaveTemplateModal,
+    hideSaveTemplateModal,
+    applyTemplate,
     deleteTemplate,
   };
-};
-
-// --------------------------------------------------
-
-// Updated CreateEventScreen.js - TEMPLATE SAVE FUNCTION
-// Replace your existing saveAsTemplate function with this:
-
-const saveAsTemplate = async () => {
-  if (!templateName.trim()) {
-    Alert.alert('Error', 'Please enter a template name');
-    return;
-  }
-
-  try {
-    const templateData = {
-      name: templateName.trim(),
-      title: formData.title,
-      location: formData.location,
-      details: formData.details,
-      maxGuests: formData.maxGuests,
-      hasFee: formData.hasFee || false,
-      entryFee: formData.entryFee || '',
-      feeDescription: formData.feeDescription || '',
-      // Don't save date/time - those should be fresh each time
-    };
-
-    await saveTemplate(templateData);
-    Alert.alert('Success', 'Template saved successfully!');
-    setShowSaveTemplate(false);
-    setTemplateName('');
-  } catch (error) {
-    console.error('Error saving template:', error);
-    Alert.alert('Error', 'Failed to save template');
-  }
-};
-
-// --------------------------------------------------
-
-// MIGRATION SCRIPT (run this once to move existing templates)
-// You can run this in your app or in Firebase console
-
-const migrateTemplates = async () => {
-  try {
-    console.log('Starting template migration...');
-
-    // Get all templates from event_templates collection
-    const templatesSnapshot = await getDocs(collection(db, 'event_templates'));
-    const userTemplates = {};
-
-    // Group templates by user
-    templatesSnapshot.docs.forEach((doc) => {
-      const data = doc.data();
-      const userId = data.createdBy;
-
-      if (!userTemplates[userId]) {
-        userTemplates[userId] = [];
-      }
-
-      userTemplates[userId].push({
-        id: doc.id,
-        name: data.name,
-        title: data.title,
-        location: data.location,
-        details: data.details,
-        maxGuests: data.maxGuests,
-        hasFee: data.hasFee || false,
-        entryFee: data.entryFee || '',
-        feeDescription: data.feeDescription || '',
-        createdAt:
-          data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-      });
-    });
-
-    // Update each user document with their templates
-    const updatePromises = Object.entries(userTemplates).map(
-      async ([userId, templates]) => {
-        const userRef = doc(db, 'users', userId);
-        await updateDoc(userRef, { templates });
-        console.log(`Updated ${templates.length} templates for user ${userId}`);
-      }
-    );
-
-    await Promise.all(updatePromises);
-    console.log('Migration completed successfully!');
-
-    // Optional: Delete the old event_templates collection
-    // (You should do this manually in Firebase Console after verifying migration worked)
-  } catch (error) {
-    console.error('Migration failed:', error);
-  }
 };

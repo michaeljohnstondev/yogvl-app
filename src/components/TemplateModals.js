@@ -113,7 +113,7 @@ export const SaveTemplateModal = ({
           <VibeInput
             value={templateName}
             onChangeText={setTemplateName}
-            placeholder="e.g., Weekly Book Club"
+            placeholder={templateName}
             maxLength={50}
           />
 
