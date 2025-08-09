@@ -300,7 +300,11 @@ Let me know if you're going! 🎉`;
   const joinConstraints = validateEventJoinConstraints(event, isSubscribed);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+    >
       {/* Header Section */}
       <View style={styles.header}>
         <Text style={styles.title}>{event.title}</Text>

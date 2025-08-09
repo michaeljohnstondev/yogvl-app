@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
+import { View, StyleSheet, Alert, Pressable, Text } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import VibeInput from '../VibeInput';
-import VibeButton from '../VibeButton';
 import { validateComment } from './utils/commentUtils';
 import theme from '../../themes/themes';
+import { Keyboard } from 'react-native';
 
 const AddCommentInput = ({ onAddComment, submitting, disabled }) => {
   const [comment, setComment] = useState('');
@@ -23,6 +24,7 @@ const AddCommentInput = ({ onAddComment, submitting, disabled }) => {
     // Clear input only if comment was successfully added
     if (success) {
       setComment('');
+      Keyboard.dismiss();
     }
   };
 
@@ -41,12 +43,34 @@ const AddCommentInput = ({ onAddComment, submitting, disabled }) => {
         />
       </View>
 
-      <VibeButton
-        label={submitting ? 'POSTING...' : 'POST'}
+      <Pressable
         onPress={handleSubmit}
         disabled={!canSubmit}
-        style={[styles.submitButton, !canSubmit && styles.disabledButton]}
-      />
+        style={({ pressed }) => [
+          { opacity: pressed && canSubmit ? 0.8 : 1 },
+          styles.postButtonContainer,
+          !canSubmit && styles.disabledContainer,
+        ]}
+      >
+        <LinearGradient
+          colors={
+            canSubmit
+              ? theme.colors.buttonGradient
+              : [theme.colors.inputBorder, theme.colors.inputBorder]
+          }
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.gradientBorder}
+        >
+          <View style={styles.buttonContent}>
+            <Text
+              style={[styles.postButtonText, !canSubmit && styles.disabledText]}
+            >
+              {submitting ? 'Posting...' : 'Post'}
+            </Text>
+          </View>
+        </LinearGradient>
+      </Pressable>
     </View>
   );
 };
@@ -65,11 +89,33 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     paddingTop: 12,
   },
-  submitButton: {
-    paddingVertical: 10,
+  postButtonContainer: {
+    alignSelf: 'flex-end',
   },
-  disabledButton: {
+  gradientBorder: {
+    borderRadius: theme.sizes.buttonRadius,
+    padding: 2,
+    marginVertical: 0, // Removed vertical margin for tighter spacing
+  },
+  buttonContent: {
+    backgroundColor: 'transparent',
+    borderRadius: theme.sizes.buttonRadius,
+    paddingVertical: 8, // Reduced from 12 to make it smaller
+    paddingHorizontal: 16, // Reduced from 24 to make it smaller
+    alignItems: 'center',
+    minWidth: 70, // Slightly smaller minimum width
+  },
+  postButtonText: {
+    color: theme.colors.textPrimary,
+    fontSize: 14, // Reduced from 18 to make it smaller
+    fontWeight: '600', // Slightly less bold than the original
+    fontFamily: theme.fonts.main,
+  },
+  disabledContainer: {
     opacity: 0.6,
+  },
+  disabledText: {
+    color: theme.colors.textSecondary,
   },
 });
 
