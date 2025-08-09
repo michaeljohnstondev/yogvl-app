@@ -23,6 +23,7 @@ import {
 import VibeButton from '../components/VibeButton';
 import EventCreatorInfo from '../components/EventCreatorInfo';
 import HostProfileModal from '../components/HostProfileModal';
+import { CommentSection } from '../components/comments';
 import { useFocusEffect } from '@react-navigation/native';
 import { FormatDate } from '../utils/FormatDate';
 import { useAuth } from '../AuthContext';
@@ -36,6 +37,7 @@ import {
   getUserEventPermissions,
   validateEventJoinConstraints,
 } from '../utils/eventUtils';
+import theme from '../themes/themes';
 
 export default function EventDetailScreen({ route, navigation }) {
   const { eventId } = route.params;
@@ -283,7 +285,8 @@ Let me know if you're going! 🎉`;
   if (!event) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#fff" />
+        <ActivityIndicator size="large" color={theme.colors.alertButton} />
+        <Text style={styles.loadingText}>Loading event...</Text>
       </View>
     );
   }
@@ -298,46 +301,80 @@ Let me know if you're going! 🎉`;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>{event.title}</Text>
+      {/* Header Section */}
+      <View style={styles.header}>
+        <Text style={styles.title}>{event.title}</Text>
 
-      {/* Event Status Badge */}
-      <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
-        <Text style={styles.statusText}>{eventStatus}</Text>
+        {/* Event Status Badge */}
+        <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
+          <Text style={styles.statusText}>{eventStatus}</Text>
+        </View>
       </View>
 
-      <View style={styles.metaContainer}>
-        <Text style={styles.meta}>
-          📅 {FormatDate(event.utcDateTime, event.eventTimeZone)}
-        </Text>
-        <Text style={styles.meta}>📍 {event.location}</Text>
-
-        <View style={styles.guestInfo}>
-          <Text style={styles.meta}>
-            👥 {event.subscriberCount || 0} attending
-            {event.maxGuests && ` (max ${event.maxGuests})`}
-          </Text>
-          {isFullEvent && !isSubscribed && (
-            <Text style={styles.fullText}>Event is full</Text>
-          )}
-          {joinConstraints.reason && (
-            <Text
-              style={[
-                styles.constraintText,
-                { color: joinConstraints.canJoin ? '#FF9800' : '#F44336' },
-              ]}
-            >
-              {joinConstraints.reason}
-            </Text>
-          )}
+      {/* Event Info Section */}
+      <View style={styles.infoSection}>
+        <View style={styles.infoCard}>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoIcon}>📅</Text>
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>Date & Time</Text>
+              <Text style={styles.infoValue}>
+                {FormatDate(event.utcDateTime, event.eventTimeZone)}
+              </Text>
+            </View>
+          </View>
         </View>
 
-        {/* Creator Info with Reliability */}
-        <EventCreatorInfo
-          creatorData={creatorData}
-          showLabel={true}
-          showReliability={true}
-          onPress={() => setShowHostProfile(true)}
-        />
+        <View style={styles.infoCard}>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoIcon}>📍</Text>
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>Location</Text>
+              <Text style={styles.infoValue}>{event.location}</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.infoCard}>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoIcon}>👤</Text>
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>Event Host</Text>
+              <EventCreatorInfo
+                creatorData={creatorData}
+                showLabel={false}
+                showReliability={true}
+                onPress={() => setShowHostProfile(true)}
+              />
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.infoCard}>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoIcon}>👥</Text>
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>Attendees</Text>
+              <Text style={styles.infoValue}>
+                {event.subscriberCount || 0} attending
+                {event.maxGuests && ` / ${event.maxGuests} max`}
+              </Text>
+              {isFullEvent && !isSubscribed && (
+                <Text style={styles.fullText}>Event is full</Text>
+              )}
+              {joinConstraints.reason && (
+                <Text
+                  style={[
+                    styles.constraintText,
+                    { color: joinConstraints.canJoin ? '#FF9800' : '#F44336' },
+                  ]}
+                >
+                  {joinConstraints.reason}
+                </Text>
+              )}
+            </View>
+          </View>
+        </View>
       </View>
 
       {/* Host Profile Modal */}
@@ -347,76 +384,75 @@ Let me know if you're going! 🎉`;
         hostData={creatorData}
         currentUserId={currentUserId}
         onFollow={(hostId, isFollowing) => {
-          // Future: implement follow functionality
           console.log(
             `${isFollowing ? 'Following' : 'Unfollowing'} host ${hostId}`
           );
         }}
       />
 
+      {/* Event Details */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Details</Text>
-        <Text style={styles.details}>
-          {event.desc || 'No details provided.'}
-        </Text>
+        <Text style={styles.sectionTitle}>Event Details</Text>
+        <View style={styles.sectionContent}>
+          <Text style={styles.details}>
+            {event.desc || 'No additional details provided for this event.'}
+          </Text>
+        </View>
       </View>
 
+      {/* Comments Section */}
+      <View style={styles.section}>
+        <View style={styles.sectionContent}>
+          <CommentSection eventId={eventId} />
+        </View>
+      </View>
+
+      {/* Action Buttons */}
       <View style={styles.buttonContainer}>
         {!isEventPast && (
           <VibeButton
             label={isSubscribed ? 'LEAVE EVENT' : 'JOIN EVENT'}
             onPress={handleSubscribe}
-            variant={isSubscribed ? 'outline' : 'filled'}
-            disabled={isLoading || (!isSubscribed && !joinConstraints.canJoin)}
-            style={[isSubscribed && styles.unsubscribeButton]}
+            style={[
+              isLoading && styles.disabledButton,
+              !isSubscribed &&
+                !joinConstraints.canJoin &&
+                styles.disabledButton,
+            ]}
           />
         )}
 
-        <VibeButton
-          label="INVITE FRIENDS"
-          onPress={handleInvite}
-          variant="outline"
-        />
+        <VibeButton label="INVITE FRIENDS" onPress={handleInvite} />
 
-        {/* Edit button for event creators/admins */}
         {permissions.canEdit && (
           <VibeButton
             label="EDIT EVENT"
             onPress={() => {
-              console.log('edit button pressed');
               navigation.navigate('EditEvent', { eventId });
             }}
-            variant="outline"
           />
         )}
 
-        {/* Delete button for event creators/admins */}
         {permissions.canDelete && (
-          <VibeButton
-            label="DELETE EVENT"
-            onPress={handleDelete}
-            variant="outline"
-            style={styles.deleteButton}
-          />
+          <VibeButton label="DELETE EVENT" onPress={handleDelete} />
         )}
 
-        {/* Attendance management for past events */}
         {permissions.canManageAttendance && (
           <VibeButton
             label="MANAGE ATTENDANCE"
             onPress={() => navigation.navigate('EventAttendance', { eventId })}
-            variant="outline"
-            style={styles.attendanceButton}
           />
         )}
       </View>
 
       {isEventPast && (
-        <Text style={styles.pastEventText}>
-          {event.status === 'completed'
-            ? `Event completed with ${event.attendeeCount || 0} attendees`
-            : 'This event has ended'}
-        </Text>
+        <View style={styles.pastEventContainer}>
+          <Text style={styles.pastEventText}>
+            {event.status === 'completed'
+              ? `Event completed with ${event.attendeeCount || 0} attendees`
+              : 'This event has ended'}
+          </Text>
+        </View>
       )}
     </ScrollView>
   );
@@ -425,98 +461,152 @@ Let me know if you're going! 🎉`;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   content: {
-    padding: 20,
     paddingBottom: 40,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#000',
+  },
+  loadingText: {
+    color: theme.colors.textSecondary,
+    fontSize: 16,
+    marginTop: 12,
+    fontFamily: theme.fonts.main,
+  },
+
+  // Header
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 32,
+    alignItems: 'center',
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 16,
+    fontSize: 28,
+    fontWeight: '700',
+    color: theme.colors.textPrimary,
     textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 36,
+    fontFamily: theme.fonts.main,
+    ...theme.shadows.textGlow,
   },
   statusBadge: {
-    alignSelf: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginBottom: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
   },
   statusText: {
-    color: '#fff',
+    color: theme.colors.textPrimary,
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',
+    letterSpacing: 1,
+    fontFamily: theme.fonts.main,
   },
-  metaContainer: {
-    backgroundColor: '#1a1a1a',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 24,
+
+  // Info Section
+  infoSection: {
+    paddingHorizontal: 20,
+    marginBottom: 32,
   },
-  meta: {
-    color: '#ccc',
+  infoCard: {
+    backgroundColor: theme.colors.inputBackground,
+    borderRadius: theme.sizes.borderRadius,
+    padding: 20,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.inputBorder,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  infoIcon: {
+    fontSize: 24,
+    marginRight: 16,
+    width: 32,
+  },
+  infoContent: {
+    flex: 1,
+  },
+  infoLabel: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    fontWeight: '500',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    fontFamily: theme.fonts.main,
+  },
+  infoValue: {
     fontSize: 16,
-    marginBottom: 8,
+    color: theme.colors.textPrimary,
+    fontWeight: '600',
     lineHeight: 22,
-  },
-  guestInfo: {
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#333',
+    fontFamily: theme.fonts.main,
   },
   fullText: {
     color: '#ff6b6b',
     fontSize: 14,
     fontWeight: '600',
-    marginTop: 4,
+    marginTop: 6,
+    fontFamily: theme.fonts.main,
   },
   constraintText: {
     fontSize: 12,
     fontWeight: '500',
     marginTop: 4,
+    fontFamily: theme.fonts.main,
   },
+
+  // Sections
   section: {
     marginBottom: 24,
+    paddingHorizontal: 20,
   },
   sectionTitle: {
-    color: '#fff',
-    fontSize: 18,
-    marginBottom: 12,
+    color: theme.colors.textPrimary,
+    fontSize: 20,
     fontWeight: '600',
+    marginBottom: 16,
+    fontFamily: theme.fonts.main,
+  },
+  sectionContent: {
+    backgroundColor: theme.colors.inputBackground,
+    borderRadius: theme.sizes.borderRadius,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.inputBorder,
   },
   details: {
-    color: '#ddd',
+    color: theme.colors.textPrimary,
     fontSize: 16,
     lineHeight: 24,
-    backgroundColor: '#1a1a1a',
-    padding: 16,
-    borderRadius: 12,
+    fontFamily: theme.fonts.main,
   },
-  unsubscribeButton: {
-    borderColor: '#ff6b6b',
+
+  // Buttons
+  buttonContainer: {
+    paddingHorizontal: 20,
   },
-  attendanceButton: {
-    borderColor: '#4CAF50',
+  disabledButton: {
+    opacity: 0.5,
   },
-  deleteButton: {
-    borderColor: '#F44336',
+
+  // Past Event
+  pastEventContainer: {
+    marginTop: 24,
+    paddingHorizontal: 20,
   },
   pastEventText: {
-    color: '#888',
+    color: theme.colors.textSecondary,
     fontSize: 16,
     textAlign: 'center',
     fontStyle: 'italic',
-    marginTop: 16,
+    fontFamily: theme.fonts.main,
   },
 });

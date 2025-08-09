@@ -97,12 +97,7 @@ const EventCreatorBadge = ({ creatorData, style, onPress = null }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#333',
-  },
+  container: {},
   label: {
     color: '#888',
     fontSize: 12,
