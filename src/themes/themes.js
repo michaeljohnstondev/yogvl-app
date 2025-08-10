@@ -10,6 +10,17 @@ const theme = {
     shadowGlow: '#00FFFF',
     alertButton: '#00c6ff',
 
+    // Comment role colors
+    commentUser: '#28a745', // Green for current user
+    commentAdmin: '#6f42c1', // Purple for admin
+    commentHost: '#fd7e14', // Golden orange for host
+    commentOther: '#007bff', // Blue for others
+
+    // Comment background colors (with transparency)
+    commentUserBg: 'rgba(40, 167, 69, 0.1)',
+    commentAdminBg: 'rgba(111, 66, 193, 0.1)',
+    commentHostBg: 'rgba(253, 126, 20, 0.1)',
+    commentOtherBg: 'rgba(0, 123, 255, 0.1)',
   },
   fonts: {
     main: 'Segoe UI',

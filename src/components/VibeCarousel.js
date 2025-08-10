@@ -15,6 +15,7 @@ export default function VibeCarousel({ data, renderItem }) {
         autoPlay={false}
         data={data}
         scrollAnimationDuration={600}
+        loop={false}
         renderItem={({ item }) => renderItem(item, isScrolling)}
         sliderWidth={Dimensions.get('window').width}
         itemWidth={Dimensions.get('window').width * 0.9}

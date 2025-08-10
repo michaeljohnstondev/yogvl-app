@@ -1,102 +1,3 @@
-// utils/eventFormValidation.js
-import { DateTime } from 'luxon';
-
-/**
- * Validate event date and time
- * @param {Date} date - Selected date
- * @param {Date} time - Selected time
- * @returns {Object} Validation result with isValid flag and message
- */
-export const validateEventDateTime = (date, time) => {
-  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-  const eventDateTime = DateTime.fromObject(
-    {
-      year: date.getFullYear(),
-      month: date.getMonth() + 1,
-      day: date.getDate(),
-      hour: time.getHours(),
-      minute: time.getMinutes(),
-    },
-    { zone: timeZone }
-  );
-
-  const now = DateTime.now().setZone(timeZone);
-
-  // Check if event is in the past (with 5 minute buffer for current time)
-  if (eventDateTime <= now.minus({ minutes: 5 })) {
-    return {
-      isValid: false,
-      message:
-        'Events cannot be scheduled for the past. Please select a future date and time.',
-    };
-  }
-
-  // Check if event is too far in the future (optional - 1 year limit)
-  if (eventDateTime > now.plus({ years: 1 })) {
-    return {
-      isValid: false,
-      message: 'Events cannot be scheduled more than 1 year in advance.',
-    };
-  }
-
-  return { isValid: true };
-};
-
-/**
- * Validate event form fields
- * @param {Object} formData - Form data object
- * @returns {Object} Validation result
- */
-export const validateEventForm = (formData) => {
-  const {
-    title,
-    location,
-    dateSelected,
-    timeSelected,
-    maxGuests,
-    date,
-    time,
-    hasFee,
-    entryFee,
-  } = formData;
-
-  // Validate required fields
-  if (!title?.trim()) {
-    return { isValid: false, message: 'Please enter an event title.' };
-  }
-
-  if (!location?.trim()) {
-    return { isValid: false, message: 'Please enter a location.' };
-  }
-
-  if (!dateSelected) {
-    return { isValid: false, message: 'Please select a date for the event.' };
-  }
-
-  if (!timeSelected) {
-    return { isValid: false, message: 'Please select a time for the event.' };
-  }
-
-  // Validate max guests if provided
-  if (maxGuests && (isNaN(maxGuests) || parseInt(maxGuests) < 1)) {
-    return { isValid: false, message: 'Max guests must be a positive number.' };
-  }
-
-  // Validate entry fee if event has a fee
-  if (hasFee && !entryFee?.trim()) {
-    return { isValid: false, message: 'Please enter an entry fee amount.' };
-  }
-
-  // Validate event time
-  const timeValidation = validateEventDateTime(date, time);
-  if (!timeValidation.isValid) {
-    return timeValidation;
-  }
-
-  return { isValid: true };
-};
-
 /**
  * Format event data for database storage
  * @param {Object} formData - Form data
@@ -144,10 +45,87 @@ export const formatEventForStorage = (formData, currentUserId) => {
     entryFee: entryFee || '',
     feeDescription: feeDescription || '',
     createdBy: currentUserId,
+
+    // Host fields for comment role system
+    hostId: currentUserId, // Primary host
+    hosts: [currentUserId], // Host array (expandable for multiple hosts)
+
     subscribers: [currentUserId],
     subscriberCount: 1,
     attendeeCount: 0,
     noShowCount: 0,
     status: 'upcoming',
   };
+};
+// Optional: Helper functions for managing hosts (if you need them later)
+
+/**
+ * Add a co-host to an event
+ * @param {string} eventId - Event ID
+ * @param {string} userId - User ID to add as co-host
+ */
+export const addCoHost = async (eventId, userId) => {
+  const eventRef = doc(db, 'events', eventId);
+
+  try {
+    const eventSnap = await getDoc(eventRef);
+    if (!eventSnap.exists()) throw new Error('Event not found');
+
+    const currentHosts = eventSnap.data().hosts || [];
+    if (!currentHosts.includes(userId)) {
+      await updateDoc(eventRef, {
+        hosts: [...currentHosts, userId],
+      });
+    }
+  } catch (error) {
+    console.error('Error adding co-host:', error);
+    throw error;
+  }
+};
+
+/**
+ * Remove a co-host from an event (cannot remove primary host)
+ * @param {string} eventId - Event ID
+ * @param {string} userId - User ID to remove as co-host
+ */
+export const removeCoHost = async (eventId, userId) => {
+  const eventRef = doc(db, 'events', eventId);
+
+  try {
+    const eventSnap = await getDoc(eventRef);
+    if (!eventSnap.exists()) throw new Error('Event not found');
+
+    const eventData = eventSnap.data();
+
+    // Don't allow removing the primary host
+    if (eventData.hostId === userId) {
+      throw new Error('Cannot remove primary host');
+    }
+
+    const updatedHosts = (eventData.hosts || []).filter(
+      (hostId) => hostId !== userId
+    );
+
+    await updateDoc(eventRef, {
+      hosts: updatedHosts,
+    });
+  } catch (error) {
+    console.error('Error removing co-host:', error);
+    throw error;
+  }
+};
+
+/**
+ * Check if a user is a host of an event
+ * @param {Object} eventData - Event data object
+ * @param {string} userId - User ID to check
+ * @returns {boolean} True if user is a host
+ */
+export const isEventHost = (eventData, userId) => {
+  if (!eventData || !userId) return false;
+
+  return (
+    eventData.hostId === userId ||
+    (eventData.hosts && eventData.hosts.includes(userId))
+  );
 };

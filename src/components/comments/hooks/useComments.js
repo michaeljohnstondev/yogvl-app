@@ -8,10 +8,12 @@ import {
   serverTimestamp,
   deleteDoc,
   doc,
+  getDoc,
 } from 'firebase/firestore';
 import { db } from '../../../firebase';
 import { validateComment, sortComments } from '../utils/commentUtils';
 import { useAuth } from '../../../AuthContext';
+
 /**
  * Custom hook for managing comments on an event
  */
@@ -20,8 +22,9 @@ export const useComments = (eventId) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [eventData, setEventData] = useState(null);
 
-  const { currentUserId, userData } = useAuth(); // ← This line might be causing the crash
+  const { currentUserId, userData } = useAuth();
 
   const getDisplayName = () => {
     if (userData?.firstName && userData?.lastName) {
@@ -32,6 +35,49 @@ export const useComments = (eventId) => {
     }
     return 'Anonymous';
   };
+
+  // Fetch event data to determine hosts/admins
+  useEffect(() => {
+    if (!eventId) return;
+
+    const fetchEventData = async () => {
+      try {
+        const eventRef = doc(db, 'events', eventId);
+        const eventSnap = await getDoc(eventRef);
+
+        if (eventSnap.exists()) {
+          setEventData(eventSnap.data());
+        }
+      } catch (err) {
+        console.error('Error fetching event data:', err);
+      }
+    };
+
+    fetchEventData();
+  }, [eventId]);
+
+  // Determine role for current user (used for permissions and when creating comments)
+  const getCurrentUserRole = () => {
+    if (!eventData || !currentUserId) return 'attendee';
+
+    // Check if current user is admin
+    if (userData && userData.isAdmin === true) {
+      return 'admin';
+    }
+
+    // Check if current user is the event creator/host
+    if (eventData.hostId === currentUserId) {
+      return 'host';
+    }
+
+    // Check if current user is in hosts array
+    if (eventData.hosts && eventData.hosts.includes(currentUserId)) {
+      return 'host';
+    }
+
+    return 'attendee';
+  };
+
   // Set up real-time listener for comments
   useEffect(() => {
     if (!eventId) {
@@ -45,10 +91,15 @@ export const useComments = (eventId) => {
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const commentsData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+        const commentsData = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            // Use the stored userRole from comment data, fallback to 'attendee' if not present
+            userRole: data.userRole || 'attendee',
+          };
+        });
 
         setComments(commentsData);
         setLoading(false);
@@ -95,7 +146,10 @@ export const useComments = (eventId) => {
         timestamp: serverTimestamp(),
         parentCommentId: null,
         level: 0,
+        // Store the current user's role at comment creation time
+        userRole: getCurrentUserRole(),
       };
+
       await addDoc(commentsRef, commentData);
 
       setSubmitting(false);
@@ -107,11 +161,22 @@ export const useComments = (eventId) => {
       return false;
     }
   };
+
   /**
-   * Delete a comment (only if user owns it)
+   * Delete a comment (only if user owns it or is admin/host)
    */
   const deleteComment = async (commentId, commentUserId) => {
-    if (!currentUserId || currentUserId !== commentUserId) {
+    if (!currentUserId) {
+      setError('You must be logged in to delete comments');
+      return false;
+    }
+
+    const currentUserRole = getCurrentUserRole();
+    const isOwner = currentUserId === commentUserId;
+    const canDelete =
+      isOwner || currentUserRole === 'admin' || currentUserRole === 'host';
+
+    if (!canDelete) {
       setError('You can only delete your own comments');
       return false;
     }
@@ -142,5 +207,7 @@ export const useComments = (eventId) => {
     addComment,
     deleteComment,
     clearError,
+    eventData,
+    getCurrentUserRole,
   };
 };

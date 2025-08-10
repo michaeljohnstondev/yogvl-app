@@ -95,20 +95,20 @@ const styles = StyleSheet.create({
   gradientBorder: {
     borderRadius: theme.sizes.buttonRadius,
     padding: 2,
-    marginVertical: 0, // Removed vertical margin for tighter spacing
+    marginVertical: 0,
   },
   buttonContent: {
     backgroundColor: 'transparent',
     borderRadius: theme.sizes.buttonRadius,
-    paddingVertical: 8, // Reduced from 12 to make it smaller
-    paddingHorizontal: 16, // Reduced from 24 to make it smaller
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     alignItems: 'center',
-    minWidth: 70, // Slightly smaller minimum width
+    minWidth: 70,
   },
   postButtonText: {
     color: theme.colors.textPrimary,
-    fontSize: 14, // Reduced from 18 to make it smaller
-    fontWeight: '600', // Slightly less bold than the original
+    fontSize: 14,
+    fontWeight: '600',
     fontFamily: theme.fonts.main,
   },
   disabledContainer: {
