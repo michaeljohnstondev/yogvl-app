@@ -1,6 +1,6 @@
 // FILE: screens/CreateEventScreen.js
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,6 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import DateTimePickerModal from 'react-native-modal-datetime-picker';
 
 // Components
 import VibeButton from '../components/VibeButton';
@@ -19,7 +18,6 @@ import VibeInput from '../components/VibeInput';
 import VibeButtonPlain from '../components/VibeButtonPlain';
 import ReliabilityWarning from '../components/ReliabilityWarning';
 import EventTipsModal, { useEventTips } from '../components/EventTipsModal';
-import VibeTimePicker from '../components/VibeTimePicker';
 import VibeAutoComplete from '../components/VibeAutoComplete';
 import VibeSegmentedControl from '../components/VibeSegmentedControl';
 import {
@@ -30,6 +28,13 @@ import {
 // Hooks
 import { useSuggestions, filterSuggestions } from '../hooks/useSuggestions';
 import { useEventTemplates } from '../hooks/useEventTemplates';
+import useDateTimePickers from '../hooks/useDateTimePickers';
+import useEventFormState, {
+  eventFormValidators,
+} from '../hooks/useEventFormState';
+import useSmartAutoComplete, {
+  autoCompleteConfigs,
+} from '../hooks/useSmartAutoComplete';
 
 // Firebase
 import { db } from '../firebase';
@@ -45,80 +50,89 @@ import { validateUserCanCreateEvent } from '../utils/eventValidation';
 import { updateEventCreationMetrics } from '../utils/userMetrics';
 import theme from '../themes/themes';
 
-// Custom Hook for Form State
-const useFormState = () => {
-  const [formData, setFormData] = useState({
-    title: '',
-    location: '',
-    address: '',
-    details: '',
-    maxGuests: '',
-    date: new Date(),
-    time: new Date(),
-    dateSelected: false,
-    timeSelected: false,
-    inputHeight: 80,
-    hasFee: false,
-    entryFee: '',
-    feeDescription: '',
-
-    // NEW FIELDS
-    isPrivate: false,
-    additionalHosts: [],
-    showHostContact: true,
-    hasRsvpDeadline: false,
-    rsvpDeadline: new Date(),
-    rsvpDeadlineSelected: false,
-  });
-
-  const updateField = useCallback((field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  }, []);
-
-  const resetForm = useCallback(() => {
-    setFormData({
-      title: '',
-      location: '',
-      address: '',
-      details: '',
-      maxGuests: '',
-      date: new Date(),
-      time: new Date(),
-      dateSelected: false,
-      timeSelected: false,
-      inputHeight: 80,
-      hasFee: false,
-      entryFee: '',
-      feeDescription: '',
-
-      // Reset new fields
-      isPrivate: false,
-      additionalHosts: [],
-      showHostContact: true,
-      hasRsvpDeadline: false,
-      rsvpDeadline: new Date(),
-      rsvpDeadlineSelected: false,
-    });
-  }, []);
-
-  const replaceFormData = useCallback((newFormData) => {
-    console.log('Replacing form data with:', newFormData);
-    setFormData(newFormData);
-  }, []);
-
-  return { formData, updateField, resetForm, replaceFormData };
-};
-
 // Main Component
 export default function CreateEventScreen({ navigation }) {
-  console.log('=== CreateEventScreen rendered ===');
-
+  // TEMPLATE HOOK
   const { currentUserId, userData } = useAuth();
   const { showTips, closeTips, showTipsManually } = useEventTips('create');
-  const { formData, updateField, resetForm, replaceFormData } = useFormState();
   const { suggestions, isLoading, loadSuggestions } = useSuggestions();
 
-  // All template functionality from the hook
+  // FORM STATE HOOK - Handles all form data and logic
+  const {
+    formData,
+    updateField,
+    resetForm,
+    replaceFormData,
+    isDirty,
+    hasBeenModified,
+    toggleFee,
+    togglePrivacy,
+    toggleHostContact,
+    toggleRsvpDeadline,
+    appendToDetails,
+    updateInputHeight,
+    validateForm,
+    exportFormData,
+  } = useEventFormState(
+    {},
+    {
+      enableDirtyTracking: true,
+    }
+  );
+
+  // DATE/TIME PICKER CONFIGURATION
+  const dateTimeConfig = {
+    event: {
+      label: 'Event Date & Time',
+      required: true,
+      futureOnly: true,
+      minMinutesFromNow: 30,
+    },
+    rsvpDeadline: {
+      label: 'RSVP Deadline',
+      required: false, // Will be dynamically validated based on hasRsvpDeadline
+      futureOnly: true,
+      maxDate: 'event', // Must be before event
+    },
+  };
+
+  // DATE/TIME PICKER HOOK
+  const {
+    values: dateTimeValues,
+    PickerRow,
+    DateTimePickerModals,
+    validateAll: validateDateTime,
+    updateFromData: updateDateTimeFromTemplate,
+    resetAll: resetDateTime,
+  } = useDateTimePickers(dateTimeConfig);
+
+  // SMART AUTO-COMPLETE HOOK
+  const autoCompleteConfig = useMemo(
+    () => ({
+      location: autoCompleteConfigs.eventLocation, // Enables location lookup!
+      title: autoCompleteConfigs.eventTitle,
+      details: autoCompleteConfigs.eventDetails,
+    }),
+    []
+  );
+
+  const {
+    handleFieldChange: handleSmartFieldChange,
+    handleFieldFocus: handleSmartFieldFocus,
+    handleSuggestionSelect: handleSmartSuggestionSelect,
+    getFieldData,
+    updateExternalSuggestions,
+    hideSuggestions: hideSmartSuggestions,
+  } = useSmartAutoComplete(
+    autoCompleteConfig,
+    useCallback(
+      (locationData) => {
+        // This fires when they select a location with an address!
+        updateField('address', locationData.address);
+      },
+      [updateField]
+    )
+  );
   const {
     templates,
     loading: templatesLoading,
@@ -132,212 +146,265 @@ export default function CreateEventScreen({ navigation }) {
     deleteTemplate,
   } = useEventTemplates(currentUserId);
 
-  // UI State
-  const [isCreating, setIsCreating] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  // UI State (SUPER MINIMAL NOW!)
+  const [isCreating, setIsCreating] = React.useState(false);
+  const [showTemplateModal, setShowTemplateModal] = React.useState(false);
 
-  // NEW: RSVP Deadline Pickers
-  const [showRsvpDatePicker, setShowRsvpDatePicker] = useState(false);
-  const [showRsvpTimePicker, setShowRsvpTimePicker] = useState(false);
-
-  // Suggestion visibility state
-  const [suggestionVisibility, setSuggestionVisibility] = useState({
-    title: false,
-    location: false,
-    details: false,
-  });
-
-  // Filtered suggestions
-  const filteredSuggestions = useMemo(
-    () => ({
-      title: filterSuggestions(formData.title, suggestions.titles),
-      location: filterSuggestions(formData.location, suggestions.locations),
-      details: filterSuggestions(formData.details, suggestions.details),
-    }),
-    [formData.title, formData.location, formData.details, suggestions]
-  );
-
-  // Load suggestions on mount
+  // Load suggestions and integrate with smart auto-complete
   useEffect(() => {
     loadSuggestions();
   }, [loadSuggestions]);
 
-  // Template handlers
-  const handleSaveAsTemplate = () => {
-    console.log('=== handleSaveAsTemplate called ===');
-    console.log('Current form data:', formData);
-    saveAsTemplate(formData);
-  };
+  // Update smart auto-complete when suggestions change (separate effect!)
+  useEffect(() => {
+    if (suggestions.titles || suggestions.locations || suggestions.details) {
+      // Convert { text, count } objects to simple strings for smart auto-complete
+      const titleTexts = (suggestions.titles || []).map(
+        (item) => item.text || item
+      );
+      const locationTexts = (suggestions.locations || []).map(
+        (item) => item.text || item
+      );
+      const detailTexts = (suggestions.details || []).map(
+        (item) => item.text || item
+      );
 
-  const handleShowSaveTemplate = () => {
-    console.log('=== handleShowSaveTemplate called ===');
+      updateExternalSuggestions('title', titleTexts);
+      updateExternalSuggestions('location', locationTexts);
+      updateExternalSuggestions('details', detailTexts);
+    }
+  }, [suggestions, updateExternalSuggestions]);
+
+  // Filtered suggestions (LEGACY - for comparison, but smart auto-complete is better!)
+  const legacyFilteredSuggestions = useMemo(
+    () => ({
+      title: filterSuggestions(formData.title, suggestions.titles || []),
+      location: filterSuggestions(
+        formData.location,
+        suggestions.locations || []
+      ),
+      details: filterSuggestions(formData.details, suggestions.details || []),
+    }),
+    [formData.title, formData.location, formData.details, suggestions]
+  );
+
+  // Template handlers (MUCH CLEANER!)
+  const handleSaveAsTemplate = useCallback(() => {
+    // Export form data with current date/time values
+    const templateData = {
+      ...exportFormData(),
+      date: dateTimeValues.event.value,
+      dateSelected: dateTimeValues.event.selected,
+      time: dateTimeValues.event.value,
+      timeSelected: dateTimeValues.event.selected,
+      rsvpDeadline: dateTimeValues.rsvpDeadline.value,
+      rsvpDeadlineSelected: dateTimeValues.rsvpDeadline.selected,
+    };
+
+    saveAsTemplate(templateData);
+  }, [exportFormData, dateTimeValues, saveAsTemplate]);
+
+  const handleShowSaveTemplate = useCallback(() => {
     showSaveTemplateModal(formData.title);
-  };
+  }, [showSaveTemplateModal, formData.title]);
 
-  const handleApplyTemplate = (template) => {
-    console.log('=== handleApplyTemplate called ===');
-    console.log('Original template:', template);
+  const handleApplyTemplate = useCallback(
+    (template) => {
+      const templateData = applyTemplate(template);
 
-    const templateData = applyTemplate(template);
-    console.log('Processed template data:', templateData);
+      // Update form data (non-date fields)
+      replaceFormData({
+        title: templateData.title || '',
+        location: templateData.location || '',
+        address: templateData.address || '',
+        details: templateData.details || '',
+        maxGuests: templateData.maxGuests || '',
+        hasFee: templateData.hasFee || false,
+        entryFee: templateData.entryFee || '',
+        feeDescription: templateData.feeDescription || '',
+        isPrivate: templateData.isPrivate || false,
+        additionalHosts: templateData.additionalHosts || [],
+        showHostContact:
+          templateData.showHostContact !== undefined
+            ? templateData.showHostContact
+            : true,
+        hasRsvpDeadline: templateData.hasRsvpDeadline || false,
+      });
 
-    replaceFormData(templateData);
-    setShowTemplateModal(false);
+      // Update date/time pickers
+      updateDateTimeFromTemplate({
+        event: {
+          value: templateData.date || new Date(),
+          selected: templateData.dateSelected || false,
+        },
+        rsvpDeadline: {
+          value: templateData.rsvpDeadline || new Date(),
+          selected: templateData.rsvpDeadlineSelected || false,
+        },
+      });
 
-    Alert.alert(
-      'Template Loaded',
-      `"${template.name}" has been loaded. Date and time have been applied from the template.`
-    );
-  };
+      setShowTemplateModal(false);
 
-  // Input handlers
+      Alert.alert(
+        'Template Loaded',
+        `"${template.name}" has been loaded. Date and time have been applied from the template.`
+      );
+    },
+    [applyTemplate, replaceFormData, updateDateTimeFromTemplate]
+  );
+
+  // Input handlers (SIMPLIFIED WITH SMART AUTO-COMPLETE!)
   const handleInputChange = useCallback(
     (field, value) => {
-      updateField(field, value);
-
-      if (['title', 'location'].includes(field) && !isLoading) {
-        setSuggestionVisibility((prev) => ({
-          ...prev,
-          [field]: true,
-        }));
-      }
-
-      if (field === 'details' && value.length < 5 && !isLoading) {
-        setSuggestionVisibility((prev) => ({ ...prev, details: true }));
-      } else if (field === 'details' && value.length >= 5) {
-        setSuggestionVisibility((prev) => ({ ...prev, details: false }));
+      // Use smart auto-complete for configured fields
+      if (autoCompleteConfig[field]) {
+        handleSmartFieldChange(field, value, updateField);
+      } else {
+        // Fallback for non-configured fields
+        updateField(field, value);
       }
     },
-    [updateField, isLoading]
+    [autoCompleteConfig, handleSmartFieldChange, updateField]
   );
 
-  // Suggestion handlers
+  // Handle input focus
+  const handleInputFocus = useCallback(
+    (field) => {
+      // Use smart auto-complete for configured fields
+      if (autoCompleteConfig[field]) {
+        handleSmartFieldFocus(field, formData[field] || '');
+      }
+    },
+    [autoCompleteConfig, handleSmartFieldFocus, formData]
+  );
+
+  // Suggestion handlers (SMART VERSION!)
   const handleSuggestionSelect = useCallback(
     (field, suggestion) => {
-      if (field === 'details' && formData.details.length > 0) {
-        const separator = formData.details.match(/[.!?]$/) ? ' ' : '. ';
-        updateField('details', formData.details + separator + suggestion);
+      if (autoCompleteConfig[field]) {
+        // Use smart auto-complete - suggestion is an object { text, type, address, etc. }
+        handleSmartSuggestionSelect(
+          field,
+          suggestion,
+          formData[field] || '',
+          updateField
+        );
       } else {
-        updateField(field, suggestion);
+        // Legacy handling for details appending - suggestion might be a string
+        const suggestionText =
+          typeof suggestion === 'string' ? suggestion : suggestion?.text || '';
+
+        if (
+          field === 'details' &&
+          formData.details &&
+          formData.details.length > 0
+        ) {
+          appendToDetails(suggestionText);
+        } else {
+          updateField(field, suggestionText);
+        }
       }
-      setSuggestionVisibility((prev) => ({ ...prev, [field]: false }));
     },
-    [formData.details, updateField]
+    [
+      autoCompleteConfig,
+      handleSmartSuggestionSelect,
+      formData,
+      updateField,
+      appendToDetails,
+    ]
   );
 
-  const hideSuggestions = useCallback((field) => {
-    setTimeout(() => {
-      setSuggestionVisibility((prev) => ({ ...prev, [field]: false }));
-    }, 150);
-  }, []);
-
-  // Date/Time handlers
-  const handleDateConfirm = useCallback(
-    (selectedDate) => {
-      console.log('Date selected:', selectedDate);
-      updateField('date', selectedDate);
-      updateField('dateSelected', true);
-      setShowDatePicker(false);
+  // Hide suggestions
+  const hideSuggestions = useCallback(
+    (field) => {
+      if (autoCompleteConfig[field]) {
+        hideSmartSuggestions(field);
+      }
     },
-    [updateField]
+    [autoCompleteConfig, hideSmartSuggestions]
   );
 
-  const handleTimeConfirm = useCallback(
-    (selectedTime) => {
-      console.log('Time selected:', selectedTime);
-      updateField('time', selectedTime);
-      updateField('timeSelected', true);
-      setShowTimePicker(false);
-    },
-    [updateField]
-  );
-
-  // NEW: RSVP Deadline handlers
-  const handleRsvpDateConfirm = useCallback(
-    (selectedDate) => {
-      console.log('RSVP Date selected:', selectedDate);
-      updateField('rsvpDeadline', selectedDate);
-      updateField('rsvpDeadlineSelected', true);
-      setShowRsvpDatePicker(false);
-    },
-    [updateField]
-  );
-
-  const handleRsvpTimeConfirm = useCallback(
-    (selectedTime) => {
-      console.log('RSVP Time selected:', selectedTime);
-      const currentDeadline = formData.rsvpDeadline;
-      const newDeadline = new Date(
-        currentDeadline.getFullYear(),
-        currentDeadline.getMonth(),
-        currentDeadline.getDate(),
-        selectedTime.getHours(),
-        selectedTime.getMinutes()
+  // Navigation guard for unsaved changes
+  const handleBackPress = useCallback(() => {
+    if (isDirty || hasBeenModified) {
+      Alert.alert(
+        'Unsaved Changes',
+        'You have unsaved changes. Are you sure you want to leave?',
+        [
+          { text: 'Stay', style: 'cancel' },
+          { text: 'Leave Anyway', onPress: () => navigation.goBack() },
+        ]
       );
-      updateField('rsvpDeadline', newDeadline);
-      updateField('rsvpDeadlineSelected', true);
-      setShowRsvpTimePicker(false);
-    },
-    [updateField, formData.rsvpDeadline]
-  );
+      return true; // Prevent default back action
+    }
+    return false;
+  }, [isDirty, hasBeenModified, navigation]);
 
-  // Create event handler
+  // Create event handler (SUPER CLEAN!)
   const handleCreate = useCallback(async () => {
-    console.log('=== DEBUG: handleCreate called ===');
-    console.log('1. currentUserId:', currentUserId);
-    console.log('2. userData:', userData);
-    console.log('3. formData:', formData);
-
     if (!currentUserId) {
-      console.log('ERROR: No currentUserId');
       Alert.alert('Error', 'You must be logged in to create events.');
       return;
     }
 
-    console.log('4. Validating user can create event...');
     const canCreateValidation = validateUserCanCreateEvent(userData);
-    console.log('5. canCreateValidation result:', canCreateValidation);
 
     if (!canCreateValidation.canCreate) {
-      console.log(
-        'ERROR: User cannot create event:',
-        canCreateValidation.reason
-      );
       Alert.alert('Event Creation Restricted', canCreateValidation.reason);
       return;
     }
 
     if (canCreateValidation.warning) {
-      console.log('6. Warning exists, showing alert...');
       const proceed = await new Promise((resolve) => {
         Alert.alert('Attendance Notice', canCreateValidation.warning, [
           { text: 'Cancel', onPress: () => resolve(false) },
           { text: 'Create Anyway', onPress: () => resolve(true) },
         ]);
       });
-      console.log('7. User chose to proceed:', proceed);
       if (!proceed) return;
     }
 
-    console.log('8. Validating form data...');
-    const validation = validateEventForm(formData);
-    console.log('9. Form validation result:', validation);
+    // Validate using our built-in form validators
+    const fieldValidation = validateForm(eventFormValidators);
 
-    if (!validation.isValid) {
-      console.log('ERROR: Form validation failed:', validation.message);
-      Alert.alert('Error', validation.message);
+    if (!fieldValidation.isValid) {
+      const firstError = Object.values(fieldValidation.errors)[0];
+      Alert.alert('Error', firstError);
       return;
     }
 
-    console.log('10. Setting isCreating to true...');
+    // Validate date/time
+    const dateTimeValidation = validateDateTime();
+
+    if (!dateTimeValidation.isValid) {
+      Alert.alert('Error', dateTimeValidation.message);
+      return;
+    }
+
+    // Create combined form data for final validation and storage
+    const combinedFormData = {
+      ...formData,
+      date: dateTimeValues.event.value,
+      dateSelected: dateTimeValues.event.selected,
+      time: dateTimeValues.event.value,
+      timeSelected: dateTimeValues.event.selected,
+      rsvpDeadline: dateTimeValues.rsvpDeadline.value,
+      rsvpDeadlineSelected: formData.hasRsvpDeadline
+        ? dateTimeValues.rsvpDeadline.selected
+        : false,
+    };
+
+    const legacyValidation = validateEventForm(combinedFormData);
+
+    if (!legacyValidation.isValid) {
+      Alert.alert('Error', legacyValidation.message);
+      return;
+    }
+
     setIsCreating(true);
 
     try {
-      console.log('11. Formatting event data...');
-      const eventData = formatEventForStorage(formData, currentUserId);
-      console.log('12. Formatted event data (before timestamps):', eventData);
+      const eventData = formatEventForStorage(combinedFormData, currentUserId);
 
       eventData.createdAt = Timestamp.now();
       eventData.eventTimestamp = Timestamp.fromDate(eventData.eventTimestamp);
@@ -349,73 +416,36 @@ export default function CreateEventScreen({ navigation }) {
         );
       }
 
-      console.log('13. Final event data for storage:', eventData);
-      console.log('14. About to call addDoc...');
-
       const eventRef = await addDoc(collection(db, 'events'), eventData);
-      console.log('15. SUCCESS! Event created with ID:', eventRef.id);
 
-      console.log('16. Updating metrics...');
       await updateEventCreationMetrics(currentUserId, eventRef.id);
-      console.log('17. Metrics updated successfully');
 
-      console.log('18. Cleaning up form...');
       loadSuggestions();
       resetForm();
-      setSuggestionVisibility({
-        title: false,
-        location: false,
-        details: false,
-      });
+      resetDateTime();
 
-      console.log('19. Showing success alert...');
       Alert.alert(
         'Success!',
         'Event created successfully! You are automatically subscribed to your event.',
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
     } catch (error) {
-      console.error('ERROR in try block:', error);
-      console.error('Error details:', {
-        message: error.message,
-        code: error.code,
-        stack: error.stack,
-      });
+      console.error('Error creating event:', error);
       Alert.alert('Error', `Failed to create event: ${error.message}`);
     } finally {
-      console.log('20. Setting isCreating to false...');
       setIsCreating(false);
     }
   }, [
     currentUserId,
     userData,
     formData,
+    dateTimeValues,
+    validateForm,
+    validateDateTime,
     loadSuggestions,
     resetForm,
+    resetDateTime,
     navigation,
-  ]);
-
-  // Debug current form state
-  useEffect(() => {
-    console.log('Current form data state:', {
-      dateSelected: formData.dateSelected,
-      timeSelected: formData.timeSelected,
-      date: formData.date,
-      time: formData.time,
-      isPrivate: formData.isPrivate,
-      showHostContact: formData.showHostContact,
-      hasRsvpDeadline: formData.hasRsvpDeadline,
-      rsvpDeadlineSelected: formData.rsvpDeadlineSelected,
-    });
-  }, [
-    formData.dateSelected,
-    formData.timeSelected,
-    formData.date,
-    formData.time,
-    formData.isPrivate,
-    formData.showHostContact,
-    formData.hasRsvpDeadline,
-    formData.rsvpDeadlineSelected,
   ]);
 
   return (
@@ -442,26 +472,23 @@ export default function CreateEventScreen({ navigation }) {
           <Text style={styles.loadingText}>Loading...</Text>
         )}
 
-        {/* Event Name */}
+        {/* Event Name with Smart Auto-Complete */}
         <Text style={styles.label}>Event Name *</Text>
         <View style={styles.inputContainer}>
           <VibeInput
             value={formData.title}
             onChangeText={(text) => handleInputChange('title', text)}
-            onFocus={() =>
-              !isLoading &&
-              setSuggestionVisibility((prev) => ({ ...prev, title: true }))
-            }
+            onFocus={() => handleInputFocus('title')}
             onBlur={() => hideSuggestions('title')}
             placeholder="Enter event name"
             maxLength={100}
           />
           <VibeAutoComplete
-            suggestions={filteredSuggestions.title}
+            suggestions={getFieldData('title', formData.title).suggestions}
             onSelect={(suggestion) =>
               handleSuggestionSelect('title', suggestion)
             }
-            visible={suggestionVisibility.title && !isLoading}
+            visible={getFieldData('title', formData.title).isVisible}
           />
         </View>
 
@@ -473,73 +500,92 @@ export default function CreateEventScreen({ navigation }) {
             { value: true, label: 'Private', icon: '🔒' },
           ]}
           selectedValue={formData.isPrivate}
-          onSelect={(value) => updateField('isPrivate', value)}
+          onSelect={togglePrivacy}
         />
 
         {/* Date & Time */}
         <Text style={styles.label}>When *</Text>
-        <View style={styles.row}>
-          <View style={styles.flex}>
-            <VibeButtonPlain
-              label={
-                formData.dateSelected
-                  ? formData.date.toLocaleDateString([], {
-                      weekday: 'short',
-                      month: 'short',
-                      day: 'numeric',
-                    })
-                  : '📅 Date'
-              }
-              onPress={() => setShowDatePicker(true)}
-              style={!formData.dateSelected && styles.unselectedButton}
-            />
-          </View>
-          <View style={styles.flex}>
-            <VibeButtonPlain
-              label={
-                formData.timeSelected
-                  ? formData.time.toLocaleTimeString([], {
-                      hour: 'numeric',
-                      minute: '2-digit',
-                    })
-                  : '⏰ Time'
-              }
-              onPress={() => setShowTimePicker(true)}
-              style={!formData.timeSelected && styles.unselectedButton}
-            />
-          </View>
-        </View>
+        <PickerRow
+          pickerId="event"
+          dateIcon="📅"
+          timeIcon="⏰"
+          datePlaceholder="Date"
+          timePlaceholder="Time"
+        />
 
-        {/* Location */}
-        <Text style={styles.label}>Location *</Text>
+        {/* Location with SMART Location Lookup! */}
+        <Text style={styles.label}>Location * </Text>
         <View style={styles.inputContainer}>
           <VibeInput
             value={formData.location}
             onChangeText={(text) => handleInputChange('location', text)}
-            onFocus={() =>
-              !isLoading &&
-              setSuggestionVisibility((prev) => ({ ...prev, location: true }))
-            }
+            onFocus={() => handleInputFocus('location')}
             onBlur={() => hideSuggestions('location')}
-            placeholder="Enter event location"
+            placeholder="Enter location"
             maxLength={200}
           />
           <VibeAutoComplete
-            suggestions={filteredSuggestions.location}
-            onSelect={(suggestion) =>
-              handleSuggestionSelect('location', suggestion)
-            }
-            visible={suggestionVisibility.location && !isLoading}
+            suggestions={(() => {
+              const smartSuggestions = getFieldData(
+                'location',
+                formData.location
+              );
+
+              // Store the full objects for later lookup
+              window.locationSuggestionObjects =
+                smartSuggestions.suggestions || [];
+
+              const formattedSuggestions =
+                smartSuggestions.suggestions?.map((s) => {
+                  if (s && s.text) {
+                    return s.type === 'location'
+                      ? `${s.icon || '📍'} ${s.text}`
+                      : s.text;
+                  }
+                  return s || '';
+                }) || [];
+
+              return formattedSuggestions;
+            })()}
+            onSelect={(suggestionText) => {
+              if (!suggestionText) return;
+
+              // Find the full object that matches this text
+              const fullSuggestion = window.locationSuggestionObjects?.find(
+                (s) => {
+                  if (!s || !s.text) return false;
+                  const displayText =
+                    s.type === 'location'
+                      ? `${s.icon || '📍'} ${s.text}`
+                      : s.text;
+                  return displayText === suggestionText;
+                }
+              );
+
+              if (fullSuggestion && fullSuggestion.type === 'location') {
+                // This is a smart location - set location and address
+                updateField('location', fullSuggestion.text);
+                updateField('address', fullSuggestion.address);
+              } else {
+                updateField('location', cleanText);
+              }
+
+              // Hide suggestions
+              hideSuggestions('location');
+            }}
+            visible={getFieldData('location', formData.location).isVisible}
+            showCount={false}
           />
         </View>
 
-        {/* Address (NEW) */}
+        {/* Address (Auto-populated from location!) */}
         <Text style={styles.label}>Address (optional)</Text>
         <VibeInput
           value={formData.address}
           onChangeText={(text) => updateField('address', text)}
           placeholder="123 Main St, City, State 12345"
           maxLength={300}
+          style={formData.address ? styles.autoFilledInput : undefined}
         />
 
         {/* Max Guests */}
@@ -552,76 +598,48 @@ export default function CreateEventScreen({ navigation }) {
           placeholder="Enter max guests"
         />
 
-        {/* Host Contact Info (NEW) */}
+        {/* Host Contact Info */}
         <Text style={styles.label}>Host Contact Information</Text>
         <VibeSegmentedControl
           options={[
-            { value: true, label: 'Show Contact', icon: '📞' },
-            { value: false, label: 'Hide Contact', icon: '🙈' },
+            { value: true, label: 'Show Contact' },
+            { value: false, label: 'Hide Contact' },
           ]}
           selectedValue={formData.showHostContact}
-          onSelect={(value) => updateField('showHostContact', value)}
+          onSelect={toggleHostContact}
         />
 
-        {/* RSVP Deadline (NEW) */}
+        {/* RSVP Deadline */}
         <Text style={styles.label}>RSVP Deadline</Text>
         <VibeSegmentedControl
           options={[
-            { value: false, label: 'No Deadline', icon: '♾️' },
-            { value: true, label: 'Set Deadline', icon: '⏰' },
+            { value: false, label: 'No Deadline' },
+            { value: true, label: 'Set Deadline' },
           ]}
           selectedValue={formData.hasRsvpDeadline}
-          onSelect={(value) => updateField('hasRsvpDeadline', value)}
+          onSelect={toggleRsvpDeadline}
         />
 
-        {/* Show deadline picker if enabled */}
+        {/* RSVP Deadline Picker */}
         {formData.hasRsvpDeadline && (
-          <View style={styles.row}>
-            <View style={styles.flex}>
-              <VibeButtonPlain
-                label={
-                  formData.rsvpDeadlineSelected
-                    ? formData.rsvpDeadline.toLocaleDateString([], {
-                        weekday: 'short',
-                        month: 'short',
-                        day: 'numeric',
-                      })
-                    : '📅 Deadline Date'
-                }
-                onPress={() => setShowRsvpDatePicker(true)}
-                style={
-                  !formData.rsvpDeadlineSelected && styles.unselectedButton
-                }
-              />
-            </View>
-            <View style={styles.flex}>
-              <VibeButtonPlain
-                label={
-                  formData.rsvpDeadlineSelected
-                    ? formData.rsvpDeadline.toLocaleTimeString([], {
-                        hour: 'numeric',
-                        minute: '2-digit',
-                      })
-                    : '⏰ Deadline Time'
-                }
-                onPress={() => setShowRsvpTimePicker(true)}
-                style={
-                  !formData.rsvpDeadlineSelected && styles.unselectedButton
-                }
-              />
-            </View>
-          </View>
+          <PickerRow
+            pickerId="rsvpDeadline"
+            dateIcon="📅"
+            timeIcon="⏰"
+            datePlaceholder="Deadline Date"
+            timePlaceholder="Deadline Time"
+          />
         )}
 
         {/* Entry Fee */}
         <Text style={styles.label}>Entry Fee</Text>
         <VibeSegmentedControl
           options={[
-            { value: false, label: 'Free', icon: '🆓' },
-            { value: true, label: 'Paid', icon: '💰' },
+            { value: false, label: 'Free' },
+            { value: true, label: 'Paid' },
           ]}
           selectedValue={formData.hasFee}
-          onSelect={(value) => updateField('hasFee', value)}
+          onSelect={toggleFee}
         />
 
         {/* Show fee inputs if paid is selected */}
@@ -645,17 +663,13 @@ export default function CreateEventScreen({ navigation }) {
           </>
         )}
 
-        {/* Details */}
+        {/* Details with Smart Auto-Complete */}
         <Text style={styles.label}>Details</Text>
         <View style={styles.inputContainer}>
           <VibeInput
             value={formData.details}
             onChangeText={(text) => handleInputChange('details', text)}
-            onFocus={() =>
-              !isLoading &&
-              formData.details.length < 5 &&
-              setSuggestionVisibility((prev) => ({ ...prev, details: true }))
-            }
+            onFocus={() => handleInputFocus('details')}
             onBlur={() => hideSuggestions('details')}
             multiline
             placeholder="Add any additional details about your event..."
@@ -665,29 +679,29 @@ export default function CreateEventScreen({ navigation }) {
               height: Math.max(80, formData.inputHeight),
             }}
             onContentSizeChange={(e) =>
-              updateField('inputHeight', e.nativeEvent.contentSize.height)
+              updateInputHeight(e.nativeEvent.contentSize.height)
             }
             maxLength={500}
           />
           <VibeAutoComplete
-            suggestions={filteredSuggestions.details}
+            suggestions={getFieldData('details', formData.details).suggestions}
             onSelect={(suggestion) =>
               handleSuggestionSelect('details', suggestion)
             }
-            visible={suggestionVisibility.details && !isLoading}
+            visible={getFieldData('details', formData.details).isVisible}
           />
         </View>
 
         {/* Template Buttons */}
         <View style={styles.templateButtons}>
           <VibeButtonPlain
-            label="📋 Use Template"
+            label="Use Template"
             onPress={() => setShowTemplateModal(true)}
             style={styles.templateButton}
           />
 
           <VibeButtonPlain
-            label="💾 Save as Template"
+            label="Save Template"
             onPress={handleShowSaveTemplate}
             style={styles.templateButton}
           />
@@ -708,43 +722,13 @@ export default function CreateEventScreen({ navigation }) {
           {formData.isPrivate &&
             '\n🔒 Private events are only visible to invited guests'}
           {formData.hasRsvpDeadline && '\n⏰ RSVP deadline will be enforced'}
+          {isDirty && '\n✏️ You have unsaved changes'}
+          {formData.address && '\n✨ Address was auto-filled from location'}
         </Text>
       </ScrollView>
 
-      {/* Modals */}
-      <DateTimePickerModal
-        isVisible={showDatePicker}
-        mode="date"
-        date={formData.date}
-        minimumDate={new Date()}
-        onConfirm={handleDateConfirm}
-        onCancel={() => setShowDatePicker(false)}
-      />
-
-      <VibeTimePicker
-        visible={showTimePicker}
-        initialTime={formData.time}
-        onConfirm={handleTimeConfirm}
-        onClose={() => setShowTimePicker(false)}
-      />
-
-      {/* NEW: RSVP Deadline Modals */}
-      <DateTimePickerModal
-        isVisible={showRsvpDatePicker}
-        mode="date"
-        date={formData.rsvpDeadline}
-        minimumDate={new Date()}
-        maximumDate={formData.date} // Can't be after event date
-        onConfirm={handleRsvpDateConfirm}
-        onCancel={() => setShowRsvpDatePicker(false)}
-      />
-
-      <VibeTimePicker
-        visible={showRsvpTimePicker}
-        initialTime={formData.rsvpDeadline}
-        onConfirm={handleRsvpTimeConfirm}
-        onClose={() => setShowRsvpTimePicker(false)}
-      />
+      {/* ALL DATE/TIME MODALS IN ONE LINE! */}
+      {DateTimePickerModals}
 
       <EventTipsModal type="create" visible={showTips} onClose={closeTips} />
 
@@ -823,14 +807,6 @@ const styles = StyleSheet.create({
     position: 'relative',
     zIndex: 1,
   },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  flex: {
-    flex: 1,
-  },
   templateButtons: {
     flexDirection: 'row',
     gap: 10,
@@ -846,9 +822,6 @@ const styles = StyleSheet.create({
   disabledButton: {
     opacity: 0.6,
   },
-  unselectedButton: {
-    opacity: 0.7,
-  },
   helpText: {
     color: theme.colors.textSecondary,
     fontSize: 12,
@@ -856,5 +829,9 @@ const styles = StyleSheet.create({
     marginTop: 16,
     lineHeight: 16,
     fontFamily: theme.fonts.main,
+  },
+  autoFilledInput: {
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    borderColor: 'rgba(76, 175, 80, 0.3)',
   },
 });

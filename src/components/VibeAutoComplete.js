@@ -2,31 +2,41 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import theme from '../themes/themes';
 
-const VibeAutoComplete = React.memo(({ suggestions, onSelect, visible }) => {
-  if (!visible || !suggestions.length) return null;
+const VibeAutoComplete = React.memo(
+  ({ suggestions, onSelect, visible, showCount = false }) => {
+    if (!visible || !suggestions.length) return null;
 
-  return (
-    <View style={styles.autocompleteContainer}>
-      {suggestions.map((item, index) => (
-        <Pressable
-          key={`${item.text}-${index}`}
-          style={({ pressed }) => [
-            styles.suggestionItem,
-            { opacity: pressed ? 0.7 : 1 },
-          ]}
-          onPress={() => onSelect(item.text)}
-        >
-          <View style={styles.suggestionContent}>
-            <Text style={styles.suggestionText} numberOfLines={1}>
-              {item.text}
-            </Text>
-            <Text style={styles.suggestionCount}>Used {item.count}x</Text>
-          </View>
-        </Pressable>
-      ))}
-    </View>
-  );
-});
+    return (
+      <View style={styles.autocompleteContainer}>
+        {suggestions.map((item, index) => {
+          // Handle both string and object suggestions
+          const text = typeof item === 'string' ? item : item.text;
+          const count = typeof item === 'object' ? item.count : null;
+
+          return (
+            <Pressable
+              key={`${text}-${index}`}
+              style={({ pressed }) => [
+                styles.suggestionItem,
+                { opacity: pressed ? 0.7 : 1 },
+              ]}
+              onPress={() => onSelect(text)}
+            >
+              <View style={styles.suggestionContent}>
+                <Text style={styles.suggestionText} numberOfLines={1}>
+                  {text}
+                </Text>
+                {showCount && count && typeof count === 'number' && (
+                  <Text style={styles.suggestionCount}>Used {count}x</Text>
+                )}
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+    );
+  }
+);
 
 const styles = StyleSheet.create({
   autocompleteContainer: {

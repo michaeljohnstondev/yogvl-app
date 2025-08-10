@@ -1,3 +1,5 @@
+// hooks/useSuggestions.js
+
 import { useState, useCallback } from 'react';
 import {
   Timestamp,
