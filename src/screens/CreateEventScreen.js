@@ -50,6 +50,7 @@ const useFormState = () => {
   const [formData, setFormData] = useState({
     title: '',
     location: '',
+    address: '',
     details: '',
     maxGuests: '',
     date: new Date(),
@@ -60,6 +61,14 @@ const useFormState = () => {
     hasFee: false,
     entryFee: '',
     feeDescription: '',
+
+    // NEW FIELDS
+    isPrivate: false,
+    additionalHosts: [],
+    showHostContact: true,
+    hasRsvpDeadline: false,
+    rsvpDeadline: new Date(),
+    rsvpDeadlineSelected: false,
   });
 
   const updateField = useCallback((field, value) => {
@@ -70,6 +79,7 @@ const useFormState = () => {
     setFormData({
       title: '',
       location: '',
+      address: '',
       details: '',
       maxGuests: '',
       date: new Date(),
@@ -80,6 +90,14 @@ const useFormState = () => {
       hasFee: false,
       entryFee: '',
       feeDescription: '',
+
+      // Reset new fields
+      isPrivate: false,
+      additionalHosts: [],
+      showHostContact: true,
+      hasRsvpDeadline: false,
+      rsvpDeadline: new Date(),
+      rsvpDeadlineSelected: false,
     });
   }, []);
 
@@ -120,6 +138,10 @@ export default function CreateEventScreen({ navigation }) {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
 
+  // NEW: RSVP Deadline Pickers
+  const [showRsvpDatePicker, setShowRsvpDatePicker] = useState(false);
+  const [showRsvpTimePicker, setShowRsvpTimePicker] = useState(false);
+
   // Suggestion visibility state
   const [suggestionVisibility, setSuggestionVisibility] = useState({
     title: false,
@@ -142,7 +164,7 @@ export default function CreateEventScreen({ navigation }) {
     loadSuggestions();
   }, [loadSuggestions]);
 
-  // Template handlers - FIXED VERSION
+  // Template handlers
   const handleSaveAsTemplate = () => {
     console.log('=== handleSaveAsTemplate called ===');
     console.log('Current form data:', formData);
@@ -160,12 +182,7 @@ export default function CreateEventScreen({ navigation }) {
 
     const templateData = applyTemplate(template);
     console.log('Processed template data:', templateData);
-    console.log('Template date:', templateData.date);
-    console.log('Template dateSelected:', templateData.dateSelected);
-    console.log('Template time:', templateData.time);
-    console.log('Template timeSelected:', templateData.timeSelected);
 
-    // Use template data directly - this fixes the date/time loading issue
     replaceFormData(templateData);
     setShowTemplateModal(false);
 
@@ -237,54 +254,112 @@ export default function CreateEventScreen({ navigation }) {
     [updateField]
   );
 
+  // NEW: RSVP Deadline handlers
+  const handleRsvpDateConfirm = useCallback(
+    (selectedDate) => {
+      console.log('RSVP Date selected:', selectedDate);
+      updateField('rsvpDeadline', selectedDate);
+      updateField('rsvpDeadlineSelected', true);
+      setShowRsvpDatePicker(false);
+    },
+    [updateField]
+  );
+
+  const handleRsvpTimeConfirm = useCallback(
+    (selectedTime) => {
+      console.log('RSVP Time selected:', selectedTime);
+      const currentDeadline = formData.rsvpDeadline;
+      const newDeadline = new Date(
+        currentDeadline.getFullYear(),
+        currentDeadline.getMonth(),
+        currentDeadline.getDate(),
+        selectedTime.getHours(),
+        selectedTime.getMinutes()
+      );
+      updateField('rsvpDeadline', newDeadline);
+      updateField('rsvpDeadlineSelected', true);
+      setShowRsvpTimePicker(false);
+    },
+    [updateField, formData.rsvpDeadline]
+  );
+
   // Create event handler
   const handleCreate = useCallback(async () => {
-    console.log('=== handleCreate called ===');
+    console.log('=== DEBUG: handleCreate called ===');
+    console.log('1. currentUserId:', currentUserId);
+    console.log('2. userData:', userData);
+    console.log('3. formData:', formData);
 
     if (!currentUserId) {
+      console.log('ERROR: No currentUserId');
       Alert.alert('Error', 'You must be logged in to create events.');
       return;
     }
 
+    console.log('4. Validating user can create event...');
     const canCreateValidation = validateUserCanCreateEvent(userData);
+    console.log('5. canCreateValidation result:', canCreateValidation);
+
     if (!canCreateValidation.canCreate) {
+      console.log(
+        'ERROR: User cannot create event:',
+        canCreateValidation.reason
+      );
       Alert.alert('Event Creation Restricted', canCreateValidation.reason);
       return;
     }
 
     if (canCreateValidation.warning) {
+      console.log('6. Warning exists, showing alert...');
       const proceed = await new Promise((resolve) => {
         Alert.alert('Attendance Notice', canCreateValidation.warning, [
           { text: 'Cancel', onPress: () => resolve(false) },
           { text: 'Create Anyway', onPress: () => resolve(true) },
         ]);
       });
+      console.log('7. User chose to proceed:', proceed);
       if (!proceed) return;
     }
 
+    console.log('8. Validating form data...');
     const validation = validateEventForm(formData);
+    console.log('9. Form validation result:', validation);
+
     if (!validation.isValid) {
+      console.log('ERROR: Form validation failed:', validation.message);
       Alert.alert('Error', validation.message);
       return;
     }
 
+    console.log('10. Setting isCreating to true...');
     setIsCreating(true);
 
     try {
-      console.log('=== Creating event ===');
-      console.log('Form data:', formData);
-
+      console.log('11. Formatting event data...');
       const eventData = formatEventForStorage(formData, currentUserId);
+      console.log('12. Formatted event data (before timestamps):', eventData);
+
       eventData.createdAt = Timestamp.now();
       eventData.eventTimestamp = Timestamp.fromDate(eventData.eventTimestamp);
 
-      console.log('Event data for storage:', eventData);
+      // Handle RSVP deadline timestamp conversion
+      if (eventData.rsvpDeadlineTimestamp) {
+        eventData.rsvpDeadlineTimestamp = Timestamp.fromDate(
+          eventData.rsvpDeadlineTimestamp
+        );
+      }
+
+      console.log('13. Final event data for storage:', eventData);
+      console.log('14. About to call addDoc...');
 
       const eventRef = await addDoc(collection(db, 'events'), eventData);
-      console.log('Event created with ID:', eventRef.id);
+      console.log('15. SUCCESS! Event created with ID:', eventRef.id);
 
+      console.log('16. Updating metrics...');
       await updateEventCreationMetrics(currentUserId, eventRef.id);
+      console.log('17. Metrics updated successfully');
 
+      console.log('18. Cleaning up form...');
       loadSuggestions();
       resetForm();
       setSuggestionVisibility({
@@ -293,15 +368,22 @@ export default function CreateEventScreen({ navigation }) {
         details: false,
       });
 
+      console.log('19. Showing success alert...');
       Alert.alert(
         'Success!',
         'Event created successfully! You are automatically subscribed to your event.',
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
     } catch (error) {
-      console.error('Error creating event:', error);
-      Alert.alert('Error', 'Failed to create event. Please try again.');
+      console.error('ERROR in try block:', error);
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        stack: error.stack,
+      });
+      Alert.alert('Error', `Failed to create event: ${error.message}`);
     } finally {
+      console.log('20. Setting isCreating to false...');
       setIsCreating(false);
     }
   }, [
@@ -320,12 +402,20 @@ export default function CreateEventScreen({ navigation }) {
       timeSelected: formData.timeSelected,
       date: formData.date,
       time: formData.time,
+      isPrivate: formData.isPrivate,
+      showHostContact: formData.showHostContact,
+      hasRsvpDeadline: formData.hasRsvpDeadline,
+      rsvpDeadlineSelected: formData.rsvpDeadlineSelected,
     });
   }, [
     formData.dateSelected,
     formData.timeSelected,
     formData.date,
     formData.time,
+    formData.isPrivate,
+    formData.showHostContact,
+    formData.hasRsvpDeadline,
+    formData.rsvpDeadlineSelected,
   ]);
 
   return (
@@ -374,6 +464,17 @@ export default function CreateEventScreen({ navigation }) {
             visible={suggestionVisibility.title && !isLoading}
           />
         </View>
+
+        {/* Privacy Setting */}
+        <Text style={styles.label}>Event Privacy</Text>
+        <VibeSegmentedControl
+          options={[
+            { value: false, label: 'Public', icon: '🌍' },
+            { value: true, label: 'Private', icon: '🔒' },
+          ]}
+          selectedValue={formData.isPrivate}
+          onSelect={(value) => updateField('isPrivate', value)}
+        />
 
         {/* Date & Time */}
         <Text style={styles.label}>When *</Text>
@@ -432,6 +533,15 @@ export default function CreateEventScreen({ navigation }) {
           />
         </View>
 
+        {/* Address (NEW) */}
+        <Text style={styles.label}>Address (optional)</Text>
+        <VibeInput
+          value={formData.address}
+          onChangeText={(text) => updateField('address', text)}
+          placeholder="123 Main St, City, State 12345"
+          maxLength={300}
+        />
+
         {/* Max Guests */}
         <Text style={styles.label}>Max Guests (optional)</Text>
         <VibeInput
@@ -441,6 +551,67 @@ export default function CreateEventScreen({ navigation }) {
           maxLength={4}
           placeholder="Enter max guests"
         />
+
+        {/* Host Contact Info (NEW) */}
+        <Text style={styles.label}>Host Contact Information</Text>
+        <VibeSegmentedControl
+          options={[
+            { value: true, label: 'Show Contact', icon: '📞' },
+            { value: false, label: 'Hide Contact', icon: '🙈' },
+          ]}
+          selectedValue={formData.showHostContact}
+          onSelect={(value) => updateField('showHostContact', value)}
+        />
+
+        {/* RSVP Deadline (NEW) */}
+        <Text style={styles.label}>RSVP Deadline</Text>
+        <VibeSegmentedControl
+          options={[
+            { value: false, label: 'No Deadline', icon: '♾️' },
+            { value: true, label: 'Set Deadline', icon: '⏰' },
+          ]}
+          selectedValue={formData.hasRsvpDeadline}
+          onSelect={(value) => updateField('hasRsvpDeadline', value)}
+        />
+
+        {/* Show deadline picker if enabled */}
+        {formData.hasRsvpDeadline && (
+          <View style={styles.row}>
+            <View style={styles.flex}>
+              <VibeButtonPlain
+                label={
+                  formData.rsvpDeadlineSelected
+                    ? formData.rsvpDeadline.toLocaleDateString([], {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                      })
+                    : '📅 Deadline Date'
+                }
+                onPress={() => setShowRsvpDatePicker(true)}
+                style={
+                  !formData.rsvpDeadlineSelected && styles.unselectedButton
+                }
+              />
+            </View>
+            <View style={styles.flex}>
+              <VibeButtonPlain
+                label={
+                  formData.rsvpDeadlineSelected
+                    ? formData.rsvpDeadline.toLocaleTimeString([], {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      })
+                    : '⏰ Deadline Time'
+                }
+                onPress={() => setShowRsvpTimePicker(true)}
+                style={
+                  !formData.rsvpDeadlineSelected && styles.unselectedButton
+                }
+              />
+            </View>
+          </View>
+        )}
 
         {/* Entry Fee */}
         <Text style={styles.label}>Entry Fee</Text>
@@ -534,6 +705,9 @@ export default function CreateEventScreen({ navigation }) {
           * Required fields{'\n'}
           You will be automatically subscribed to your event{'\n'}
           💡 Suggestions based on popular choices from recent events
+          {formData.isPrivate &&
+            '\n🔒 Private events are only visible to invited guests'}
+          {formData.hasRsvpDeadline && '\n⏰ RSVP deadline will be enforced'}
         </Text>
       </ScrollView>
 
@@ -552,6 +726,24 @@ export default function CreateEventScreen({ navigation }) {
         initialTime={formData.time}
         onConfirm={handleTimeConfirm}
         onClose={() => setShowTimePicker(false)}
+      />
+
+      {/* NEW: RSVP Deadline Modals */}
+      <DateTimePickerModal
+        isVisible={showRsvpDatePicker}
+        mode="date"
+        date={formData.rsvpDeadline}
+        minimumDate={new Date()}
+        maximumDate={formData.date} // Can't be after event date
+        onConfirm={handleRsvpDateConfirm}
+        onCancel={() => setShowRsvpDatePicker(false)}
+      />
+
+      <VibeTimePicker
+        visible={showRsvpTimePicker}
+        initialTime={formData.rsvpDeadline}
+        onConfirm={handleRsvpTimeConfirm}
+        onClose={() => setShowRsvpTimePicker(false)}
       />
 
       <EventTipsModal type="create" visible={showTips} onClose={closeTips} />
