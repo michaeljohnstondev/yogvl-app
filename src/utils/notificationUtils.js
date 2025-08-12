@@ -7,7 +7,7 @@ import {
   updateDoc,
   doc,
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db } from '../auth/firebase';
 
 /**
  * Get events that need notification processing

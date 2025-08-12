@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, Animated, StyleSheet, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import VibeButton from '../components/VibeButton';
+import VibeButton from '../components/vibeComponents/VibeButton';
 import { useNavigation } from '@react-navigation/native';
 import theme from '../themes/themes';
 export default function LandingScreen() {
@@ -17,7 +17,7 @@ export default function LandingScreen() {
   }, []);
 
   return (
-    <Animated.View style={[styles.container, { opacity: fadeAnim }]}> 
+    <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
       <LinearGradient
         colors={theme.colors.backgroundGradient}
         style={styles.background}
@@ -27,8 +27,14 @@ export default function LandingScreen() {
       <Text style={styles.title}>Big Vibe Studios</Text>
 
       <View style={styles.buttonGroup}>
-        <VibeButton label="Log In" onPress={() => navigation.navigate('Login')} />
-        <VibeButton label="Sign Up" onPress={() => navigation.navigate('SignUp')} />
+        <VibeButton
+          label="Log In"
+          onPress={() => navigation.navigate('Login')}
+        />
+        <VibeButton
+          label="Sign Up"
+          onPress={() => navigation.navigate('SignUp')}
+        />
         <Pressable style={styles.browse}>
           <Text style={styles.browseText}>Just Browse</Text>
         </Pressable>

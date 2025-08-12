@@ -1,13 +1,13 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import VibeButton from '../components/VibeButton';
-import VibeCarousel from '../components/VibeCarousel';
-import EventCard from '../components/EventCard';
-import EmptyStateView from '../components/EmptyStateView';
+import VibeButton from '../components/vibeComponents/VibeButton';
+import VibeCarousel from '../components/vibeComponents/VibeCarousel';
+import EventCard from '../components/events/EventCard';
+import EmptyStateView from '../components/events/EmptyStateView';
 import { useEffect, useState } from 'react';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
-import { db } from '../firebase';
-import { useAuth } from '../AuthContext';
+import { db } from '../auth/firebase';
+import { useAuth } from '../auth/AuthContext';
 
 export default function HomeScreen({ navigation }) {
   const [myEvents, setMyEvents] = useState([]);

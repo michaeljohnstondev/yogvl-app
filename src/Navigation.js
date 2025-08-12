@@ -11,17 +11,17 @@ import {
 import { getFirestore, getDoc, doc, onSnapshot } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import app from './firebase';
-import { AuthProvider } from './AuthContext';
+import app from './auth/firebase';
+import { AuthProvider } from './auth/AuthContext';
 import LandingScreen from './screens/LandingScreen';
-import LoginScreen from './screens/LoginScreen';
-import SignUpScreen from './screens/SignUpScreen';
-import ContactInfoScreen from './screens/ContactInfoScreen';
+import LoginScreen from './auth/screens/LoginScreen';
+import SignUpScreen from './auth/screens/SignUpScreen';
+import ContactInfoScreen from './auth/screens/ContactInfoScreen';
 import HomeScreen from './screens/HomeScreen';
-import CreateEventScreen from './screens/CreateEventScreen';
-import EventDetailScreen from './screens/EventDetailScreen';
-import EditEventScreen from './screens/EditEventScreen';
-import VibeWrappedScreen from './components/VibeWrappedScreen';
+import CreateEventScreen from './components/events/screens/CreateEventScreen';
+import EventDetailScreen from './components/events/screens/EventDetailScreen';
+//import EditEventScreen from './components/events/screens/EditEventScreen';
+import VibeWrappedScreen from './components/vibeComponents/VibeWrappedScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -169,7 +169,7 @@ export default function Navigation() {
             />
             <Stack.Screen
               name="EditEvent"
-              component={VibeWrappedScreen(EditEventScreen)}
+              component={VibeWrappedScreen(CreateEventScreen)}
             />
           </Stack.Navigator>
         )}
