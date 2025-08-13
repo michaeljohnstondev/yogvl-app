@@ -11,6 +11,9 @@ export default function VibeInput({
   multiline,
   onContentSizeChange,
   style,
+  isCompleted, // New prop to indicate if field is completed
+  onFocus,
+  onBlur,
 }) {
   return (
     <TextInput
@@ -21,8 +24,14 @@ export default function VibeInput({
       keyboardType={keyboardType}
       multiline={multiline}
       onContentSizeChange={onContentSizeChange}
+      onFocus={onFocus}
+      onBlur={onBlur}
       placeholderTextColor="#aaa"
-      style={[styles.input, style]} // 👈 make sure to merge styles here
+      style={[
+        styles.input,
+        isCompleted && styles.completedInput, // Apply completed style if isCompleted is true
+        style,
+      ]}
     />
   );
 }
@@ -37,5 +46,8 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.main,
     color: theme.colors.textPrimary,
     backgroundColor: theme.colors.inputBackground,
+  },
+  completedInput: {
+    borderColor: theme.colors.vibePurple,
   },
 });

@@ -129,6 +129,12 @@ export const validateEventForm = (formData) => {
     rsvpDeadline,
     rsvpDeadlineSelected,
     address,
+    // New Details component fields
+    whatsProvided,
+    whatToBring,
+    parkingInstructions,
+    dressCode,
+    ageRestrictions,
   } = formData;
 
   // Check required fields
@@ -165,6 +171,42 @@ export const validateEventForm = (formData) => {
     return {
       isValid: false,
       message: 'Address must be 300 characters or less',
+    };
+  }
+
+  // Validate new Details component fields
+  if (whatsProvided && whatsProvided.trim().length > 200) {
+    return {
+      isValid: false,
+      message: "What's Provided must be 200 characters or less",
+    };
+  }
+
+  if (whatToBring && whatToBring.trim().length > 200) {
+    return {
+      isValid: false,
+      message: 'What to Bring must be 200 characters or less',
+    };
+  }
+
+  if (parkingInstructions && parkingInstructions.trim().length > 200) {
+    return {
+      isValid: false,
+      message: 'Parking Instructions must be 200 characters or less',
+    };
+  }
+
+  if (dressCode && dressCode.trim().length > 100) {
+    return {
+      isValid: false,
+      message: 'Dress Code must be 100 characters or less',
+    };
+  }
+
+  if (ageRestrictions && ageRestrictions.trim().length > 100) {
+    return {
+      isValid: false,
+      message: 'Age Restrictions must be 100 characters or less',
     };
   }
 
@@ -263,6 +305,12 @@ export const formatEventForStorage = (formData, currentUserId) => {
     hasRsvpDeadline,
     rsvpDeadline,
     rsvpDeadlineSelected,
+    // New Details component fields
+    whatsProvided,
+    whatToBring,
+    parkingInstructions,
+    dressCode,
+    ageRestrictions,
   } = formData;
 
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -323,7 +371,14 @@ export const formatEventForStorage = (formData, currentUserId) => {
     title: title.trim(),
     location: location.trim(),
     address: address ? address.trim() : '',
-    desc: details.trim(),
+    desc: details ? details.trim() : '',
+
+    // Additional Details component fields
+    whatsProvided: whatsProvided ? whatsProvided.trim() : '',
+    whatToBring: whatToBring ? whatToBring.trim() : '',
+    parkingInstructions: parkingInstructions ? parkingInstructions.trim() : '',
+    dressCode: dressCode ? dressCode.trim() : '',
+    ageRestrictions: ageRestrictions ? ageRestrictions.trim() : '',
 
     // Date/time info
     utcDateTime: utcDateTime,

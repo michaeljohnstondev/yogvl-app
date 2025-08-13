@@ -4,6 +4,7 @@ import { View, StyleSheet } from 'react-native';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import VibeTimePicker from '../../vibeComponents/VibeTimePicker';
 import VibeButtonPlain from '../../vibeComponents/VibeButtonPlain';
+import theme from '../../../themes/themes';
 
 /**
  * Reusable hook for managing multiple date/time pickers
@@ -20,6 +21,8 @@ const useDateTimePickers = (config = {}, onUpdate = () => {}) => {
       initialState[key] = {
         value: pickerConfig.initialValue || new Date(),
         selected: pickerConfig.initialSelected || false,
+        dateSelected: false, // Track date selection separately
+        timeSelected: false, // Track time selection separately
         showDatePicker: false,
         showTimePicker: false,
       };
@@ -45,6 +48,8 @@ const useDateTimePickers = (config = {}, onUpdate = () => {}) => {
           currentValues[id] = {
             value: newData[id].value,
             selected: newData[id].selected,
+            dateSelected: newData[id].dateSelected,
+            timeSelected: newData[id].timeSelected,
           };
         });
         onUpdate(currentValues);
@@ -81,16 +86,25 @@ const useDateTimePickers = (config = {}, onUpdate = () => {}) => {
   const handleDateConfirm = useCallback(
     (pickerId, selectedDate) => {
       updatePicker(pickerId, 'value', selectedDate);
-      updatePicker(pickerId, 'selected', true);
+      updatePicker(pickerId, 'dateSelected', true);
+
+      // Check if time was already selected, if so mark whole picker as selected
+      const currentPicker = pickerData[pickerId];
+      if (currentPicker?.timeSelected) {
+        updatePicker(pickerId, 'selected', true);
+      }
+
       hidePicker(pickerId, 'Date');
     },
-    [updatePicker, hidePicker]
+    [updatePicker, hidePicker, pickerData]
   );
 
   // Handle time confirmation
   const handleTimeConfirm = useCallback(
     (pickerId, selectedTime) => {
-      const currentDate = pickerData[pickerId].value;
+      const currentPicker = pickerData[pickerId];
+      const currentDate = currentPicker.value;
+
       const newDateTime = new Date(
         currentDate.getFullYear(),
         currentDate.getMonth(),
@@ -98,8 +112,15 @@ const useDateTimePickers = (config = {}, onUpdate = () => {}) => {
         selectedTime.getHours(),
         selectedTime.getMinutes()
       );
+
       updatePicker(pickerId, 'value', newDateTime);
-      updatePicker(pickerId, 'selected', true);
+      updatePicker(pickerId, 'timeSelected', true);
+
+      // Check if date was already selected, if so mark whole picker as selected
+      if (currentPicker?.dateSelected) {
+        updatePicker(pickerId, 'selected', true);
+      }
+
       hidePicker(pickerId, 'Time');
     },
     [pickerData, updatePicker, hidePicker]
@@ -130,7 +151,13 @@ const useDateTimePickers = (config = {}, onUpdate = () => {}) => {
   const getFormattedValue = useCallback(
     (pickerId, type, placeholder) => {
       const picker = pickerData[pickerId];
-      if (!picker || !picker.selected) {
+      if (!picker) return placeholder;
+
+      // Check individual selection status
+      const hasIndividualSelection =
+        type === 'date' ? picker.dateSelected : picker.timeSelected;
+
+      if (!hasIndividualSelection && !picker.selected) {
         return placeholder;
       }
 
@@ -149,7 +176,7 @@ const useDateTimePickers = (config = {}, onUpdate = () => {}) => {
 
       if (!picker) return { isValid: true };
 
-      // Check if required field is selected
+      // Check if required field is selected (both date and time)
       if (pickerConfig.required && !picker.selected) {
         return {
           isValid: false,
@@ -227,6 +254,8 @@ const useDateTimePickers = (config = {}, onUpdate = () => {}) => {
       resetState[key] = {
         value: pickerConfig.initialValue || new Date(),
         selected: pickerConfig.initialSelected || false,
+        dateSelected: false,
+        timeSelected: false,
         showDatePicker: false,
         showTimePicker: false,
       };
@@ -247,6 +276,14 @@ const useDateTimePickers = (config = {}, onUpdate = () => {}) => {
               data[pickerId].selected !== undefined
                 ? data[pickerId].selected
                 : newState[pickerId].selected,
+            dateSelected:
+              data[pickerId].dateSelected !== undefined
+                ? data[pickerId].dateSelected
+                : newState[pickerId].dateSelected,
+            timeSelected:
+              data[pickerId].timeSelected !== undefined
+                ? data[pickerId].timeSelected
+                : newState[pickerId].timeSelected,
           };
         }
       });
@@ -263,7 +300,13 @@ const useDateTimePickers = (config = {}, onUpdate = () => {}) => {
 
       if (!picker || !pickerConfig) return null;
 
-      const isSelected = picker.selected;
+      // Check individual completion status
+      const isIndividuallySelected =
+        type === 'date' ? picker.dateSelected : picker.timeSelected;
+
+      const isSelected = picker.selected || isIndividuallySelected;
+      const showCompletion = isIndividuallySelected; // Always show completion when individually selected
+
       const displayValue = isSelected
         ? getFormattedValue(pickerId, type, placeholder)
         : `${icon} ${placeholder}`;
@@ -274,7 +317,11 @@ const useDateTimePickers = (config = {}, onUpdate = () => {}) => {
           onPress={() =>
             showPicker(pickerId, type === 'date' ? 'Date' : 'Time')
           }
-          style={[!isSelected && styles.unselectedButton, style]}
+          style={[
+            !isSelected && styles.unselectedButton,
+            showCompletion && styles.completedButton,
+            style,
+          ]}
         />
       );
     },
@@ -311,7 +358,7 @@ const useDateTimePickers = (config = {}, onUpdate = () => {}) => {
         </View>
       );
     },
-    [PickerButton]
+    [PickerButton, pickerData]
   );
 
   // Generate all modals
@@ -362,6 +409,8 @@ const useDateTimePickers = (config = {}, onUpdate = () => {}) => {
       result[pickerId] = {
         value: pickerData[pickerId].value,
         selected: pickerData[pickerId].selected,
+        dateSelected: pickerData[pickerId].dateSelected,
+        timeSelected: pickerData[pickerId].timeSelected,
       };
     });
     return result;
@@ -403,6 +452,10 @@ const styles = StyleSheet.create({
   },
   unselectedButton: {
     opacity: 0.7,
+  },
+  completedButton: {
+    borderColor: theme.colors.vibePurple,
+    borderWidth: 1,
   },
 });
 

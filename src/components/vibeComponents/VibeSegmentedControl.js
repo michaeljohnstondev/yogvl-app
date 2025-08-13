@@ -35,41 +35,40 @@ const VibeSegmentedControl = ({ options, selectedValue, onSelect, style }) => {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: theme.colors.inputBorder,
+    backgroundColor: 'transparent',
     borderRadius: theme.sizes.borderRadius,
-    padding: 2,
+    gap: 2,
   },
   segment: {
     flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: theme.sizes.borderRadius,
+    borderWidth: 1,
+    borderColor: theme.colors.inputBorder,
+    backgroundColor: theme.colors.background,
   },
   firstSegment: {
-    borderTopLeftRadius: theme.sizes.borderRadius - 2,
-    borderBottomLeftRadius: theme.sizes.borderRadius - 2,
+    // No longer needed since we're using gap instead of connected segments
   },
   lastSegment: {
-    borderTopRightRadius: theme.sizes.borderRadius - 2,
-    borderBottomRightRadius: theme.sizes.borderRadius - 2,
+    // No longer needed since we're using gap instead of connected segments
   },
   selectedSegment: {
+    borderColor: theme.colors.vibeGreen,
     backgroundColor: theme.colors.background,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
   },
   segmentText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '500',
     color: theme.colors.textSecondary,
     fontFamily: theme.fonts.main,
   },
   selectedSegmentText: {
     color: theme.colors.textPrimary,
+    fontWeight: '600',
   },
 });
 
