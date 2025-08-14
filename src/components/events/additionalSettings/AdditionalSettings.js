@@ -83,14 +83,6 @@ export const AdditionalSettings = ({
                 placeholder="$10.00"
                 keyboardType="numeric"
               />
-
-              <Text style={styles.label}>What's Included? (optional)</Text>
-              <VibeInput
-                value={formData.feeDescription}
-                onChangeText={(text) => updateField('feeDescription', text)}
-                placeholder="Food, drinks, materials, etc."
-                maxLength={200}
-              />
             </>
           )}
         </>

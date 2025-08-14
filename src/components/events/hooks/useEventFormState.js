@@ -13,7 +13,6 @@ const DEFAULT_FORM_DATA = {
   inputHeight: 80,
   hasFee: false,
   entryFee: '',
-  feeDescription: '',
   isPrivate: false,
   additionalHosts: [],
   showHostContact: false,
@@ -27,13 +26,7 @@ const DEFAULT_FORM_DATA = {
  * @returns {Object} Hook interface with state, handlers, and utilities
  */
 const useEventFormState = (initialData = {}, options = {}) => {
-  const {
-    enableDirtyTracking = false,
-    enableAutoSave = false,
-    autoSaveDelay = 2000,
-    onFormChange = () => {},
-    validateOnChange = false,
-  } = options;
+  const { enableDirtyTracking = false, onFormChange = () => {} } = options;
 
   // Merge initial data with defaults
   const initialFormData = useMemo(
@@ -219,93 +212,59 @@ const useEventFormState = (initialData = {}, options = {}) => {
   }, [formData]);
 
   // Field-specific helpers
-  const fieldHelpers = useMemo(
-    () => ({
-      // Fee-related helpers
-      toggleFee: () => updateField('hasFee', !formData.hasFee),
-      clearFeeData: () => updateFields({ entryFee: '', feeDescription: '' }),
+  const toggleFee = useCallback(() => {
+    updateField('hasFee', !formData.hasFee);
+  }, [formData.hasFee, updateField]);
 
-      // Privacy helpers
-      togglePrivacy: () => updateField('isPrivate', !formData.isPrivate),
+  const togglePrivacy = useCallback(() => {
+    updateField('isPrivate', !formData.isPrivate);
+  }, [formData.isPrivate, updateField]);
 
-      // Contact helpers
-      toggleHostContact: () =>
-        updateField('showHostContact', !formData.showHostContact),
+  const toggleHostContact = useCallback(() => {
+    updateField('showHostContact', !formData.showHostContact);
+  }, [formData.showHostContact, updateField]);
 
-      // RSVP helpers
-      toggleRsvpDeadline: () =>
-        updateField('hasRsvpDeadline', !formData.hasRsvpDeadline),
+  const toggleRsvpDeadline = useCallback(() => {
+    updateField('hasRsvpDeadline', !formData.hasRsvpDeadline);
+  }, [formData.hasRsvpDeadline, updateField]);
 
-      // Host helpers
-      addHost: (hostId) => {
-        const currentHosts = formData.additionalHosts || [];
-        if (!currentHosts.includes(hostId)) {
-          updateField('additionalHosts', [...currentHosts, hostId]);
-        }
-      },
-      removeHost: (hostId) => {
-        const currentHosts = formData.additionalHosts || [];
-        updateField(
-          'additionalHosts',
-          currentHosts.filter((id) => id !== hostId)
-        );
-      },
-
-      // Text helpers
-      appendToDetails: (text) => {
-        const currentDetails = formData.details || '';
-        const separator = currentDetails.match(/[.!?]$/) ? ' ' : '. ';
-        const newDetails =
-          currentDetails.length > 0 ? currentDetails + separator + text : text;
-        updateField('details', newDetails);
-      },
-
-      // Input height helper for multiline inputs
-      updateInputHeight: (height) =>
-        updateField('inputHeight', Math.max(80, height)),
-    }),
-    [formData, updateField, updateFields]
-  );
-
-  // Export for templates/external systems
-  const exportFormData = useCallback(
-    (includeMetadata = false) => {
-      if (!includeMetadata) {
-        return { ...formData };
+  const addHost = useCallback(
+    (hostId) => {
+      const currentHosts = formData.additionalHosts || [];
+      if (!currentHosts.includes(hostId)) {
+        updateField('additionalHosts', [...currentHosts, hostId]);
       }
-
-      return {
-        formData: { ...formData },
-        metadata: {
-          isDirty,
-          hasBeenModified,
-          completion: getFormCompletion(),
-          dirtyFields: getDirtyFields(),
-          lastModified: new Date().toISOString(),
-        },
-      };
     },
-    [formData, isDirty, hasBeenModified, getFormCompletion, getDirtyFields]
+    [formData.additionalHosts, updateField]
   );
 
-  // Debug helper
-  const debugInfo = useMemo(
-    () => ({
-      formData,
-      originalData,
-      isDirty,
-      hasBeenModified,
-      dirtyFields: getDirtyFields(),
-      completion: getFormCompletion(),
-    }),
-    [
-      formData,
-      originalData,
-      isDirty,
-      hasBeenModified,
-      getDirtyFields,
-      getFormCompletion,
-    ]
+  const removeHost = useCallback(
+    (hostId) => {
+      const currentHosts = formData.additionalHosts || [];
+      updateField(
+        'additionalHosts',
+        currentHosts.filter((id) => id !== hostId)
+      );
+    },
+    [formData.additionalHosts, updateField]
+  );
+
+  const appendToDetails = useCallback(
+    (text) => {
+      const currentDetails = formData.details || '';
+      const separator = currentDetails.match(/[.!?]$/) ? ' ' : '. ';
+      const newDetails =
+        currentDetails.length > 0 ? currentDetails + separator + text : text;
+      updateField('details', newDetails);
+    },
+    [formData.details, updateField]
+  );
+
+  const updateInputHeight = useCallback(
+    (height) => {
+      updateField('inputHeight', Math.max(80, height));
+    },
+    [updateField]
   );
 
   return {
@@ -334,11 +293,14 @@ const useEventFormState = (initialData = {}, options = {}) => {
     getFormCompletion,
 
     // Field-specific helpers
-    ...fieldHelpers,
-
-    // Export/debug
-    exportFormData,
-    debugInfo,
+    toggleFee,
+    togglePrivacy,
+    toggleHostContact,
+    toggleRsvpDeadline,
+    addHost,
+    removeHost,
+    appendToDetails,
+    updateInputHeight,
   };
 };
 

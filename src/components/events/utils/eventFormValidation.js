@@ -297,7 +297,6 @@ export const formatEventForStorage = (formData, currentUserId) => {
     maxGuests,
     hasFee,
     entryFee,
-    feeDescription,
     isPrivate,
     additionalHosts,
     showHostContact,
@@ -391,7 +390,6 @@ export const formatEventForStorage = (formData, currentUserId) => {
     maxGuests: maxGuests ? parseInt(maxGuests) : null,
     hasFee: hasFee ?? false,
     entryFee: entryFee || '',
-    feeDescription: feeDescription || '',
 
     // Host and privacy settings
     createdBy: currentUserId,

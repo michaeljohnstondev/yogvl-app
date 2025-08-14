@@ -61,7 +61,6 @@ const useFormState = (initialData = {}) => {
     inputHeight: 80,
     hasFee: false,
     entryFee: '',
-    feeDescription: '',
     eventTimeZone: 'America/New_York',
     ...initialData,
   });
@@ -78,7 +77,6 @@ const useFormState = (initialData = {}) => {
       maxGuests: eventData.maxGuests?.toString() || '',
       hasFee: eventData.hasFee || false,
       entryFee: eventData.entryFee || '',
-      feeDescription: eventData.feeDescription || '',
       eventTimeZone: eventData.eventTimeZone || 'America/New_York',
     };
 
@@ -375,7 +373,6 @@ export default function EditEventScreen({ route, navigation }) {
         maxGuests: eventData.maxGuests,
         hasFee: eventData.hasFee,
         entryFee: eventData.entryFee,
-        feeDescription: eventData.feeDescription,
         updatedAt: Timestamp.now(),
         updatedBy: currentUserId, // Track who made the update
       };
@@ -630,14 +627,6 @@ export default function EditEventScreen({ route, navigation }) {
               onChangeText={(text) => updateField('entryFee', text)}
               placeholder="$10.00"
               keyboardType="numeric"
-            />
-
-            <Text style={styles.label}>What's Included? (optional)</Text>
-            <VibeInput
-              value={formData.feeDescription}
-              onChangeText={(text) => updateField('feeDescription', text)}
-              placeholder="Food, drinks, materials, etc."
-              maxLength={200}
             />
           </>
         )}

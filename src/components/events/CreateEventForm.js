@@ -255,22 +255,6 @@ export default function CreateEventForm({
       {DateTimePickerModals}
 
       <EventTipsModal type="create" visible={showTips} onClose={onCloseTips} />
-
-      <TemplateSelectionModal
-        visible={showTemplateModal}
-        onClose={onCloseTemplateModal}
-        templates={templates}
-        onSelectTemplate={onApplyTemplate}
-        onDeleteTemplate={onDeleteTemplate}
-      />
-
-      <SaveTemplateModal
-        visible={showSaveTemplate}
-        onClose={onHideSaveTemplateModal}
-        templateName={templateName}
-        setTemplateName={setTemplateName}
-        onSave={onSaveAsTemplate}
-      />
     </KeyboardAvoidingView>
   );
 }
