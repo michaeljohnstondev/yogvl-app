@@ -50,6 +50,7 @@ export const useSuggestions = () => {
       const eventsQuery = query(
         collection(db, 'events'),
         where('createdAt', '>=', Timestamp.fromDate(sixMonthsAgo)),
+        where('isPrivate', '==', false),
         orderBy('createdAt', 'desc'),
         limit(SUGGESTION_LIMITS.TOTAL_EVENTS)
       );
