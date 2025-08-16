@@ -301,7 +301,6 @@ export default function CreateEventScreen({ navigation }) {
 
   const handleSuccess = useCallback(() => {
     loadSuggestions();
-    resetForm();
     resetDateTime();
 
     Alert.alert(
