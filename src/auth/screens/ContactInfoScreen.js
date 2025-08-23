@@ -5,13 +5,16 @@ import {
   TextInput,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
 } from 'react-native';
+import { useVibeAlert } from '../../components/ui/VibeAlertContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { auth, db } from '../firebase';
-import theme from '../../themes/themes';
+import { auth, db } from '../services/firebase';
+import theme from '../../theme/themes';
 
 export default function ContactInfoScreen({ navigation }) {
   const [firstName, setFirstName] = useState('');
@@ -19,6 +22,7 @@ export default function ContactInfoScreen({ navigation }) {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const vibeAlert = useVibeAlert();
 
   const user = auth.currentUser;
   console.log('Current user in ContactInfo:', user);
@@ -35,9 +39,10 @@ export default function ContactInfoScreen({ navigation }) {
         const snap = await getDoc(docRef);
         if (snap.exists()) {
           const data = snap.data();
-          setFirstName(data.firstName || '');
-          setLastName(data.lastName || '');
-          setPhoneNumber(data.phoneNumber || '');
+          const contactInfo = data.userdata?.contactinfo || {};
+          setFirstName(contactInfo.firstName || '');
+          setLastName(contactInfo.lastName || '');
+          setPhoneNumber(contactInfo.phoneNumber || '');
         } else {
           // No existing user data, so show empty form
           setFirstName('');
@@ -46,7 +51,7 @@ export default function ContactInfoScreen({ navigation }) {
         }
       } catch (err) {
         console.error('Error fetching user data:', err);
-        Alert.alert('Error', 'Failed to load your info.');
+        vibeAlert.error('Error', 'Failed to load your info.');
       } finally {
         setLoading(false);
       }
@@ -57,7 +62,7 @@ export default function ContactInfoScreen({ navigation }) {
 
   const handleSubmit = async () => {
     if (!firstName.trim() || !lastName.trim() || !phoneNumber.trim()) {
-      Alert.alert(
+      vibeAlert.warning(
         'Missing info',
         'Please enter your first name, last name, and phone number.'
       );
@@ -67,38 +72,56 @@ export default function ContactInfoScreen({ navigation }) {
     // Basic phone number validation
     const phoneRegex = /^\+?[\d\s\-\(\)]{10,}$/;
     if (!phoneRegex.test(phoneNumber.trim())) {
-      Alert.alert('Invalid phone', 'Please enter a valid phone number.');
+      vibeAlert.warning('Invalid phone', 'Please enter a valid phone number.');
       return;
     }
 
     if (!user) {
-      Alert.alert('Error', 'No user found. Please try logging in again.');
+      vibeAlert.error('Error', 'No user found. Please try logging in again.');
       return;
     }
 
     setSaving(true);
     try {
-      // Update user document with contact info AND set completion flag
+      // Save contact info to user profile in userdata structure
       await setDoc(
         doc(db, 'users', user.uid),
         {
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          phoneNumber: phoneNumber.trim(),
-          email: user.email,
+          userdata: {
+            contactinfo: {
+              firstName: firstName.trim(),
+              lastName: lastName.trim(),
+              phoneNumber: phoneNumber.trim(),
+              email: user.email,
+            },
+            metadata: {
+              createdAt: new Date(),
+            },
+            metrics: {
+              events: {
+                created: 0,
+                joined: 0,
+                attended: 0,
+                noShows: 0,
+                subscribedEvents: [],
+                attendedEvents: [],
+                noShowEvents: [],
+                lastActivity: new Date(),
+              }
+            }
+          },
           uid: user.uid,
-          hasCompletedContactInfo: true, // This is key for your Navigation flow!
         },
-        { merge: true } // Merge with existing data
+        { merge: true }
       );
 
       console.log('Contact info saved successfully');
 
       // Don't manually navigate - the Navigation component will automatically
-      // detect hasCompletedContactInfo: true and switch to the main app stack
+      // detect completed contact info and switch to the next required screen
     } catch (err) {
       console.error('Error saving contact info:', err);
-      Alert.alert('Error', 'Failed to save your info. Please try again.');
+      vibeAlert.error('Error', 'Failed to save your info. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -106,78 +129,98 @@ export default function ContactInfoScreen({ navigation }) {
 
   if (loading) {
     return (
-      <LinearGradient
-        colors={theme.colors.backgroundGradient}
-        style={styles.loadingContainer}
-      >
+      <View style={styles.loadingContainer}>
+        <LinearGradient
+          colors={theme.colors.backgroundGradient}
+          style={StyleSheet.absoluteFillObject}
+        />
         <ActivityIndicator size="large" color={theme.colors.alertButton} />
         <Text style={styles.loadingText}>Loading...</Text>
-      </LinearGradient>
+      </View>
     );
   }
 
   return (
-    <LinearGradient
-      colors={theme.colors.backgroundGradient}
-      style={styles.container}
+    <KeyboardAvoidingView 
+      style={styles.keyboardContainer}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <Text style={[styles.title, theme.shadows.textGlow]}>
-        Complete Your Profile
-      </Text>
-      <Text style={styles.subtitle}>Help others find and connect with you</Text>
-
-      <Text style={styles.label}>First Name</Text>
-      <TextInput
-        style={styles.input}
-        value={firstName}
-        onChangeText={setFirstName}
-        placeholder="Enter your first name"
-        placeholderTextColor={theme.colors.textSecondary}
+      <LinearGradient
+        colors={theme.colors.backgroundGradient}
+        style={StyleSheet.absoluteFillObject}
       />
-
-      <Text style={styles.label}>Last Name</Text>
-      <TextInput
-        style={styles.input}
-        value={lastName}
-        onChangeText={setLastName}
-        placeholder="Enter your last name"
-        placeholderTextColor={theme.colors.textSecondary}
-      />
-
-      <Text style={styles.label}>Phone Number</Text>
-      <TextInput
-        style={styles.input}
-        value={phoneNumber}
-        onChangeText={setPhoneNumber}
-        placeholder="Enter your phone number"
-        placeholderTextColor={theme.colors.textSecondary}
-        keyboardType="phone-pad"
-        autoComplete="tel"
-      />
-
-      <TouchableOpacity
-        style={styles.buttonContainer}
-        onPress={handleSubmit}
-        disabled={saving}
+      <ScrollView 
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <LinearGradient
-          colors={theme.colors.buttonGradient}
-          style={[styles.button, saving && styles.buttonDisabled]}
-        >
-          <Text style={styles.buttonText}>
-            {saving ? 'Saving...' : 'Complete Profile'}
+        <View style={styles.container}>
+          <Text style={[styles.title, theme.shadows.textGlow]}>
+            Complete Your Profile
           </Text>
-        </LinearGradient>
-      </TouchableOpacity>
-    </LinearGradient>
+          <Text style={styles.subtitle}>Help others find and connect with you</Text>
+
+          <Text style={styles.label}>First Name</Text>
+          <TextInput
+            style={styles.input}
+            value={firstName}
+            onChangeText={setFirstName}
+            placeholder="Enter your first name"
+            placeholderTextColor={theme.colors.textSecondary}
+          />
+
+          <Text style={styles.label}>Last Name</Text>
+          <TextInput
+            style={styles.input}
+            value={lastName}
+            onChangeText={setLastName}
+            placeholder="Enter your last name"
+            placeholderTextColor={theme.colors.textSecondary}
+          />
+
+          <Text style={styles.label}>Phone Number</Text>
+          <TextInput
+            style={styles.input}
+            value={phoneNumber}
+            onChangeText={setPhoneNumber}
+            placeholder="Enter your phone number"
+            placeholderTextColor={theme.colors.textSecondary}
+            keyboardType="phone-pad"
+            autoComplete="tel"
+          />
+
+          <TouchableOpacity
+            style={styles.buttonContainer}
+            onPress={handleSubmit}
+            disabled={saving}
+          >
+            <LinearGradient
+              colors={theme.colors.buttonGradient}
+              style={[styles.button, saving && styles.buttonDisabled]}
+            >
+              <Text style={styles.buttonText}>
+                {saving ? 'Saving...' : 'Complete Profile'}
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  keyboardContainer: {
     flex: 1,
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
+  container: {
     padding: 24,
     justifyContent: 'center',
+    minHeight: '100%',
   },
   title: {
     fontSize: 32,
@@ -230,7 +273,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: theme.colors.background,
   },
   loadingText: {
     marginTop: 10,

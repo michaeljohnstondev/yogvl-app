@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, Animated, StyleSheet, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import theme from '../themes/themes';
+import theme from '../theme/themes';
 
 export default function BigVibCelebration() {
   const fadeAnim = useRef(new Animated.Value(0)).current;

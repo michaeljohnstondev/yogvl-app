@@ -1,0 +1,409 @@
+import { 
+  doc, 
+  getDoc, 
+  updateDoc, 
+  collection, 
+  query, 
+  where, 
+  getDocs,
+  serverTimestamp,
+  limit,
+  orderBy 
+} from 'firebase/firestore';
+import { db } from '../auth/services/firebase';
+import { Logger } from '../lib/logger';
+
+export class ReliabilityService {
+  
+  // Reliability tier thresholds
+  static RELIABILITY_TIERS = {
+    EXCELLENT: { min: 90, label: 'Excellent', color: '#00FF96', emoji: '🌟' },
+    GOOD: { min: 75, label: 'Good', color: '#00C6FF', emoji: '✅' },
+    FAIR: { min: 60, label: 'Fair', color: '#FF9800', emoji: '⚠️' },
+    POOR: { min: 40, label: 'Poor', color: '#FF6B6B', emoji: '❌' },
+    UNRELIABLE: { min: 0, label: 'Unreliable', color: '#F44336', emoji: '🚫' },
+  };
+
+  /**
+   * Calculate comprehensive user reliability score
+   * @param {string} userId - User ID
+   * @returns {Promise<Object>} Reliability data with score, tier, and metrics
+   */
+  static async calculateUserReliability(userId) {
+    try {
+      // More efficient: Query only events where user was subscribed
+      const eventsRef = collection(db, 'events');
+      const q = query(
+        eventsRef,
+        where('subscribers', 'array-contains', userId),
+        // Limit to recent events to avoid massive queries
+        // We'll calculate based on last 100 events maximum
+        limit(100)
+      );
+      
+      const eventsSnapshot = await getDocs(q);
+      
+      let totalRSVPs = 0;
+      let totalAttended = 0;
+      let totalNoShows = 0;
+      let recentEvents = 0;
+      let recentAttended = 0;
+      let lastMinuteCancellations = 0;
+      
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+      const events = [];
+
+      Logger.debug('ReliabilityService', 'Processing events for reliability calculation', { 
+        eventCount: eventsSnapshot.docs.length 
+      });
+
+      // Check each event for this user's participation
+      for (const eventDoc of eventsSnapshot.docs) {
+        const eventId = eventDoc.id;
+        const eventData = eventDoc.data();
+        const eventDate = eventData.eventTimestamp?.toDate() || new Date(0);
+        
+        // Skip future events
+        if (eventDate > now) continue;
+
+        totalRSVPs++;
+        
+        // Check if it's a recent event (last 30 days)
+        const isRecent = eventDate >= thirtyDaysAgo;
+        if (isRecent) {
+          recentEvents++;
+        }
+
+        // Get attendance data for this event
+        const attendanceRef = doc(db, 'events', eventId, 'attendance', userId);
+        const attendanceDoc = await getDoc(attendanceRef);
+        
+        if (attendanceDoc.exists()) {
+          const attendanceData = attendanceDoc.data();
+          
+          if (attendanceData.attended) {
+            totalAttended++;
+            if (isRecent) recentAttended++;
+          } else if (attendanceData.noShow) {
+            totalNoShows++;
+          }
+          
+          events.push({
+            eventId,
+            eventDate,
+            attended: attendanceData.attended,
+            noShow: attendanceData.noShow,
+            // Don't store event titles to reduce memory usage
+          });
+        }
+
+        // Check for last-minute cancellations (left event within 24 hours)
+        if (eventData.cancellations?.includes(userId)) {
+          const cancellationTime = eventData.cancellationTimes?.[userId];
+          if (cancellationTime) {
+            const timeDiff = eventDate.getTime() - cancellationTime.toDate().getTime();
+            const hoursDiff = timeDiff / (1000 * 60 * 60);
+            if (hoursDiff <= 24) {
+              lastMinuteCancellations++;
+            }
+          }
+        }
+      }
+
+      // Calculate base reliability score
+      let reliabilityScore = 100;
+      
+      if (totalRSVPs > 0) {
+        const attendanceRate = (totalAttended / totalRSVPs) * 100;
+        const noShowPenalty = (totalNoShows / totalRSVPs) * 100;
+        const lastMinutePenalty = (lastMinuteCancellations / totalRSVPs) * 50;
+        
+        reliabilityScore = Math.max(0, attendanceRate - (noShowPenalty * 1.5) - lastMinutePenalty);
+      }
+
+      // Weight recent performance more heavily (70% recent, 30% historical)
+      if (recentEvents > 0 && totalRSVPs > recentEvents) {
+        const recentRate = (recentAttended / recentEvents) * 100;
+        const historicalRate = reliabilityScore;
+        reliabilityScore = (recentRate * 0.7) + (historicalRate * 0.3);
+      }
+
+      // Apply bonuses and penalties
+      const bonuses = this.calculateBonuses(totalRSVPs, totalAttended, events);
+      const penalties = this.calculatePenalties(totalNoShows, lastMinuteCancellations);
+      
+      reliabilityScore = Math.max(0, Math.min(100, reliabilityScore + bonuses - penalties));
+
+      // Get reliability tier
+      const tier = this.getReliabilityTier(reliabilityScore);
+
+      // Calculate streak data
+      const streaks = this.calculateStreaks(events);
+
+      return {
+        reliabilityScore: Math.round(reliabilityScore),
+        tier,
+        metrics: {
+          totalRSVPs,
+          totalAttended,
+          totalNoShows,
+          lastMinuteCancellations,
+          recentEvents,
+          recentAttended,
+          attendanceRate: totalRSVPs > 0 ? Math.round((totalAttended / totalRSVPs) * 100) : 100,
+          recentAttendanceRate: recentEvents > 0 ? Math.round((recentAttended / recentEvents) * 100) : 100,
+        },
+        streaks,
+        lastUpdated: serverTimestamp(),
+      };
+      
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Calculate bonus points for good behavior
+   */
+  static calculateBonuses(totalRSVPs, totalAttended, events) {
+    let bonuses = 0;
+    
+    // Long-term reliability bonus (10+ events with 90%+ attendance)
+    if (totalRSVPs >= 10 && (totalAttended / totalRSVPs) >= 0.9) {
+      bonuses += 5;
+    }
+    
+    // Perfect attendance streaks
+    const streaks = this.calculateStreaks(events);
+    if (streaks.currentAttendanceStreak >= 5) {
+      bonuses += Math.min(10, streaks.currentAttendanceStreak - 4); // Max 10 bonus points
+    }
+    
+    // Consistent participation (attended at least 1 event per month for 3+ months)
+    const monthlyParticipation = this.calculateMonthlyParticipation(events);
+    if (monthlyParticipation >= 3) {
+      bonuses += 3;
+    }
+    
+    return bonuses;
+  }
+
+  /**
+   * Calculate penalty points for bad behavior
+   */
+  static calculatePenalties(totalNoShows, lastMinuteCancellations) {
+    let penalties = 0;
+    
+    // No-show penalties (escalating)
+    if (totalNoShows > 0) {
+      penalties += totalNoShows * 5; // 5 points per no-show
+      if (totalNoShows >= 3) penalties += 10; // Additional penalty for frequent no-shows
+    }
+    
+    // Last-minute cancellation penalties
+    if (lastMinuteCancellations > 0) {
+      penalties += lastMinuteCancellations * 3; // 3 points per last-minute cancellation
+    }
+    
+    return penalties;
+  }
+
+  /**
+   * Calculate attendance streaks
+   */
+  static calculateStreaks(events) {
+    const sortedEvents = events
+      .filter(e => e.attended !== undefined) // Only events with attendance data
+      .sort((a, b) => b.eventDate - a.eventDate); // Most recent first
+    
+    let currentAttendanceStreak = 0;
+    let longestAttendanceStreak = 0;
+    let currentNoShowStreak = 0;
+    let tempAttendanceStreak = 0;
+    
+    for (let i = 0; i < sortedEvents.length; i++) {
+      const event = sortedEvents[i];
+      
+      if (event.attended) {
+        if (i === currentAttendanceStreak) {
+          currentAttendanceStreak++;
+        }
+        tempAttendanceStreak++;
+        currentNoShowStreak = 0;
+      } else {
+        if (i === currentNoShowStreak) {
+          currentNoShowStreak++;
+        }
+        longestAttendanceStreak = Math.max(longestAttendanceStreak, tempAttendanceStreak);
+        tempAttendanceStreak = 0;
+        currentAttendanceStreak = 0;
+      }
+    }
+    
+    longestAttendanceStreak = Math.max(longestAttendanceStreak, tempAttendanceStreak);
+    
+    return {
+      currentAttendanceStreak,
+      longestAttendanceStreak,
+      currentNoShowStreak,
+    };
+  }
+
+  /**
+   * Calculate monthly participation consistency
+   */
+  static calculateMonthlyParticipation(events) {
+    const monthlyCount = {};
+    
+    events.forEach(event => {
+      if (event.attended) {
+        const monthKey = event.eventDate.getFullYear() + '-' + event.eventDate.getMonth();
+        monthlyCount[monthKey] = (monthlyCount[monthKey] || 0) + 1;
+      }
+    });
+    
+    return Object.keys(monthlyCount).length;
+  }
+
+  /**
+   * Get reliability tier based on score
+   */
+  static getReliabilityTier(score) {
+    const tiers = Object.values(this.RELIABILITY_TIERS);
+    for (const tier of tiers) {
+      if (score >= tier.min) {
+        return tier;
+      }
+    }
+    return this.RELIABILITY_TIERS.UNRELIABLE;
+  }
+
+  /**
+   * Update user's reliability in their profile
+   * @param {string} userId - User ID
+   * @param {boolean} forceUpdate - Force update even if recently calculated
+   * @returns {Promise<Object>} Updated reliability data
+   */
+  static async updateUserReliability(userId, forceUpdate = false) {
+    try {
+      // Check if we need to update (avoid excessive recalculation)
+      if (!forceUpdate) {
+        const userRef = doc(db, 'users', userId);
+        const userDoc = await getDoc(userRef);
+        
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          const reliabilityData = userData?.userdata?.metrics?.reliability;
+          const lastUpdate = reliabilityData?.lastUpdated?.toDate();
+          
+          if (lastUpdate) {
+            const hoursSinceUpdate = (Date.now() - lastUpdate.getTime()) / (1000 * 60 * 60);
+            
+            // Only update if it's been more than 1 hour since last calculation
+            if (hoursSinceUpdate < 1) {
+              Logger.debug('ReliabilityService', 'Using cached reliability data', { 
+                hoursSinceUpdate: Math.round(hoursSinceUpdate * 100) / 100 
+              });
+              
+              return {
+                reliabilityScore: reliabilityData.score || 100,
+                tier: this.getReliabilityTier(reliabilityData.score || 100),
+                metrics: reliabilityData.metrics || {},
+                streaks: reliabilityData.streaks || {},
+                lastUpdated: reliabilityData.lastUpdated,
+                fromCache: true
+              };
+            }
+          }
+        }
+      }
+
+      Logger.time('ReliabilityCalculation');
+      const reliabilityData = await this.calculateUserReliability(userId);
+      Logger.timeEnd('ReliabilityCalculation');
+      
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, {
+        'userdata.metrics.reliability': {
+          score: reliabilityData.reliabilityScore,
+          tier: reliabilityData.tier.label,
+          metrics: reliabilityData.metrics,
+          streaks: reliabilityData.streaks,
+          lastUpdated: reliabilityData.lastUpdated,
+        }
+      });
+
+      Logger.service('ReliabilityService', 'Updated user reliability', reliabilityData.reliabilityScore);
+
+      return reliabilityData;
+    } catch (error) {
+      Logger.error('ReliabilityService', 'Failed to update user reliability', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get reliability warning for user based on their score
+   * @param {Object} reliabilityData - User's reliability data
+   * @returns {Object|null} Warning data or null if no warning needed
+   */
+  static getReliabilityWarning(reliabilityData) {
+    const { reliabilityScore, metrics, streaks } = reliabilityData;
+    
+    // Critical warnings
+    if (reliabilityScore < 40) {
+      return {
+        level: 'critical',
+        title: 'Reliability Risk',
+        message: 'This user has a poor attendance record. Consider if this event is a good fit.',
+        color: '#F44336',
+      };
+    }
+    
+    // High no-show streak warning
+    if (streaks.currentNoShowStreak >= 2) {
+      return {
+        level: 'warning',
+        title: 'Recent No-Shows',
+        message: `User has ${streaks.currentNoShowStreak} consecutive no-shows.`,
+        color: '#FF9800',
+      };
+    }
+    
+    // Low recent attendance
+    if (metrics.recentEvents >= 3 && metrics.recentAttendanceRate < 60) {
+      return {
+        level: 'caution',
+        title: 'Low Recent Attendance',
+        message: `Only ${metrics.recentAttendanceRate}% attendance in recent events.`,
+        color: '#FF9800',
+      };
+    }
+    
+    return null;
+  }
+
+  /**
+   * Get user reliability display data
+   * @param {Object} userData - User document data
+   * @returns {Object} Display-ready reliability data
+   */
+  static getUserReliabilityDisplay(userData) {
+    const reliabilityData = userData?.userdata?.metrics?.reliability || {};
+    const score = reliabilityData.score || 100;
+    const tier = this.getReliabilityTier(score);
+    const metrics = reliabilityData.metrics || {};
+    const streaks = reliabilityData.streaks || {};
+    
+    return {
+      score,
+      tier,
+      metrics,
+      streaks,
+      warning: this.getReliabilityWarning({ reliabilityScore: score, metrics, streaks }),
+      displayText: `${tier.emoji} ${score}% ${tier.label}`,
+      shortDisplayText: `${score}%`,
+    };
+  }
+}

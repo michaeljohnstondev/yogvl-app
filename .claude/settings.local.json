@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(npm run lint)",
+      "Bash(npm install:*)",
+      "Bash(npm start)",
+      "Bash(npx expo start:*)",
+      "Bash(npx expo install:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npx expo:*)",
+      "Bash(npm update:*)",
+      "Bash(firebase --version)",
+      "Bash(firebase projects:list:*)",
+      "Bash(firebase login:*)",
+      "Bash(firebase deploy:*)",
+      "Bash(del .eslintrc.js)",
+      "Bash(rm:*)",
+      "Bash(firebase functions:list:*)",
+      "Bash(mv:*)",
+      "Bash(powershell:*)",
+      "Bash(npm start:*)",
+      "WebSearch",
+      "Bash(dir node_modules@expo-google-fontscomic-relief)",
+      "Bash(grep:*)",
+      "Bash(npm run android:*)",
+      "Bash(find:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npx eslint:*)",
+      "Bash(node:*)",
+      "Bash(dir:*)",
+      "Bash(firebase init:*)",
+      "Bash(sed:*)"
+    ],
+    "deny": [],
+    "ask": [],
+    "defaultMode": "acceptEdits"
+  }
+}

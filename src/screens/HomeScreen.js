@@ -1,81 +1,156 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import VibeButton from '../components/vibeComponents/VibeButton';
-import VibeCarousel from '../components/vibeComponents/VibeCarousel';
-import EventCard from '../components/events/EventCard';
-import EmptyStateView from '../components/events/EmptyStateView';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+} from 'react-native';
+import VibeButton from '../components/ui/VibeButton';
+import { useVibeAlert } from '../components/ui/VibeAlertContext';
+import VibeCarousel from '../components/ui/VibeCarousel';
+import EventCard from '../events/components/EventCard';
+import EmptyStateView from '../components/ui/EmptyStateView';
+import { NotificationButton } from '../components/notifications';
+import AccountSettingsDropdown from '../components/ui/AccountSettingsModal';
 import { useEffect, useState } from 'react';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
-import { db } from '../auth/firebase';
+import { db } from '../auth/services/firebase';
 import { useAuth } from '../auth/AuthContext';
+import { getEventFeed } from '../services/feedService';
+import theme from '../theme/themes';
 
 export default function HomeScreen({ navigation }) {
   const [myEvents, setMyEvents] = useState([]);
-  const [upcomingEvents, setUpcomingEvents] = useState([]);
+  const [followedEvents, setFollowedEvents] = useState([]);
+  const [suggestedEvents, setSuggestedEvents] = useState([]);
   const [pastEvents, setPastEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showAccountSettings, setShowAccountSettings] = useState(false);
+  const [feedStats, setFeedStats] = useState(null);
 
-  // Get auth data from context
+  // Get auth and alert context
   const { currentUserId, userData, isAuthenticated } = useAuth();
+  const vibeAlert = useVibeAlert();
 
   useEffect(() => {
-    // Listen to all events
-    const q = query(collection(db, 'events'), orderBy('eventTimestamp'));
+    const defaultStudio = userData?.userdata?.studios?.default;
+    if (!defaultStudio?.studioId || !currentUserId) return; // Wait for user studio info and auth
+    
+    // Get user's studio
+    const userStudio = defaultStudio.studioId;
+    
+    // Load follow-based event feed
+    const loadEventFeed = async () => {
+      setIsLoading(true);
+      try {
+        console.log('[HomeScreen] Loading follow-based event feed...');
+        const feedData = await getEventFeed(currentUserId, userStudio, {
+          followedLimit: 20,
+          suggestedLimit: 15,
+          includeSubscribed: true
+        });
+
+        // Separate events by category
+        const now = new Date();
+        const myUpcoming = [];
+        const followed = [];
+        const suggested = [];
+        const myPast = [];
+
+        feedData.subscribedEvents.forEach(event => {
+          const eventDate = event.eventTimestamp?.toDate() || new Date(event.utcDateTime);
+          const enrichedEvent = {
+            ...event,
+            isHostedByUser: event.createdBy === currentUserId
+          };
+          
+          if (eventDate >= now) {
+            myUpcoming.push(enrichedEvent);
+          } else {
+            myPast.push(enrichedEvent);
+          }
+        });
+
+        // Add followed users' events
+        feedData.followedEvents.forEach(event => {
+          const eventDate = event.eventTimestamp?.toDate() || new Date(event.utcDateTime);
+          if (eventDate >= now) {
+            followed.push({
+              ...event,
+              isHostedByUser: event.createdBy === currentUserId
+            });
+          }
+        });
+
+        // Add suggested events
+        feedData.suggestedEvents.forEach(event => {
+          const eventDate = event.eventTimestamp?.toDate() || new Date(event.utcDateTime);
+          if (eventDate >= now) {
+            suggested.push({
+              ...event,
+              isHostedByUser: event.createdBy === currentUserId
+            });
+          }
+        });
+
+        setMyEvents(myUpcoming);
+        setFollowedEvents(followed);
+        setSuggestedEvents(suggested);
+        setPastEvents(myPast.reverse()); // Most recent first
+        setFeedStats(feedData.stats);
+        
+        console.log('[HomeScreen] Event feed loaded:', {
+          myEvents: myUpcoming.length,
+          followedEvents: followed.length,
+          suggestedEvents: suggested.length,
+          pastEvents: myPast.length
+        });
+        
+      } catch (error) {
+        console.error('[HomeScreen] Failed to load event feed:', error);
+        vibeAlert.error('Error', 'Failed to load events. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadEventFeed();
+    
+    // Optionally, set up a real-time subscription for my events only
+    const q = query(
+      collection(db, 'studios', userStudio, 'events'),
+      orderBy('eventTimestamp')
+    );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const now = new Date();
-      const myUpcoming = [];
-      const otherUpcoming = [];
-      const myPast = [];
-
-      // Get subscribed event IDs from user data (already loaded in context)
-      const subscribedEventIds = userData?.subscribedEvents || [];
-
-      snapshot.docs.forEach((doc) => {
-        const eventData = {
-          id: doc.id,
-          ...doc.data(),
-        };
-
-        const eventDate = eventData.eventTimestamp
-          ? eventData.eventTimestamp.toDate()
-          : new Date(eventData.utcDateTime);
-
-        // Check if user is subscribed (dual check for safety)
-        const isUserSubscribed =
-          isAuthenticated &&
-          (subscribedEventIds.includes(eventData.id) ||
-            (eventData.subscribers &&
-              eventData.subscribers.includes(currentUserId)));
-
-        if (eventDate >= now) {
-          if (isUserSubscribed) {
-            myUpcoming.push(eventData);
-          } else {
-            otherUpcoming.push(eventData);
-          }
-        } else {
-          // Only add to past events if user was subscribed
-          if (isUserSubscribed) {
-            myPast.push(eventData);
-          }
-        }
+      // Only update if we detect changes to user's subscribed events
+      const hasSubscribedEventChanges = snapshot.docChanges().some(change => {
+        const eventData = change.doc.data();
+        return eventData.subscribers?.includes(currentUserId) || eventData.createdBy === currentUserId;
       });
 
-      setMyEvents(myUpcoming);
-      setUpcomingEvents(otherUpcoming);
-      setPastEvents(myPast.reverse()); // Most recent first
-      setIsLoading(false);
+      if (hasSubscribedEventChanges) {
+        console.log('[HomeScreen] Detected changes to subscribed events, reloading feed...');
+        loadEventFeed();
+      }
     });
 
     return unsubscribe;
-  }, [currentUserId, userData]); // Re-run when user data changes
+  }, [currentUserId, userData, vibeAlert]); // Re-run when user data changes
 
   // Check if user has no events at all
   const hasNoEvents =
     myEvents.length === 0 &&
-    upcomingEvents.length === 0 &&
+    followedEvents.length === 0 &&
+    suggestedEvents.length === 0 &&
     pastEvents.length === 0;
+
+  // Admin functions
+  const handleAdminMenu = () => {
+    navigation.navigate('Admin');
+  };
 
   // Don't show empty state while loading
   if (isLoading) {
@@ -97,10 +172,32 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <View style={styles.screen}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Big Vibe Studios</Text>
+        <View style={styles.headerIcons}>
+          <NotificationButton
+            onPress={() => navigation.navigate('Notifications')}
+            iconComponent={<Text style={styles.bellIcon}>🔔</Text>}
+          />
+          <TouchableOpacity
+            style={styles.profileButton}
+            onPress={() => setShowAccountSettings(true)}
+          >
+            <View style={styles.profileIcon}>
+              <Text style={styles.profileIconText}>
+                {userData?.userdata?.contactinfo?.firstName
+                  ? userData.userdata.contactinfo.firstName.charAt(0).toUpperCase()
+                  : '?'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       <ScrollView contentContainerStyle={styles.container}>
         {myEvents.length > 0 && (
           <>
-            <Text style={styles.header}>My Events</Text>
+            <Text style={styles.sectionHeader}>My Events</Text>
             <VibeCarousel
               data={myEvents}
               renderItem={(item, isScrolling) => (
@@ -117,11 +214,34 @@ export default function HomeScreen({ navigation }) {
           </>
         )}
 
-        {upcomingEvents.length > 0 && (
+        {followedEvents.length > 0 && (
           <>
-            <Text style={styles.header}>Browse Events</Text>
+            <Text style={styles.sectionHeader}>
+              Events from People You Follow
+            </Text>
             <VibeCarousel
-              data={upcomingEvents}
+              data={followedEvents}
+              renderItem={(item, isScrolling) => (
+                <EventCard
+                  {...item}
+                  onPress={() => {
+                    if (!isScrolling) {
+                      navigation.navigate('EventDetail', { eventId: item.id });
+                    }
+                  }}
+                />
+              )}
+            />
+          </>
+        )}
+
+        {suggestedEvents.length > 0 && (
+          <>
+            <Text style={styles.sectionHeader}>
+              Discover Events
+            </Text>
+            <VibeCarousel
+              data={suggestedEvents}
               renderItem={(item, isScrolling) => (
                 <EventCard
                   {...item}
@@ -138,7 +258,7 @@ export default function HomeScreen({ navigation }) {
 
         {pastEvents.length > 0 && (
           <>
-            <Text style={styles.header}>My Past Events</Text>
+            <Text style={styles.sectionHeader}>My Past Events</Text>
             <VibeCarousel
               data={pastEvents}
               renderItem={(item, isScrolling) => (
@@ -162,8 +282,30 @@ export default function HomeScreen({ navigation }) {
             variant="filled"
             style={styles.fullButton}
           />
+          <VibeButton
+            label="ADMIN TOOLS"
+            onPress={handleAdminMenu}
+            variant="toggle"
+            color="purple"
+            style={[styles.fullButton, styles.adminButton]}
+          />
         </View>
       </ScrollView>
+
+      {showAccountSettings && (
+        <TouchableOpacity
+          style={styles.dropdownOverlay}
+          onPress={() => setShowAccountSettings(false)}
+          activeOpacity={1}
+        />
+      )}
+
+      <AccountSettingsDropdown
+        visible={showAccountSettings}
+        onClose={() => setShowAccountSettings(false)}
+        navigation={navigation}
+        userData={userData}
+      />
     </View>
   );
 }
@@ -173,8 +315,47 @@ const styles = StyleSheet.create({
     flex: 1,
     overflow: 'visible',
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: theme.colors.black,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.darkGray,
+  },
+  headerTitle: {
+    color: theme.colors.white,
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  headerIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  bellIcon: {
+    fontSize: 24,
+  },
+  profileButton: {
+    padding: 4,
+  },
+  profileIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.colors.vibeBlue || '#00C6FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileIconText: {
+    color: theme.colors.textPrimary,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
   container: {
-    paddingTop: 60,
+    paddingTop: 20,
     paddingBottom: 60,
     paddingHorizontal: 16,
     overflow: 'visible',
@@ -186,11 +367,15 @@ const styles = StyleSheet.create({
   buttonStack: {
     flexDirection: 'column',
     marginTop: 30,
+    gap: 12,
   },
   fullButton: {
     width: '100%',
   },
-  header: {
+  adminButton: {
+    opacity: 0.8,
+  },
+  sectionHeader: {
     color: '#fff',
     fontSize: 20,
     fontWeight: 'bold',
@@ -201,5 +386,13 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     opacity: 0.8,
+  },
+  dropdownOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 999,
   },
 });

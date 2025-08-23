@@ -3,25 +3,25 @@ import {
   View,
   TextInput,
   TouchableOpacity,
-  Alert,
   StyleSheet,
   Text,
 } from 'react-native';
+import { useVibeAlert } from '../../components/ui/VibeAlertContext';
 import { LinearGradient } from 'expo-linear-gradient';
-import { login } from '../FirebaseAuthService';
-import { db } from '../firebase';
+import { login } from '../services/FirebaseAuthService';
+import { db } from '../services/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import GoogleLoginButton from '../components/GoogleLoginButton';
-import theme from '../../themes/themes';
+import theme from '../../theme/themes';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const vibeAlert = useVibeAlert();
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Missing fields', 'Please enter email and password.');
+      vibeAlert.warning('Missing fields', 'Please enter email and password.');
       return;
     }
 
@@ -47,7 +47,7 @@ export default function LoginScreen({ navigation }) {
       }
     } catch (err) {
       console.error('Login error:', err);
-      Alert.alert('Login Failed', err.message);
+      vibeAlert.error('Login Failed', err.message);
     } finally {
       setLoading(false);
     }
@@ -60,15 +60,6 @@ export default function LoginScreen({ navigation }) {
     >
       <Text style={[styles.title, theme.shadows.textGlow]}>Welcome Back</Text>
 
-      {/* Google Login Button */}
-      <GoogleLoginButton navigation={navigation} mode="login" />
-
-      {/* Divider */}
-      <View style={styles.dividerContainer}>
-        <View style={styles.dividerLine} />
-        <Text style={styles.dividerText}>or</Text>
-        <View style={styles.dividerLine} />
-      </View>
 
       {/* Email/Password Form */}
       <TextInput
@@ -135,23 +126,6 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
     textAlign: 'center',
     marginBottom: 40,
-  },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: theme.colors.textSecondary,
-    opacity: 0.3,
-  },
-  dividerText: {
-    marginHorizontal: 16,
-    color: theme.colors.textSecondary,
-    fontSize: 14,
-    fontFamily: theme.fonts.main,
   },
   input: {
     borderWidth: 1,

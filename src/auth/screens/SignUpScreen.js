@@ -3,21 +3,21 @@ import {
   View,
   TextInput,
   TouchableOpacity,
-  Alert,
   StyleSheet,
   Text,
 } from 'react-native';
+import { useVibeAlert } from '../../components/ui/VibeAlertContext';
 import { LinearGradient } from 'expo-linear-gradient';
-import { signup } from '../FirebaseAuthService';
-import { auth, db } from '../firebase';
+import { signup } from '../services/FirebaseAuthService';
+import { auth, db } from '../services/firebase';
 import { doc, setDoc } from 'firebase/firestore';
-import GoogleLoginButton from '../components/GoogleLoginButton';
-import theme from '../../themes/themes';
+import theme from '../../theme/themes';
 
 export default function SignUpScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const vibeAlert = useVibeAlert();
 
   console.log('SignUpScreen - navigation prop:', navigation);
   console.log(
@@ -27,7 +27,7 @@ export default function SignUpScreen({ navigation }) {
 
   const handleSignUp = async () => {
     if (!email || !password) {
-      Alert.alert('Missing fields', 'Please enter email and password.');
+      vibeAlert.warning('Missing fields', 'Please enter email and password.');
       return;
     }
 
@@ -42,11 +42,15 @@ export default function SignUpScreen({ navigation }) {
       await setDoc(
         doc(db, 'users', user.uid),
         {
-          email: user.email,
+          userdata: {
+            contactinfo: {
+              email: user.email,
+            },
+            metadata: {
+              createdAt: new Date(),
+            }
+          },
           uid: user.uid,
-          hasCompletedContactInfo: false,
-          signUpMethod: 'email',
-          createdAt: new Date(),
         },
         { merge: true }
       );
@@ -58,7 +62,7 @@ export default function SignUpScreen({ navigation }) {
       // and route to ContactInfo since hasCompletedContactInfo is false
     } catch (err) {
       console.error('Signup error:', err);
-      Alert.alert('Signup Failed', err.message);
+      vibeAlert.error('Signup Failed', err.message);
     } finally {
       setLoading(false);
     }
@@ -71,15 +75,6 @@ export default function SignUpScreen({ navigation }) {
     >
       <Text style={[styles.title, theme.shadows.textGlow]}>Create Account</Text>
 
-      {/* Google Sign Up Button */}
-      <GoogleLoginButton navigation={navigation} mode="signup" />
-
-      {/* Divider */}
-      <View style={styles.dividerContainer}>
-        <View style={styles.dividerLine} />
-        <Text style={styles.dividerText}>or</Text>
-        <View style={styles.dividerLine} />
-      </View>
 
       {/* Email/Password Form */}
       <TextInput
@@ -139,23 +134,6 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
     textAlign: 'center',
     marginBottom: 40,
-  },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: theme.colors.textSecondary,
-    opacity: 0.3,
-  },
-  dividerText: {
-    marginHorizontal: 16,
-    color: theme.colors.textSecondary,
-    fontSize: 14,
-    fontFamily: theme.fonts.main,
   },
   input: {
     borderWidth: 1,

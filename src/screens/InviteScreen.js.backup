@@ -1,0 +1,1639 @@
+// FILE: screens/InviteScreen.js - Dedicated Invite Screen for Guests/Hosts
+
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+  Modal,
+  BackHandler,
+} from 'react-native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import VibeInput from '../components/ui/VibeInput';
+import VibeButton from '../components/ui/VibeButton';
+import CloseButton from '../components/ui/CloseButton';
+import AutoCompleteInput from '../components/ui/AutoCompleteInput';
+import theme from '../theme/themes';
+import { getDeviceContacts } from '../lib/contactService';
+import { 
+  createGroup, 
+  getUserGroups, 
+  updateGroup, 
+  addMemberToGroup, 
+  removeMemberFromGroup,
+  deleteGroup 
+} from '../services/groupService';
+import { 
+  getEmojiForText, 
+  getContextualSuggestions,
+  getEmojiForGroupName,
+  getGroupSuggestions 
+} from '../lib/emojiUtils';
+import { getStudioUsers, searchUsers } from '../services/userService';
+import { useAuth } from '../auth/AuthContext';
+
+export default function InviteScreen() {
+  const navigation = useNavigation();
+  const route = useRoute();
+  const { currentUserId, userData } = useAuth();
+  
+  // Get parameters from navigation
+  const { 
+    type = 'guests', // 'guests' or 'hosts'
+    selectedUsers = [],
+    selectedContacts = [], 
+    selectedPhoneContacts = [],
+    maxLimit = null,
+    onSave
+  } = route.params || {};
+
+  const isHostMode = type === 'hosts';
+  const themeColor = isHostMode ? theme.colors.vibeOrange : theme.colors.vibeBlue;
+  const themeBgColor = isHostMode ? theme.colors.vibeBackgroundOrange : theme.colors.vibeBackgroundBlue;
+
+  // State
+  const [activeTab, setActiveTab] = useState('app');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [contactName, setContactName] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [personalMessage, setPersonalMessage] = useState('');
+
+  // Filter toggles
+  const [showFavorites, setShowFavorites] = useState(false);
+  const [showFriends, setShowFriends] = useState(false);
+  const [showLocalNode, setShowLocalNode] = useState(false);
+
+  // Custom groups
+  const [customGroups, setCustomGroups] = useState([]);
+  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [showGroupModal, setShowGroupModal] = useState(false);
+  const [groupsLoading, setGroupsLoading] = useState(false);
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+
+  // Contact states
+  const [localSelectedUsers, setLocalSelectedUsers] = useState(selectedUsers);
+  const [localSelectedContacts, setLocalSelectedContacts] = useState(selectedContacts);
+  const [localSelectedPhoneContacts, setLocalSelectedPhoneContacts] = useState(selectedPhoneContacts);
+
+  // Phone contacts
+  const [phoneContacts, setPhoneContacts] = useState([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  const [contactsLoaded, setContactsLoaded] = useState(false);
+
+  // Real app users/friends from Firebase
+  const [appUsers, setAppUsers] = useState([]);
+  const [loadingAppUsers, setLoadingAppUsers] = useState(false);
+
+  // Calculate totals
+  const totalSelected = localSelectedUsers.length + localSelectedContacts.length + localSelectedPhoneContacts.length;
+  const hasReachedLimit = maxLimit && totalSelected >= maxLimit;
+
+  // Group selection handlers
+  const selectGroup = (group) => {
+    // Add all group members to selected users
+    const groupMembers = appUsers.filter(user => group.members.includes(user.id));
+    const newSelected = [...localSelectedUsers];
+    
+    groupMembers.forEach(member => {
+      if (!newSelected.some(u => u.id === member.id)) {
+        if (!hasReachedLimit || newSelected.length < maxLimit) {
+          newSelected.push(member);
+        }
+      }
+    });
+    
+    setLocalSelectedUsers(newSelected);
+    Alert.alert('Group Added', `Added ${group.name} (${groupMembers.length} people) to your ${type}!`);
+  };
+
+  // Filter and sort data
+  const filteredAppUsers = appUsers.filter(user => {
+    // First apply search query
+    const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         user.email.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    if (!matchesSearch) return false;
+    
+    // If a group is selected, only show group members
+    if (selectedGroup) {
+      return selectedGroup.members.includes(user.id);
+    }
+    
+    // If no filters are active, show all users
+    const hasActiveFilters = showFavorites || showFriends || showLocalNode;
+    if (!hasActiveFilters) {
+      return true;
+    }
+    
+    // Apply intersection filtering (AND logic) - user must match ALL active filters
+    if (showFavorites && !user.isFavorite) return false;
+    if (showFriends && !user.isFriend) return false;
+    if (showLocalNode && !user.isLocalNode) return false;
+    
+    return true;
+  }).sort((a, b) => {
+    // Sort by: Favorites first, then Friends, then Local, then Others (all alphabetical within each group)
+    
+    // Favorites first (favorites are always friends)
+    if (a.isFavorite && b.isFavorite) {
+      return a.name.localeCompare(b.name);
+    }
+    if (a.isFavorite && !b.isFavorite) return -1;
+    if (!a.isFavorite && b.isFavorite) return 1;
+    
+    // Then friends (that aren't favorites)
+    const aIsFriendOnly = a.isFriend && !a.isFavorite;
+    const bIsFriendOnly = b.isFriend && !b.isFavorite;
+    
+    if (aIsFriendOnly && bIsFriendOnly) {
+      return a.name.localeCompare(b.name);
+    }
+    if (aIsFriendOnly && !bIsFriendOnly) return -1;
+    if (!aIsFriendOnly && bIsFriendOnly) return 1;
+    
+    // Then local (that aren't friends)
+    const aIsLocalOnly = a.isLocalNode && !a.isFriend;
+    const bIsLocalOnly = b.isLocalNode && !b.isFriend;
+    
+    if (aIsLocalOnly && bIsLocalOnly) {
+      return a.name.localeCompare(b.name);
+    }
+    if (aIsLocalOnly && !bIsLocalOnly) return -1;
+    if (!aIsLocalOnly && bIsLocalOnly) return 1;
+    
+    // Everyone else alphabetical
+    return a.name.localeCompare(b.name);
+  });
+
+  const filteredPhoneContacts = phoneContacts.filter(contact =>
+    contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (contact.phone && contact.phone.includes(searchQuery))
+  );
+
+  // Load contacts when phone tab is selected
+  useEffect(() => {
+    if (activeTab === 'phone' && !contactsLoaded && !loadingContacts) {
+      loadDeviceContacts();
+    }
+  }, [activeTab]);
+
+  // Load user groups on component mount
+  useEffect(() => {
+    loadUserGroups();
+  }, []);
+
+  // Load app users on component mount
+  useEffect(() => {
+    loadAppUsers();
+  }, [currentUserId, userData]);
+
+  // Handle Android back button
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        console.log('[InviteScreen] Android back button pressed');
+        navigation.goBack();
+        return true; // Prevent default behavior
+      };
+
+      console.log('[InviteScreen] Setting up back handler');
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      
+      return () => {
+        console.log('[InviteScreen] Removing back handler');
+        backHandler.remove();
+      };
+    }, [navigation])
+  );
+
+  const loadAppUsers = async () => {
+    if (!currentUserId || !userData?.userdata?.studios?.default?.studioId) {
+      console.log('[InviteScreen] Missing user data, skipping app users load');
+      return;
+    }
+
+    try {
+      setLoadingAppUsers(true);
+      const userStudio = userData.userdata.studios.default.studioId;
+      const users = await getStudioUsers(currentUserId, userStudio);
+      setAppUsers(users);
+      console.log(`[InviteScreen] Loaded ${users.length} app users`);
+    } catch (error) {
+      console.error('[InviteScreen] Failed to load app users:', error);
+      Alert.alert('Error', 'Failed to load app users. Please try again.');
+      setAppUsers([]); // Fallback to empty
+    } finally {
+      setLoadingAppUsers(false);
+    }
+  };
+
+  const loadUserGroups = async () => {
+    try {
+      setGroupsLoading(true);
+      const groups = await getUserGroups();
+      setCustomGroups(groups);
+      console.log('Loaded user groups:', groups.length);
+    } catch (error) {
+      console.error('Failed to load groups:', error);
+      Alert.alert('Error', 'Failed to load your groups. Please try again.');
+      // Fallback to empty groups
+      setCustomGroups([]);
+    } finally {
+      setGroupsLoading(false);
+    }
+  };
+
+  const loadDeviceContacts = async () => {
+    setLoadingContacts(true);
+    try {
+      const contacts = await getDeviceContacts();
+      setPhoneContacts(contacts);
+      setContactsLoaded(true);
+    } catch (error) {
+      console.error('Failed to load device contacts:', error);
+      Alert.alert('Error', 'Failed to load your contacts. Please try again.');
+    } finally {
+      setLoadingContacts(false);
+    }
+  };
+
+  // Handle selections
+  const toggleUserSelection = (user) => {
+    const isSelected = localSelectedUsers.some(u => u.id === user.id);
+    let updated;
+    
+    if (isSelected) {
+      updated = localSelectedUsers.filter(u => u.id !== user.id);
+    } else {
+      if (hasReachedLimit) {
+        Alert.alert('Limit Reached', `You can only add up to ${maxLimit} ${type}.`);
+        return;
+      }
+      updated = [...localSelectedUsers, user];
+    }
+    
+    setLocalSelectedUsers(updated);
+  };
+
+  const togglePhoneContactSelection = (contact) => {
+    const isSelected = localSelectedPhoneContacts.some(c => c.id === contact.id);
+    let updated;
+    
+    if (isSelected) {
+      updated = localSelectedPhoneContacts.filter(c => c.id !== contact.id);
+    } else {
+      if (hasReachedLimit) {
+        Alert.alert('Limit Reached', `You can only add up to ${maxLimit} ${type}.`);
+        return;
+      }
+      updated = [...localSelectedPhoneContacts, contact];
+    }
+    
+    setLocalSelectedPhoneContacts(updated);
+  };
+
+  const handleAddContact = () => {
+    if (!contactName.trim()) {
+      Alert.alert('Error', 'Please enter a name');
+      return;
+    }
+
+    if (!contactEmail.trim() && !contactPhone.trim()) {
+      Alert.alert('Error', 'Please enter either an email or phone number');
+      return;
+    }
+
+    if (hasReachedLimit) {
+      Alert.alert('Limit Reached', `You can only add up to ${maxLimit} ${type}.`);
+      return;
+    }
+
+    const contact = {
+      id: `manual_${Date.now()}`,
+      name: contactName.trim(),
+      email: contactEmail.trim() || null,
+      phone: contactPhone.trim() || null,
+      message: personalMessage.trim() || null,
+      role: isHostMode ? 'co-host' : 'guest',
+    };
+
+    const updated = [...localSelectedContacts, contact];
+    setLocalSelectedContacts(updated);
+
+    // Clear form
+    setContactName('');
+    setContactEmail('');
+    setContactPhone('');
+    setPersonalMessage('');
+
+    const entity = isHostMode ? 'co-host' : 'guest';
+    Alert.alert('Success', `${contact.name} added as ${entity}`);
+  };
+
+  // Remove functions
+  const removeUser = (userId) => {
+    setLocalSelectedUsers(prev => prev.filter(u => u.id !== userId));
+  };
+
+  const removeContact = (contactId) => {
+    setLocalSelectedContacts(prev => prev.filter(c => c.id !== contactId));
+  };
+
+  const removePhoneContact = (contactId) => {
+    setLocalSelectedPhoneContacts(prev => prev.filter(c => c.id !== contactId));
+  };
+
+  // Save and return
+  const handleSave = () => {
+    if (onSave) {
+      onSave({
+        users: localSelectedUsers,
+        contacts: localSelectedContacts,
+        phoneContacts: localSelectedPhoneContacts,
+      });
+    }
+    navigation.goBack();
+  };
+
+  // Render functions
+  const renderTabButton = (tab, label) => {
+    return (
+      <VibeButton
+        label={label}
+        variant="toggle"
+        color="blue"
+        onPress={() => setActiveTab(tab)}
+        style={styles.tabToggleButton}
+      />
+    );
+  };
+
+  // Handle avatar/icon actions
+  const handleAvatarAction = (user) => {
+    let title = '';
+    let message = '';
+    let actions = [];
+
+    if (user.isFavorite) {
+      // Already a favorite - offer to remove from favorites
+      title = `${user.name}`;
+      message = 'This person is in your favorites.';
+      actions = [
+        { text: 'Remove from Favorites', onPress: () => handleRemoveFromFavorites(user) },
+        { text: 'Cancel', style: 'cancel' }
+      ];
+    } else if (user.isFriend) {
+      // Friend but not favorite - offer to add to favorites
+      title = `${user.name}`;
+      message = 'This person is your friend.';
+      actions = [
+        { text: 'Add to Favorites', onPress: () => handleAddToFavorites(user) },
+        { text: 'Remove Friend', onPress: () => handleRemoveFriend(user), style: 'destructive' },
+        { text: 'Cancel', style: 'cancel' }
+      ];
+    } else {
+      // Not a friend - offer to send friend request
+      title = `${user.name}`;
+      message = 'Send a friend request to this person?';
+      actions = [
+        { text: 'Send Friend Request', onPress: () => handleSendFriendRequest(user) },
+        { text: 'Cancel', style: 'cancel' }
+      ];
+    }
+
+    Alert.alert(title, message, actions);
+  };
+
+  // Action handlers
+  const handleAddToFavorites = (user) => {
+    Alert.alert('Added to Favorites', `${user.name} has been added to your favorites! ⭐`);
+    // TODO: Update user in appUsers state and sync with backend
+  };
+
+  const handleRemoveFromFavorites = (user) => {
+    Alert.alert('Removed from Favorites', `${user.name} has been removed from your favorites.`);
+    // TODO: Update user in appUsers state and sync with backend
+  };
+
+  const handleSendFriendRequest = async (user) => {
+    try {
+      const { sendFriendRequest } = await import('../services/friendService');
+      
+      await sendFriendRequest(currentUserId, user.id, userData);
+      
+      Alert.alert('Friend Request Sent', `Friend request sent to ${user.name}! They will be notified. 👫`);
+    } catch (error) {
+      console.error('Error sending friend request:', error);
+      Alert.alert('Error', 'Failed to send friend request. Please try again.');
+    }
+  };
+
+  const handleRemoveFriend = (user) => {
+    Alert.alert('Friend Removed', `${user.name} has been removed from your friends list.`);
+    // TODO: Update friendship status in backend
+  };
+
+  // Group management functions
+  const removeFromGroup = async (groupId, userId) => {
+    try {
+      await removeMemberFromGroup(groupId, userId);
+      
+      // Update local state
+      setCustomGroups(prev => prev.map(group => 
+        group.id === groupId 
+          ? { ...group, members: group.members.filter(id => id !== userId) }
+          : group
+      ));
+      
+      const user = appUsers.find(u => u.id === userId);
+      const group = customGroups.find(g => g.id === groupId);
+      Alert.alert('Removed', `${user?.name} removed from ${group?.name}`);
+    } catch (error) {
+      console.error('Failed to remove member:', error);
+      Alert.alert('Error', 'Failed to remove member. Please try again.');
+    }
+  };
+
+  const showAddToGroupOptions = (group) => {
+    const availableUsers = appUsers.filter(user => !group.members.includes(user.id));
+    
+    if (availableUsers.length === 0) {
+      Alert.alert('No Available Users', 'All users are already in this group.');
+      return;
+    }
+
+    const buttons = availableUsers.slice(0, 6).map(user => ({
+      text: `${user.avatar} ${user.name}`,
+      onPress: () => addToGroup(group.id, user.id)
+    }));
+    
+    buttons.push({ text: 'Cancel', style: 'cancel' });
+
+    Alert.alert(`Add to ${group.name}`, 'Choose a person to add:', buttons);
+  };
+
+  const addToGroup = async (groupId, userId) => {
+    try {
+      await addMemberToGroup(groupId, userId);
+      
+      // Update local state
+      setCustomGroups(prev => prev.map(group => 
+        group.id === groupId 
+          ? { ...group, members: [...group.members, userId] }
+          : group
+      ));
+      
+      const user = appUsers.find(u => u.id === userId);
+      const group = customGroups.find(g => g.id === groupId);
+      Alert.alert('Added', `${user?.name} added to ${group?.name}! ${group?.emoji}`);
+    } catch (error) {
+      console.error('Failed to add member:', error);
+      Alert.alert('Error', 'Failed to add member. Please try again.');
+    }
+  };
+
+  const createNewGroup = () => {
+    console.log('Create new group button pressed');
+    setNewGroupName('');
+    setShowCreateGroupModal(true);
+  };
+
+  const handleCreateGroup = async () => {
+    if (!newGroupName.trim()) {
+      Alert.alert('Error', 'Please enter a group name');
+      return;
+    }
+
+    console.log('Creating group with name:', newGroupName);
+    try {
+      const groupData = {
+        name: newGroupName.trim(),
+        emoji: getEmojiForText(newGroupName),
+        members: [],
+        isPrivate: true // Default to private
+      };
+      
+      const newGroup = await createGroup(groupData);
+      setCustomGroups(prev => [...prev, newGroup]);
+      setShowCreateGroupModal(false);
+      setNewGroupName('');
+      Alert.alert('Created', `"${newGroup.name}" group created! Start adding people to it.`);
+    } catch (error) {
+      console.error('Failed to create group:', error);
+      Alert.alert('Error', `Failed to create group: ${error.message}`);
+    }
+  };
+
+  const createGroupWithName = async (groupName) => {
+    console.log('Creating group with name:', groupName);
+    try {
+      const groupData = {
+        name: groupName,
+        emoji: getEmojiForText(groupName),
+        members: [],
+        isPrivate: true // Default to private
+      };
+      
+      const newGroup = await createGroup(groupData);
+      setCustomGroups(prev => [...prev, newGroup]);
+      Alert.alert('Created', `"${groupName}" group created! Start adding people to it.`);
+    } catch (error) {
+      console.error('Failed to create group:', error);
+      Alert.alert('Error', `Failed to create group: ${error.message}`);
+    }
+  };
+
+
+  const handleDeleteGroup = async (groupId) => {
+    Alert.alert(
+      'Delete Group',
+      'Are you sure you want to delete this group? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteGroup(groupId);
+              setCustomGroups(prev => prev.filter(group => group.id !== groupId));
+              Alert.alert('Deleted', 'Group has been deleted.');
+            } catch (error) {
+              console.error('Failed to delete group:', error);
+              Alert.alert('Error', 'Failed to delete group. Please try again.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const renderUserItem = ({ item }) => {
+    if (!item || !item.id) {
+      console.warn('[InviteScreen] Invalid item passed to renderUserItem:', item);
+      return null;
+    }
+    
+    const isSelected = localSelectedUsers.some(u => u.id === item.id);
+    const canSelect = !isSelected && !hasReachedLimit;
+    
+    return (
+      <TouchableOpacity
+        style={[
+          styles.personItem, 
+          isSelected && { borderColor: themeColor, backgroundColor: themeBgColor },
+          !canSelect && !isSelected && styles.disabledItem
+        ]}
+        onPress={() => toggleUserSelection(item)}
+        disabled={!canSelect && !isSelected}
+      >
+        <View style={styles.personInfo}>
+          <TouchableOpacity 
+            style={styles.avatarButton}
+            onPress={() => handleAvatarAction(item)}
+          >
+            <Text style={styles.personAvatar}>{item.avatar || '👤'}</Text>
+          </TouchableOpacity>
+          <View style={styles.personDetails}>
+            <Text style={styles.personName}>{item.name || 'Unknown User'}</Text>
+          </View>
+        </View>
+        <View style={[styles.selectionIndicator, { borderColor: themeColor }]}>
+          {isSelected && <Text style={[styles.checkmark, { color: themeColor }]}>✓</Text>}
+          {!canSelect && !isSelected && <Text style={styles.maxText}>Max</Text>}
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderPhoneContactItem = ({ item }) => {
+    if (!item || !item.id) {
+      console.warn('[InviteScreen] Invalid phone contact passed to renderPhoneContactItem:', item);
+      return null;
+    }
+    
+    const isSelected = localSelectedPhoneContacts.some(c => c.id === item.id);
+    const canSelect = !isSelected && !hasReachedLimit;
+    
+    return (
+      <TouchableOpacity
+        style={[
+          styles.personItem, 
+          isSelected && { borderColor: themeColor, backgroundColor: themeBgColor },
+          !canSelect && !isSelected && styles.disabledItem
+        ]}
+        onPress={() => togglePhoneContactSelection(item)}
+        disabled={!canSelect && !isSelected}
+      >
+        <View style={styles.personInfo}>
+          <Text style={styles.personAvatar}>{item.avatar || '📱'}</Text>
+          <View style={styles.personDetails}>
+            <Text style={styles.personName}>{item.name || 'Unknown Contact'}</Text>
+            <Text style={styles.personEmail}>{item.phone || 'No phone'}</Text>
+          </View>
+        </View>
+        <View style={[styles.selectionIndicator, { borderColor: themeColor }]}>
+          {isSelected && <Text style={[styles.checkmark, { color: themeColor }]}>✓</Text>}
+          {!canSelect && !isSelected && <Text style={styles.maxText}>Max</Text>}
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderSelectedItem = ({ item, onRemove, showRole = false }) => {
+    if (!item) {
+      console.warn('[InviteScreen] Invalid item passed to renderSelectedItem:', item);
+      return null;
+    }
+    
+    return (
+      <View style={[styles.selectedItem, { borderColor: themeColor }]}>
+        <View style={styles.selectedInfo}>
+          <Text style={styles.selectedName}>{item.name || 'Unknown'}</Text>
+          {item.email && <Text style={styles.selectedDetail}>{item.email}</Text>}
+          {item.phone && <Text style={styles.selectedDetail}>{item.phone}</Text>}
+          {showRole && <Text style={[styles.roleText, { color: themeColor }]}>{item.role || (isHostMode ? 'Co-Host' : 'Guest')}</Text>}
+        </View>
+        <TouchableOpacity style={styles.removeButton} onPress={onRemove}>
+          <Text style={styles.removeText}>✕</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const title = isHostMode ? 'Add Co-Hosts' : 'Invite Guests';
+  const limitText = maxLimit ? `${totalSelected} of ${maxLimit} ${type} added` : `${totalSelected} ${type} added`;
+
+  return (
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <CloseButton onPress={() => navigation.goBack()} />
+        </View>
+        <Text style={styles.headerTitle}>{title}</Text>
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            onPress={handleSave}
+            style={styles.saveButton}
+          >
+            <Text style={styles.saveButtonText}>Save</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Limit indicator */}
+      {maxLimit && totalSelected > 0 && (
+        <View style={styles.limitContainer}>
+          <Text style={styles.limitText}>{limitText}</Text>
+        </View>
+      )}
+
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <>
+          {/* Tabs */}
+          <View style={styles.tabContainer}>
+            <View style={styles.appTabButton}>
+              {renderTabButton('app', 'App')}
+            </View>
+            <View style={styles.phoneTabButton}>
+              {renderTabButton('phone', 'Phone')}
+            </View>
+            <View style={styles.manualTabButton}>
+              {renderTabButton('manual', 'Manual')}
+            </View>
+          </View>
+
+          {/* Tab Content */}
+          <View style={styles.tabContent}>
+          {/* App Tab */}
+          {activeTab === 'app' && (
+            <View>
+              {loadingAppUsers ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color={themeColor} />
+                  <Text style={styles.loadingText}>Loading app users...</Text>
+                </View>
+              ) : (
+              <View>
+              {/* Custom Groups */}
+              <View style={styles.groupContainer}>
+                <Text style={styles.filterLabel}>Quick Groups:</Text>
+                {groupsLoading ? (
+                  <View style={styles.groupLoadingContainer}>
+                    <ActivityIndicator size="small" color={themeColor} />
+                    <Text style={styles.groupLoadingText}>Loading groups...</Text>
+                  </View>
+                ) : (
+                  <View style={styles.groupButtons}>
+                  {customGroups.map(group => (
+                    <TouchableOpacity
+                      key={group.id}
+                      style={[styles.groupButton, selectedGroup?.id === group.id && { backgroundColor: themeBgColor, borderColor: themeColor }]}
+                      onPress={() => {
+                        if (selectedGroup?.id === group.id) {
+                          setSelectedGroup(null); // Deselect if already selected
+                        } else {
+                          setSelectedGroup(group);
+                        }
+                      }}
+                      onLongPress={() => selectGroup(group)}
+                    >
+                      <Text style={[styles.groupButtonText, selectedGroup?.id === group.id && { color: themeColor }]}>
+                        {group.emoji} {group.name} ({group.members.length})
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                  
+                  <TouchableOpacity
+                    style={styles.manageGroupsButton}
+                    onPress={() => setShowGroupModal(true)}
+                  >
+                    <Text style={styles.manageGroupsText}>+ Manage</Text>
+                  </TouchableOpacity>
+                  </View>
+                )}
+                <Text style={styles.groupHint}>
+                  {groupsLoading ? 'Loading groups...' : 'Tap to filter, long press to add all'}
+                </Text>
+              </View>
+
+              {/* Filter toggles */}
+              {!selectedGroup && (
+                <View style={styles.filterContainer}>
+                  <Text style={styles.filterLabel}>Show:</Text>
+                <View style={styles.filterToggles}>
+                  <TouchableOpacity
+                    style={[styles.filterToggle, showFavorites && { backgroundColor: themeBgColor, borderColor: themeColor }]}
+                    onPress={() => setShowFavorites(!showFavorites)}
+                  >
+                    <Text style={[styles.filterToggleText, showFavorites && { color: themeColor }]}>
+                      ⭐ Favorites
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[styles.filterToggle, showFriends && { backgroundColor: themeBgColor, borderColor: themeColor }]}
+                    onPress={() => setShowFriends(!showFriends)}
+                  >
+                    <Text style={[styles.filterToggleText, showFriends && { color: themeColor }]}>
+                      👫 Friends
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[styles.filterToggle, showLocalNode && { backgroundColor: themeBgColor, borderColor: themeColor }]}
+                    onPress={() => setShowLocalNode(!showLocalNode)}
+                  >
+                    <Text style={[styles.filterToggleText, showLocalNode && { color: themeColor }]}>
+                      🌐 Local
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                </View>
+              )}
+              
+              <VibeInput
+                placeholder={`Search app users...`}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                style={styles.searchInput}
+              />
+              <View style={styles.itemsList}>
+                {filteredAppUsers.map((item) => (
+                  <View key={item.id}>
+                    {renderUserItem({ item })}
+                  </View>
+                ))}
+                {filteredAppUsers.length === 0 && !loadingAppUsers && (
+                  <Text style={styles.emptyText}>No users found</Text>
+                )}
+              </View>
+              )}
+            </View>
+          )}
+
+          {/* Phone Tab */}
+          {activeTab === 'phone' && (
+            <View>
+              {loadingContacts ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color={themeColor} />
+                  <Text style={styles.loadingText}>Loading your contacts...</Text>
+                </View>
+              ) : (
+                <View>
+                  <VibeInput
+                    placeholder="Search phone contacts..."
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    style={styles.searchInput}
+                  />
+                  <View style={styles.itemsList}>
+                    {filteredPhoneContacts.map((item) => (
+                      <View key={item.id}>
+                        {renderPhoneContactItem({ item })}
+                      </View>
+                    ))}
+                    {contactsLoaded && filteredPhoneContacts.length === 0 && (
+                      <Text style={styles.emptyText}>No contacts found</Text>
+                    )}
+                    {!contactsLoaded && !loadingContacts && (
+                      <VibeButton
+                        label="Load Contacts"
+                        onPress={loadDeviceContacts}
+                        style={styles.loadButton}
+                      />
+                    )}
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Manual Tab */}
+          {activeTab === 'manual' && (
+            <View style={styles.manualForm}>
+              <VibeInput
+                placeholder="Name *"
+                value={contactName}
+                onChangeText={setContactName}
+                style={styles.input}
+              />
+              <VibeInput
+                placeholder="Email address"
+                value={contactEmail}
+                onChangeText={setContactEmail}
+                keyboardType="email-address"
+                style={styles.input}
+              />
+              <VibeInput
+                placeholder="Phone number"
+                value={contactPhone}
+                onChangeText={setContactPhone}
+                keyboardType="phone-pad"
+                style={styles.input}
+              />
+              {!isHostMode && (
+                <VibeInput
+                  placeholder="Personal message (optional)"
+                  value={personalMessage}
+                  onChangeText={setPersonalMessage}
+                  multiline
+                  numberOfLines={3}
+                  style={styles.messageInput}
+                />
+              )}
+              <VibeButton
+                label={`Add ${isHostMode ? 'Co-Host' : 'Guest'}`}
+                onPress={handleAddContact}
+                style={styles.addButton}
+                disabled={hasReachedLimit}
+              />
+              {hasReachedLimit && (
+                <Text style={styles.limitReachedText}>
+                  Maximum number of {type} reached
+                </Text>
+              )}
+            </View>
+          )}
+        </View>
+
+        {/* Selected Items */}
+        {totalSelected > 0 && (
+          <View style={styles.selectedSection}>
+            <Text style={styles.selectedTitle}>
+              Selected {isHostMode ? 'Co-Hosts' : 'Guests'}:
+            </Text>
+            
+            {localSelectedUsers.map((item) => (
+              <View key={item.id}>
+                {renderSelectedItem({ item, onRemove: () => removeUser(item.id), showRole: isHostMode })}
+              </View>
+            ))}
+            
+            {localSelectedPhoneContacts.map((item) => (
+              <View key={item.id}>
+                {renderSelectedItem({ item, onRemove: () => removePhoneContact(item.id), showRole: isHostMode })}
+              </View>
+            ))}
+            
+            {localSelectedContacts.map((item) => (
+              <View key={item.id}>
+                {renderSelectedItem({ item, onRemove: () => removeContact(item.id), showRole: isHostMode })}
+              </View>
+            ))}
+          </View>
+        )}
+        </>
+      </ScrollView>
+
+      {/* Group Management Modal */}
+      <Modal
+        visible={showGroupModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={styles.groupModalContainer}>
+          {/* Header */}
+          <View style={styles.groupModalHeader}>
+            <Text style={styles.groupModalTitle}>Manage Groups</Text>
+            <CloseButton onPress={() => setShowGroupModal(false)} />
+          </View>
+
+          <ScrollView style={styles.groupModalContent}>
+            {customGroups.map(group => (
+              <View key={group.id} style={styles.groupManageItem}>
+                <View style={styles.groupManageHeader}>
+                  <Text style={styles.groupManageName}>{group.emoji} {group.name}</Text>
+                  <View style={styles.groupActions}>
+                    <Text style={styles.groupMemberCount}>{group.members.length} members</Text>
+                    {group.isOwner && (
+                      <TouchableOpacity 
+                        onPress={() => handleDeleteGroup(group.id)}
+                        style={styles.deleteGroupButton}
+                      >
+                        <Text style={styles.deleteGroupText}>🗑️</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+                
+                <View style={styles.groupMembersList}>
+                  {group.members.map(memberId => {
+                    const member = appUsers.find(user => user.id === memberId);
+                    return member ? (
+                      <View key={memberId} style={styles.groupMemberItem}>
+                        <Text style={styles.groupMemberName}>{member.avatar} {member.name}</Text>
+                        <TouchableOpacity 
+                          onPress={() => removeFromGroup(group.id, memberId)}
+                          style={styles.removeMemberButton}
+                        >
+                          <Text style={styles.removeMemberText}>✕</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : null;
+                  })}
+                </View>
+
+                <TouchableOpacity 
+                  style={styles.addToGroupButton}
+                  onPress={() => showAddToGroupOptions(group)}
+                >
+                  <Text style={styles.addToGroupText}>+ Add People</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+
+            <TouchableOpacity 
+              style={styles.createGroupButton}
+              onPress={() => createNewGroup()}
+            >
+              <Text style={styles.createGroupText}>+ Create New Group</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* Create Group Modal */}
+      <Modal
+        visible={showCreateGroupModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={styles.createGroupModalContainer}>
+          {/* Header */}
+          <View style={styles.createGroupModalHeader}>
+            <TouchableOpacity onPress={() => setShowCreateGroupModal(false)}>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.createGroupModalTitle}>New Group</Text>
+            <TouchableOpacity 
+              onPress={handleCreateGroup}
+              disabled={!newGroupName.trim()}
+            >
+              <Text style={[
+                styles.createButtonText,
+                !newGroupName.trim() && styles.disabledButtonText
+              ]}>
+                Create
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.createGroupContent}>
+            <View style={styles.inputSection}>
+              <Text style={styles.inputLabel}>Group Name</Text>
+              <AutoCompleteInput
+                value={newGroupName}
+                onChangeText={setNewGroupName}
+                onSuggestionSelect={(suggestion) => {
+                  // The AutoCompleteInput already includes the emoji in the text,
+                  // so we don't need to add it here - just use the current value
+                  console.log('Selected suggestion:', suggestion);
+                }}
+                context="group"
+                placeholder="Enter group name..."
+                maxSuggestions={5}
+                showEmojis={true}
+                inputProps={{
+                  autoFocus: true,
+                  maxLength: 30
+                }}
+                style={styles.groupNameInput}
+              />
+              
+              <Text style={styles.inputHint}>
+                Keep it short and simple - just type keywords like "beach trip friends"
+              </Text>
+            </View>
+
+            <View style={styles.emojiPreview}>
+              <Text style={styles.emojiPreviewLabel}>Preview:</Text>
+              <Text style={styles.emojiPreviewText}>
+                {getEmojiForText(newGroupName || 'Group')} {newGroupName || 'Group Name'}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  
+  // Header
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    borderBottomWidth: 2,
+    borderBottomColor: theme.colors.vibeBlue,
+  },
+  headerLeft: {
+    width: 50,
+    alignItems: 'flex-start',
+  },
+  headerTitle: {
+    color: theme.colors.white,
+    fontSize: 20,
+    fontWeight: 'bold',
+    fontFamily: theme.fonts.main,
+    flex: 1,
+    textAlign: 'center',
+    paddingHorizontal: 8,
+  },
+  headerRight: {
+    width: 80,
+    alignItems: 'flex-end',
+  },
+  saveButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginVertical: 0,
+    backgroundColor: theme.colors.vibeBlue,
+    borderRadius: 8,
+  },
+  saveButtonText: {
+    color: theme.colors.white,
+    fontSize: 16,
+    fontWeight: 'bold',
+    fontFamily: theme.fonts.main,
+  },
+
+  // Limit indicator
+  limitContainer: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  limitText: {
+    color: theme.colors.gray,
+    fontSize: 14,
+    fontFamily: theme.fonts.main,
+  },
+
+  // Content
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+
+  // Tabs
+  tabContainer: {
+    flexDirection: 'row',
+    marginVertical: 20,
+    gap: 8,
+  },
+  tabToggleButton: {
+    flex: 1,
+    marginVertical: 0,
+  },
+  appTabButton: {
+    flex: 0.7, // Smaller
+  },
+  phoneTabButton: {
+    flex: 1, // Normal
+  },
+  manualTabButton: {
+    flex: 1.3, // Larger for "Manual"
+  },
+
+  // Tab content
+  tabContent: {
+    minHeight: 200,
+    marginBottom: 20,
+  },
+  searchInput: {
+    marginBottom: 16,
+  },
+  
+  // Custom Groups
+  groupContainer: {
+    marginBottom: 16,
+  },
+  groupButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+    marginBottom: 4,
+  },
+  groupButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: theme.colors.inputBackground,
+    borderWidth: 1,
+    borderColor: theme.colors.darkGray,
+  },
+  groupButtonText: {
+    color: theme.colors.gray,
+    fontSize: 13,
+    fontWeight: '600',
+    fontFamily: theme.fonts.main,
+  },
+  groupHint: {
+    color: theme.colors.gray,
+    fontSize: 11,
+    fontFamily: theme.fonts.main,
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+  groupLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    gap: 8,
+  },
+  groupLoadingText: {
+    color: theme.colors.gray,
+    fontSize: 14,
+    fontFamily: theme.fonts.main,
+  },
+  manageGroupsButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: theme.colors.vibeBackgroundBlue,
+    borderWidth: 1,
+    borderColor: theme.colors.vibeBlue,
+  },
+  manageGroupsText: {
+    color: theme.colors.vibeBlue,
+    fontSize: 13,
+    fontWeight: '600',
+    fontFamily: theme.fonts.main,
+  },
+
+  // Group Management Modal
+  groupModalContainer: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  groupModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.darkGray,
+  },
+  groupModalTitle: {
+    color: theme.colors.white,
+    fontSize: 20,
+    fontWeight: 'bold',
+    fontFamily: theme.fonts.main,
+  },
+  groupModalContent: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  groupManageItem: {
+    backgroundColor: theme.colors.inputBackground,
+    borderRadius: 12,
+    padding: 16,
+    marginVertical: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.darkGray,
+  },
+  groupManageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  groupActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  deleteGroupButton: {
+    padding: 6,
+    borderRadius: 6,
+  },
+  deleteGroupText: {
+    fontSize: 16,
+  },
+  groupManageName: {
+    color: theme.colors.white,
+    fontSize: 16,
+    fontWeight: 'bold',
+    fontFamily: theme.fonts.main,
+  },
+  groupMemberCount: {
+    color: theme.colors.gray,
+    fontSize: 14,
+    fontFamily: theme.fonts.main,
+  },
+  groupMembersList: {
+    gap: 8,
+    marginBottom: 12,
+  },
+  groupMemberItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: theme.colors.background,
+    borderRadius: 8,
+    padding: 10,
+  },
+  groupMemberName: {
+    color: theme.colors.white,
+    fontSize: 14,
+    fontFamily: theme.fonts.main,
+    flex: 1,
+  },
+  removeMemberButton: {
+    padding: 4,
+  },
+  removeMemberText: {
+    color: theme.colors.vibeRed,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  addToGroupButton: {
+    backgroundColor: theme.colors.vibeBackgroundBlue,
+    borderWidth: 1,
+    borderColor: theme.colors.vibeBlue,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+  },
+  addToGroupText: {
+    color: theme.colors.vibeBlue,
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: theme.fonts.main,
+  },
+  createGroupButton: {
+    backgroundColor: theme.colors.vibeBackgroundGreen,
+    borderWidth: 1,
+    borderColor: theme.colors.vibeGreen,
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  createGroupText: {
+    color: theme.colors.vibeGreen,
+    fontSize: 16,
+    fontWeight: 'bold',
+    fontFamily: theme.fonts.main,
+  },
+
+  // Create Group Modal
+  createGroupModalContainer: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  createGroupModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    paddingTop: 60,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.darkGray,
+  },
+  createGroupModalTitle: {
+    color: theme.colors.white,
+    fontSize: 18,
+    fontWeight: 'bold',
+    fontFamily: theme.fonts.main,
+  },
+  cancelButtonText: {
+    color: theme.colors.vibeBlue,
+    fontSize: 16,
+    fontFamily: theme.fonts.main,
+  },
+  createButtonText: {
+    color: theme.colors.vibeBlue,
+    fontSize: 16,
+    fontWeight: 'bold',
+    fontFamily: theme.fonts.main,
+  },
+  disabledButtonText: {
+    color: theme.colors.gray,
+  },
+  createGroupContent: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 30,
+  },
+  inputSection: {
+    marginBottom: 40,
+  },
+  inputLabel: {
+    color: theme.colors.white,
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: theme.fonts.main,
+    marginBottom: 8,
+  },
+  groupNameInput: {
+    marginBottom: 8,
+  },
+  inputHint: {
+    color: theme.colors.gray,
+    fontSize: 14,
+    fontFamily: theme.fonts.main,
+    lineHeight: 20,
+  },
+  emojiPreview: {
+    backgroundColor: theme.colors.inputBackground,
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.darkGray,
+  },
+  emojiPreviewLabel: {
+    color: theme.colors.gray,
+    fontSize: 14,
+    fontFamily: theme.fonts.main,
+    marginBottom: 8,
+  },
+  emojiPreviewText: {
+    color: theme.colors.white,
+    fontSize: 18,
+    fontWeight: 'bold',
+    fontFamily: theme.fonts.main,
+  },
+  
+  // Filter toggles
+  filterContainer: {
+    marginBottom: 16,
+  },
+  filterLabel: {
+    color: theme.colors.white,
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: theme.fonts.main,
+    marginBottom: 8,
+  },
+  filterToggles: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  filterToggle: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: theme.colors.inputBackground,
+    borderWidth: 1,
+    borderColor: theme.colors.darkGray,
+  },
+  filterToggleText: {
+    color: theme.colors.gray,
+    fontSize: 12,
+    fontWeight: '600',
+    fontFamily: theme.fonts.main,
+  },
+  
+  itemsList: {
+    gap: 8,
+  },
+
+  // Person items
+  personItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: theme.colors.inputBackground,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.darkGray,
+  },
+  disabledItem: {
+    opacity: 0.5,
+  },
+  personInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  avatarButton: {
+    padding: 4,
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  personAvatar: {
+    fontSize: 24,
+  },
+  personDetails: {
+    flex: 1,
+  },
+  personName: {
+    color: theme.colors.white,
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: theme.fonts.main,
+  },
+  personEmail: {
+    color: theme.colors.gray,
+    fontSize: 14,
+    fontFamily: theme.fonts.main,
+  },
+  selectionIndicator: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkmark: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  maxText: {
+    color: theme.colors.gray,
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+
+  // Manual form
+  manualForm: {
+    gap: 12,
+  },
+  input: {
+    marginBottom: 0,
+  },
+  messageInput: {
+    marginBottom: 0,
+  },
+  addButton: {
+    marginTop: 8,
+    marginVertical: 0,
+  },
+  limitReachedText: {
+    color: theme.colors.vibeRed,
+    fontSize: 12,
+    fontFamily: theme.fonts.main,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+
+  // Selected section
+  selectedSection: {
+    marginTop: 20,
+    paddingBottom: 40,
+  },
+  selectedTitle: {
+    color: theme.colors.white,
+    fontSize: 18,
+    fontWeight: 'bold',
+    fontFamily: theme.fonts.main,
+    marginBottom: 16,
+  },
+  selectedItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: theme.colors.inputBackground,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+    borderWidth: 1,
+  },
+  selectedInfo: {
+    flex: 1,
+  },
+  selectedName: {
+    color: theme.colors.white,
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: theme.fonts.main,
+  },
+  selectedDetail: {
+    color: theme.colors.gray,
+    fontSize: 14,
+    fontFamily: theme.fonts.main,
+  },
+  roleText: {
+    fontSize: 12,
+    fontWeight: '600',
+    fontFamily: theme.fonts.main,
+    marginTop: 4,
+  },
+  removeButton: {
+    padding: 8,
+  },
+  removeText: {
+    color: theme.colors.vibeRed,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+
+  // Loading and empty states
+  loadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    color: theme.colors.white,
+    fontSize: 16,
+    fontFamily: theme.fonts.main,
+    marginTop: 16,
+  },
+  loadButton: {
+    alignSelf: 'center',
+    marginVertical: 0,
+  },
+  emptyText: {
+    color: theme.colors.gray,
+    fontSize: 14,
+    fontFamily: theme.fonts.main,
+    textAlign: 'center',
+    paddingVertical: 40,
+  },
+
+  // Autocomplete suggestions
+  suggestionsContainer: {
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  suggestionsLabel: {
+    color: theme.colors.gray,
+    fontSize: 12,
+    fontFamily: theme.fonts.main,
+    marginBottom: 8,
+  },
+  suggestionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  suggestionChip: {
+    backgroundColor: theme.colors.vibeBackgroundBlue,
+    borderColor: theme.colors.vibeBlue,
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  suggestionText: {
+    color: theme.colors.vibeBlue,
+    fontSize: 12,
+    fontWeight: '600',
+    fontFamily: theme.fonts.main,
+  },
+});
