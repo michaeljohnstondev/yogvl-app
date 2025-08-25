@@ -75,11 +75,15 @@ export const NOTIFICATION_TYPES = {
   EVENT_CANCELLED: 'event_cancelled',
   EVENT_REMINDER: 'event_reminder',
   ATTENDANCE_REMINDER: 'attendance_reminder',
+  EVENT_WRAPUP_HOST: 'event_wrapup_host',
+  EVENT_WRAPUP_GUEST: 'event_wrapup_guest',
   NEW_FOLLOWER: 'new_follower',
   FRIEND_REQUEST: 'friend_request', // DEPRECATED - keeping for backward compatibility
   FRIEND_ACCEPTED: 'friend_accepted', // DEPRECATED
   COHOST_INVITATION: 'cohost_invitation',
   COHOST_ACCEPTED: 'cohost_accepted',
+  GUEST_INVITATION: 'guest_invitation',
+  GUEST_ACCEPTED: 'guest_accepted',
   SYSTEM: 'system',
 };
 
@@ -110,6 +114,7 @@ export const createNotification = async ({
   priority = NOTIFICATION_PRIORITY.NORMAL,
   channels = [DELIVERY_CHANNELS.PUSH],
   expiresIn = null, // days from now
+  actions = [], // Action buttons for notifications
 }) => {
   try {
     // Validate inputs
@@ -161,6 +166,7 @@ export const createNotification = async ({
       priority,
       channels: allowedChannels,
       status: 'pending',
+      actions, // Include action buttons
     };
 
     // Add expiration if specified
@@ -515,6 +521,12 @@ const shouldSendNotification = async (type, preferences, channels) => {
           return { send: false, reason: 'User disabled attendance reminder notifications' };
         }
         break;
+      case NOTIFICATION_TYPES.EVENT_WRAPUP_HOST:
+      case NOTIFICATION_TYPES.EVENT_WRAPUP_GUEST:
+        if (!preferences.events?.wrapUpReminders) {
+          return { send: false, reason: 'User disabled wrap-up reminder notifications' };
+        }
+        break;
       case NOTIFICATION_TYPES.NEW_FOLLOWER:
         if (!preferences.followers?.newFollower) {
           return { send: false, reason: 'User disabled new follower notifications' };
@@ -678,7 +690,7 @@ const sendEmailNotification = async (notification) => {
         if (eventDoc.exists() && hostDoc.exists()) {
           result = await sendInvitationEmail({
             recipientEmail: userEmail,
-            recipientName: userData.displayName,
+            recipientName: userData.userdata?.contactInfo?.displayName,
             eventData: eventDoc.data(),
             hostData: hostDoc.data(),
             invitationData: { id: notification.data.invitationId },
@@ -693,7 +705,7 @@ const sendEmailNotification = async (notification) => {
           if (eventDoc.exists()) {
             result = await sendEventUpdateEmail({
               recipientEmail: userEmail,
-              recipientName: userData.displayName,
+              recipientName: userData.userdata?.contactInfo?.displayName,
               eventData: eventDoc.data(),
               changes: notification.data.changes || [],
             });
@@ -707,7 +719,7 @@ const sendEmailNotification = async (notification) => {
           if (eventDoc.exists()) {
             result = await sendEventReminderEmail({
               recipientEmail: userEmail,
-              recipientName: userData.displayName,
+              recipientName: userData.userdata?.contactInfo?.displayName,
               eventData: eventDoc.data(),
               reminderType: notification.data.reminderType || '24h',
             });
@@ -862,7 +874,7 @@ export const notifyFriendAccepted = async ({ senderId, accepterId, accepterName 
 /**
  * Notify user when they're invited to co-host an event
  */
-export const notifyCohostInvitation = async ({ recipientId, inviterId, inviterName, eventId, eventTitle }) => {
+export const notifyCohostInvitation = async ({ recipientId, inviterId, inviterName, eventId, eventTitle, invitationId }) => {
   try {
     return await createNotification({
       userId: recipientId,
@@ -874,6 +886,7 @@ export const notifyCohostInvitation = async ({ recipientId, inviterId, inviterNa
         inviterName,
         eventId,
         eventTitle,
+        invitationId,
         timestamp: new Date().toISOString(),
       },
       priority: NOTIFICATION_PRIORITY.HIGH,
@@ -914,11 +927,11 @@ export const notifyCohostAccepted = async ({ inviterId, accepterId, accepterName
 /**
  * Notify user when they're invited as a guest to an event
  */
-export const notifyGuestInvitation = async ({ recipientId, inviterId, inviterName, eventId, eventTitle, invitationId }) => {
+export const notifyGuestInvitation = async ({ recipientId, inviterId, inviterName, eventId, eventTitle, invitationId, source = 'unknown' }) => {
   try {
     return await createNotification({
       userId: recipientId,
-      type: NOTIFICATION_TYPES.INVITATION_RECEIVED,
+      type: NOTIFICATION_TYPES.GUEST_INVITATION,
       title: 'Event Invitation',
       message: `${inviterName} invited you to "${eventTitle}"`,
       data: {
@@ -927,6 +940,7 @@ export const notifyGuestInvitation = async ({ recipientId, inviterId, inviterNam
         eventId,
         eventTitle,
         invitationId,
+        source,
         timestamp: new Date().toISOString(),
       },
       priority: NOTIFICATION_PRIORITY.HIGH,
@@ -945,7 +959,7 @@ export const notifyGuestAccepted = async ({ inviterId, accepterId, accepterName,
   try {
     return await createNotification({
       userId: inviterId,
-      type: NOTIFICATION_TYPES.INVITATION_ACCEPTED,
+      type: NOTIFICATION_TYPES.GUEST_ACCEPTED,
       title: 'Invitation Accepted',
       message: `${accepterName} is attending "${eventTitle}"`,
       data: {
@@ -1017,6 +1031,132 @@ export const notifyNewFollower = async ({ targetUserId, followerId, followerName
   } catch (error) {
     console.error('Error notifying new follower:', error);
     throw error;
+  }
+};
+
+/**
+ * Send event wrap-up notification to host
+ */
+export const notifyHostEventWrapUp = async (hostId, eventId, eventTitle) => {
+  try {
+    return await createNotification({
+      userId: hostId,
+      type: NOTIFICATION_TYPES.EVENT_WRAPUP_HOST,
+      title: 'Event Wrap-Up Time! 📋',
+      message: `Time to wrap up "${eventTitle}" - mark who attended!`,
+      data: {
+        eventId,
+        eventTitle,
+        timestamp: new Date().toISOString(),
+        actions: [
+          {
+            id: 'complete_wrapup',
+            label: 'Complete Wrap-Up',
+            type: 'primary',
+            action: 'navigate_to_screen',
+            params: { 
+              screen: 'HostEventWrapUp',
+              params: { eventId }
+            }
+          }
+        ]
+      },
+      priority: NOTIFICATION_PRIORITY.NORMAL,
+      channels: [DELIVERY_CHANNELS.PUSH],
+    });
+  } catch (error) {
+    console.error('Error notifying host wrap-up:', error);
+    throw error;
+  }
+};
+
+/**
+ * Send event wrap-up notification to guest
+ */
+export const notifyGuestEventWrapUp = async (guestId, eventId, eventTitle, attendanceType) => {
+  try {
+    const title = attendanceType === 'strict' 
+      ? 'Confirm Your Attendance 🎯'
+      : 'How Was the Event? 🌊';
+    
+    const message = attendanceType === 'strict'
+      ? `Please confirm if you attended "${eventTitle}" - affects your reliability score`
+      : `Let us know if you made it to "${eventTitle}" - no worries if you missed it!`;
+
+    return await createNotification({
+      userId: guestId,
+      type: NOTIFICATION_TYPES.EVENT_WRAPUP_GUEST,
+      title,
+      message,
+      data: {
+        eventId,
+        eventTitle,
+        attendanceType,
+        timestamp: new Date().toISOString(),
+        actions: [
+          {
+            id: 'report_attendance',
+            label: 'Report Attendance',
+            type: 'primary',
+            action: 'navigate_to_screen',
+            params: { 
+              screen: 'GuestEventWrapUp',
+              params: { eventId }
+            }
+          }
+        ]
+      },
+      priority: attendanceType === 'strict' ? NOTIFICATION_PRIORITY.HIGH : NOTIFICATION_PRIORITY.NORMAL,
+      channels: [DELIVERY_CHANNELS.PUSH],
+    });
+  } catch (error) {
+    console.error('Error notifying guest wrap-up:', error);
+    throw error;
+  }
+};
+
+/**
+ * Schedule wrap-up notifications for an event
+ */
+export const scheduleEventWrapUpNotifications = async (eventData) => {
+  try {
+    const { id: eventId, title, attendanceType, trackAttendance, createdBy, subscribers = [] } = eventData;
+    
+    // Skip if no attendance tracking
+    if (!trackAttendance) {
+      return { success: true, message: 'No attendance tracking - skipped wrap-up notifications' };
+    }
+
+    const notifications = [];
+
+    // Send to host (creator) - 30 minutes after event ends
+    notifications.push(
+      notifyHostEventWrapUp(createdBy, eventId, title)
+    );
+
+    // Send to guests - during or shortly after event (depending on type)
+    // Skip for open events (no individual tracking)
+    if (attendanceType !== 'open' && subscribers.length > 0) {
+      const guestNotifications = subscribers
+        .filter(userId => userId !== createdBy) // Don't notify host as guest
+        .map(guestId => 
+          notifyGuestEventWrapUp(guestId, eventId, title, attendanceType)
+        );
+      
+      notifications.push(...guestNotifications);
+    }
+
+    await Promise.all(notifications);
+
+    return {
+      success: true,
+      hostNotified: true,
+      guestsNotified: attendanceType !== 'open' ? subscribers.length - 1 : 0
+    };
+
+  } catch (error) {
+    console.error('Error scheduling wrap-up notifications:', error);
+    return { success: false, error };
   }
 };
 

@@ -13,32 +13,22 @@ import VibeButton from '../../../components/ui/VibeButton';
 import { UserReliabilityCard } from '../UserReliabilityCard';
 import { getUserEventStats } from '../../lib/userMetrics';
 import { useVibeAlert } from '../../../components/ui/VibeAlertContext';
-import { doc, setDoc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../../auth/services/firebase';
 
 const HostProfileModal = ({
   visible,
   onClose,
   hostData,
   currentUserId,
-  eventId, // New prop for rating the event/host
+  eventId,
   onFollow, // Future implementation
 }) => {
   const [isFollowing, setIsFollowing] = useState(false); // Future: check actual follow status
-  const [userRating, setUserRating] = useState(0); // User's rating for this host/event
-  const [hasRated, setHasRated] = useState(false);
-  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
   const vibeAlert = useVibeAlert();
 
-  useEffect(() => {
-    if (visible && currentUserId && hostData && eventId) {
-      checkExistingRating();
-    }
-  }, [visible, currentUserId, hostData, eventId]);
 
   if (!hostData) return null;
 
-  const contactInfo = hostData?.userdata?.contactinfo || {};
+  const contactInfo = hostData?.userdata?.contactInfo || {};
   const displayName =
     hostData.displayName ||
     `${contactInfo.firstName || ''} ${contactInfo.lastName || ''}`.trim() ||
@@ -48,119 +38,9 @@ const HostProfileModal = ({
   const stats = getUserEventStats(hostData);
   const isCurrentUser = currentUserId === hostData.id;
 
-  const checkExistingRating = async () => {
-    if (!currentUserId || !hostData || !eventId) return;
-    
-    try {
-      const ratingId = `${currentUserId}_${hostData.id}_${eventId}`;
-      const ratingDoc = await getDoc(doc(db, 'hostRatings', ratingId));
-      
-      if (ratingDoc.exists()) {
-        const data = ratingDoc.data();
-        setUserRating(data.rating);
-        setHasRated(true);
-      } else {
-        setUserRating(0);
-        setHasRated(false);
-      }
-    } catch (error) {
-      console.error('Error checking rating:', error);
-    }
-  };
-
-  const submitRating = async (rating) => {
-    if (!currentUserId || !hostData || !eventId || isCurrentUser) return;
-    
-    setIsSubmittingRating(true);
-    try {
-      const ratingId = `${currentUserId}_${hostData.id}_${eventId}`;
-      
-      await setDoc(doc(db, 'hostRatings', ratingId), {
-        raterId: currentUserId,
-        hostId: hostData.id,
-        eventId: eventId,
-        rating: rating,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-
-      // Also add to ratings collection for analytics
-      await addDoc(collection(db, 'ratings'), {
-        type: 'host',
-        raterId: currentUserId,
-        targetId: hostData.id,
-        eventId: eventId,
-        rating: rating,
-        createdAt: serverTimestamp(),
-      });
-
-      setUserRating(rating);
-      setHasRated(true);
-      
-      vibeAlert.success('Rating Submitted!', `You rated ${displayName} ${rating} star${rating !== 1 ? 's' : ''}!`);
-    } catch (error) {
-      console.error('Error submitting rating:', error);
-      vibeAlert.error('Error', 'Failed to submit rating. Please try again.');
-    } finally {
-      setIsSubmittingRating(false);
-    }
-  };
-
-  const handleStarPress = (rating) => {
-    if (isCurrentUser || isSubmittingRating) return;
-    
-    vibeAlert.confirm(
-      'Rate Host',
-      `Rate ${displayName} ${rating} star${rating !== 1 ? 's' : ''} for this event?`,
-      () => submitRating(rating),
-      () => {} // Cancel - do nothing
-    );
-  };
-
-  const renderStarRating = () => {
-    if (isCurrentUser) return null;
-
-    return (
-      <View style={styles.ratingSection}>
-        <Text style={styles.ratingTitle}>
-          {hasRated ? 'Your Rating' : 'Rate This Host'}
-        </Text>
-        <View style={styles.starsContainer}>
-          {[1, 2, 3, 4, 5].map((star) => (
-            <TouchableOpacity
-              key={star}
-              onPress={() => handleStarPress(star)}
-              disabled={isSubmittingRating}
-              style={styles.starButton}
-            >
-              <Text
-                style={[
-                  styles.star,
-                  star <= userRating && styles.starFilled,
-                  isSubmittingRating && styles.starDisabled,
-                ]}
-              >
-                ★
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        {hasRated && (
-          <Text style={styles.ratingSubtext}>
-            You rated {userRating} star{userRating !== 1 ? 's' : ''}
-          </Text>
-        )}
-        {!hasRated && (
-          <Text style={styles.ratingSubtext}>
-            Tap stars to rate this host's event
-          </Text>
-        )}
-      </View>
-    );
-  };
 
   const handleContact = () => {
-    const email = hostData.userdata?.contactinfo?.email;
+    const email = hostData.userdata?.contactInfo?.email;
     if (email) {
       const subject = encodeURIComponent('Regarding your event');
       const mailtoUrl = `mailto:${email}?subject=${subject}`;
@@ -234,9 +114,6 @@ const HostProfileModal = ({
             {/* Event Statistics */}
             <UserReliabilityCard userData={hostData} />
 
-            {/* Host Rating Section */}
-            {renderStarRating()}
-
             {/* Quick Stats */}
             <View style={styles.quickStats}>
               <View style={styles.statItem}>
@@ -256,17 +133,17 @@ const HostProfileModal = ({
             </View>
 
             {/* Contact Info */}
-            {(hostData.userdata?.contactinfo?.phoneNumber || hostData.website || hostData.socialMedia) && (
+            {(hostData.userdata?.contactInfo?.phoneNumber || hostData.website || hostData.socialMedia) && (
               <View style={styles.contactSection}>
                 <Text style={styles.sectionTitle}>Contact Info</Text>
 
-                {hostData.userdata?.contactinfo?.phoneNumber && (
+                {hostData.userdata?.contactInfo?.phoneNumber && (
                   <TouchableOpacity
                     style={styles.contactItem}
-                    onPress={() => Linking.openURL(`tel:${hostData.userdata.contactinfo.phoneNumber}`)}
+                    onPress={() => Linking.openURL(`tel:${hostData.userdata.contactInfo.phoneNumber}`)}
                   >
                     <Text style={styles.contactIcon}>📞</Text>
-                    <Text style={styles.contactText}>{hostData.userdata.contactinfo.phoneNumber}</Text>
+                    <Text style={styles.contactText}>{hostData.userdata.contactInfo.phoneNumber}</Text>
                   </TouchableOpacity>
                 )}
 
@@ -324,7 +201,7 @@ const HostProfileModal = ({
           {/* Action Buttons */}
           {!isCurrentUser && (
             <View style={styles.buttonContainer}>
-              {hostData.userdata?.contactinfo?.email && (
+              {hostData.userdata?.contactInfo?.email && (
                 <VibeButton
                   label="CONTACT HOST"
                   onPress={handleContact}
@@ -530,44 +407,6 @@ const styles = StyleSheet.create({
   },
   followingButton: {
     borderColor: '#4CAF50',
-  },
-  ratingSection: {
-    backgroundColor: 'rgba(0, 198, 255, 0.1)',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 198, 255, 0.2)',
-  },
-  ratingTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 12,
-  },
-  starsContainer: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 8,
-  },
-  starButton: {
-    padding: 4,
-  },
-  star: {
-    fontSize: 28,
-    color: '#666',
-  },
-  starFilled: {
-    color: '#FFD700',
-  },
-  starDisabled: {
-    opacity: 0.5,
-  },
-  ratingSubtext: {
-    fontSize: 12,
-    color: '#888',
-    textAlign: 'center',
   },
 });
 

@@ -79,7 +79,8 @@ const getMinuteFromPosition = (x, y) => {
   const rawMinute = Math.round(angle / 6) % 60;
   
   // Snap to 5-minute increments for easier selection
-  return Math.round(rawMinute / 5) * 5;
+  const snappedMinute = Math.round(rawMinute / 5) * 5;
+  return snappedMinute === 60 ? 0 : snappedMinute;
 };
 
 // Clock Numbers Component

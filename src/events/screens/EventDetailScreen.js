@@ -7,6 +7,8 @@ import {
   ScrollView,
   Alert,
   TouchableOpacity,
+  Linking,
+  Modal,
 } from 'react-native';
 import { db } from '../../auth/services/firebase';
 import {
@@ -21,7 +23,6 @@ import {
 } from 'firebase/firestore';
 import VibeButton from '../../components/ui/VibeButton';
 import EventCreatorInfo from '../components/hosts/EventCreatorInfo';
-import HostProfileModal from '../components/hosts/HostProfileModal';
 import AttendanceSummary from '../../components/ui/AttendanceSummary';
 import { CommentSection } from '../../components/ui/comments';
 import { useVibeAlert } from '../../components/ui/VibeAlertContext';
@@ -56,12 +57,53 @@ export default function EventDetailScreen({ route, navigation }) {
   const [isLoading, setIsLoading] = useState(false);
   const [creatorData, setCreatorData] = useState(null);
   const [cohostData, setCohostData] = useState([]);
-  const [showHostProfile, setShowHostProfile] = useState(false);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+
+  // Handler for showing host profile
+  const handleShowHostProfile = (hostData) => {
+    navigation.navigate('HostProfile', {
+      hostData,
+      currentUserId,
+      eventId
+    });
+  };
   const [userInterests, setUserInterests] = useState([]);
   const [eventInterests, setEventInterests] = useState([]);
+  const [friendAttendees, setFriendAttendees] = useState([]);
+  const [showFriendsModal, setShowFriendsModal] = useState(false);
 
   const vibeAlert = useVibeAlert();
+
+  // Function to extract emoji from title
+  const extractEmoji = (title) => {
+    if (!title) return { emoji: null, cleanTitle: title };
+    
+    // Regex to match emojis (including compound emojis)
+    const emojiRegex = /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1FA70}-\u{1FAFF}]/u;
+    const match = title.match(emojiRegex);
+    
+    if (match) {
+      const emoji = match[0];
+      const cleanTitle = title.replace(emojiRegex, '').trim();
+      return { emoji, cleanTitle };
+    }
+    
+    return { emoji: null, cleanTitle: title };
+  };
+
+  // Function to open maps with location
+  const openMaps = () => {
+    if (!event.address) return;
+    
+    const query = `${event.location}, ${event.address}`.trim();
+    const encodedQuery = encodeURIComponent(query);
+    const mapsUrl = `https://maps.google.com/maps?q=${encodedQuery}`;
+    
+    Linking.openURL(mapsUrl).catch(err => {
+      console.error('Failed to open maps:', err);
+      vibeAlert.error('Error', 'Could not open maps');
+    });
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -84,6 +126,39 @@ export default function EventDetailScreen({ route, navigation }) {
             // Check if user is subscribed
             const subscribers = eventData.subscribers || [];
             setIsSubscribed(subscribers.includes(currentUserId));
+
+            // Load friend attendees (people you mutually follow who are attending)
+            if (subscribers.length > 0 && currentUserId) {
+              try {
+                const friendAttendeesList = [];
+                
+                for (const subscriberId of subscribers) {
+                  if (subscriberId === currentUserId) continue; // Skip self
+                  
+                  // Check if they're a friend (mutual follow)
+                  const followingDoc = await getDoc(doc(db, 'users', currentUserId, 'following', subscriberId));
+                  const followerDoc = await getDoc(doc(db, 'users', currentUserId, 'followers', subscriberId));
+                  
+                  if (followingDoc.exists() && followerDoc.exists()) {
+                    // They're a friend, get their display name
+                    const userDoc = await getDoc(doc(db, 'users', subscriberId));
+                    if (userDoc.exists()) {
+                      const userData = userDoc.data();
+                      const displayName = userData.userdata?.contactInfo?.displayName || 
+                                         userData.userdata?.contactInfo?.firstName || 'Friend';
+                      friendAttendeesList.push(displayName);
+                    }
+                  }
+                }
+                
+                setFriendAttendees(friendAttendeesList);
+              } catch (error) {
+                console.error('Error loading friend attendees:', error);
+                setFriendAttendees([]);
+              }
+            } else {
+              setFriendAttendees([]);
+            }
 
             // Load user interests and extract interests from event title
             try {
@@ -111,11 +186,11 @@ export default function EventDetailScreen({ route, navigation }) {
               }
             }
 
-            // Fetch cohost data (additional hosts beyond primary)
-            const additionalHosts = eventData.hosts ? eventData.hosts.slice(1) : [];
-            if (additionalHosts.length > 0) {
+            // Fetch cohost data (accepted cohosts)
+            const cohostIds = eventData.cohosts || [];
+            if (cohostIds.length > 0) {
               try {
-                const cohostPromises = additionalHosts.map(async (cohostId) => {
+                const cohostPromises = cohostIds.map(async (cohostId) => {
                   const cohostRef = doc(db, 'users', cohostId);
                   const cohostSnap = await getDoc(cohostRef);
                   if (cohostSnap.exists()) {
@@ -151,6 +226,7 @@ export default function EventDetailScreen({ route, navigation }) {
       fetchEvent();
     }, [currentUserId, userData, eventId, studioId, navigation])
   );
+
 
   // Interest toggle functionality
   const handleInterestToggle = async (interest) => {
@@ -263,6 +339,13 @@ export default function EventDetailScreen({ route, navigation }) {
         });
       }
 
+      // Check if user is already subscribed to prevent duplicates
+      const currentSubscribers = event.subscribers || [];
+      if (currentSubscribers.includes(currentUserId)) {
+        console.log('[EventDetailScreen] User already subscribed, skipping duplicate addition');
+        return; // Already subscribed, do nothing
+      }
+
       // Subscribe - update event document
       await updateDoc(eventRef, {
         subscribers: arrayUnion(currentUserId),
@@ -343,7 +426,7 @@ export default function EventDetailScreen({ route, navigation }) {
           eventTitle: event.title,
           hostId: event.createdBy,
           leftUserId: currentUserId,
-          leftUserName: userData?.userdata?.contactinfo?.firstName || userData?.displayName || 'Someone',
+          leftUserName: userData?.userdata?.contactInfo?.firstName || userData?.userdata?.contactInfo?.displayName || 'Someone',
         });
       } catch (error) {
         console.error('Failed to notify host of event leave:', error);
@@ -376,6 +459,7 @@ export default function EventDetailScreen({ route, navigation }) {
       selectedPhoneContacts: [],
       maxLimit: null, // No limit for finding friends
       eventTitle: event.title,
+      source: 'event_detail',
       onSave: async (inviteData) => {
         try {
           // Use the follow system instead of invitations
@@ -534,6 +618,36 @@ export default function EventDetailScreen({ route, navigation }) {
               <Text style={styles.privateBadgeText}>🔒 Private Event</Text>
             </View>
           )}
+          {/* Public Badge */}
+          {!event.isPrivate && (
+            <View style={styles.publicTitleBadge}>
+              <Text style={styles.publicBadgeText}>🌍 Public Event</Text>
+            </View>
+          )}
+          {/* Attendance Type Badge */}
+          {event.trackAttendance && (
+            <View style={[
+              styles.attendanceTypeBadge,
+              {
+                backgroundColor: event.attendanceType === 'strict' 
+                  ? 'rgba(253, 126, 20, 0.1)' // vibeBackgroundOrange
+                  : event.attendanceType === 'casual'
+                  ? 'rgba(0, 198, 255, 0.1)' // vibeBackgroundBlue
+                  : 'rgba(0, 255, 65, 0.1)', // vibeBackgroundGreen for open
+                borderColor: event.attendanceType === 'strict'
+                  ? '#fd7e14' // vibeOrange
+                  : event.attendanceType === 'casual'
+                  ? '#00C6FF' // vibeBlue
+                  : '#00FF41' // vibeGreen for open
+              }
+            ]}>
+              <Text style={styles.attendanceTypeBadgeText}>
+                {event.attendanceType === 'strict' ? '🎯 Strict Event'
+                  : event.attendanceType === 'casual' ? '🌊 Casual Event'
+                  : '🎉 Open Event'}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -541,10 +655,20 @@ export default function EventDetailScreen({ route, navigation }) {
       <View style={styles.infoSection}>
         <View style={styles.infoCard}>
           <View style={styles.infoRow}>
-            <Text style={styles.infoIcon}>📝</Text>
+            <Text style={styles.infoIcon}>
+              {(() => {
+                const { emoji } = extractEmoji(event.title);
+                return emoji || '📝';
+              })()}
+            </Text>
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Event Name</Text>
-              <Text style={styles.infoValue}>{event.title}</Text>
+              <Text style={styles.infoValue}>
+                {(() => {
+                  const { cleanTitle } = extractEmoji(event.title);
+                  return cleanTitle;
+                })()}
+              </Text>
             </View>
             <View style={styles.interestStars}>
               {eventInterests.length > 0 ? (
@@ -603,18 +727,22 @@ export default function EventDetailScreen({ route, navigation }) {
           </View>
         </View>
 
-        <View style={styles.infoCard}>
+        <TouchableOpacity 
+          style={styles.infoCard} 
+          onPress={event.address ? openMaps : undefined}
+          disabled={!event.address}
+        >
           <View style={styles.infoRow}>
             <Text style={styles.infoIcon}>📍</Text>
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Location</Text>
               <Text style={styles.infoValue}>{event.location}</Text>
-              {event.address && (
-                <Text style={styles.infoSubValue}>{event.address}</Text>
-              )}
             </View>
+            {event.address && (
+              <Text style={styles.tapToOpenMaps}>🗺️</Text>
+            )}
           </View>
-        </View>
+        </TouchableOpacity>
 
         <View style={styles.infoCard}>
           <View style={styles.infoRow}>
@@ -625,7 +753,7 @@ export default function EventDetailScreen({ route, navigation }) {
                 creatorData={creatorData}
                 showLabel={false}
                 showReliability={false}
-                onPress={() => setShowHostProfile(true)}
+                onPress={() => handleShowHostProfile(creatorData)}
               />
               {cohostData.length > 0 && (
                 <View style={styles.cohostsContainer}>
@@ -635,7 +763,7 @@ export default function EventDetailScreen({ route, navigation }) {
                       creatorData={cohost}
                       showLabel={false}
                       showReliability={false}
-                      onPress={() => setShowHostProfile(true)}
+                      onPress={() => handleShowHostProfile(cohost)}
                       style={styles.cohostItem}
                     />
                   ))}
@@ -646,12 +774,15 @@ export default function EventDetailScreen({ route, navigation }) {
         </View>
 
         <View style={styles.infoCard}>
-          <View style={styles.infoRow}>
+          <TouchableOpacity 
+            style={styles.infoRow}
+            onPress={() => friendAttendees.length > 0 && setShowFriendsModal(true)}
+          >
             <Text style={styles.infoIcon}>👥</Text>
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Attendees</Text>
               <Text style={styles.infoValue}>
-                {event.subscribers?.length || 0} attending
+                {event.subscribers?.length || 0} attendees
                 {event.maxGuests && ` / ${event.maxGuests} max`}
               </Text>
               <View style={styles.eventBadges}>
@@ -675,23 +806,10 @@ export default function EventDetailScreen({ route, navigation }) {
                 </Text>
               )}
             </View>
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
 
-      {/* Host Profile Modal */}
-      <HostProfileModal
-        visible={showHostProfile}
-        onClose={() => setShowHostProfile(false)}
-        hostData={creatorData}
-        currentUserId={currentUserId}
-        eventId={eventId}
-        onFollow={(hostId, isFollowing) => {
-          console.log(
-            `${isFollowing ? 'Following' : 'Unfollowing'} host ${hostId}`
-          );
-        }}
-      />
 
       {/* Event Details */}
       {event.description && (
@@ -768,19 +886,19 @@ export default function EventDetailScreen({ route, navigation }) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📞 Contact Host</Text>
           <View style={styles.sectionContent}>
-            {creatorData.userdata?.contactinfo?.email && (
+            {creatorData.userdata?.contactInfo?.email && (
               <View style={styles.detailItem}>
                 <Text style={styles.detailLabel}>Email</Text>
-                <Text style={styles.detailValue}>{creatorData.userdata.contactinfo.email}</Text>
+                <Text style={styles.detailValue}>{creatorData.userdata.contactInfo.email}</Text>
               </View>
             )}
-            {creatorData.userdata?.contactinfo?.phoneNumber && (
+            {creatorData.userdata?.contactInfo?.phoneNumber && (
               <View style={styles.detailItem}>
                 <Text style={styles.detailLabel}>Phone</Text>
-                <Text style={styles.detailValue}>{creatorData.userdata.contactinfo.phoneNumber}</Text>
+                <Text style={styles.detailValue}>{creatorData.userdata.contactInfo.phoneNumber}</Text>
               </View>
             )}
-            {(!creatorData.userdata?.contactinfo?.email && !creatorData.userdata?.contactinfo?.phoneNumber) && (
+            {(!creatorData.userdata?.contactInfo?.email && !creatorData.userdata?.contactInfo?.phoneNumber) && (
               <Text style={styles.detailValue}>Contact information not available</Text>
             )}
           </View>
@@ -796,7 +914,12 @@ export default function EventDetailScreen({ route, navigation }) {
 
       {/* Action Buttons */}
       <View style={styles.buttonContainer}>
-        {!isEventPast && (
+        {/* For non-hosts: show INVITE GUESTS first, then JOIN/LEAVE EVENT */}
+        {!isEventPast && !permissions.canEdit && (
+          <VibeButton label="INVITE GUESTS" onPress={handleInvite} />
+        )}
+
+        {!isEventPast && !permissions.canEdit && (
           <VibeButton
             label={isSubscribed ? 'LEAVE EVENT' : 'JOIN EVENT'}
             onPress={handleSubscribe}
@@ -818,42 +941,88 @@ export default function EventDetailScreen({ route, navigation }) {
           />
         )}
 
-        {/* Invite button - different functionality for hosts vs attendees */}
-        {permissions.canEdit ? (
-          <VibeButton 
-            label="INVITE GUESTS" 
-            onPress={() => navigation.navigate('Invite', { 
-              type: 'guests',
-              selectedUsers: [],
-              selectedContacts: [],
-              selectedPhoneContacts: [],
-              eventTitle: event.title,
-              eventId: event.id, // Add eventId to indicate this is from an existing event
-              onSave: (selectedData) => {
-                console.log('EventDetail: Users to connect with:', selectedData);
-                vibeAlert.success('Success', `Connected with ${selectedData.users.length} people! They can now see your events.`);
-                navigation.goBack();
-              }
-            })}
-          />
-        ) : (
-          <VibeButton label="FIND FRIENDS" onPress={handleInvite} />
+        {/* Hide invite/edit/delete buttons for past events */}
+        {!isEventPast && (
+          <>
+            {/* Invite button for hosts */}
+            {permissions.canEdit && (
+              <VibeButton 
+                label="INVITE GUESTS" 
+                onPress={() => navigation.navigate('Invite', { 
+                  type: 'guests',
+                  selectedUsers: [],
+                  selectedContacts: [],
+                  selectedPhoneContacts: [],
+                  eventTitle: event.title,
+                  eventId: event.id, // Add eventId to indicate this is from an existing event
+                  source: 'host_invite',
+                  onSave: (selectedData) => {
+                    console.log('EventDetail: Users to connect with:', selectedData);
+                    vibeAlert.success('Success', `Connected with ${selectedData.users.length} people! They can now see your events.`);
+                    navigation.goBack();
+                  }
+                })}
+                style={styles.tightButton}
+              />
+            )}
+
+            {permissions.canEdit && (
+              <VibeButton
+                label="EDIT EVENT"
+                onPress={() => {
+                  navigation.navigate('EditEvent', { eventId, eventData: event, studioId });
+                }}
+                style={styles.tightButton}
+              />
+            )}
+
+            {permissions.canDelete && (
+              <VibeButton label="DELETE EVENT" onPress={handleDelete} style={styles.tightButton} />
+            )}
+          </>
         )}
 
-        {permissions.canEdit && (
+        {/* Save as Template button for past events (hosts only) */}
+        {isEventPast && permissions.canEdit && (
           <VibeButton
-            label="EDIT EVENT"
+            label="SAVE AS TEMPLATE"
             onPress={() => {
-              navigation.navigate('EditEvent', { eventId });
+              vibeAlert.confirm(
+                'Save as Template',
+                `Save "${event.title}" as a reusable template for future events?`,
+                () => {
+                  // Navigate to CreateEvent with this event as template
+                  navigation.navigate('CreateEvent', {
+                    templateFromEvent: {
+                      title: `${event.title} (Copy)`,
+                      location: event.location,
+                      address: event.address,
+                      details: event.description,
+                      maxGuests: event.maxGuests?.toString() || '',
+                      hasFee: event.hasFee || false,
+                      entryFee: event.entryFee?.toString() || '',
+                      isPrivate: event.isPrivate || false,
+                      showHostContact: event.showHostContact,
+                      trackAttendance: event.trackAttendance || false,
+                      attendanceType: event.attendanceType || 'casual',
+                      whatsProvided: event.whatsProvided || '',
+                      whatToBring: event.whatToBring || '',
+                      parkingInstructions: event.parkingInstructions || '',
+                      dressCode: event.dressCode || '',
+                      ageRestrictions: event.ageRestrictions || '',
+                    }
+                  });
+                  vibeAlert.turquoise('Template Created', 'Event loaded as template in Create Event!');
+                },
+                () => {}
+              );
             }}
+            variant="outline"
           />
         )}
 
-        {permissions.canDelete && (
-          <VibeButton label="DELETE EVENT" onPress={handleDelete} />
-        )}
-
-        {permissions.canManageAttendance && (
+        {/* Only show attendance management for upcoming events */}
+        {permissions.canManageAttendance && !isEventPast && (
           <VibeButton
             label="MANAGE ATTENDANCE"
             onPress={() => navigation.navigate('EventAttendance', { eventId })}
@@ -863,11 +1032,23 @@ export default function EventDetailScreen({ route, navigation }) {
 
       {isEventPast && (
         <View style={styles.pastEventContainer}>
-          <Text style={styles.pastEventText}>
-            {event.status === 'completed'
-              ? `Event completed with ${event.attendeeCount || 0} attendees`
-              : 'This event has ended'}
-          </Text>
+          {/* Wrap-up buttons for past events */}
+            {/* Always show wrap-up buttons for past events */}
+            {permissions.canEdit ? (
+              // Host wrap-up button
+              <VibeButton
+                label={event.status === 'completed' ? 'VIEW WRAP-UP' : 'EVENT WRAP-UP'}
+                onPress={() => navigation.navigate('HostEventWrapUp', { eventId, studioId })}
+                variant="outline"
+              />
+            ) : (
+              // Guest wrap-up button
+              <VibeButton
+                label="EVENT WRAP-UP"
+                onPress={() => navigation.navigate('GuestEventWrapUp', { eventId, studioId })}
+                variant="outline"
+              />
+            )}
         </View>
       )}
 
@@ -880,6 +1061,29 @@ export default function EventDetailScreen({ route, navigation }) {
         userDefaults={userData?.userdata?.settings?.notifications}
         currentUserId={currentUserId}
       />
+
+      {/* Friends Modal */}
+      <Modal
+        visible={showFriendsModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowFriendsModal(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowFriendsModal(false)}
+        >
+          <View style={styles.friendsModal}>
+            <Text style={styles.friendsModalTitle}>Friends Attending</Text>
+            {friendAttendees.map((friendName, index) => (
+              <Text key={index} style={styles.friendsModalItem}>
+                • {friendName}
+              </Text>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </ScrollView>
   );
 }
@@ -944,6 +1148,33 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: theme.fonts.main,
   },
+  publicTitleBadge: {
+    backgroundColor: 'rgba(76, 175, 80, 0.2)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+  },
+  publicBadgeText: {
+    color: theme.colors.textPrimary,
+    fontSize: 12,
+    fontWeight: '600',
+    fontFamily: theme.fonts.main,
+  },
+  attendanceTypeBadge: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginTop: 8,
+  },
+  attendanceTypeBadgeText: {
+    color: theme.colors.textPrimary,
+    fontSize: 12,
+    fontWeight: '600',
+    fontFamily: theme.fonts.main,
+  },
 
   // Info Section
   infoSection: {
@@ -965,7 +1196,8 @@ const styles = StyleSheet.create({
   infoIcon: {
     fontSize: 24,
     marginRight: 16,
-    width: 32,
+    width: 40,
+    textAlign: 'center',
   },
   infoContent: {
     flex: 1,
@@ -985,6 +1217,49 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 22,
     fontFamily: theme.fonts.main,
+  },
+  friendsList: {
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  friendsHint: {
+    fontSize: 12,
+    color: theme.colors.vibeBlue,
+    fontFamily: theme.fonts.main,
+    fontWeight: '400',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  friendsModal: {
+    backgroundColor: theme.colors.background,
+    borderRadius: 16,
+    padding: 20,
+    margin: 20,
+    minWidth: 250,
+    maxWidth: 300,
+    borderWidth: 1,
+    borderColor: theme.colors.vibeBlue,
+  },
+  friendsModalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.colors.white,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  friendsModalItem: {
+    fontSize: 16,
+    color: theme.colors.white,
+    marginBottom: 8,
+    fontFamily: theme.fonts.main,
+  },
+  tapToOpenMaps: {
+    fontSize: 20,
+    marginLeft: 8,
   },
   
   // Interest Star Styles
@@ -1058,10 +1333,14 @@ const styles = StyleSheet.create({
   disabledButton: {
     opacity: 0.5,
   },
+  tightButton: {
+    marginVertical: 2,
+  },
 
   // Past Event
   pastEventContainer: {
     marginTop: 24,
+    marginBottom: 40,
     paddingHorizontal: 20,
   },
   pastEventText: {

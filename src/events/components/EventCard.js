@@ -39,8 +39,14 @@ export default function EventCard({
               }
             </Text>
           )}
-          <Text style={styles.title}>{title}</Text>
-          {location && <Text style={styles.location}>{location}</Text>}
+          <Text style={[styles.title, { fontSize: title && title.length > 20 ? 20 : 22 }]} numberOfLines={2} ellipsizeMode="tail">
+            {title}
+          </Text>
+          {location && (
+            <Text style={styles.location} numberOfLines={1} ellipsizeMode="tail">
+              {location}
+            </Text>
+          )}
         </View>
       </LinearGradient>
     </TouchableOpacity>

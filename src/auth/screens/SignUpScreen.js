@@ -11,6 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { signup } from '../services/FirebaseAuthService';
 import { auth, db } from '../services/firebase';
 import { doc, setDoc } from 'firebase/firestore';
+import { getDefaultUserSettings, getDefaultUserMetrics } from '../../services/defaultUserSettings';
 import theme from '../../theme/themes';
 
 export default function SignUpScreen({ navigation }) {
@@ -43,12 +44,14 @@ export default function SignUpScreen({ navigation }) {
         doc(db, 'users', user.uid),
         {
           userdata: {
-            contactinfo: {
+            contactInfo: {
               email: user.email,
             },
             metadata: {
               createdAt: new Date(),
-            }
+            },
+            settings: getDefaultUserSettings(),
+            metrics: getDefaultUserMetrics(),
           },
           uid: user.uid,
         },

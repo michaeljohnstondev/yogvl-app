@@ -90,9 +90,9 @@ export const followUser = async (followerId, targetUserId, followerData) => {
       targetUserId,
       createdAt: Timestamp.now(),
       targetData: {
-        firstName: targetUserData?.userdata?.contactinfo?.firstName || 'Unknown',
-        lastName: targetUserData?.userdata?.contactinfo?.lastName || '',
-        displayName: `${targetUserData?.userdata?.contactinfo?.firstName || ''} ${targetUserData?.userdata?.contactinfo?.lastName || ''}`.trim() || 'Unknown User',
+        firstName: targetUserData?.userdata?.contactInfo?.firstName || 'Unknown',
+        lastName: targetUserData?.userdata?.contactInfo?.lastName || '',
+        displayName: `${targetUserData?.userdata?.contactInfo?.firstName || ''} ${targetUserData?.userdata?.contactInfo?.lastName || ''}`.trim() || 'Unknown User',
         avatar: null // TODO: Add avatar system later
       }
     });
@@ -105,9 +105,9 @@ export const followUser = async (followerId, targetUserId, followerData) => {
       userId: targetUserId,
       createdAt: Timestamp.now(),
       followerData: {
-        firstName: followerData?.userdata?.contactinfo?.firstName || 'Unknown',
-        lastName: followerData?.userdata?.contactinfo?.lastName || '',
-        displayName: `${followerData?.userdata?.contactinfo?.firstName || ''} ${followerData?.userdata?.contactinfo?.lastName || ''}`.trim() || 'Unknown User',
+        firstName: followerData?.userdata?.contactInfo?.firstName || 'Unknown',
+        lastName: followerData?.userdata?.contactInfo?.lastName || '',
+        displayName: `${followerData?.userdata?.contactInfo?.firstName || ''} ${followerData?.userdata?.contactInfo?.lastName || ''}`.trim() || 'Unknown User',
         avatar: null
       }
     });
@@ -134,7 +134,7 @@ export const followUser = async (followerId, targetUserId, followerData) => {
       await notifyNewFollower({
         targetUserId,
         followerId,
-        followerName: `${followerData?.userdata?.contactinfo?.firstName || ''} ${followerData?.userdata?.contactinfo?.lastName || ''}`.trim() || 'Someone'
+        followerName: `${followerData?.userdata?.contactInfo?.firstName || ''} ${followerData?.userdata?.contactInfo?.lastName || ''}`.trim() || followerData?.userdata?.contactInfo?.displayName || 'Someone'
       });
     } catch (notificationError) {
       console.warn('Follow successful but notification failed:', notificationError);

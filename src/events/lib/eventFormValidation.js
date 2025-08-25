@@ -140,10 +140,10 @@ export const validateEventForm = (formData) => {
     };
   }
 
-  if (title.trim().length > 100) {
+  if (title.trim().length > 30) {
     return {
       isValid: false,
-      message: 'Event name must be 100 characters or less',
+      message: 'Event name must be 30 characters or less',
     };
   }
 
@@ -154,10 +154,10 @@ export const validateEventForm = (formData) => {
     };
   }
 
-  if (location.trim().length > 200) {
+  if (location.trim().length > 40) {
     return {
       isValid: false,
-      message: 'Location must be 200 characters or less',
+      message: 'Location must be 40 characters or less',
     };
   }
 
@@ -252,9 +252,10 @@ export const validateEventForm = (formData) => {
  * Format event data for database storage
  * @param {Object} formData - Form data
  * @param {string} currentUserId - Current user ID
+ * @param {boolean} isEditing - Whether this is for editing an existing event
  * @returns {Object} Formatted event data
  */
-export const formatEventForStorage = (formData, currentUserId) => {
+export const formatEventForStorage = (formData, currentUserId, isEditing = false) => {
   const {
     title,
     location,
@@ -265,13 +266,13 @@ export const formatEventForStorage = (formData, currentUserId) => {
     hasFee,
     entryFee,
     isPrivate,
-    additionalHosts,
     showHostContact,
     address,
     hasRsvpDeadline,
     rsvpDeadline,
     rsvpDeadlineSelected,
     trackAttendance,
+    attendanceType,
   } = formData;
 
   // Format main event date/time
@@ -302,9 +303,7 @@ export const formatEventForStorage = (formData, currentUserId) => {
     rsvpDeadline_timestamp = new Date(rsvpCombined.toUTC().toISO());
   }
 
-  // Combine all hosts (primary + additional)
-  const allHosts = [currentUserId, ...(additionalHosts || [])];
-  const uniqueHosts = [...new Set(allHosts)]; // Remove duplicates
+  // Only the creator for initial event creation (cohosts are added via invitations)
 
   return {
     // ESSENTIALS
@@ -323,9 +322,8 @@ export const formatEventForStorage = (formData, currentUserId) => {
     rsvpDeadline: rsvpDeadline_timestamp,
 
 
-    // PEOPLE
-    hosts: uniqueHosts,
-    subscribers: [currentUserId], // Keep original name
+    // PEOPLE - Only set subscribers for new events, not when editing
+    ...(isEditing ? {} : { subscribers: [currentUserId] }), // Creator is automatically subscribed to new events
 
     // STATS
     views: 0,
@@ -335,75 +333,13 @@ export const formatEventForStorage = (formData, currentUserId) => {
     // FLAGS
     isPrivate: isPrivate ?? false,
     trackAttendance: trackAttendance ?? false,
+    attendanceType: attendanceType ?? 'casual',
     showHostContact: showHostContact ?? true,
     active: true,
   };
 };
 
-/**
- * Add a co-host to an event
- * @param {string} eventId - Event ID
- * @param {string} userId - User ID to add as co-host
- */
-export const addCoHost = async (eventId, userId) => {
-  const eventRef = doc(db, 'events', eventId);
-
-  try {
-    const eventSnap = await getDoc(eventRef);
-    if (!eventSnap.exists()) throw new Error('Event not found');
-
-    const eventData = eventSnap.data();
-    const currentHosts = eventData.hosts || [];
-    const currentAdditionalHosts = eventData.additionalHosts || [];
-
-    if (!currentHosts.includes(userId)) {
-      await updateDoc(eventRef, {
-        hosts: [...currentHosts, userId],
-        additionalHosts: [...currentAdditionalHosts, userId],
-      });
-    }
-  } catch (error) {
-    console.error('Error adding co-host:', error);
-    throw error;
-  }
-};
-
-/**
- * Remove a co-host from an event (cannot remove primary host)
- * @param {string} eventId - Event ID
- * @param {string} userId - User ID to remove as co-host
- */
-export const removeCoHost = async (eventId, userId) => {
-  const eventRef = doc(db, 'events', eventId);
-
-  try {
-    const eventSnap = await getDoc(eventRef);
-    if (!eventSnap.exists()) throw new Error('Event not found');
-
-    const eventData = eventSnap.data();
-
-    // Don't allow removing the primary host
-    if (eventData.hostId === userId) {
-      throw new Error('Cannot remove primary host');
-    }
-
-    const updatedHosts = (eventData.hosts || []).filter(
-      (hostId) => hostId !== userId
-    );
-
-    const updatedAdditionalHosts = (eventData.additionalHosts || []).filter(
-      (hostId) => hostId !== userId
-    );
-
-    await updateDoc(eventRef, {
-      hosts: updatedHosts,
-      additionalHosts: updatedAdditionalHosts,
-    });
-  } catch (error) {
-    console.error('Error removing co-host:', error);
-    throw error;
-  }
-};
+// Legacy cohost functions removed - now handled via invitation system in friendService.js
 
 /**
  * Check if a user is a host of an event
@@ -415,8 +351,8 @@ export const isEventHost = (eventData, userId) => {
   if (!eventData || !userId) return false;
 
   return (
-    eventData.hostId === userId ||
-    (eventData.hosts && eventData.hosts.includes(userId))
+    eventData.createdBy === userId ||
+    (eventData.cohosts && eventData.cohosts.includes(userId))
   );
 };
 

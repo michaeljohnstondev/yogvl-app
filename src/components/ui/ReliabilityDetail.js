@@ -45,9 +45,9 @@ export default function ReliabilityDetail({ userData, onClose }) {
           {/* User Info */}
           <View style={styles.userInfo}>
             <Text style={styles.userName}>
-              {userData?.userdata?.contactinfo?.firstName && userData?.userdata?.contactinfo?.lastName 
-                ? `${userData.userdata.contactinfo.firstName} ${userData.userdata.contactinfo.lastName}`
-                : userData?.userdata?.contactinfo?.email || userData.email || 'User'}
+              {userData?.userdata?.contactInfo?.firstName && userData?.userdata?.contactInfo?.lastName 
+                ? `${userData.userdata.contactInfo.firstName} ${userData.userdata.contactInfo.lastName}`
+                : userData?.userdata?.contactInfo?.email || userData.email || 'User'}
             </Text>
             <ReliabilityBadge userData={userData} size="large" />
           </View>

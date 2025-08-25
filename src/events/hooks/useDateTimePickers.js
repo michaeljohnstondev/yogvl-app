@@ -367,7 +367,7 @@ const useDateTimePickers = (config = {}, onUpdate = () => {}) => {
   // Generate all modals
   const DateTimePickerModals = useMemo(() => {
     return (
-      <>
+      <React.Fragment>
         {Object.keys(config).map((pickerId) => {
           const picker = pickerData[pickerId];
           const pickerConfig = config[pickerId];
@@ -401,7 +401,7 @@ const useDateTimePickers = (config = {}, onUpdate = () => {}) => {
             </React.Fragment>
           );
         })}
-      </>
+      </React.Fragment>
     );
   }, [config, pickerData, handleDateConfirm, handleTimeConfirm, hidePicker]);
 

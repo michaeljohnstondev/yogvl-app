@@ -14,52 +14,47 @@ import {
 import {
   getUserNotifications,
   markAllNotificationsAsRead,
+  deleteNotification,
   NOTIFICATION_TYPES,
 } from '../services/notifications';
 import { useAuth } from '../auth/AuthContext';
+import { useRealtimeNotificationsContext } from '../contexts/RealtimeNotificationsContext';
 import { NotificationItem } from '../components/notifications';
 import VibeScreen from '../components/ui/VibeScreen';
 import VibeButton from '../components/ui/VibeButton';
+import CloseButton from '../components/ui/CloseButton';
 import { useVibeAlert } from '../components/ui/VibeAlertContext';
 import theme from '../theme/themes';
 
 export default function NotificationsScreen({ navigation }) {
   const { currentUserId, userData } = useAuth();
   const vibeAlert = useVibeAlert();
-  const [notifications, setNotifications] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+
+  // Use shared real-time notifications context
+  const { 
+    notifications, 
+    unreadCount, 
+    isLoading, 
+    error, 
+    refreshNotifications 
+  } = useRealtimeNotificationsContext();
+
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [activeFilter, setActiveFilter] = useState('all'); // 'all', 'unread', 'invitations', 'events', 'social'
 
-  // Load notifications
+  // Handle real-time errors
   useEffect(() => {
-    if (currentUserId) {
-      loadNotifications();
-    }
-  }, [currentUserId]);
-
-  const loadNotifications = useCallback(async () => {
-    if (!currentUserId) return;
-
-    try {
-      setIsLoading(true);
-      const userNotifications = await getUserNotifications(currentUserId, {
-        limitCount: 100,
-      });
-      setNotifications(userNotifications);
-    } catch (error) {
-      console.error('Error loading notifications:', error);
+    if (error) {
+      console.error('Real-time notifications error:', error);
       vibeAlert.error('Error', 'Failed to load notifications');
-    } finally {
-      setIsLoading(false);
     }
-  }, [currentUserId]);
+  }, [error, vibeAlert]);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
-    await loadNotifications();
-    setIsRefreshing(false);
-  }, [loadNotifications]);
+    // With real-time notifications, refresh is automatic, but we can still show the refresh animation
+    refreshNotifications();
+    setTimeout(() => setIsRefreshing(false), 500); // Brief animation
+  }, [refreshNotifications]);
 
   // Handle notification press (navigate to relevant screen)
   const handleNotificationPress = useCallback((notification) => {
@@ -114,22 +109,12 @@ export default function NotificationsScreen({ navigation }) {
     }
   }, [navigation]);
 
-  // Handle notification read
-  const handleNotificationRead = useCallback((notificationId) => {
-    setNotifications(prev =>
-      prev.map(notif =>
-        notif.id === notificationId
-          ? { ...notif, read: true, readAt: new Date() }
-          : notif
-      )
-    );
-  }, []);
 
   // Handle notification delete
   const handleNotificationDelete = useCallback((notificationId) => {
-    setNotifications(prev =>
-      prev.filter(notif => notif.id !== notificationId)
-    );
+    // With real-time listeners, we don't need to manually update state
+    // Firebase will automatically remove the deleted notification
+    console.log(`[NotificationsScreen] Notification ${notificationId} deleted`);
   }, []);
 
   // Handle friend request acceptance
@@ -141,15 +126,16 @@ export default function NotificationsScreen({ navigation }) {
       // Accept the friend request
       await acceptFriendRequest(notification.id, currentUserId, senderId);
       
-      // Mark notification as read and update UI
-      handleNotificationRead(notification.id);
+      // Delete notification after successful acceptance
+      await deleteNotification(notification.id, notification.userId);
+      handleNotificationDelete(notification.id);
       
       vibeAlert.success('Success', 'Friend request accepted! 🎉');
     } catch (error) {
       console.error('Error accepting friend request:', error);
       vibeAlert.error('Error', 'Failed to accept friend request. Please try again.');
     }
-  }, [currentUserId, handleNotificationRead]);
+  }, [currentUserId]);
 
   // Handle friend request decline
   const handleDeclineFriendRequest = useCallback(async (notification) => {
@@ -160,53 +146,70 @@ export default function NotificationsScreen({ navigation }) {
       // Decline the friend request
       await declineFriendRequest(notification.id, currentUserId, senderId);
       
-      // Mark notification as read and update UI
-      handleNotificationRead(notification.id);
+      // Delete notification after successful decline
+      await deleteNotification(notification.id, notification.userId);
+      handleNotificationDelete(notification.id);
       
       vibeAlert.info('Friend Request Declined', 'The friend request has been declined.');
     } catch (error) {
       console.error('Error declining friend request:', error);
       vibeAlert.error('Error', 'Failed to decline friend request. Please try again.');
     }
-  }, [currentUserId, handleNotificationRead]);
+  }, [currentUserId]);
 
   // Handle guest invitation acceptance
   const handleAcceptGuestInvitation = useCallback(async (notification) => {
     try {
-      const { acceptGuestInvitation } = await import('../services/friendService');
-      const { invitationId, eventId } = notification.data;
+      const { invitationId, eventId, studioId } = notification.data;
       
-      // Accept the guest invitation (subscribe to event)
-      await acceptGuestInvitation(invitationId, currentUserId, eventId);
+      // Check if this is an event creation invitation (has studioId) or direct guest invitation
+      if (studioId && notification.actions) {
+        // Event creation invitation - use invitations.js system
+        const { acceptInvitation } = await import('../events/services/invitations');
+        await acceptInvitation(invitationId, currentUserId, studioId);
+      } else {
+        // Direct guest invitation - use friendService.js system  
+        const { acceptGuestInvitation } = await import('../services/friendService');
+        await acceptGuestInvitation(invitationId, currentUserId, eventId);
+      }
       
-      // Mark notification as read and update UI
-      handleNotificationRead(notification.id);
+      // Delete notification after successful acceptance (no longer needed)
+      await deleteNotification(notification.id, notification.userId);
+      handleNotificationDelete(notification.id); // Update UI state
       
       vibeAlert.success('Success', 'You\'re attending this event! 🎉');
     } catch (error) {
       console.error('Error accepting guest invitation:', error);
       vibeAlert.error('Error', 'Failed to accept invitation. Please try again.');
     }
-  }, [currentUserId, handleNotificationRead]);
+  }, [currentUserId]);
 
   // Handle guest invitation decline
   const handleDeclineGuestInvitation = useCallback(async (notification) => {
     try {
-      const { declineGuestInvitation } = await import('../services/friendService');
-      const { invitationId } = notification.data;
+      const { invitationId, studioId } = notification.data;
       
-      // Decline the guest invitation
-      await declineGuestInvitation(invitationId, currentUserId);
+      // Check if this is an event creation invitation (has studioId) or direct guest invitation
+      if (studioId && notification.actions) {
+        // Event creation invitation - use invitations.js system
+        const { declineInvitation } = await import('../events/services/invitations');
+        await declineInvitation(invitationId, currentUserId);
+      } else {
+        // Direct guest invitation - use friendService.js system
+        const { declineGuestInvitation } = await import('../services/friendService');
+        await declineGuestInvitation(invitationId, currentUserId);
+      }
       
-      // Mark notification as read and update UI
-      handleNotificationRead(notification.id);
+      // Delete notification after successful decline (no longer needed)
+      await deleteNotification(notification.id, notification.userId);
+      handleNotificationDelete(notification.id); // Update UI state
       
       vibeAlert.info('Invitation Declined', 'You have declined the invitation.');
     } catch (error) {
       console.error('Error declining guest invitation:', error);
       vibeAlert.error('Error', 'Failed to decline invitation. Please try again.');
     }
-  }, [currentUserId, handleNotificationRead]);
+  }, [currentUserId]);
 
   // Handle cohost invitation acceptance
   const handleAcceptCohostInvitation = useCallback(async (notification) => {
@@ -217,15 +220,16 @@ export default function NotificationsScreen({ navigation }) {
       // Accept the cohost invitation
       await acceptCohostInvitation(invitationId, currentUserId, eventId);
       
-      // Mark notification as read and update UI
-      handleNotificationRead(notification.id);
+      // Delete notification after successful acceptance (no longer needed)
+      await deleteNotification(notification.id, notification.userId);
+      handleNotificationDelete(notification.id); // Update UI state
       
       vibeAlert.success('Success', 'You\'re now a co-host for this event! ⭐');
     } catch (error) {
       console.error('Error accepting cohost invitation:', error);
       vibeAlert.error('Error', 'Failed to accept invitation. Please try again.');
     }
-  }, [currentUserId, handleNotificationRead]);
+  }, [currentUserId]);
 
   // Handle cohost invitation decline
   const handleDeclineCohostInvitation = useCallback(async (notification) => {
@@ -236,100 +240,65 @@ export default function NotificationsScreen({ navigation }) {
       // Decline the cohost invitation
       await declineCohostInvitation(invitationId, currentUserId);
       
-      // Mark notification as read and update UI
-      handleNotificationRead(notification.id);
+      // Delete notification after successful decline
+      await deleteNotification(notification.id, notification.userId);
+      handleNotificationDelete(notification.id);
       
       vibeAlert.info('Invitation Declined', 'You have declined the co-host invitation.');
     } catch (error) {
       console.error('Error declining cohost invitation:', error);
       vibeAlert.error('Error', 'Failed to decline invitation. Please try again.');
     }
-  }, [currentUserId, handleNotificationRead]);
-
-  // Mark all as read
-  const handleMarkAllAsRead = useCallback(async () => {
-    try {
-      const result = await markAllNotificationsAsRead(currentUserId);
-      if (result.success) {
-        setNotifications(prev =>
-          prev.map(notif => ({
-            ...notif,
-            read: true,
-            readAt: new Date(),
-          }))
-        );
-        vibeAlert.success('Success', `Marked ${result.updatedCount} notifications as read`);
-      }
-    } catch (error) {
-      vibeAlert.error('Error', 'Failed to mark all notifications as read');
-    }
   }, [currentUserId]);
 
-  // Filter notifications based on active filter
-  const filteredNotifications = notifications.filter(notification => {
-    switch (activeFilter) {
-      case 'unread':
-        return !notification.read;
-      case 'invitations':
-        return [
-          NOTIFICATION_TYPES.INVITATION_RECEIVED,
-          NOTIFICATION_TYPES.INVITATION_ACCEPTED,
-          NOTIFICATION_TYPES.INVITATION_DECLINED,
-        ].includes(notification.type);
-      case 'events':
-        return [
-          NOTIFICATION_TYPES.EVENT_JOINED,
-          NOTIFICATION_TYPES.EVENT_LEFT,
-          NOTIFICATION_TYPES.EVENT_UPDATED,
-          NOTIFICATION_TYPES.EVENT_CANCELLED,
-          NOTIFICATION_TYPES.EVENT_REMINDER,
-          NOTIFICATION_TYPES.ATTENDANCE_REMINDER,
-        ].includes(notification.type);
-      case 'social':
-        return [
-          NOTIFICATION_TYPES.NEW_FOLLOWER,
-          NOTIFICATION_TYPES.FRIEND_REQUEST, // Legacy
-          NOTIFICATION_TYPES.FRIEND_ACCEPTED, // Legacy
-        ].includes(notification.type);
-      case 'all':
-      default:
-        return true;
+  // Handle direct join from notification action button
+  const handleJoinEventFromNotification = useCallback(async (notification) => {
+    try {
+      const { acceptInvitation } = await import('../events/services/invitations');
+      const { invitationId, eventTitle, studioId } = notification.data;
+      
+      // Directly accept the invitation with studio context
+      await acceptInvitation(invitationId, currentUserId, studioId);
+      
+      
+      vibeAlert.success('Joined Event!', `You're now attending "${eventTitle}"! 🎉`);
+      
+      // Optionally navigate to event detail after short delay
+      setTimeout(() => {
+        handleNotificationPress(notification);
+      }, 1500);
+      
+    } catch (error) {
+      console.error('Error joining event from notification:', error);
+      
+      if (error.message.includes('already')) {
+        vibeAlert.info('Already Joined', `You're already attending this event.`);
+      } else {
+        vibeAlert.error('Error', 'Unable to join event. Please try again.');
+      }
     }
-  });
+  }, [currentUserId, handleNotificationPress]);
 
-  // Get counts for filter tabs
-  const unreadCount = notifications.filter(n => !n.read).length;
-  const invitationCount = notifications.filter(n =>
-    [NOTIFICATION_TYPES.INVITATION_RECEIVED, NOTIFICATION_TYPES.INVITATION_ACCEPTED, NOTIFICATION_TYPES.INVITATION_DECLINED].includes(n.type)
-  ).length;
-  const eventCount = notifications.filter(n =>
-    [NOTIFICATION_TYPES.EVENT_JOINED, NOTIFICATION_TYPES.EVENT_LEFT, NOTIFICATION_TYPES.EVENT_UPDATED, NOTIFICATION_TYPES.EVENT_CANCELLED, NOTIFICATION_TYPES.EVENT_REMINDER, NOTIFICATION_TYPES.ATTENDANCE_REMINDER].includes(n.type)
-  ).length;
-  const socialCount = notifications.filter(n =>
-    [NOTIFICATION_TYPES.NEW_FOLLOWER, NOTIFICATION_TYPES.FRIEND_REQUEST, NOTIFICATION_TYPES.FRIEND_ACCEPTED].includes(n.type)
-  ).length;
+  // Handle view event from notification action button
+  const handleViewEventFromNotification = useCallback(async (notification) => {
+    try {
+      // Navigate to event detail
+      handleNotificationPress(notification);
+      
+      
+    } catch (error) {
+      console.error('Error viewing event from notification:', error);
+    }
+  }, [handleNotificationPress]);
 
-  // Render filter button
-  const renderFilterButton = (filter, label, count) => {
-    const isActive = activeFilter === filter;
-    return (
-      <TouchableOpacity
-        style={[styles.filterButton, isActive && styles.activeFilter]}
-        onPress={() => setActiveFilter(filter)}
-      >
-        <Text style={[styles.filterText, isActive && styles.activeFilterText]}>
-          {label} {count > 0 && `(${count})`}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
+
+
 
   // Render notification item
   const renderNotificationItem = ({ item }) => (
     <NotificationItem
       notification={item}
       onPress={handleNotificationPress}
-      onRead={handleNotificationRead}
       onDelete={handleNotificationDelete}
       onAcceptFriendRequest={handleAcceptFriendRequest}
       onDeclineFriendRequest={handleDeclineFriendRequest}
@@ -337,6 +306,9 @@ export default function NotificationsScreen({ navigation }) {
       onDeclineGuestInvitation={handleDeclineGuestInvitation}
       onAcceptCohostInvitation={handleAcceptCohostInvitation}
       onDeclineCohostInvitation={handleDeclineCohostInvitation}
+      // New handlers for direct notification actions
+      onJoinEventFromNotification={handleJoinEventFromNotification}
+      onViewEventFromNotification={handleViewEventFromNotification}
       currentUserId={currentUserId}
       userData={userData}
     />
@@ -344,80 +316,49 @@ export default function NotificationsScreen({ navigation }) {
 
   // Render empty state
   const renderEmptyState = () => {
-    let message = '';
-    switch (activeFilter) {
-      case 'unread':
-        message = "No unread notifications.\nYou're all caught up!";
-        break;
-      case 'social':
-        message = "No social notifications.\nNew followers and social updates will appear here.";
-        break;
-      case 'invitations':
-        message = "No invitation notifications.\nInvitation updates will appear here.";
-        break;
-      case 'events':
-        message = "No event notifications.\nEvent updates and reminders will appear here.";
-        break;
-      case 'all':
-      default:
-        message = "No notifications yet.\nWhen you receive invitations or event updates, they'll appear here.";
-        break;
-    }
-
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyIcon}>🔔</Text>
-        <Text style={styles.emptyText}>{message}</Text>
+        <Text style={styles.emptyText}>No notifications yet.{'\n'}When you receive invitations or event updates, they'll appear here.</Text>
       </View>
     );
   };
 
   if (isLoading) {
     return (
-      <VibeScreen
-        title="Notifications"
-        subtitle="Stay updated on your events"
-        onBack={() => navigation.goBack()}
-      >
+      <View style={styles.container}>
+        {/* Custom transparent header */}
+        <View style={styles.header}>
+          <View style={styles.headerContent}>
+            <Text style={styles.headerTitle}>Notifications</Text>
+          </View>
+          <CloseButton onPress={() => navigation.goBack()} />
+        </View>
+        
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading notifications...</Text>
         </View>
-      </VibeScreen>
+      </View>
     );
   }
 
   return (
-    <VibeScreen
-      title="Notifications"
-      subtitle="Stay updated on your events"
-      onBack={() => navigation.goBack()}
-    >
-      <View style={styles.container}>
-        {/* Header actions */}
-        {notifications.length > 0 && unreadCount > 0 && (
-          <View style={styles.headerActions}>
-            <VibeButton
-              label="Mark All Read"
-              onPress={handleMarkAllAsRead}
-              style={styles.markAllButton}
-              variant="outline"
-            />
-          </View>
-        )}
-
-        {/* Filter tabs */}
-        <View style={styles.filterContainer}>
-          {renderFilterButton('all', 'All', notifications.length)}
-          {renderFilterButton('unread', 'Unread', unreadCount)}
-          {renderFilterButton('social', 'Social', socialCount)}
-          {renderFilterButton('invitations', 'Invitations', invitationCount)}
-          {renderFilterButton('events', 'Events', eventCount)}
+    <View style={styles.container}>
+      {/* Custom transparent header */}
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Notifications</Text>
         </View>
+        <CloseButton onPress={() => navigation.goBack()} />
+      </View>
+      
+      <View style={styles.content}>
+
 
         {/* Notifications list */}
-        {filteredNotifications.length > 0 ? (
+        {notifications.length > 0 ? (
           <FlatList
-            data={filteredNotifications}
+            data={notifications}
             renderItem={renderNotificationItem}
             keyExtractor={(item) => item.id}
             style={styles.notificationsList}
@@ -448,14 +389,35 @@ export default function NotificationsScreen({ navigation }) {
           </ScrollView>
         )}
       </View>
-    </VibeScreen>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.black,
+    backgroundColor: 'transparent',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingTop: 20,
+    backgroundColor: 'transparent',
+  },
+  headerContent: {
+    flex: 1,
+  },
+  headerTitle: {
+    color: theme.colors.white,
+    fontSize: 24,
+    fontWeight: 'bold',
+    fontFamily: theme.fonts.main,
+  },
+  content: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,
@@ -466,42 +428,6 @@ const styles = StyleSheet.create({
     color: theme.colors.gray,
     fontSize: 16,
     fontStyle: 'italic',
-  },
-  headerActions: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.darkGray,
-  },
-  markAllButton: {
-    alignSelf: 'flex-end',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  filterContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.darkGray,
-  },
-  filterButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginRight: 8,
-    borderRadius: 16,
-    backgroundColor: theme.colors.darkGray,
-  },
-  activeFilter: {
-    backgroundColor: theme.colors.vibeBlue,
-  },
-  filterText: {
-    color: theme.colors.gray,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  activeFilterText: {
-    color: theme.colors.white,
   },
   notificationsList: {
     flex: 1,

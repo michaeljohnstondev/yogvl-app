@@ -20,7 +20,7 @@ const EventCreatorInfo = ({
     }
 
     // Try to construct from first/last name
-    const contactInfo = creatorData?.userdata?.contactinfo || {};
+    const contactInfo = creatorData?.userdata?.contactInfo || {};
     const firstName = contactInfo.firstName || '';
     const lastName = contactInfo.lastName || '';
     const fullName = `${firstName} ${lastName}`.trim();
@@ -80,7 +80,7 @@ const EventCreatorBadge = ({ creatorData, style, onPress = null }) => {
   const getDisplayName = () => {
     if (creatorData.displayName) return creatorData.displayName;
 
-    const contactInfo = creatorData?.userdata?.contactinfo || {};
+    const contactInfo = creatorData?.userdata?.contactInfo || {};
     const firstName = contactInfo.firstName || '';
     const lastName = contactInfo.lastName || '';
     const fullName = `${firstName} ${lastName}`.trim();

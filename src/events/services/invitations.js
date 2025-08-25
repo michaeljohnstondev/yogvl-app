@@ -76,6 +76,7 @@ export const sendUserInvitation = async ({
   guestId,
   message = '',
   studioId = null, // Add studioId parameter
+  source = 'event_creation', // Add source parameter
 }) => {
   const batch = writeBatch(db);
   
@@ -122,6 +123,7 @@ export const sendUserInvitation = async ({
       type: INVITATION_TYPE.USER,
       invitedAt: Timestamp.now(),
       message: message.trim(),
+      studioId, // Store studio context for event lookup
     };
 
     batch.set(inviteRef, invitation);
@@ -156,22 +158,52 @@ export const sendUserInvitation = async ({
       // Get host details for notification
       const hostDoc = await getDoc(doc(db, 'users', hostId));
       const hostData = hostDoc.exists() ? hostDoc.data() : null;
+      
+      // Extract host name from nested structure
+      const hostDisplayName = hostData?.userdata?.contactInfo?.displayName || 
+                            hostData?.displayName || 
+                            `${hostData?.userdata?.contactInfo?.firstName || ''} ${hostData?.userdata?.contactInfo?.lastName || ''}`.trim() ||
+                            'Someone';
 
-      await createNotification({
+      console.log(`[sendUserInvitation] Sending notification to ${guestId} for event ${eventData?.title}`);
+
+      const notificationResult = await createNotification({
         userId: guestId,
-        type: NOTIFICATION_TYPES.INVITATION_RECEIVED,
-        title: 'New Event Invitation',
-        message: `${hostData?.displayName || 'Someone'} invited you to "${eventData?.title || 'an event'}"`,
+        type: NOTIFICATION_TYPES.GUEST_INVITATION,
+        title: 'Event Invitation',
+        message: `${hostDisplayName} invited you to "${eventData?.title || 'an event'}"`,
         data: {
           invitationId: inviteId,
           eventId,
           eventTitle: eventData?.title,
           hostId,
-          hostName: hostData?.displayName,
+          hostName: hostDisplayName, // Use the properly extracted name
+          studioId, // Include studio context for proper navigation
+          source: source, // Source of the invitation
         },
         priority: NOTIFICATION_PRIORITY.HIGH,
-        channels: [DELIVERY_CHANNELS.PUSH, DELIVERY_CHANNELS.EMAIL],
+        channels: [DELIVERY_CHANNELS.PUSH],
+        actions: [
+          {
+            id: 'join_event',
+            title: 'Join Now',
+            action: 'accept_invitation',
+            params: { invitationId: inviteId, eventId, studioId }
+          },
+          {
+            id: 'view_event',
+            title: 'View Details',
+            action: 'view_event',
+            params: { eventId, studioId }
+          }
+        ]
       });
+
+      console.log(`[sendUserInvitation] Notification result:`, notificationResult);
+      
+      if (!notificationResult.success) {
+        console.warn(`[sendUserInvitation] Notification not sent: ${notificationResult.reason}`);
+      }
     } catch (notificationError) {
       console.error('Error sending invitation notification:', notificationError);
       // Don't fail the invitation if notification fails
@@ -227,6 +259,7 @@ export const sendEmailInvitation = async ({
       type: INVITATION_TYPE.EMAIL,
       invitedAt: Timestamp.now(),
       message: message.trim(),
+      studioId, // Store studio context for event lookup
     };
 
     batch.set(inviteRef, invitation);
@@ -269,7 +302,7 @@ export const sendEmailInvitation = async ({
 /**
  * Accept an invitation
  */
-export const acceptInvitation = async (invitationId, userId) => {
+export const acceptInvitation = async (invitationId, userId, studioId = null) => {
   const batch = writeBatch(db);
   
   try {
@@ -283,6 +316,12 @@ export const acceptInvitation = async (invitationId, userId) => {
 
     const invitation = inviteDoc.data();
     
+    // Get studioId from invitation if not provided
+    const eventStudioId = studioId || invitation.studioId;
+    if (!eventStudioId) {
+      throw new Error('Studio information missing from invitation');
+    }
+    
     // Validate invitation can be accepted
     if (invitation.status !== INVITATION_STATUS.PENDING) {
       throw new Error('Invitation is no longer pending');
@@ -292,8 +331,8 @@ export const acceptInvitation = async (invitationId, userId) => {
       throw new Error('This invitation is not for you');
     }
 
-    // Check if user is already subscribed
-    const isAlreadySubscribed = await checkIfUserSubscribed(invitation.eventId, userId);
+    // Check if user is already subscribed (use studio-specific event collection)
+    const isAlreadySubscribed = await checkIfUserSubscribed(invitation.eventId, userId, eventStudioId);
     if (isAlreadySubscribed) {
       throw new Error('You are already attending this event');
     }
@@ -305,8 +344,8 @@ export const acceptInvitation = async (invitationId, userId) => {
       ...(invitation.type === INVITATION_TYPE.EMAIL && { guestId: userId }), // Link email invite to user
     });
 
-    // Subscribe user to event
-    const eventRef = doc(db, 'events', invitation.eventId);
+    // Subscribe user to event (use studio-specific collection)
+    const eventRef = doc(db, 'studios', eventStudioId, 'events', invitation.eventId);
     batch.update(eventRef, {
       subscribers: arrayUnion(userId),
       subscriberCount: increment(1),
@@ -323,25 +362,31 @@ export const acceptInvitation = async (invitationId, userId) => {
 
     // Send notification to host about acceptance
     try {
-      // Get event details
-      const eventDoc = await getDoc(doc(db, 'events', invitation.eventId));
+      // Get event details from studio-specific collection
+      const eventDoc = await getDoc(doc(db, 'studios', eventStudioId, 'events', invitation.eventId));
       const eventData = eventDoc.exists() ? eventDoc.data() : null;
 
       // Get guest details
       const guestDoc = await getDoc(doc(db, 'users', userId));
       const guestData = guestDoc.exists() ? guestDoc.data() : null;
+      
+      // Extract guest name from nested structure
+      const guestDisplayName = guestData?.userdata?.contactInfo?.displayName || 
+                             guestData?.displayName || 
+                             `${guestData?.userdata?.contactInfo?.firstName || ''} ${guestData?.userdata?.contactInfo?.lastName || ''}`.trim() ||
+                             'Someone';
 
       await createNotification({
         userId: invitation.hostId,
         type: NOTIFICATION_TYPES.INVITATION_ACCEPTED,
         title: 'Invitation Accepted',
-        message: `${guestData?.displayName || 'Someone'} accepted your invitation to "${eventData?.title || 'your event'}"`,
+        message: `${guestDisplayName} accepted your invitation to "${eventData?.title || 'your event'}"`,
         data: {
           invitationId: invitation.id,
           eventId: invitation.eventId,
-          eventTitle: eventData?.title,
+          eventTitle: eventData?.title || 'Unknown Event',
           guestId: userId,
-          guestName: guestData?.displayName,
+          guestName: guestDisplayName,
         },
         priority: NOTIFICATION_PRIORITY.NORMAL,
         channels: [DELIVERY_CHANNELS.PUSH],
@@ -655,6 +700,7 @@ export const sendBulkInvitations = async ({
   invitations = [], // Array of { type: 'user'|'email', guestId?, guestEmail?, message? }
   defaultMessage = '',
   studioId = null, // Add studioId parameter
+  source = 'event_creation', // Add source parameter
 }) => {
   try {
     if (!eventId || !hostId) {
@@ -680,15 +726,21 @@ export const sendBulkInvitations = async ({
         try {
           let result;
           
+          console.log(`[sendBulkInvitations] Processing invite:`, invite);
+          
           if (invite.type === 'user' && invite.guestId) {
+            console.log(`[sendBulkInvitations] Sending user invitation to ${invite.guestId}`);
             result = await sendUserInvitation({
               eventId,
               hostId,
               guestId: invite.guestId,
               message: invite.message || defaultMessage,
               studioId, // Pass studioId to user invitation
+              source, // Pass source to user invitation
             });
+            console.log(`[sendBulkInvitations] User invitation result:`, result);
           } else if (invite.type === 'email' && invite.guestEmail) {
+            console.log(`[sendBulkInvitations] Sending email invitation to ${invite.guestEmail}`);
             result = await sendEmailInvitation({
               eventId,
               hostId,
@@ -696,6 +748,7 @@ export const sendBulkInvitations = async ({
               message: invite.message || defaultMessage,
               studioId, // Pass studioId to email invitation
             });
+            console.log(`[sendBulkInvitations] Email invitation result:`, result);
           } else {
             throw new Error('Invalid invitation data');
           }
@@ -707,6 +760,7 @@ export const sendBulkInvitations = async ({
           
           return result;
         } catch (error) {
+          console.error(`[sendBulkInvitations] Failed to send invitation:`, error);
           results.failed.push({
             ...invite,
             error: error.message,
@@ -731,6 +785,144 @@ export const sendBulkInvitations = async ({
     };
   } catch (error) {
     console.error('Error sending bulk invitations:', error);
+    throw error;
+  }
+};
+
+/**
+ * Send bulk co-host invitations
+ */
+export const sendBulkCohostInvitations = async ({
+  eventId,
+  hostId,
+  cohostInvitations = [], // Array of { type: 'user'|'email', guestId?, guestEmail?, message? }
+  defaultMessage = '',
+  studioId = null,
+  eventData = null,
+  hostData = null
+}) => {
+  try {
+    if (!eventId || !hostId) {
+      throw new Error('Event ID and host ID are required');
+    }
+
+    if (!cohostInvitations.length) {
+      return { success: true, results: { successful: [], failed: [], totalCount: 0 } };
+    }
+
+    const results = {
+      successful: [],
+      failed: [],
+      totalCount: cohostInvitations.length,
+    };
+
+    // Process invitations sequentially for co-hosts to avoid conflicts
+    for (const invite of cohostInvitations) {
+      try {
+        if (invite.type === 'user' && invite.guestId) {
+          // Use existing sendCohostInvitation from friendService
+          const { sendCohostInvitation } = await import('../../services/friendService');
+          
+          const result = await sendCohostInvitation(
+            hostId,
+            invite.guestId,
+            eventId,
+            hostData,
+            eventData,
+            studioId
+          );
+
+          results.successful.push({
+            ...invite,
+            invitationId: result.invitationId || `cohost_${invite.guestId}_${eventId}`,
+          });
+        } else {
+          throw new Error('Co-host invitations currently only support app users');
+        }
+      } catch (error) {
+        results.failed.push({
+          ...invite,
+          error: error.message,
+        });
+      }
+    }
+
+    console.log(`[invitations] Bulk cohost send complete: ${results.successful.length} successful, ${results.failed.length} failed`);
+    
+    return {
+      success: true,
+      results,
+    };
+  } catch (error) {
+    console.error('Error sending bulk cohost invitations:', error);
+    throw error;
+  }
+};
+
+/**
+ * Combined function to send both guest and cohost invitations in batch
+ */
+export const sendEventInvitations = async ({
+  eventId,
+  hostId,
+  guestInvitations = [],
+  cohostInvitations = [],
+  defaultMessage = '',
+  studioId = null,
+  eventData = null,
+  hostData = null,
+  source = 'event_creation' // Add source parameter
+}) => {
+  try {
+    const results = {
+      guests: { successful: [], failed: [], totalCount: guestInvitations.length },
+      cohosts: { successful: [], failed: [], totalCount: cohostInvitations.length },
+    };
+
+    // Send guest invitations
+    if (guestInvitations.length > 0) {
+      const guestResults = await sendBulkInvitations({
+        eventId,
+        hostId,
+        invitations: guestInvitations,
+        defaultMessage,
+        studioId,
+        source
+      });
+      results.guests = guestResults.results;
+    }
+
+    // Send cohost invitations
+    if (cohostInvitations.length > 0) {
+      const cohostResults = await sendBulkCohostInvitations({
+        eventId,
+        hostId,
+        cohostInvitations,
+        defaultMessage,
+        studioId,
+        eventData,
+        hostData
+      });
+      results.cohosts = cohostResults.results;
+    }
+
+    const totalSuccessful = results.guests.successful.length + results.cohosts.successful.length;
+    const totalFailed = results.guests.failed.length + results.cohosts.failed.length;
+
+    console.log(`[invitations] Combined send complete: ${totalSuccessful} successful, ${totalFailed} failed`);
+
+    return {
+      success: true,
+      results,
+      summary: {
+        totalSuccessful,
+        totalFailed,
+        guestCount: results.guests.successful.length,
+        cohostCount: results.cohosts.successful.length,
+      }
+    };
+  } catch (error) {
+    console.error('Error sending event invitations:', error);
     throw error;
   }
 };

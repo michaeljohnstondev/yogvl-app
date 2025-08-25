@@ -309,7 +309,7 @@ Location: ${studioInfo?.location || 'None'}`;
       const metrics = `User Metrics:
 - User ID: ${currentUserId}
 - Studio: ${userData?.userdata?.studios?.default?.studioId || 'None'}
-- Has Contact Info: ${userData?.userdata?.contactinfo?.firstName ? 'Yes' : 'No'}
+- Has Contact Info: ${userData?.userdata?.contactInfo?.firstName ? 'Yes' : 'No'}
 - Has Location: ${userData?.userdata?.studios?.default?.studioId ? 'Yes' : 'No'}
 
 Debug Info:

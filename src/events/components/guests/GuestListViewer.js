@@ -17,11 +17,12 @@ import theme from '../../../theme/themes';
 const GuestListViewer = forwardRef(({
   hosts = [],
   selectedTextContacts = [],
-  additionalHosts = [],
   invitedGuests = [],
   currentUser = null,
   onInvitePress,
   onAddHostPress, // New prop for adding hosts
+  selectedGuestCount, // Override for guest count display
+  selectedCohostCount, // Override for cohost count display  
   showGuestCount = true,
   showHostCount = true,
   compactView = false,
@@ -51,9 +52,9 @@ const GuestListViewer = forwardRef(({
       id: currentUser.id || 'current',
       name:
         currentUser.displayName ||
-        (currentUser.userdata?.contactinfo?.firstName && currentUser.userdata?.contactinfo?.lastName 
-          ? `${currentUser.userdata.contactinfo.firstName} ${currentUser.userdata.contactinfo.lastName}`
-          : currentUser.userdata?.contactinfo?.firstName) ||
+        (currentUser.userdata?.contactInfo?.firstName && currentUser.userdata?.contactInfo?.lastName 
+          ? `${currentUser.userdata.contactInfo.firstName} ${currentUser.userdata.contactInfo.lastName}`
+          : currentUser.userdata?.contactInfo?.firstName) ||
         currentUser.firstName ||
         currentUser.name ||
         'You',
@@ -61,17 +62,19 @@ const GuestListViewer = forwardRef(({
       role: 'creator',
       isYou: true,
     },
-    ...additionalHosts.map((host) => ({
-      ...host,
-      name:
-        host.displayName ||
-        host.firstName ||
-        host.name ||
-        host.email ||
-        'Unknown Host',
-      role: 'co-host',
-      isYou: false,
-    })),
+    // Add current cohosts
+    ...(hosts || []).map(host => ({
+      id: host.id,
+      name: host.userdata?.contactInfo?.displayName || 
+            host.displayName || 
+            `${host.userdata?.contactInfo?.firstName || ''} ${host.userdata?.contactInfo?.lastName || ''}`.trim() ||
+            host.firstName ||
+            host.name ||
+            'Unknown Host',
+      email: host.userdata?.contactInfo?.email || host.email,
+      role: 'cohost',
+      isYou: host.id === currentUser?.id,
+    }))
   ].filter(Boolean);
 
   // Use invitedGuests passed as prop, fallback to selectedTextContacts for backward compatibility
@@ -106,7 +109,10 @@ const GuestListViewer = forwardRef(({
           isTextInvite: true,
         }));
 
-  const totalPeople = allHosts.length + guests.length;
+  // Use override counts when available (for editing mode), otherwise calculate from arrays
+  const actualHostCount = selectedCohostCount !== undefined ? selectedCohostCount + 1 : allHosts.length; // +1 for creator
+  const actualGuestCount = selectedGuestCount !== undefined ? selectedGuestCount : guests.length;
+  const totalPeople = actualHostCount + actualGuestCount;
 
   // Always show the viewer, even when empty
   const displayText =
@@ -193,13 +199,13 @@ const GuestListViewer = forwardRef(({
               <View style={styles.iconGroup}>
                 <Text style={styles.iconEmoji}>👑</Text>
                 <Text style={[styles.iconCount, styles.cohostCount]}>
-                  {allHosts.length}
+                  {actualHostCount}
                 </Text>
               </View>
               <View style={styles.iconGroup}>
                 <Text style={styles.iconEmoji}>👥</Text>
                 <Text style={[styles.iconCount, styles.guestCount]}>
-                  {guests.length}
+                  {actualGuestCount}
                 </Text>
               </View>
             </View>
@@ -211,7 +217,7 @@ const GuestListViewer = forwardRef(({
       {/* Full modal viewer */}
       <Modal
         visible={showModal}
-        animationType="slide"
+        animationType="none"
         presentationStyle="pageSheet"
         onRequestClose={() => {
           console.log('[GuestListViewer] Modal onRequestClose called');
@@ -227,8 +233,8 @@ const GuestListViewer = forwardRef(({
 
           {/* Tabs */}
           <View style={styles.tabContainer}>
-            {renderTabButton('hosts', 'Hosts', allHosts.length)}
-            {renderTabButton('guests', 'Guests', guests.length)}
+            {renderTabButton('hosts', 'Hosts', actualHostCount)}
+            {renderTabButton('guests', 'Guests', actualGuestCount)}
           </View>
 
           {/* Content */}
@@ -284,11 +290,11 @@ const GuestListViewer = forwardRef(({
                 setShowModal(false);
                 onAddHostPress && onAddHostPress();
               }}
-              style={[styles.addHostActionButton]}
+              style={[styles.addHostActionButton, { marginVertical: 0 }]}
             />
 
             <VibeButton
-              label={guests.length === 0 ? 'Invite Guests' : 'Add More Guests'}
+              label={actualGuestCount === 0 ? 'Invite Guests' : 'Add More Guests'}
               onPress={() => {
                 console.log(
                   'Invite button pressed, onInvitePress:',
@@ -297,7 +303,7 @@ const GuestListViewer = forwardRef(({
                 setShowModal(false);
                 onInvitePress && onInvitePress();
               }}
-              style={[styles.inviteButton]}
+              style={[styles.inviteButton, { marginVertical: 0 }]}
             />
 
           </View>
@@ -539,8 +545,8 @@ const styles = StyleSheet.create({
   // Action buttons
   actionButtons: {
     padding: 20,
-    paddingTop: 16,
-    gap: 12,
+    paddingTop: 10,
+    gap: 0,
     backgroundColor: theme.colors.background,
   },
   inviteButton: {

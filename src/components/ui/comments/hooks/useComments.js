@@ -28,7 +28,7 @@ export const useComments = (eventId) => {
   const studioId = userData?.userdata?.studios?.default?.studioId;
 
   const getDisplayName = () => {
-    const contactInfo = userData?.userdata?.contactinfo || {};
+    const contactInfo = userData?.userdata?.contactInfo || {};
     if (contactInfo?.firstName && contactInfo?.lastName) {
       return `${contactInfo.firstName} ${contactInfo.lastName}`;
     }
@@ -72,8 +72,8 @@ export const useComments = (eventId) => {
       return 'host';
     }
 
-    // Check if current user is in hosts array
-    if (eventData.hosts && eventData.hosts.includes(currentUserId)) {
+    // Check if current user is creator or cohost
+    if (eventData.createdBy === currentUserId || (eventData.cohosts && eventData.cohosts.includes(currentUserId))) {
       return 'host';
     }
 

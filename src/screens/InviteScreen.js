@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, BackHandler, TouchableOpacity } from 'react-native';
+import VibeButton from '../components/ui/VibeButton';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
@@ -44,10 +45,10 @@ export default function InviteScreen() {
     maxLimit = null,
     eventTitle = null,
     eventId = null, // If eventId exists, we're coming from an existing event
+    source = 'unknown',
     onSave
   } = route.params || {};
 
-  console.log('[InviteScreen] Event title received:', eventTitle);
 
   const isHostMode = type === USER_TYPES.HOSTS;
   const { themeColor, themeBgColor } = getThemeColors(isHostMode, theme);
@@ -73,11 +74,6 @@ export default function InviteScreen() {
     [contactManagement.appUsers]
   );
   const studioId = userData?.userdata?.studios?.default?.studioId;
-  console.log('[InviteScreen] userData for studioId:', { 
-    userData: userData?.userdata, 
-    studios: userData?.userdata?.studios,
-    studioId 
-  });
   const userInterests = useUserInterests(userIds, studioId);
 
   // Calculate totals
@@ -91,21 +87,17 @@ export default function InviteScreen() {
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
-        if (isExistingEvent) {
-          // Navigate back to EventDetail when we came from existing event
-          navigation.navigate('EventDetail', { eventId });
-        } else {
-          // For CreateEventScreen, just reopen guest list WITHOUT saving changes
-          if (onSave) {
-            // Call onSave with empty data to trigger guest list reopening, but don't actually save selections
-            onSave({
-              users: [], // Don't save current selections
-              contacts: [],
-              phoneContacts: [],
-            }, { reopenGuestList: true, cancel: true });
-          }
-          navigation.goBack();
+        // For CreateEventScreen, just reopen guest list WITHOUT saving changes
+        if (onSave && !isExistingEvent) {
+          // Call onSave with empty data to trigger guest list reopening, but don't actually save selections
+          onSave({
+            users: [], // Don't save current selections
+            contacts: [],
+            phoneContacts: [],
+          }, { reopenGuestList: true, cancel: true });
         }
+        // Always use goBack() to return to the previous screen properly
+        navigation.goBack();
         return true;
       };
 
@@ -158,7 +150,6 @@ export default function InviteScreen() {
       await followUser(currentUserId, user.id, userData);
       // TODO: Update user in local state to reflect follow status
     } catch (error) {
-      console.error('Error following user:', error);
       if (error.message === 'Already following this user') {
         vibeAlert.info('Already Following', `You are already following ${user.name}.`);
       } else {
@@ -173,7 +164,6 @@ export default function InviteScreen() {
       await unfollowUser(currentUserId, user.id);
       // TODO: Update user in local state to reflect follow status
     } catch (error) {
-      console.error('Error unfollowing user:', error);
       vibeAlert.error('Error', 'Failed to unfollow user. Please try again.');
     }
   };
@@ -186,7 +176,6 @@ export default function InviteScreen() {
       // Update user in local state to reflect favorite status
       contactManagement.updateUserStatus(user.id, { isFavorite: true });
     } catch (error) {
-      console.error('Error adding to favorites:', error);
       vibeAlert.error('Error', 'Failed to add to favorites. Please try again.');
     }
   };
@@ -199,7 +188,6 @@ export default function InviteScreen() {
       // Update user in local state to reflect favorite status
       contactManagement.updateUserStatus(user.id, { isFavorite: false });
     } catch (error) {
-      console.error('Error removing from favorites:', error);
       vibeAlert.error('Error', 'Failed to remove from favorites. Please try again.');
     }
   };
@@ -220,7 +208,7 @@ export default function InviteScreen() {
     } else {
       // Batch for later (CreateEventScreen) - just call the onSave callback
       if (onSave) {
-        onSave(selectedData, { reopenGuestList: true }); // Signal to reopen guest list
+        onSave(selectedData, { reopenGuestList: false }); // Don't reopen guest list, stay on CreateEventScreen
       }
       navigation.goBack();
     }
@@ -248,10 +236,10 @@ export default function InviteScreen() {
               user.id,
               eventId,
               userData,
-              { title: eventTitle } // Simplified event data
+              { title: eventTitle }, // Simplified event data
+              source
             );
           } catch (error) {
-            console.error(`Failed to send invitation to ${user.id}:`, error);
           }
         });
         
@@ -270,7 +258,6 @@ export default function InviteScreen() {
         onSave(selectedData);
       }
     } catch (error) {
-      console.error('Error sending invitations:', error);
       vibeAlert.error('Error', 'Failed to send invitations. Please try again.');
     }
   };
@@ -287,7 +274,6 @@ export default function InviteScreen() {
   };
 
   const createNewGroup = () => {
-    console.log('Create new group button pressed');
     state.setNewGroupName('');
     state.setShowCreateGroupModal(true);
   };
@@ -430,14 +416,11 @@ export default function InviteScreen() {
 
       {/* Fixed bottom invite button */}
       <View style={[styles.bottomButtonContainer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-        <TouchableOpacity
-          style={styles.inviteButton}
+        <VibeButton
+          label={isHostMode ? 'Add Co-Hosts' : 'Invite Guests'}
           onPress={handleSave}
-        >
-          <Text style={styles.inviteButtonText}>
-            {isHostMode ? 'Add Co-Hosts' : 'Invite Guests'}
-          </Text>
-        </TouchableOpacity>
+          style={styles.inviteButton}
+        />
       </View>
 
       <GroupManagementModal

@@ -150,6 +150,7 @@ export default function InviteGuestsScreen({ navigation, route }) {
         hostId: currentUserId,
         guestId,
         message: messageInput.trim(),
+        source: 'invite_guests_screen',
       });
 
       Alert.alert(

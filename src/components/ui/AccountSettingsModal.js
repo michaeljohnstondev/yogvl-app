@@ -64,9 +64,9 @@ export default function AccountSettingsDropdown({ visible, onClose, navigation, 
         <View style={styles.profileSection}>
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>
-              {userData?.userdata?.contactinfo?.firstName && userData?.userdata?.contactinfo?.lastName 
-                ? `${userData.userdata.contactinfo.firstName} ${userData.userdata.contactinfo.lastName}`
-                : userData?.userdata?.contactinfo?.email || userData?.email || 'User'}
+              {userData?.userdata?.contactInfo?.firstName && userData?.userdata?.contactInfo?.lastName 
+                ? `${userData.userdata.contactInfo.firstName} ${userData.userdata.contactInfo.lastName}`
+                : userData?.userdata?.contactInfo?.email || userData?.email || 'User'}
             </Text>
             <Text style={styles.profileEmail}>{userData?.userdata?.studios?.default?.studioName || 'Studio not set'}</Text>
           </View>

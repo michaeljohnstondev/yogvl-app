@@ -65,7 +65,7 @@ export const useEventForm = () => {
 
   // Helper function to prepare event data
   const prepareEventData = useCallback(
-    (formData, dateTimeValues, currentUserId) => {
+    (formData, dateTimeValues, currentUserId, isEditing = false) => {
       const combinedFormData = {
         ...formData,
         date: dateTimeValues.event.value,
@@ -85,10 +85,12 @@ export const useEventForm = () => {
       }
 
       // Format for storage
-      const eventData = formatEventForStorage(combinedFormData, currentUserId);
+      const eventData = formatEventForStorage(combinedFormData, currentUserId, isEditing);
 
-      // Add timestamps
-      eventData.createdAt = Timestamp.now();
+      // Add timestamps (only for new events)
+      if (!isEditing) {
+        eventData.createdAt = Timestamp.now();
+      }
       eventData.eventTimestamp = Timestamp.fromDate(eventData.eventTimestamp);
 
       if (eventData.rsvpDeadline) {
@@ -150,25 +152,30 @@ Hope to see you there! 🎉`;
   }, [generateInviteMessage]);
 
   // Helper function to save event to database
-  const saveEventToDatabase = useCallback(async (eventData, currentUserId, selectedTextContacts = [], vibeAlert, userData) => {
+  const saveEventToDatabase = useCallback(async (eventData, currentUserId, selectedInvitations = {}, vibeAlert, userData) => {
     // Get user's studio info for event storage
     const userStudio = userData?.studioId || 'greenville_sc'; // Default to Greenville for now
     const studioName = userData?.studioName || 'Greenville Studio';
     const studioCity = userData?.studioCity || 'Greenville';
     const studioState = userData?.studioState || 'SC';
     
-    // Remove additionalHosts from event data - they should be invited, not auto-added
-    const { additionalHosts, ...eventDataWithoutHosts } = eventData;
+    // Remove invitations from event data - they should be invited, not auto-added
+    const { 
+      invitedUsers, 
+      invitedContacts, 
+      invitedPhoneContacts,
+      additionalHostUsers,
+      additionalHostContacts,
+      ...eventDataWithoutInvitations 
+    } = eventData;
     
     // Add studio info to event data (cleaner without redundant fields)
     const eventDataWithStudio = {
-      ...eventDataWithoutHosts,
+      ...eventDataWithoutInvitations,
       studioName: studioName,
       studioCity: studioCity,
       studioState: studioState,
-      // Reset hosts to just the creator
-      hosts: [currentUserId],
-      additionalHosts: [], // Clear this since we'll send invitations instead
+      cohosts: [], // Initialize empty cohosts array (will be populated when invitations are accepted)
     };
     
     // Save to studio-specific events collection: /studios/{studioId}/events
@@ -177,62 +184,103 @@ Hope to see you there! 🎉`;
     
     await updateEventCreationMetrics(currentUserId, eventRef.id);
     
-    // Send cohost invitations after successful event creation
-    if (additionalHosts && additionalHosts.length > 0) {
-      try {
-        const { sendCohostInvitation } = await import('../../services/friendService');
-        
-        const invitationPromises = additionalHosts.map(async (cohostId) => {
-          try {
-            await sendCohostInvitation(
-              currentUserId,
-              cohostId,
-              eventRef.id,
-              userData,
-              eventDataWithStudio
-            );
-          } catch (error) {
-            console.error(`Failed to send cohost invitation to ${cohostId}:`, error);
+    // Send all invitations using batch service
+    try {
+      const { sendEventInvitations } = await import('../services/invitations');
+      
+      // Prepare guest invitations
+      const guestInvitations = [];
+      
+      // Add selected users
+      if (selectedInvitations.users) {
+        selectedInvitations.users.forEach(user => {
+          guestInvitations.push({
+            type: 'user',
+            guestId: user.id,
+            message: selectedInvitations.defaultMessage || ''
+          });
+        });
+      }
+      
+      // Add selected contacts (email invitations)
+      if (selectedInvitations.contacts) {
+        selectedInvitations.contacts.forEach(contact => {
+          if (contact.email) {
+            guestInvitations.push({
+              type: 'email',
+              guestEmail: contact.email,
+              message: contact.message || selectedInvitations.defaultMessage || ''
+            });
           }
         });
-        
-        await Promise.all(invitationPromises);
-        console.log(`Sent ${additionalHosts.length} cohost invitations`);
-      } catch (error) {
-        console.error('Error sending cohost invitations:', error);
       }
-    }
-    
-    // Send guest invitations after successful event creation
-    const invitedUsers = eventData.invitedUsers || [];
-    if (invitedUsers.length > 0) {
-      try {
-        const { sendGuestInvitation } = await import('../../services/friendService');
-        
-        const guestInvitationPromises = invitedUsers.map(async (guestId) => {
-          try {
-            await sendGuestInvitation(
-              currentUserId,
-              guestId,
-              eventRef.id,
-              userData,
-              eventDataWithStudio
-            );
-          } catch (error) {
-            console.error(`Failed to send guest invitation to ${guestId}:`, error);
-          }
+      
+      // Prepare co-host invitations
+      const cohostInvitations = [];
+      
+      // Add selected co-host users
+      if (selectedInvitations.cohosts) {
+        selectedInvitations.cohosts.forEach(user => {
+          cohostInvitations.push({
+            type: 'user',
+            guestId: user.id,
+            message: selectedInvitations.defaultMessage || ''
+          });
+        });
+      }
+      
+      // Send batch invitations
+      if (guestInvitations.length > 0 || cohostInvitations.length > 0) {
+        console.log(`[useEventForm] Sending invitations:`, {
+          guestInvitations: guestInvitations.length,
+          cohostInvitations: cohostInvitations.length,
+          eventId: eventRef.id,
+          hostId: currentUserId,
+          studioId: userStudio
         });
         
-        await Promise.all(guestInvitationPromises);
-        console.log(`Sent ${invitedUsers.length} guest invitations`);
-      } catch (error) {
-        console.error('Error sending guest invitations:', error);
+        const invitationResults = await sendEventInvitations({
+          eventId: eventRef.id,
+          hostId: currentUserId,
+          guestInvitations,
+          cohostInvitations,
+          defaultMessage: selectedInvitations.defaultMessage || '',
+          studioId: userStudio,
+          eventData: eventDataWithStudio,
+          hostData: userData,
+          source: 'create_event'
+        });
+        
+        console.log(`[useEventForm] Invitation results:`, invitationResults.summary);
+        
+        // Show success message with invite counts
+        const { guestCount, cohostCount, totalFailed } = invitationResults.summary;
+        let successMessage = 'Event created successfully!';
+        
+        if (guestCount > 0 || cohostCount > 0) {
+          const inviteDetails = [];
+          if (guestCount > 0) inviteDetails.push(`${guestCount} guest invite${guestCount > 1 ? 's' : ''}`);
+          if (cohostCount > 0) inviteDetails.push(`${cohostCount} co-host invite${cohostCount > 1 ? 's' : ''}`);
+          
+          successMessage += ` Sent ${inviteDetails.join(' and ')}.`;
+          
+          if (totalFailed > 0) {
+            successMessage += ` ${totalFailed} invitation${totalFailed > 1 ? 's' : ''} failed to send.`;
+          }
+        }
+        
+        // Store success message for later display
+        eventDataWithStudio._invitationSummary = successMessage;
       }
+      
+    } catch (error) {
+      console.error('Error sending event invitations:', error);
+      // Don't fail event creation if invitations fail
     }
     
     // Send text invites after successful event creation
-    if (selectedTextContacts.length > 0) {
-      await sendTextInvites(selectedTextContacts, eventDataWithStudio, vibeAlert);
+    if (selectedInvitations.textContacts && selectedInvitations.textContacts.length > 0) {
+      await sendTextInvites(selectedInvitations.textContacts, eventDataWithStudio, vibeAlert);
     }
     
     return eventRef;
@@ -254,7 +302,7 @@ Hope to see you there! 🎉`;
       isEditing = false,
       eventId = null,
       onSuccess = null,
-      selectedTextContacts = [], // Add selected text contacts parameter
+      selectedInvitations = {}, // Updated to handle all invitation types
       vibeAlert, // Add vibeAlert parameter
     }) => {
       setIsSubmitting(true);
@@ -270,19 +318,24 @@ Hope to see you there! 🎉`;
         const eventData = prepareEventData(
           formData,
           dateTimeValues,
-          currentUserId
+          currentUserId,
+          isEditing
         );
 
         // Step 4: Save to database (create or update)
         if (isEditing && eventId) {
-          await updateEventInDatabase(eventData, eventId, currentUserId, userData);
+          await updateEventInDatabase(eventData, eventId, currentUserId, userData, selectedInvitations, vibeAlert);
         } else {
-          await saveEventToDatabase(eventData, currentUserId, selectedTextContacts, vibeAlert, userData);
+          const eventRef = await saveEventToDatabase(eventData, currentUserId, selectedInvitations, vibeAlert, userData);
+          // Store the invitation summary for success message
+          if (eventData._invitationSummary) {
+            eventRef._invitationSummary = eventData._invitationSummary;
+          }
         }
 
         // Step 5: Handle success
         if (onSuccess) {
-          onSuccess();
+          onSuccess(eventData._invitationSummary);
         } else {
           handleSuccessfulSubmission({
             loadSuggestions,
@@ -291,6 +344,7 @@ Hope to see you there! 🎉`;
             navigation,
             isEditing,
             vibeAlert,
+            invitationSummary: eventData._invitationSummary,
           });
         }
       } catch (error) {
@@ -321,20 +375,129 @@ Hope to see you there! 🎉`;
 
   // Helper function to update event in database (for editing)
   const updateEventInDatabase = useCallback(
-    async (eventData, eventId, currentUserId, userData) => {
+    async (eventData, eventId, currentUserId, userData, selectedInvitations = {}, vibeAlert) => {
       const { doc, updateDoc } = await import('firebase/firestore');
       const userStudio = userData?.studioId || 'greenville_sc';
+      
+      // Remove subscriber/cohost arrays from eventData for editing - we don't want to overwrite existing attendees
+      const {
+        subscribers,
+        cohosts,
+        ...eventDataWithoutArrays
+      } = eventData;
+      
       const eventRef = doc(db, 'studios', userStudio, 'events', eventId);
-      await updateDoc(eventRef, eventData);
-      // Note: You might not want to update metrics for edits, or handle differently
+      
+      // Update only the event metadata, not the attendee/cohost arrays
+      await updateDoc(eventRef, eventDataWithoutArrays);
+      
+      // Send invitations for new cohosts/guests if any were selected
+      if (selectedInvitations && (
+        (selectedInvitations.users && selectedInvitations.users.length > 0) ||
+        (selectedInvitations.contacts && selectedInvitations.contacts.length > 0) ||
+        (selectedInvitations.phoneContacts && selectedInvitations.phoneContacts.length > 0) ||
+        (selectedInvitations.cohosts && selectedInvitations.cohosts.length > 0)
+      )) {
+        try {
+          const { sendEventInvitations } = await import('../services/invitations');
+          
+          // Prepare guest invitations
+          const guestInvitations = [];
+          
+          // Add selected users
+          if (selectedInvitations.users) {
+            selectedInvitations.users.forEach(user => {
+              guestInvitations.push({
+                type: 'user',
+                guestId: user.id,
+                message: selectedInvitations.defaultMessage || ''
+              });
+            });
+          }
+          
+          // Add selected contacts  
+          if (selectedInvitations.contacts) {
+            selectedInvitations.contacts.forEach(contact => {
+              guestInvitations.push({
+                type: 'contact',
+                guestId: contact.id,
+                message: selectedInvitations.defaultMessage || ''
+              });
+            });
+          }
+          
+          // Add selected phone contacts
+          if (selectedInvitations.phoneContacts) {
+            selectedInvitations.phoneContacts.forEach(contact => {
+              guestInvitations.push({
+                type: 'phoneContact',
+                guestId: contact.id,
+                message: selectedInvitations.defaultMessage || ''
+              });
+            });
+          }
+          
+          // Prepare cohost invitations
+          const cohostInvitations = [];
+          if (selectedInvitations.cohosts) {
+            selectedInvitations.cohosts.forEach(cohost => {
+              cohostInvitations.push({
+                type: 'user',
+                guestId: cohost.id, // Use guestId for compatibility with invitation system
+                message: selectedInvitations.defaultMessage || ''
+              });
+            });
+          }
+          
+          // Send all invitations
+          if (guestInvitations.length > 0 || cohostInvitations.length > 0) {
+            // Get event and host data for proper notification context
+            const { getDoc, doc } = await import('firebase/firestore');
+            const eventDoc = await getDoc(eventRef);
+            const hostDoc = await getDoc(doc(db, 'users', currentUserId));
+            
+            await sendEventInvitations({
+              eventId,
+              hostId: currentUserId,
+              guestInvitations,
+              cohostInvitations,
+              defaultMessage: selectedInvitations.defaultMessage || '',
+              studioId: userStudio,
+              eventData: eventDoc.exists() ? eventDoc.data() : null,
+              hostData: hostDoc.exists() ? hostDoc.data() : null,
+              source: 'edit_event'
+            });
+            
+            console.log(`[EditEventScreen] Sent ${guestInvitations.length} guest invitations and ${cohostInvitations.length} cohost invitations`);
+          }
+          
+          // Send text invites if any
+          if (selectedInvitations.textContacts && selectedInvitations.textContacts.length > 0) {
+            // Get updated event data for text invitations
+            const { getDoc } = await import('firebase/firestore');
+            const updatedEventDoc = await getDoc(eventRef);
+            if (updatedEventDoc.exists()) {
+              const updatedEventData = updatedEventDoc.data();
+              await sendTextInvites(selectedInvitations.textContacts, updatedEventData, vibeAlert);
+            }
+          }
+        } catch (error) {
+          console.error('Error sending invitations during event edit:', error);
+          // Don't fail the entire edit if invitations fail
+          if (vibeAlert) {
+            vibeAlert.warning('Event Updated', 'Event was updated but there was an issue sending some invitations.');
+          }
+        }
+      }
+      
       return eventRef;
     },
-    []
+    [sendTextInvites]
   );
 
   // Updated success handler
   const handleSuccessfulSubmission = useCallback((callbacks) => {
-    const { loadSuggestions, resetForm, resetDateTime, navigation, isEditing, vibeAlert } =
+    const { loadSuggestions, resetForm, resetDateTime, navigation, isEditing, vibeAlert, invitationSummary } =
       callbacks;
 
     if (loadSuggestions) loadSuggestions();
@@ -343,7 +506,7 @@ Hope to see you there! 🎉`;
 
     const message = isEditing
       ? 'Event updated successfully!'
-      : 'Event created successfully! You are automatically subscribed to your event.';
+      : invitationSummary || 'Event created successfully! You are automatically subscribed to your event.';
 
     vibeAlert.success('Success!', message, [
       { text: 'OK', onPress: () => navigation.goBack() },

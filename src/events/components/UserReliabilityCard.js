@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { getUserEventStats } from '../lib/userMetrics';
+import theme from '../../theme/themes';
 
 const UserReliabilityCard = ({ userData, style }) => {
   const stats = getUserEventStats(userData);
@@ -91,10 +92,12 @@ const UserReliabilityMini = ({ userData, style }) => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: theme.colors.vibeBackgroundBlue,
     borderRadius: 16,
     padding: 20,
     marginVertical: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.vibeBlue,
   },
   title: {
     color: '#fff',
@@ -144,7 +147,7 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 8,
-    backgroundColor: '#333',
+    backgroundColor: theme.colors.darkGray,
     borderRadius: 4,
     overflow: 'hidden',
   },
@@ -167,10 +170,12 @@ const styles = StyleSheet.create({
   miniContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
+    backgroundColor: theme.colors.vibeBackgroundBlue,
     borderRadius: 8,
     padding: 8,
     gap: 6,
+    borderWidth: 1,
+    borderColor: theme.colors.vibeBlue,
   },
   miniBadge: {
     fontSize: 14,

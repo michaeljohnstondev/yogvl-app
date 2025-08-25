@@ -15,6 +15,10 @@ export const Who = forwardRef(({
   handleInputFocus,
   userData,
   selectedTextContacts,
+  selectedGuestCount,
+  selectedCohostCount,
+  currentAttendees = [],
+  currentCohosts = [],
   openGuestInvitations,
   openHostInvitations,
   guestListTriggerRef
@@ -39,16 +43,10 @@ export const Who = forwardRef(({
         ref={guestListTriggerRef}
         currentUser={userData}
         selectedTextContacts={selectedTextContacts}
-        invitedGuests={[
-          ...(formData.invitedUsers || []),
-          ...(formData.invitedContacts || []),
-          ...(formData.invitedPhoneContacts || []),
-        ]}
-        additionalHosts={[
-          ...(formData.additionalHostUsers || []),
-          ...(formData.additionalHostContacts || []),
-          ...(formData.additionalHostPhoneContacts || []),
-        ]}
+        invitedGuests={currentAttendees}
+        hosts={currentCohosts}
+        selectedGuestCount={selectedGuestCount}
+        selectedCohostCount={selectedCohostCount}
         onInvitePress={openGuestInvitations}
         onAddHostPress={openHostInvitations}
         style={styles.guestListViewer}

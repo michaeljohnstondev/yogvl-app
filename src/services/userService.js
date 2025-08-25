@@ -63,7 +63,7 @@ export const getStudioUsers = async (currentUserId, userStudio) => {
       userSnaps.forEach(userSnap => {
         if (userSnap.exists()) {
           const userData = userSnap.data();
-          const contactInfo = userData?.userdata?.contactinfo;
+          const contactInfo = userData?.userdata?.contactInfo;
           
           if (contactInfo?.firstName) { // Only include users with names
             users.push({

@@ -11,7 +11,7 @@ import {
   PanResponder,
   Dimensions,
 } from 'react-native';
-import { markNotificationAsRead, deleteNotification } from '../../services/notifications';
+import { deleteNotification } from '../../services/notifications';
 import { useVibeAlert } from '../ui/VibeAlertContext';
 import theme from '../../theme/themes';
 
@@ -20,7 +20,6 @@ const { width: screenWidth } = Dimensions.get('window');
 export default function NotificationItem({ 
   notification, 
   onPress, 
-  onRead, 
   onDelete,
   showActions = true,
   onAcceptFriendRequest,
@@ -29,6 +28,9 @@ export default function NotificationItem({
   onDeclineGuestInvitation,
   onAcceptCohostInvitation,
   onDeclineCohostInvitation,
+  // New handlers for direct notification actions
+  onJoinEventFromNotification,
+  onViewEventFromNotification,
   currentUserId,
   userData
 }) {
@@ -92,16 +94,6 @@ export default function NotificationItem({
     }
   };
 
-  const handleMarkAsRead = async () => {
-    if (notification.read) return;
-
-    try {
-      await markNotificationAsRead(notification.id, notification.userId);
-      onRead && onRead(notification.id);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to mark notification as read');
-    }
-  };
 
   const handleDelete = async () => {
     Alert.alert(
@@ -142,23 +134,96 @@ export default function NotificationItem({
         
         vibeAlert.success('Following', `You are now following ${notification.data.followerName}! ✨`);
         
-        // Mark notification as read after successful action
-        await handleMarkAsRead();
+        // Delete notification immediately after successful follow (no confirmation dialog)
+        try {
+          await deleteNotification(notification.id, notification.userId);
+          onDelete && onDelete(notification.id);
+        } catch (error) {
+          console.error('Failed to delete follow back notification:', error);
+        }
       }
     } catch (error) {
       console.error('Error handling notification action:', error);
       if (error.message === 'Already following this user') {
         vibeAlert.info('Already Following', `You are already following ${notification.data.followerName}.`);
+        // Delete notification immediately since it's no longer relevant
+        try {
+          await deleteNotification(notification.id, notification.userId);
+          onDelete && onDelete(notification.id);
+        } catch (deleteError) {
+          console.error('Failed to delete already-following notification:', deleteError);
+        }
       } else {
         vibeAlert.error('Error', 'Failed to follow user. Please try again.');
       }
     }
   };
 
-  const handlePress = () => {
-    if (!notification.read) {
-      handleMarkAsRead();
+  const handleNotificationAction = async (action) => {
+    try {
+      if (action.action === 'accept_invitation') {
+        // Use the parent handler if provided, otherwise handle directly
+        if (onJoinEventFromNotification) {
+          onJoinEventFromNotification(notification);
+        } else {
+          // Fallback: directly accept the event invitation
+          const { acceptInvitation } = await import('../../events/services/invitations');
+          
+          await acceptInvitation(
+            action.params.invitationId, 
+            currentUserId, 
+            action.params.studioId || notification.data.studioId
+          );
+          
+          vibeAlert.success('Joined Event!', `You're now attending "${notification.data.eventTitle}"! 🎉`);
+          
+          // Delete notification immediately after successful join (no confirmation dialog)
+          try {
+            await deleteNotification(notification.id, notification.userId);
+            onDelete && onDelete(notification.id);
+          } catch (error) {
+            console.error('Failed to delete event invitation notification:', error);
+          }
+          
+          // Optionally navigate to event detail
+          if (onPress) {
+            setTimeout(() => {
+              onPress(notification);
+            }, 500);
+          }
+        }
+        
+      } else if (action.action === 'view_event') {
+        // Use the parent handler if provided, otherwise handle directly
+        if (onViewEventFromNotification) {
+          onViewEventFromNotification(notification);
+        } else {
+          // Fallback: Navigate to event detail screen
+          if (onPress) {
+            onPress(notification);
+          }
+          
+        }
+      }
+    } catch (error) {
+      console.error('Error handling notification action:', error);
+      
+      if (error.message === 'You are already attending this event' || error.message.includes('already attending')) {
+        vibeAlert.info('Already Joined', `You're already attending "${notification.data.eventTitle || 'this event'}".`);
+        // Delete notification immediately since it's no longer relevant
+        try {
+          await deleteNotification(notification.id, notification.userId);
+          onDelete && onDelete(notification.id);
+        } catch (deleteError) {
+          console.error('Failed to delete already-attending notification:', deleteError);
+        }
+      } else {
+        vibeAlert.error('Error', 'Unable to complete action. Please try again.');
+      }
     }
+  };
+
+  const handlePress = () => {
     onPress && onPress(notification);
   };
 
@@ -193,6 +258,8 @@ export default function NotificationItem({
       case 'friend_accepted': return '🤝'; // DEPRECATED
       case 'cohost_invitation': return '🎭';
       case 'cohost_accepted': return '⭐';
+      case 'guest_invitation': return '🎉';
+      case 'guest_accepted': return '🎊';
       case 'system': return 'ℹ️';
       default: return '📝';
     }
@@ -236,10 +303,7 @@ export default function NotificationItem({
         {...panResponder.panHandlers}
       >
         <TouchableOpacity
-          style={[
-            styles.container,
-            !notification.read && styles.unreadContainer,
-          ]}
+          style={styles.container}
           onPress={handlePress}
           activeOpacity={0.7}
         >
@@ -256,19 +320,19 @@ export default function NotificationItem({
             <View style={styles.header}>
               <View style={styles.titleRow}>
                 <Text style={styles.typeIcon}>{getTypeIcon(notification.type)}</Text>
-                <Text style={[styles.title, !notification.read && styles.unreadText]}>
+                <Text style={styles.title}>
                   {notification.title}
                 </Text>
               </View>
               <Text style={styles.time}>{formatTime(notification.createdAt)}</Text>
             </View>
 
-            <Text style={[styles.message, !notification.read && styles.unreadText]}>
+            <Text style={styles.message}>
               {notification.message}
             </Text>
 
             {/* Action buttons */}
-            {showActions && !notification.read && (
+            {showActions && (
               <View style={styles.actions}>
                 {/* Legacy friend request actions (deprecated but kept for existing notifications) */}
                 {notification.type === 'friend_request' && (
@@ -303,27 +367,44 @@ export default function NotificationItem({
                         <Text style={[styles.actionText, styles.followBackText]}>{action.label}</Text>
                       </TouchableOpacity>
                     ))}
-                    <TouchableOpacity
-                      style={styles.actionButton}
-                      onPress={handleMarkAsRead}
-                    >
-                      <Text style={styles.actionText}>Mark as Read</Text>
-                    </TouchableOpacity>
                   </>
                 )}
 
-                {/* Guest invitation actions */}
-                {notification.type === 'invitation_received' && (
+                {/* Guest invitation actions - using new action system */}
+                {notification.type === 'invitation_received' && notification.actions && (
+                  <>
+                    {notification.actions.map((action) => (
+                      <TouchableOpacity
+                        key={action.id}
+                        style={[
+                          styles.actionButton, 
+                          action.action === 'accept_invitation' ? styles.acceptButton : styles.viewButton
+                        ]}
+                        onPress={() => handleNotificationAction(action)}
+                      >
+                        <Text style={[
+                          styles.actionText,
+                          action.action === 'view_event' ? styles.viewText : null
+                        ]}>
+                          {action.title}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </>
+                )}
+
+                {/* Legacy guest invitation actions (fallback for old notifications) */}
+                {notification.type === 'invitation_received' && !notification.actions && (
                   <>
                     <TouchableOpacity
                       style={[styles.actionButton, styles.acceptButton]}
-                      onPress={() => onAcceptGuestInvitation(notification)}
+                      onPress={() => onAcceptGuestInvitation && onAcceptGuestInvitation(notification)}
                     >
                       <Text style={styles.actionText}>Accept</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.actionButton, styles.declineButton]}
-                      onPress={() => onDeclineGuestInvitation(notification)}
+                      onPress={() => onDeclineGuestInvitation && onDeclineGuestInvitation(notification)}
                     >
                       <Text style={[styles.actionText, styles.declineText]}>Decline</Text>
                     </TouchableOpacity>
@@ -348,21 +429,28 @@ export default function NotificationItem({
                   </>
                 )}
 
-                {/* Standard mark as read for all other notification types */}
-                {!['friend_request', 'new_follower', 'invitation_received', 'cohost_invitation'].includes(notification.type) && (
-                  <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={handleMarkAsRead}
-                  >
-                    <Text style={styles.actionText}>Mark as Read</Text>
-                  </TouchableOpacity>
+                {/* Guest invitation actions */}
+                {notification.type === 'guest_invitation' && (
+                  <>
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.acceptButton]}
+                      onPress={() => onAcceptGuestInvitation && onAcceptGuestInvitation(notification)}
+                    >
+                      <Text style={styles.actionText}>Accept</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.declineButton]}
+                      onPress={() => onDeclineGuestInvitation && onDeclineGuestInvitation(notification)}
+                    >
+                      <Text style={[styles.actionText, styles.declineText]}>Decline</Text>
+                    </TouchableOpacity>
+                  </>
                 )}
+
               </View>
             )}
           </View>
 
-          {/* Unread indicator */}
-          {!notification.read && <View style={styles.unreadDot} />}
         </TouchableOpacity>
       </Animated.View>
     </View>
@@ -384,11 +472,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     position: 'relative',
     overflow: 'hidden',
-  },
-  unreadContainer: {
-    backgroundColor: theme.colors.black,
-    borderWidth: 1,
-    borderColor: theme.colors.vibeBlue,
   },
   priorityIndicator: {
     width: 4,
@@ -421,10 +504,6 @@ const styles = StyleSheet.create({
     flex: 1,
     opacity: 0.8,
   },
-  unreadText: {
-    opacity: 1,
-    fontWeight: 'bold',
-  },
   time: {
     color: theme.colors.gray,
     fontSize: 12,
@@ -454,6 +533,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.vibeRed,
   },
+  viewButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: theme.colors.vibeBlue,
+  },
   followBackButton: {
     backgroundColor: theme.colors.vibeBlue,
   },
@@ -468,13 +552,7 @@ const styles = StyleSheet.create({
   declineText: {
     color: theme.colors.vibeRed,
   },
-  unreadDot: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: theme.colors.vibeBlue,
+  viewText: {
+    color: theme.colors.vibeBlue,
   },
 });

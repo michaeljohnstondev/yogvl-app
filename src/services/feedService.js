@@ -19,7 +19,6 @@ import { getFollowing } from './followService';
 export const getFollowedUsersEvents = async (currentUserId, userStudio, limitCount = 50) => {
   try {
     if (!currentUserId || !userStudio) {
-      console.warn('[feedService] Missing currentUserId or userStudio');
       return [];
     }
 
@@ -27,22 +26,21 @@ export const getFollowedUsersEvents = async (currentUserId, userStudio, limitCou
     const following = await getFollowing(currentUserId, 100);
     
     if (following.length === 0) {
-      console.log('[feedService] User is not following anyone yet');
       return [];
     }
 
     const followedUserIds = following.map(f => f.targetUserId);
-    console.log(`[feedService] Getting events from ${followedUserIds.length} followed users`);
 
     // Get all events from followed users in the same studio
     const eventsRef = collection(db, 'studios', userStudio, 'events');
     const now = Timestamp.now();
     
-    // Query for upcoming events created by followed users
+    // Query for upcoming PUBLIC events created by followed users
     const q = query(
       eventsRef,
       where('createdBy', 'in', followedUserIds.slice(0, 10)), // Firestore 'in' limit is 10
       where('eventTimestamp', '>=', now),
+      where('isPrivate', '==', false), // Only public events
       orderBy('eventTimestamp', 'asc'),
       firestoreLimit(limitCount)
     );
@@ -69,6 +67,7 @@ export const getFollowedUsersEvents = async (currentUserId, userStudio, limitCou
           eventsRef,
           where('createdBy', 'in', batch),
           where('eventTimestamp', '>=', now),
+          where('isPrivate', '==', false), // Only public events
           orderBy('eventTimestamp', 'asc'),
           firestoreLimit(limitCount)
         );
@@ -97,11 +96,9 @@ export const getFollowedUsersEvents = async (currentUserId, userStudio, limitCou
     });
 
     const limitedEvents = events.slice(0, limitCount);
-    console.log(`[feedService] Found ${limitedEvents.length} events from followed users`);
     
     return limitedEvents;
   } catch (error) {
-    console.error('[feedService] Error getting followed users events:', error);
     return [];
   }
 };
@@ -153,11 +150,9 @@ export const getSuggestedEvents = async (currentUserId, userStudio, limitCount =
     });
 
     const limitedSuggested = suggestedEvents.slice(0, limitCount);
-    console.log(`[feedService] Found ${limitedSuggested.length} suggested events`);
     
     return limitedSuggested;
   } catch (error) {
-    console.error('[feedService] Error getting suggested events:', error);
     return [];
   }
 };
@@ -173,8 +168,6 @@ export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
       includeSubscribed = true
     } = options;
 
-    console.log(`[feedService] Building event feed for user ${currentUserId}`);
-
     // Get events from followed users
     const followedEvents = await getFollowedUsersEvents(currentUserId, userStudio, followedLimit);
     
@@ -188,7 +181,8 @@ export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
         const eventsRef = collection(db, 'studios', userStudio, 'events');
         const now = Timestamp.now();
         
-        const subscribedQuery = query(
+        // Get upcoming events
+        const upcomingQuery = query(
           eventsRef,
           where('subscribers', 'array-contains', currentUserId),
           where('eventTimestamp', '>=', now),
@@ -196,15 +190,39 @@ export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
           firestoreLimit(20)
         );
 
-        const subscribedSnapshot = await getDocs(subscribedQuery);
-        subscribedEvents = subscribedSnapshot.docs.map(doc => ({
+        // Get past events (last 30 days)
+        const thirtyDaysAgo = Timestamp.fromDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
+        const pastQuery = query(
+          eventsRef,
+          where('subscribers', 'array-contains', currentUserId),
+          where('eventTimestamp', '>=', thirtyDaysAgo),
+          where('eventTimestamp', '<', now),
+          orderBy('eventTimestamp', 'desc'),
+          firestoreLimit(10)
+        );
+
+        const [upcomingSnapshot, pastSnapshot] = await Promise.all([
+          getDocs(upcomingQuery),
+          getDocs(pastQuery)
+        ]);
+
+        const upcomingEvents = upcomingSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
           isSubscribed: true,
           category: 'my_events'
         }));
+
+        const pastEvents = pastSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          isSubscribed: true,
+          category: 'my_events'
+        }));
+
+        subscribedEvents = [...upcomingEvents, ...pastEvents];
       } catch (error) {
-        console.warn('[feedService] Failed to get subscribed events:', error);
+        console.error('[feedService] Failed to get subscribed events:', error);
       }
     }
 
@@ -226,8 +244,6 @@ export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
       return aDate - bDate;
     });
 
-    console.log(`[feedService] Event feed compiled: ${subscribedEvents.length} subscribed, ${followedEvents.length} followed, ${suggestedEvents.length} suggested, ${uniqueEvents.length} total unique`);
-
     return {
       allEvents: uniqueEvents,
       subscribedEvents,
@@ -241,7 +257,6 @@ export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
       }
     };
   } catch (error) {
-    console.error('[feedService] Error building event feed:', error);
     return {
       allEvents: [],
       subscribedEvents: [],
@@ -263,7 +278,6 @@ export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
 export const getUserEvents = async (userId, userStudio, includePrivate = false, limitCount = 50) => {
   try {
     if (!userId || !userStudio) {
-      console.warn('[feedService] Missing userId or userStudio');
       return [];
     }
 
@@ -297,10 +311,8 @@ export const getUserEvents = async (userId, userStudio, includePrivate = false, 
       category: 'user_events'
     }));
 
-    console.log(`[feedService] Found ${events.length} events for user ${userId}`);
     return events;
   } catch (error) {
-    console.error('[feedService] Error getting user events:', error);
     return [];
   }
 };

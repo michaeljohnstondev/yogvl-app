@@ -17,7 +17,7 @@ export default function UserProfileCard({ userData, style, showDetails = true })
 
   if (!userData) return null;
 
-  const contactInfo = userData?.userdata?.contactinfo || {};
+  const contactInfo = userData?.userdata?.contactInfo || {};
   const displayName = contactInfo.firstName && contactInfo.lastName 
     ? `${contactInfo.firstName} ${contactInfo.lastName}`
     : contactInfo.email || userData.email || 'User';

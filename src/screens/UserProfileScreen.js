@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  Alert,
 } from 'react-native';
 import VibeButton from '../components/ui/VibeButton';
 import VibeInput from '../components/ui/VibeInput';
@@ -14,6 +15,8 @@ import AttendanceStats from '../components/ui/AttendanceStats';
 import ReliabilityBadge from '../components/ui/ReliabilityBadge';
 import { useAuth } from '../auth/AuthContext';
 import { getFollowStats } from '../services/followService';
+import { deleteUserAccount, getUserDeletionPreview } from '../services/userDeletionService';
+import { auth } from '../auth/services/firebase';
 import theme from '../theme/themes';
 
 function UserProfile({ navigation }) {
@@ -26,8 +29,9 @@ function UserProfile({ navigation }) {
     mutualCount: 0
   });
   const [loadingStats, setLoadingStats] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
   
-  const contactInfo = userData?.userdata?.contactinfo || {};
+  const contactInfo = userData?.userdata?.contactInfo || {};
   
   // Debug log to see the actual data structure
   console.log('[UserProfile] userData:', userData);
@@ -53,6 +57,109 @@ function UserProfile({ navigation }) {
       index: 0,
       routes: [{ name: 'Landing' }],
     });
+  };
+
+  const handleDeleteAccount = async () => {
+    if (isDeleting) return;
+
+    // First confirmation
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to permanently delete your account? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Continue',
+          style: 'destructive',
+          onPress: showDeletionPreview,
+        },
+      ],
+    );
+  };
+
+  const showDeletionPreview = async () => {
+    try {
+      const previewResult = await getUserDeletionPreview(currentUserId);
+      
+      if (previewResult.error) {
+        Alert.alert('Error', 'Unable to preview deletion details.');
+        return;
+      }
+
+      const { preview } = previewResult;
+      const details = [
+        `• ${preview.events} events you created will be deleted`,
+        `• ${preview.follows} follow relationships will be removed`,
+        `• ${preview.notifications} notifications will be deleted`,
+        `• ${preview.friendRequests} friend requests will be removed`,
+        preview.studios > 0 ? `• You will be removed from ${preview.studios} studio(s)` : '',
+        '• All your comments and invitations will be deleted',
+        '• Your profile and account will be permanently removed'
+      ].filter(Boolean).join('\n');
+
+      // Final confirmation with details
+      Alert.alert(
+        'Final Confirmation',
+        `This will permanently delete:\n\n${details}\n\nType 'DELETE' to confirm this action.`,
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'DELETE ACCOUNT',
+            style: 'destructive',
+            onPress: performAccountDeletion,
+          },
+        ],
+      );
+    } catch (error) {
+      console.error('Error showing deletion preview:', error);
+      Alert.alert('Error', 'Unable to preview deletion. Please try again.');
+    }
+  };
+
+  const performAccountDeletion = async () => {
+    setIsDeleting(true);
+    
+    try {
+      console.log('[UserProfile] Starting account deletion for:', currentUserId);
+      
+      const result = await deleteUserAccount(currentUserId, auth.currentUser);
+      
+      if (result.success) {
+        Alert.alert(
+          'Account Deleted',
+          result.message,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'Landing' }],
+                });
+              },
+            },
+          ],
+          { cancelable: false }
+        );
+      } else {
+        throw new Error(result.message || 'Deletion failed');
+      }
+    } catch (error) {
+      console.error('[UserProfile] Account deletion failed:', error);
+      Alert.alert(
+        'Deletion Failed',
+        error.message || 'Unable to delete account. Please try again or contact support.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   // Load follow statistics
@@ -321,13 +428,13 @@ function UserProfile({ navigation }) {
             <View style={styles.buttonSeparator} />
 
             <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={() => {
-                // TODO: Handle delete account
-                console.log('Delete account pressed');
-              }}
+              style={[styles.deleteButton, isDeleting && styles.deleteButtonDisabled]}
+              onPress={handleDeleteAccount}
+              disabled={isDeleting}
             >
-              <Text style={styles.deleteButtonText}>Delete Account</Text>
+              <Text style={styles.deleteButtonText}>
+                {isDeleting ? 'Deleting Account...' : 'Delete Account'}
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -596,6 +703,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: theme.fonts.main,
     textTransform: 'uppercase',
+  },
+  deleteButtonDisabled: {
+    opacity: 0.5,
+    borderColor: theme.colors.textSecondary,
   },
   logoutButton: {
     backgroundColor: 'transparent',

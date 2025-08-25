@@ -49,7 +49,7 @@ export const Where = ({
           onFocus={() => onInputFocus('location')}
           onBlur={() => hideSuggestions('location')}
           placeholder="Enter location"
-          maxLength={200}
+          maxLength={40}
           isCompleted={formData.location && formData.location.trim().length > 0}
         />
         <VibeAutoComplete

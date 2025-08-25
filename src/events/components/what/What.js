@@ -31,7 +31,7 @@ export const What = ({
         onFocus={() => onInputFocus('title')}
         onBlur={() => hideSuggestions('title')}
         placeholder="Enter event name"
-        maxLength={100}
+        maxLength={30}
         isCompleted={formData.title && formData.title.trim().length > 0}
       />
       <VibeAutoComplete

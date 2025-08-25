@@ -150,7 +150,7 @@ exports.onEventJoin = functions.firestore
       const userDoc = await admin.firestore().doc(`users/${subscriberId}`).get();
       if (userDoc.exists) {
         const userData = userDoc.data();
-        const firstName = userData?.userdata?.contactinfo?.firstName || 'Someone';
+        const firstName = userData?.userdata?.contactInfo?.firstName || 'Someone';
         subscriberNames.push(firstName);
       }
     }
@@ -240,7 +240,7 @@ exports.onEventLeave = functions.firestore
       const userDoc = await admin.firestore().doc(`users/${leftUserId}`).get();
       if (userDoc.exists) {
         const userData = userDoc.data();
-        const firstName = userData?.userdata?.contactinfo?.firstName || 'Someone';
+        const firstName = userData?.userdata?.contactInfo?.firstName || 'Someone';
         leftNames.push(firstName);
       }
     }
@@ -564,7 +564,7 @@ exports.onFriendRequest = functions.firestore
       }
 
       const senderData = senderDoc.data();
-      const senderName = senderData?.userdata?.firstName || senderData?.userdata?.displayName || 'Someone';
+      const senderName = senderData?.userdata?.contactInfo?.firstName || senderData?.userdata?.contactInfo?.displayName || 'Someone';
 
       const message = {
         token: recipientToken,
@@ -639,7 +639,7 @@ exports.onFriendAccepted = functions.firestore
         }
 
         const accepterData = accepterDoc.data();
-        const accepterName = accepterData?.userdata?.firstName || accepterData?.userdata?.displayName || 'Someone';
+        const accepterName = accepterData?.userdata?.contactInfo?.firstName || accepterData?.userdata?.contactInfo?.displayName || 'Someone';
 
         const message = {
           token: senderToken,
@@ -721,7 +721,7 @@ exports.onCohostInvitation = functions.firestore
       }
 
       const inviterData = inviterDoc.data();
-      const inviterName = inviterData?.userdata?.firstName || inviterData?.userdata?.displayName || 'Someone';
+      const inviterName = inviterData?.userdata?.contactInfo?.firstName || inviterData?.userdata?.contactInfo?.displayName || 'Someone';
 
       const message = {
         token: recipientToken,

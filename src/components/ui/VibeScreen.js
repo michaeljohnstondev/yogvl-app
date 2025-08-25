@@ -1,3 +1,12 @@
+/**
+ * VibeScreen - Global app wrapper component
+ * 
+ * ⚠️  IMPORTANT: This component should ONLY be used once at the App.js level!
+ * ⚠️  DO NOT wrap individual screens or components with VibeScreen
+ * ⚠️  It provides global styling, status bar, and background for the entire app
+ * 
+ * Usage: Already implemented in App.js - do not use elsewhere
+ */
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';

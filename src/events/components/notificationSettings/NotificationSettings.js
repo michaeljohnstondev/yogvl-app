@@ -1,6 +1,6 @@
 // FILE: events/components/notificationSettings/NotificationSettings.js
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -24,7 +24,25 @@ export default function NotificationSettings({
   userDefaults = {},
   currentUserId,
 }) {
-  const [localSettings, setLocalSettings] = useState(notificationSettings);
+  const defaultSettings = {
+    enabled: true,
+    reminderTiming: '1hour',
+    notifyOnJoin: true,
+    notifyOnLeave: true,
+    sendReminders: true,
+    sendDayBefore: true,
+    newComments: true,
+    customMessage: ''
+  };
+  
+  const [localSettings, setLocalSettings] = useState(notificationSettings || defaultSettings);
+
+  // Update local settings when prop changes
+  useEffect(() => {
+    if (notificationSettings) {
+      setLocalSettings(notificationSettings);
+    }
+  }, [notificationSettings]);
 
   const reminderOptions = [
     { label: '15 min', value: '15min' },
@@ -34,13 +52,15 @@ export default function NotificationSettings({
 
   const toggleSetting = (key) => {
     setLocalSettings(prev => ({
+      ...defaultSettings,
       ...prev,
-      [key]: !prev[key]
+      [key]: !prev?.[key]
     }));
   };
 
   const updateReminderTiming = (value) => {
     setLocalSettings(prev => ({
+      ...defaultSettings,
       ...prev,
       reminderTiming: value
     }));
@@ -48,6 +68,7 @@ export default function NotificationSettings({
 
   const updateCustomMessage = (text) => {
     setLocalSettings(prev => ({
+      ...defaultSettings,
       ...prev,
       customMessage: text
     }));
@@ -67,12 +88,12 @@ export default function NotificationSettings({
       const userRef = doc(db, 'users', currentUserId);
       await updateDoc(userRef, {
         'userdata.settings.notifications.hosting': {
-          enabled: localSettings.enabled,
-          reminderTiming: localSettings.reminderTiming,
-          notifyOnJoin: localSettings.notifyOnJoin,
-          notifyOnLeave: localSettings.notifyOnLeave,
-          sendDayBefore: localSettings.sendDayBefore,
-          newComments: localSettings.newComments,
+          enabled: localSettings?.enabled ?? true,
+          reminderTiming: localSettings?.reminderTiming ?? '1hour',
+          notifyOnJoin: localSettings?.notifyOnJoin ?? true,
+          notifyOnLeave: localSettings?.notifyOnLeave ?? true,
+          sendDayBefore: localSettings?.sendDayBefore ?? true,
+          newComments: localSettings?.newComments ?? true,
         }
       });
 
@@ -136,14 +157,14 @@ export default function NotificationSettings({
               <SettingItem
                 title="Enable Notifications"
                 description="Turn on notifications for this event"
-                value={localSettings.enabled}
+                value={localSettings?.enabled ?? true}
                 onToggle={() => toggleSetting('enabled')}
                 isLast
               />
             </View>
           </View>
 
-          {localSettings.enabled && (
+          {localSettings?.enabled && (
             <>
               {/* Event Activity */}
               <View style={styles.section}>

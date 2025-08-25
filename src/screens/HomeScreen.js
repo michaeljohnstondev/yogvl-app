@@ -45,7 +45,6 @@ export default function HomeScreen({ navigation }) {
     const loadEventFeed = async () => {
       setIsLoading(true);
       try {
-        console.log('[HomeScreen] Loading follow-based event feed...');
         const feedData = await getEventFeed(currentUserId, userStudio, {
           followedLimit: 20,
           suggestedLimit: 15,
@@ -73,10 +72,13 @@ export default function HomeScreen({ navigation }) {
           }
         });
 
-        // Add followed users' events
+        // Add followed users' events (exclude events user has already subscribed to)
+        const subscribedEventIds = new Set(feedData.subscribedEvents.map(event => event.id));
+        
         feedData.followedEvents.forEach(event => {
           const eventDate = event.eventTimestamp?.toDate() || new Date(event.utcDateTime);
-          if (eventDate >= now) {
+          // Only add if it's upcoming AND user hasn't subscribed to it
+          if (eventDate >= now && !subscribedEventIds.has(event.id)) {
             followed.push({
               ...event,
               isHostedByUser: event.createdBy === currentUserId
@@ -100,13 +102,6 @@ export default function HomeScreen({ navigation }) {
         setSuggestedEvents(suggested);
         setPastEvents(myPast.reverse()); // Most recent first
         setFeedStats(feedData.stats);
-        
-        console.log('[HomeScreen] Event feed loaded:', {
-          myEvents: myUpcoming.length,
-          followedEvents: followed.length,
-          suggestedEvents: suggested.length,
-          pastEvents: myPast.length
-        });
         
       } catch (error) {
         console.error('[HomeScreen] Failed to load event feed:', error);
@@ -132,7 +127,6 @@ export default function HomeScreen({ navigation }) {
       });
 
       if (hasSubscribedEventChanges) {
-        console.log('[HomeScreen] Detected changes to subscribed events, reloading feed...');
         loadEventFeed();
       }
     });
@@ -161,17 +155,9 @@ export default function HomeScreen({ navigation }) {
     );
   }
 
-  // Show main empty state if no events exist anywhere
-  if (hasNoEvents) {
-    return (
-      <View style={styles.screen}>
-        <EmptyStateView navigation={navigation} />
-      </View>
-    );
-  }
-
   return (
     <View style={styles.screen}>
+      {/* Header - Always visible */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Big Vibe Studios</Text>
         <View style={styles.headerIcons}>
@@ -185,8 +171,8 @@ export default function HomeScreen({ navigation }) {
           >
             <View style={styles.profileIcon}>
               <Text style={styles.profileIconText}>
-                {userData?.userdata?.contactinfo?.firstName
-                  ? userData.userdata.contactinfo.firstName.charAt(0).toUpperCase()
+                {userData?.userdata?.contactInfo?.firstName
+                  ? userData.userdata.contactInfo.firstName.charAt(0).toUpperCase()
                   : '?'}
               </Text>
             </View>
@@ -194,7 +180,11 @@ export default function HomeScreen({ navigation }) {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.container}>
+      {/* Show empty state if no events exist anywhere */}
+      {hasNoEvents ? (
+        <EmptyStateView navigation={navigation} />
+      ) : (
+        <ScrollView contentContainerStyle={styles.container}>
         {myEvents.length > 0 && (
           <>
             <Text style={styles.sectionHeader}>My Events</Text>
@@ -291,6 +281,7 @@ export default function HomeScreen({ navigation }) {
           />
         </View>
       </ScrollView>
+      )}
 
       {showAccountSettings && (
         <TouchableOpacity

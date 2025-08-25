@@ -1,6 +1,8 @@
 // FILE: screens/CreateEventScreen.js (Complete Rewritten Version)
 
 import React, { useCallback, useRef, useState, useEffect } from 'react';
+import { BackHandler } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useVibeAlert } from '../../components/ui/VibeAlertContext';
 
 // Components
@@ -21,9 +23,13 @@ import { useAuth } from '../../auth/AuthContext';
 export default function CreateEventScreen({ navigation, route }) {
   const { currentUserId, userData } = useAuth();
   const vibeAlert = useVibeAlert();
+  
+  // Track if event was successfully created to allow navigation
+  const [eventCreatedSuccessfully, setEventCreatedSuccessfully] = useState(false);
 
-  // Check if we have preserved form state from template save
+  // Check if we have preserved form state from template save or template from event
   const preservedFormState = route?.params?.preservedFormState;
+  const templateFromEvent = route?.params?.templateFromEvent;
 
   // Use ref to prevent re-initialization (componentDidMount behavior)
   const hasInitialized = useRef(false);
@@ -35,10 +41,10 @@ export default function CreateEventScreen({ navigation, route }) {
   if (!hasInitialized.current) {
     hasInitialized.current = true;
 
-    // Merge user default notification settings with preserved form state
+    // Merge user default notification settings with preserved form state or template
     const userNotificationDefaults =
       userData?.userdata?.preferences?.notifications || {};
-    const baseFormData = preservedFormState?.formData || {};
+    const baseFormData = preservedFormState?.formData || templateFromEvent || {};
 
     // Merge notification settings with user defaults
     stableFormRef.current = {
@@ -57,14 +63,38 @@ export default function CreateEventScreen({ navigation, route }) {
     };
   }
 
+  // Invitation state management
   const [selectedTextContacts, setSelectedTextContacts] = useState(
     stableSelectedContacts.current
   );
-
+  
+  // Guest invitation selections
+  const [selectedGuestUsers, setSelectedGuestUsers] = useState([]);
+  const [selectedGuestContacts, setSelectedGuestContacts] = useState([]);
+  const [selectedGuestPhoneContacts, setSelectedGuestPhoneContacts] = useState([]);
+  
+  // Co-host invitation selections  
+  const [selectedCohostUsers, setSelectedCohostUsers] = useState([]);
+  const [selectedCohostContacts, setSelectedCohostContacts] = useState([]);
 
   // Handle selected text contacts change
   const handleSelectedTextContactsChange = useCallback((contacts) => {
     setSelectedTextContacts(contacts);
+  }, []);
+
+  // Handle guest invitation selections from InviteScreen
+  const handleGuestInvitationChange = useCallback((selections) => {
+    console.log('[CreateEventScreen] Guest invitation selections received:', selections);
+    if (selections.users) setSelectedGuestUsers(selections.users);
+    if (selections.contacts) setSelectedGuestContacts(selections.contacts);
+    if (selections.phoneContacts) setSelectedGuestPhoneContacts(selections.phoneContacts);
+  }, []);
+
+  // Handle co-host invitation selections from InviteScreen
+  const handleCohostInvitationChange = useCallback((selections) => {
+    console.log('[CreateEventScreen] Co-host invitation selections received:', selections);
+    if (selections.users) setSelectedCohostUsers(selections.users);
+    if (selections.contacts) setSelectedCohostContacts(selections.contacts);
   }, []);
 
 
@@ -186,7 +216,114 @@ export default function CreateEventScreen({ navigation, route }) {
     if (preservedFormState) {
       navigation.setParams({ preservedFormState: null });
     }
-  }, [preservedFormState, navigation]);
+    if (templateFromEvent) {
+      navigation.setParams({ templateFromEvent: null });
+    }
+  }, [preservedFormState, templateFromEvent, navigation]);
+
+  // Check if form has meaningful user input (not just default/empty values)
+  const hasActualChanges = useCallback(() => {
+    // Check for any text content in main fields
+    const hasTextContent = formData.title.trim() || 
+                          formData.location.trim() || 
+                          formData.address.trim() || 
+                          formData.details.trim() || 
+                          formData.maxGuests.toString().trim();
+    
+    // Check for any configuration changes from defaults
+    const hasConfigChanges = formData.hasFee || 
+                            formData.isPrivate || 
+                            formData.showHostContact || 
+                            formData.hasRsvpDeadline || 
+                            formData.trackAttendance ||
+                            (formData.entryFee && formData.entryFee.trim());
+    
+    // Check for any invitations/guests
+    const hasInvitations = selectedGuestUsers.length > 0 || 
+                         selectedGuestContacts.length > 0 || 
+                         selectedGuestPhoneContacts.length > 0 ||
+                         selectedCohostUsers.length > 0 ||
+                         selectedCohostContacts.length > 0 ||
+                         selectedTextContacts.length > 0;
+    
+    // Check for date/time changes (if they exist and differ from defaults)
+    const hasDateTimeChanges = dateTimeValues && 
+                              (dateTimeValues.startDate || dateTimeValues.startTime || 
+                               dateTimeValues.endDate || dateTimeValues.endTime);
+    
+    return hasTextContent || hasConfigChanges || hasInvitations || hasDateTimeChanges;
+  }, [formData, selectedGuestUsers, selectedGuestContacts, selectedGuestPhoneContacts, selectedCohostUsers, selectedCohostContacts, selectedTextContacts, dateTimeValues]);
+
+  // Handle back navigation (both hardware and header back button)
+  const handleBackNavigation = useCallback(() => {
+    // Allow navigation if event was successfully created
+    if (eventCreatedSuccessfully) {
+      return false;
+    }
+    
+    // Only show confirmation if user has made actual meaningful changes
+    if (hasActualChanges()) {
+      // Show confirmation dialog when form has changes
+      vibeAlert.confirm(
+        'Discard Changes?',
+        'You have unsaved changes. Are you sure you want to go back?',
+        () => {
+          // Reset form state and navigate back
+          resetForm();
+          navigation.goBack();
+        },
+        () => {
+          // Do nothing - stay on screen
+        }
+      );
+      return true; // Prevent navigation
+    }
+    
+    // Allow navigation when form is empty/default
+    return false;
+  }, [eventCreatedSuccessfully, hasActualChanges, vibeAlert, resetForm, navigation]);
+
+  // Handle hardware back button
+  useFocusEffect(
+    useCallback(() => {
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackNavigation);
+      return () => backHandler.remove();
+    }, [handleBackNavigation])
+  );
+
+  // Handle header back button and navigation away
+  useFocusEffect(
+    useCallback(() => {
+      const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+        // Allow navigation if event was successfully created
+        if (eventCreatedSuccessfully) {
+          return;
+        }
+        
+        // Only show confirmation if user has made actual meaningful changes
+        if (hasActualChanges()) {
+          // Prevent default behavior
+          e.preventDefault();
+          
+          // Show confirmation dialog
+          vibeAlert.confirm(
+            'Discard Changes?',
+            'You have unsaved changes. Are you sure you want to leave?',
+            () => {
+              // Reset form state and continue navigation
+              resetForm();
+              navigation.dispatch(e.data.action);
+            },
+            () => {
+              // Do nothing - stay on screen
+            }
+          );
+        }
+      });
+
+      return unsubscribe;
+    }, [navigation, eventCreatedSuccessfully, hasActualChanges, vibeAlert, resetForm])
+  );
 
   const handleSaveAsTemplate = useCallback(async () => {
     closeSaveModal();
@@ -243,7 +380,6 @@ export default function CreateEventScreen({ navigation, route }) {
           hasFee: templateFormData.hasFee || false,
           entryFee: templateFormData.entryFee || '',
           isPrivate: templateFormData.isPrivate || false,
-          additionalHosts: templateFormData.additionalHosts || [],
           showHostContact:
             templateFormData.showHostContact !== undefined
               ? templateFormData.showHostContact
@@ -332,16 +468,42 @@ export default function CreateEventScreen({ navigation, route }) {
   const handleSuccess = useCallback(() => {
     loadSuggestions();
     resetDateTime();
+    
+    // Set flag to allow navigation
+    setEventCreatedSuccessfully(true);
 
     vibeAlert.aqua(
       'Event Created!',
       'Your event is live! You are automatically subscribed. 🌊',
-      [{ text: 'OK', onPress: () => navigation.goBack() }]
+      [{ text: 'OK', onPress: () => {
+          // Navigation should now work because eventCreatedSuccessfully is true
+          navigation.goBack();
+        }
+      }]
     );
   }, [loadSuggestions, resetForm, resetDateTime, navigation]);
 
   const handleSubmit = useCallback(async () => {
     try {
+      // Prepare all invitation selections
+      const selectedInvitations = {
+        users: selectedGuestUsers,
+        contacts: selectedGuestContacts,
+        phoneContacts: selectedGuestPhoneContacts,
+        cohosts: selectedCohostUsers,
+        textContacts: selectedTextContacts,
+        defaultMessage: formData.invitationMessage || '' // Optional custom invitation message
+      };
+
+      console.log(`[CreateEventScreen] Selected invitations:`, {
+        guestUsers: selectedGuestUsers.length,
+        guestContacts: selectedGuestContacts.length,
+        phoneContacts: selectedGuestPhoneContacts.length,
+        cohostUsers: selectedCohostUsers.length,
+        textContacts: selectedTextContacts.length,
+        totalInvitations: selectedGuestUsers.length + selectedGuestContacts.length + selectedGuestPhoneContacts.length + selectedCohostUsers.length + selectedTextContacts.length
+      });
+
       await submitEvent({
         currentUserId,
         userData,
@@ -356,8 +518,8 @@ export default function CreateEventScreen({ navigation, route }) {
         isEditing: false,
         eventId: null,
         onSuccess: handleSuccess,
-        selectedTextContacts, // Pass selected text contacts for SMS invites
-        vibeAlert, // Pass vibeAlert to the hook
+        selectedInvitations, // Pass all invitation selections
+        vibeAlert,
       });
     } catch (error) {
       if (error.message !== 'User cancelled creation') {
@@ -373,8 +535,12 @@ export default function CreateEventScreen({ navigation, route }) {
     validateForm,
     validateDateTime,
     handleSuccess,
-    selectedTextContacts, // Include in dependencies
-    vibeAlert, // Include vibeAlert in dependencies
+    selectedGuestUsers,
+    selectedGuestContacts,
+    selectedGuestPhoneContacts,
+    selectedCohostUsers,
+    selectedTextContacts,
+    vibeAlert,
   ]);
 
   return (
@@ -411,8 +577,13 @@ export default function CreateEventScreen({ navigation, route }) {
         PickerRow={PickerRow}
         DateTimePickerModals={DateTimePickerModals}
         dateTimeValues={dateTimeValues}
-        // Text invite tracking
+        // Invitation tracking
         onSelectedTextContactsChange={handleSelectedTextContactsChange}
+        onGuestInvitationChange={handleGuestInvitationChange}
+        onCohostInvitationChange={handleCohostInvitationChange}
+        // Current invitation counts for UI display
+        selectedGuestCount={selectedGuestUsers.length + selectedGuestContacts.length + selectedGuestPhoneContacts.length}
+        selectedCohostCount={selectedCohostUsers.length + selectedCohostContacts.length}
       />
       
       {/* Template Selection Modal */}

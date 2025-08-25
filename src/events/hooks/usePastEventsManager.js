@@ -76,7 +76,6 @@ export const usePastEventsManager = (currentUserId, applyTemplate, replaceFormDa
           hasFee: templateFormData.hasFee || false,
           entryFee: templateFormData.entryFee || '',
           isPrivate: templateFormData.isPrivate || false,
-          additionalHosts: templateFormData.additionalHosts || [],
           showHostContact:
             templateFormData.showHostContact !== undefined
               ? templateFormData.showHostContact

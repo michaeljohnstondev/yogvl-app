@@ -14,10 +14,10 @@ const DEFAULT_FORM_DATA = {
   hasFee: false,
   entryFee: '',
   isPrivate: false,
-  additionalHosts: [],
   showHostContact: false,
   hasRsvpDeadline: false,
   trackAttendance: false,
+  attendanceType: 'casual', // 'strict' | 'casual' | 'open'
   notificationSettings: {
     enabled: true,
     reminderTiming: '1hour',
@@ -247,26 +247,7 @@ const useEventFormState = (initialData = {}, options = {}) => {
     updateField('trackAttendance', !formData.trackAttendance);
   }, [formData.trackAttendance, updateField]);
 
-  const addHost = useCallback(
-    (hostId) => {
-      const currentHosts = formData.additionalHosts || [];
-      if (!currentHosts.includes(hostId)) {
-        updateField('additionalHosts', [...currentHosts, hostId]);
-      }
-    },
-    [formData.additionalHosts, updateField]
-  );
-
-  const removeHost = useCallback(
-    (hostId) => {
-      const currentHosts = formData.additionalHosts || [];
-      updateField(
-        'additionalHosts',
-        currentHosts.filter((id) => id !== hostId)
-      );
-    },
-    [formData.additionalHosts, updateField]
-  );
+  // Legacy host management functions removed - now handled via invitation system
 
   const appendToDetails = useCallback(
     (text) => {
@@ -317,8 +298,6 @@ const useEventFormState = (initialData = {}, options = {}) => {
     toggleHostContact,
     toggleRsvpDeadline,
     toggleAttendanceTracking,
-    addHost,
-    removeHost,
     appendToDetails,
     updateInputHeight,
   };

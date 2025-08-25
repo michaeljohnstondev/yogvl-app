@@ -590,20 +590,7 @@ export default StyleSheet.create({
     borderTopColor: theme.colors.vibeBlue,
   },
   inviteButton: {
-    backgroundColor: theme.colors.vibeBlue,
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    shadowColor: theme.colors.vibeBlue,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  inviteButtonText: {
-    color: theme.colors.white,
-    fontSize: 18,
-    fontWeight: 'bold',
-    fontFamily: theme.fonts.main,
+    // VibeButton handles its own styling, just override margins if needed
+    marginVertical: 0,
   },
 });

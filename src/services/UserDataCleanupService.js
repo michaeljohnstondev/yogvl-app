@@ -51,7 +51,7 @@ export class UserDataCleanupService {
    * @returns {boolean} Whether user has completed contact info
    */
   static hasRequiredContactInfo(userData) {
-    const contactInfo = userData?.userdata?.contactinfo || {};
+    const contactInfo = userData?.userdata?.contactInfo || {};
     return !!(
       contactInfo.firstName && 
       contactInfo.lastName && 

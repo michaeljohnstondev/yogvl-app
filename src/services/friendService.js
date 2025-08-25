@@ -12,13 +12,16 @@ import {
   getDocs,
   Timestamp,
   writeBatch,
+  arrayRemove,
 } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 import { 
   notifyFriendRequest, 
   notifyFriendAccepted,
   notifyCohostInvitation,
-  notifyCohostAccepted 
+  notifyCohostAccepted,
+  notifyGuestInvitation,
+  notifyGuestAccepted 
 } from './notifications';
 
 /**
@@ -39,9 +42,9 @@ export const sendFriendRequest = async (senderId, recipientId, senderData) => {
     }
 
     const recipientData = recipientDoc.data();
-    const firstName = senderData?.userdata?.contactinfo?.firstName || '';
-    const lastName = senderData?.userdata?.contactinfo?.lastName || '';
-    const senderName = `${firstName} ${lastName}`.trim() || senderData?.userdata?.displayName || 'Someone';
+    const firstName = senderData?.userdata?.contactInfo?.firstName || '';
+    const lastName = senderData?.userdata?.contactInfo?.lastName || '';
+    const senderName = `${firstName} ${lastName}`.trim() || senderData?.userdata?.contactInfo?.displayName || 'Someone';
 
     // Create friend request document
     const requestId = `${senderId}_${recipientId}_${Date.now()}`;
@@ -54,10 +57,10 @@ export const sendFriendRequest = async (senderId, recipientId, senderData) => {
       status: 'pending',
       createdAt: Timestamp.now(),
       senderData: {
-        firstName: senderData?.userdata?.contactinfo?.firstName || 'Unknown',
-        displayName: senderData?.userdata?.displayName || 
-          `${senderData?.userdata?.contactinfo?.firstName || ''} ${senderData?.userdata?.contactinfo?.lastName || ''}`.trim() || 'Unknown',
-        email: senderData?.userdata?.contactinfo?.email || null,
+        firstName: senderData?.userdata?.contactInfo?.firstName || 'Unknown',
+        displayName: senderData?.userdata?.contactInfo?.displayName || 
+          `${senderData?.userdata?.contactInfo?.firstName || ''} ${senderData?.userdata?.contactInfo?.lastName || ''}`.trim() || 'Unknown',
+        email: senderData?.userdata?.contactInfo?.email || null,
       }
     };
 
@@ -107,7 +110,7 @@ export const acceptFriendRequest = async (requestId, recipientId, senderId) => {
 
     const recipientData = recipientDoc.data();
     const senderData = senderDoc.data();
-    const accepterName = recipientData?.userdata?.firstName || recipientData?.userdata?.displayName || 'Someone';
+    const accepterName = recipientData?.userdata?.firstName || recipientData?.userdata?.contactInfo?.displayName || 'Someone';
 
     // Update friend request status
     batch.update(requestRef, {
@@ -124,7 +127,7 @@ export const acceptFriendRequest = async (requestId, recipientId, senderId) => {
       friendSince: Timestamp.now(),
       userData: {
         firstName: senderData?.userdata?.firstName,
-        displayName: senderData?.userdata?.displayName,
+        displayName: senderData?.userdata?.contactInfo?.displayName,
         email: senderData?.email,
       }
     });
@@ -134,7 +137,7 @@ export const acceptFriendRequest = async (requestId, recipientId, senderId) => {
       friendSince: Timestamp.now(),
       userData: {
         firstName: recipientData?.userdata?.firstName,
-        displayName: recipientData?.userdata?.displayName,
+        displayName: recipientData?.userdata?.contactInfo?.displayName,
         email: recipientData?.email,
       }
     });
@@ -219,7 +222,7 @@ export const getFriendRequestStatus = async (userId1, userId2) => {
 /**
  * Send cohost invitation
  */
-export const sendCohostInvitation = async (inviterId, recipientId, eventId, inviterData, eventData) => {
+export const sendCohostInvitation = async (inviterId, recipientId, eventId, inviterData, eventData, studioId = null) => {
   try {
     // Check if invitation already exists
     const existingInvitation = await getCohostInvitationStatus(recipientId, eventId);
@@ -233,7 +236,7 @@ export const sendCohostInvitation = async (inviterId, recipientId, eventId, invi
       throw new Error('Recipient user not found');
     }
 
-    const inviterName = inviterData?.userdata?.contactinfo?.firstName || inviterData?.userdata?.displayName || 'Someone';
+    const inviterName = inviterData?.userdata?.contactInfo?.firstName || inviterData?.userdata?.contactInfo?.displayName || 'Someone';
     const eventTitle = eventData?.title || 'Untitled Event';
 
     // Create cohost invitation document
@@ -245,18 +248,19 @@ export const sendCohostInvitation = async (inviterId, recipientId, eventId, invi
       inviterId,
       recipientId,
       eventId,
+      studioId: studioId || null,
       status: 'pending',
       createdAt: Timestamp.now(),
       inviterData: {
-        firstName: inviterData?.userdata?.contactinfo?.firstName || 'Unknown',
-        displayName: inviterData?.userdata?.displayName || 
-          `${inviterData?.userdata?.contactinfo?.firstName || ''} ${inviterData?.userdata?.contactinfo?.lastName || ''}`.trim() || 'Unknown',
-        email: inviterData?.userdata?.contactinfo?.email || null,
+        firstName: inviterData?.userdata?.contactInfo?.firstName || 'Unknown',
+        displayName: inviterData?.userdata?.contactInfo?.displayName || 
+          `${inviterData?.userdata?.contactInfo?.firstName || ''} ${inviterData?.userdata?.contactInfo?.lastName || ''}`.trim() || 'Unknown',
+        email: inviterData?.userdata?.contactInfo?.email || null,
       },
       eventData: {
-        title: eventData?.title,
-        date: eventData?.date,
-        location: eventData?.location,
+        title: eventData?.title || null,
+        date: eventData?.date || null,
+        location: eventData?.location || null,
       }
     };
 
@@ -269,6 +273,7 @@ export const sendCohostInvitation = async (inviterId, recipientId, eventId, invi
       inviterName,
       eventId,
       eventTitle,
+      invitationId,
     });
 
     return { success: true, invitationId };
@@ -283,6 +288,7 @@ export const sendCohostInvitation = async (inviterId, recipientId, eventId, invi
  */
 export const acceptCohostInvitation = async (invitationId, recipientId, eventId) => {
   try {
+    console.log('[acceptCohostInvitation] Starting with:', { invitationId, recipientId, eventId });
     const batch = writeBatch(db);
 
     // Get invitation
@@ -298,10 +304,16 @@ export const acceptCohostInvitation = async (invitationId, recipientId, eventId)
       throw new Error('Cohost invitation is no longer pending');
     }
 
+    // Get studioId from invitation
+    const studioId = invitationData.studioId;
+    if (!studioId) {
+      throw new Error('Studio information missing from invitation');
+    }
+
     // Get user data for notifications
     const recipientDoc = await getDoc(doc(db, 'users', recipientId));
     const inviterDoc = await getDoc(doc(db, 'users', invitationData.inviterId));
-    const eventDoc = await getDoc(doc(db, 'events', eventId));
+    const eventDoc = await getDoc(doc(db, 'studios', studioId, 'events', eventId));
     
     if (!recipientDoc.exists() || !inviterDoc.exists() || !eventDoc.exists()) {
       throw new Error('Required data not found');
@@ -309,8 +321,20 @@ export const acceptCohostInvitation = async (invitationId, recipientId, eventId)
 
     const recipientData = recipientDoc.data();
     const eventData = eventDoc.data();
-    const accepterName = recipientData?.userdata?.firstName || recipientData?.userdata?.displayName || 'Someone';
+    
+    console.log('[acceptCohostInvitation] Recipient data structure:', JSON.stringify(recipientData, null, 2));
+    
+    // Extract user's full name (prioritize displayName which is set in ContactInfoScreen)
+    const displayName = recipientData?.userdata?.contactInfo?.displayName || '';
+    const firstName = recipientData?.userdata?.contactInfo?.firstName || '';
+    const lastName = recipientData?.userdata?.contactInfo?.lastName || '';
+    
+    const accepterName = displayName || 
+                        (firstName && lastName ? `${firstName} ${lastName}` : firstName) || 
+                        'Someone';
     const eventTitle = eventData?.title || 'Untitled Event';
+    
+    console.log('[acceptCohostInvitation] Extracted accepter name:', accepterName);
 
     // Update invitation status
     batch.update(invitationRef, {
@@ -319,9 +343,26 @@ export const acceptCohostInvitation = async (invitationId, recipientId, eventId)
     });
 
     // Add user as cohost to event
-    const eventRef = doc(db, 'events', eventId);
+    const eventRef = doc(db, 'studios', studioId, 'events', eventId);
+    
+    // Ensure cohosts and subscribers are always arrays
+    const existingCohosts = Array.isArray(eventData.cohosts) ? eventData.cohosts : [];
+    const existingSubscribers = Array.isArray(eventData.subscribers) ? eventData.subscribers : [];
+    
+    // Check if user is already a cohost
+    if (existingCohosts.includes(recipientId)) {
+      throw new Error('User is already a co-host for this event');
+    }
+    
+    // Add to both cohosts and subscribers arrays (cohosts are also attendees)
+    const updatedSubscribers = existingSubscribers.includes(recipientId) 
+      ? existingSubscribers 
+      : [...existingSubscribers, recipientId];
+    
     batch.update(eventRef, {
-      cohosts: [...(eventData.cohosts || []), recipientId],
+      cohosts: [...existingCohosts, recipientId],
+      subscribers: updatedSubscribers,
+      subscriberCount: updatedSubscribers.length,
     });
 
     await batch.commit();
@@ -330,9 +371,9 @@ export const acceptCohostInvitation = async (invitationId, recipientId, eventId)
     await notifyCohostAccepted({
       inviterId: invitationData.inviterId,
       accepterId: recipientId,
-      accepterName,
+      accepterName: accepterName || 'Someone',
       eventId,
-      eventTitle,
+      eventTitle: eventTitle || 'Unknown Event',
     });
 
     return { success: true };
@@ -362,9 +403,108 @@ export const declineCohostInvitation = async (invitationId, recipientId) => {
 };
 
 /**
+ * Leave cohost role (for accepted cohosts who want to step down)
+ */
+export const leaveCohostRole = async (userId, eventId, studioId) => {
+  try {
+    const batch = writeBatch(db);
+    
+    // Remove user from event cohosts array and subscribers array
+    const eventRef = doc(db, 'studios', studioId, 'events', eventId);
+    batch.update(eventRef, {
+      cohosts: arrayRemove(userId),
+      subscribers: arrayRemove(userId),
+      subscriberCount: increment(-1),
+    });
+    
+    // Update invitation status to 'left' for audit trail
+    const invitationsQuery = query(
+      collection(db, 'users', userId, 'cohostInvitations'),
+      where('eventId', '==', eventId),
+      where('status', '==', 'accepted')
+    );
+    const invitationsSnap = await getDocs(invitationsQuery);
+    
+    if (!invitationsSnap.empty) {
+      const invitationDoc = invitationsSnap.docs[0];
+      batch.update(invitationDoc.ref, {
+        status: 'left',
+        leftAt: Timestamp.now()
+      });
+    }
+    
+    await batch.commit();
+    
+    console.log(`[leaveCohostRole] User ${userId} left cohost role for event ${eventId}`);
+    return { success: true };
+    
+  } catch (error) {
+    console.error('Error leaving cohost role:', error);
+    throw error;
+  }
+};
+
+/**
+ * Remove cohost from event (for event creators to remove cohosts)
+ */
+export const removeCohostFromEvent = async (eventCreatorId, cohostUserId, eventId, studioId) => {
+  try {
+    // Verify the person removing is the event creator
+    const eventRef = doc(db, 'studios', studioId, 'events', eventId);
+    const eventSnap = await getDoc(eventRef);
+    
+    if (!eventSnap.exists()) {
+      throw new Error('Event not found');
+    }
+    
+    const eventData = eventSnap.data();
+    if (eventData.createdBy !== eventCreatorId) {
+      throw new Error('Only event creator can remove cohosts');
+    }
+    
+    if (!eventData.cohosts?.includes(cohostUserId)) {
+      throw new Error('User is not a cohost of this event');
+    }
+    
+    const batch = writeBatch(db);
+    
+    // Remove user from event cohosts array
+    batch.update(eventRef, {
+      cohosts: arrayRemove(cohostUserId)
+    });
+    
+    // Update invitation status to 'removed' for audit trail
+    const invitationsQuery = query(
+      collection(db, 'users', cohostUserId, 'cohostInvitations'),
+      where('eventId', '==', eventId),
+      where('status', '==', 'accepted')
+    );
+    const invitationsSnap = await getDocs(invitationsQuery);
+    
+    if (!invitationsSnap.empty) {
+      const invitationDoc = invitationsSnap.docs[0];
+      batch.update(invitationDoc.ref, {
+        status: 'removed',
+        removedAt: Timestamp.now(),
+        removedBy: eventCreatorId
+      });
+    }
+    
+    await batch.commit();
+    
+    console.log(`[removeCohostFromEvent] Creator ${eventCreatorId} removed cohost ${cohostUserId} from event ${eventId}`);
+    return { success: true };
+    
+  } catch (error) {
+    console.error('Error removing cohost from event:', error);
+    throw error;
+  }
+};
+
+/**
  * Send guest invitation
  */
-export const sendGuestInvitation = async (inviterId, recipientId, eventId, inviterData, eventData) => {
+export const sendGuestInvitation = async (inviterId, recipientId, eventId, inviterData, eventData, source = 'unknown') => {
   try {
     // Check if invitation already exists
     const existingInvitation = await getGuestInvitationStatus(recipientId, eventId);
@@ -378,7 +518,7 @@ export const sendGuestInvitation = async (inviterId, recipientId, eventId, invit
       throw new Error('Recipient user not found');
     }
 
-    const inviterName = inviterData?.userdata?.contactinfo?.firstName || inviterData?.userdata?.displayName || 'Someone';
+    const inviterName = inviterData?.userdata?.contactInfo?.firstName || inviterData?.userdata?.contactInfo?.displayName || 'Someone';
     const eventTitle = eventData?.title || 'Untitled Event';
 
     // Create guest invitation document
@@ -393,15 +533,15 @@ export const sendGuestInvitation = async (inviterId, recipientId, eventId, invit
       status: 'pending',
       createdAt: Timestamp.now(),
       inviterData: {
-        firstName: inviterData?.userdata?.contactinfo?.firstName || 'Unknown',
-        displayName: inviterData?.userdata?.displayName || 
-          `${inviterData?.userdata?.contactinfo?.firstName || ''} ${inviterData?.userdata?.contactinfo?.lastName || ''}`.trim() || 'Unknown',
-        email: inviterData?.userdata?.contactinfo?.email || null,
+        firstName: inviterData?.userdata?.contactInfo?.firstName || 'Unknown',
+        displayName: inviterData?.userdata?.contactInfo?.displayName || 
+          `${inviterData?.userdata?.contactInfo?.firstName || ''} ${inviterData?.userdata?.contactInfo?.lastName || ''}`.trim() || 'Unknown',
+        email: inviterData?.userdata?.contactInfo?.email || null,
       },
       eventData: {
-        title: eventData?.title,
-        date: eventData?.date,
-        location: eventData?.location,
+        title: eventData?.title || null,
+        date: eventData?.date || null,
+        location: eventData?.location || null,
       }
     };
 
@@ -415,6 +555,7 @@ export const sendGuestInvitation = async (inviterId, recipientId, eventId, invit
       eventId,
       eventTitle,
       invitationId,
+      source,
     });
 
     return { success: true, invitationId };
@@ -453,7 +594,7 @@ export const acceptGuestInvitation = async (invitationId, recipientId, eventId) 
     }
 
     const recipientData = recipientDoc.data();
-    const accepterName = recipientData?.userdata?.contactinfo?.firstName || recipientData?.userdata?.displayName || 'Someone';
+    const accepterName = recipientData?.userdata?.contactInfo?.firstName || recipientData?.userdata?.contactInfo?.displayName || 'Someone';
 
     // Update invitation status
     batch.update(invitationRef, {

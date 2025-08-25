@@ -82,8 +82,19 @@ export default function CreateEventForm({
   DateTimePickerModals,
   dateTimeValues,
 
-  // Text invite tracking
+  // Invitation tracking
   onSelectedTextContactsChange,
+  onGuestInvitationChange,
+  onCohostInvitationChange,
+  // Current invitation counts for UI display
+  selectedGuestCount,
+  selectedCohostCount,
+
+  // Edit mode
+  isEditMode = false,
+  // Current attendees/cohosts (for edit mode display)
+  currentAttendees = [],
+  currentCohosts = [],
 }) {
   const navigation = useNavigation();
   const scrollViewRef = useRef(null);
@@ -197,6 +208,15 @@ export default function CreateEventForm({
         const allTextContacts = [...filteredGuestContacts, ...filteredGuestPhoneContacts];
         handleTextContactsChange(allTextContacts);
 
+        // Call the guest invitation change callback
+        if (onGuestInvitationChange) {
+          onGuestInvitationChange({
+            users: filteredGuestUsers,
+            contacts: filteredGuestContacts,
+            phoneContacts: filteredGuestPhoneContacts,
+          });
+        }
+
         // Check if we should reopen the guest list modal
         if (options.reopenGuestList) {
           setShouldReopenGuestList(true);
@@ -243,6 +263,23 @@ export default function CreateEventForm({
         // Update text contacts for guest list display (removing hosts from text contacts)
         const allTextContacts = [...filteredGuestContacts, ...filteredGuestPhoneContacts];
         handleTextContactsChange(allTextContacts);
+
+        // Call the co-host invitation change callback
+        if (onCohostInvitationChange) {
+          onCohostInvitationChange({
+            users: users,
+            contacts: contacts,
+          });
+        }
+
+        // Update guest invitation callback as well (since guest lists were filtered)
+        if (onGuestInvitationChange) {
+          onGuestInvitationChange({
+            users: filteredGuestUsers,
+            contacts: filteredGuestContacts,
+            phoneContacts: filteredGuestPhoneContacts,
+          });
+        }
 
         // Check if we should reopen the guest list modal
         if (options.reopenGuestList) {
@@ -646,7 +683,7 @@ export default function CreateEventForm({
         >
           {/* Header */}
           <View style={styles.headerContainer}>
-            <Text style={styles.title}>Create Event</Text>
+            <Text style={styles.title}>{isEditMode ? 'Edit Event' : 'Create Event'}</Text>
             <Pressable
               style={styles.useTemplateButton}
               onPress={onShowTemplateModal}
@@ -713,6 +750,10 @@ export default function CreateEventForm({
               handleInputFocus={handleInputFocus}
               userData={userData}
               selectedTextContacts={selectedTextContacts}
+              selectedGuestCount={selectedGuestCount}
+              selectedCohostCount={selectedCohostCount}
+              currentAttendees={currentAttendees}
+              currentCohosts={currentCohosts}
               openGuestInvitations={openGuestInvitations}
               openHostInvitations={openHostInvitations}
               guestListTriggerRef={guestListTriggerRef}
@@ -774,7 +815,11 @@ export default function CreateEventForm({
 
           {/* Create Button */}
           <VibeButton
-            label={isCreating ? 'CREATING...' : 'CREATE EVENT'}
+            label={
+              isCreating 
+                ? (isEditMode ? 'UPDATING...' : 'CREATING...') 
+                : (isEditMode ? 'UPDATE EVENT' : 'CREATE EVENT')
+            }
             onPress={onCreate}
             style={[styles.createButton, isCreating && styles.disabledButton]}
             disabled={isCreating}

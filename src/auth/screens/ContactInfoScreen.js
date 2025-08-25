@@ -14,6 +14,7 @@ import { useVibeAlert } from '../../components/ui/VibeAlertContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
+import { getDefaultUserSettings, getDefaultUserMetrics } from '../../services/defaultUserSettings';
 import theme from '../../theme/themes';
 
 export default function ContactInfoScreen({ navigation }) {
@@ -39,7 +40,7 @@ export default function ContactInfoScreen({ navigation }) {
         const snap = await getDoc(docRef);
         if (snap.exists()) {
           const data = snap.data();
-          const contactInfo = data.userdata?.contactinfo || {};
+          const contactInfo = data.userdata?.contactInfo || {};
           setFirstName(contactInfo.firstName || '');
           setLastName(contactInfo.lastName || '');
           setPhoneNumber(contactInfo.phoneNumber || '');
@@ -83,32 +84,29 @@ export default function ContactInfoScreen({ navigation }) {
 
     setSaving(true);
     try {
+      // Get existing user data to preserve any settings that might already exist
+      const docRef = doc(db, 'users', user.uid);
+      const snap = await getDoc(docRef);
+      const existingData = snap.exists() ? snap.data() : {};
+      
       // Save contact info to user profile in userdata structure
       await setDoc(
         doc(db, 'users', user.uid),
         {
           userdata: {
-            contactinfo: {
+            contactInfo: {
               firstName: firstName.trim(),
               lastName: lastName.trim(),
               phoneNumber: phoneNumber.trim(),
               email: user.email,
+              displayName: `${firstName.trim()} ${lastName.trim()}`,
             },
             metadata: {
-              createdAt: new Date(),
+              createdAt: existingData?.userdata?.metadata?.createdAt || new Date(),
+              updatedAt: new Date(),
             },
-            metrics: {
-              events: {
-                created: 0,
-                joined: 0,
-                attended: 0,
-                noShows: 0,
-                subscribedEvents: [],
-                attendedEvents: [],
-                noShowEvents: [],
-                lastActivity: new Date(),
-              }
-            }
+            settings: existingData?.userdata?.settings || getDefaultUserSettings(),
+            metrics: existingData?.userdata?.metrics || getDefaultUserMetrics(),
           },
           uid: user.uid,
         },

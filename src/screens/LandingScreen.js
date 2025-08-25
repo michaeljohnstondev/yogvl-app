@@ -8,6 +8,7 @@ import { useVibeAlert } from '../components/ui/VibeAlertContext';
 import { login, signup } from '../auth/services/FirebaseAuthService';
 import { db } from '../auth/services/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { getDefaultUserSettings, getDefaultUserMetrics } from '../services/defaultUserSettings';
 import theme from '../theme/themes';
 export default function LandingScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -41,7 +42,7 @@ export default function LandingScreen() {
       const userDoc = await getDoc(userDocRef);
       
       const userData = userDoc.exists() ? userDoc.data() : null;
-      const contactInfo = userData?.userdata?.contactinfo || {};
+      const contactInfo = userData?.userdata?.contactInfo || {};
       const hasContactInfo = !!(contactInfo.firstName && contactInfo.lastName && contactInfo.email);
 
       if (hasContactInfo) {
@@ -79,12 +80,14 @@ export default function LandingScreen() {
         doc(db, 'users', user.uid),
         {
           userdata: {
-            contactinfo: {
+            contactInfo: {
               email: user.email,
             },
             metadata: {
               createdAt: new Date(),
-            }
+            },
+            settings: getDefaultUserSettings(),
+            metrics: getDefaultUserMetrics(),
           },
           uid: user.uid,
         },

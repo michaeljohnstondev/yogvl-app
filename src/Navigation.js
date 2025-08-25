@@ -14,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import app from './auth/services/firebase';
 import { UserDataCleanupService } from './services/UserDataCleanupService';
 import { AuthProvider } from './auth/AuthContext';
+import { RealtimeNotificationsProvider } from './contexts/RealtimeNotificationsContext';
 import { useEventEndNotifications } from './hooks/useEventEndNotifications';
 import fcmService from './services/fcmService';
 import LandingScreen from './screens/LandingScreen';
@@ -34,8 +35,10 @@ import NotificationSettingsScreen from './screens/NotificationSettingsScreen';
 import UserProfileScreen from './screens/UserProfileScreen';
 import InterestsScreen from './screens/InterestsScreen';
 import AdminScreen from './screens/AdminScreen';
-//import EditEventScreen from './events/screens/EditEventScreen/EditEventScreen';
-import VibeScreen from './components/ui/VibeScreen';
+import EditEventScreen from './events/screens/EditEventScreen';
+import HostProfileScreen from './screens/HostProfileScreen';
+import HostEventWrapUpScreen from './screens/HostEventWrapUpScreen';
+import GuestEventWrapUpScreen from './screens/GuestEventWrapUpScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -159,7 +162,7 @@ export default function Navigation() {
 
   return (
     <AuthProvider user={user} userData={userData}>
-      <VibeScreen>
+      <RealtimeNotificationsProvider>
         <NavigationContainer ref={navigationRef}>
         {!user ? (
           <Stack.Navigator
@@ -235,7 +238,7 @@ export default function Navigation() {
             />
             <Stack.Screen
               name="EditEvent"
-              component={CreateEventScreen}
+              component={EditEventScreen}
             />
             <Stack.Screen
               name="InviteGuests"
@@ -285,10 +288,22 @@ export default function Navigation() {
               name="Admin"
               component={AdminScreen}
             />
+            <Stack.Screen
+              name="HostProfile"
+              component={HostProfileScreen}
+            />
+            <Stack.Screen
+              name="HostEventWrapUp"
+              component={HostEventWrapUpScreen}
+            />
+            <Stack.Screen
+              name="GuestEventWrapUp"
+              component={GuestEventWrapUpScreen}
+            />
           </Stack.Navigator>
         )}
         </NavigationContainer>
-      </VibeScreen>
+      </RealtimeNotificationsProvider>
     </AuthProvider>
   );
 }

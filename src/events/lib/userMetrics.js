@@ -12,8 +12,11 @@ import { db } from '../../auth/services/firebase';
 /**
  * Updates user metrics when they attend an event
  * Call this when an event is marked as completed and user was present
+ * @param {string} userId - User ID
+ * @param {string} eventId - Event ID  
+ * @param {string} attendanceType - Event attendance type ('strict', 'casual', 'open')
  */
-export const updateEventAttendance = async (userId, eventId) => {
+export const updateEventAttendance = async (userId, eventId, attendanceType = 'casual') => {
   try {
     console.log(`[updateEventAttendance] Updating metrics for user ${userId}, event ${eventId}`);
     const userRef = doc(db, 'users', userId);
@@ -156,6 +159,8 @@ export const updateEventCreationMetrics = async (userId, eventId) => {
  */
 export const getUserEventStats = (userData) => {
   const eventMetrics = userData?.userdata?.metrics?.events || {};
+  const socialMetrics = userData?.userdata?.metrics?.social || {};
+  const engagementMetrics = userData?.userdata?.metrics?.engagement || {};
   
   // Use attendedEvents array length as primary source of truth, fallback to counter
   const attendedEventsArray = eventMetrics?.attendedEvents || [];
@@ -165,26 +170,62 @@ export const getUserEventStats = (userData) => {
   const noShows = eventMetrics?.noShows || 0;
   const reliabilityScore = getUserReliabilityScore(userData);
   const reliabilityStatus = getUserReliabilityStatus(userData);
-
+  
+  // Calculate additional stats for highlights
+  const eventsCreated = eventMetrics?.created || 0;
+  const eventsJoined = eventMetrics?.joined || 0;
+  const totalEvents = eventsCreated + eventsJoined;
+  
+  // Calculate months since account creation (default to current date if not available)
+  const accountCreated = userData?.userdata?.createdAt || new Date();
+  const monthsSinceCreation = Math.max(1, Math.round((new Date() - new Date(accountCreated)) / (1000 * 60 * 60 * 24 * 30)));
+  
+  // Calculate average events per month
+  const averageEventsPerMonth = totalEvents / monthsSinceCreation;
+  
   return {
-    eventsCreated: eventMetrics?.created || 0,
+    eventsCreated,
     eventsAttended: attended,
-    eventsJoined: eventMetrics?.joined || 0,
-    noShows: noShows,
+    eventsJoined,
+    noShows,
     totalSubscribed: eventMetrics?.subscribedEvents?.length || 0,
     totalAttended: attendedEventsArray.length,
     reliabilityScore,
     reliabilityStatus,
     showWarning: noShows >= 2, // Show warning after 2 no-shows
     isRestricted: noShows >= 5, // Potentially restrict after 5 no-shows
+    
+    // Additional stats for highlights
+    totalEvents,
+    followersCount: socialMetrics?.followersCount || 0,
+    commentsPosted: engagementMetrics?.commentsPosted || 0,
+    averageEventRating: engagementMetrics?.averageEventRating || 0,
+    totalRatings: engagementMetrics?.totalRatings || 0,
+    monthsSinceCreation,
+    averageEventsPerMonth,
+    profileViews: socialMetrics?.profileViews || 0,
+    
+    // Calculated highlight-specific stats
+    averageCommentsPerEvent: totalEvents > 0 ? (engagementMetrics?.commentsPosted || 0) / totalEvents : 0,
+    eventCompletionRate: eventsJoined > 0 ? ((attended / eventsJoined) * 100) : 100,
   };
 };
 
 /**
  * Updates user metrics when they don't show up to an event
+ * Only applies to strict events - casual/open events don't penalize no-shows
+ * @param {string} userId - User ID
+ * @param {string} eventId - Event ID
+ * @param {string} attendanceType - Event attendance type ('strict', 'casual', 'open')
  */
-export const updateNoShow = async (userId, eventId) => {
+export const updateNoShow = async (userId, eventId, attendanceType = 'strict') => {
   try {
+    // Only update no-show metrics for strict events
+    if (attendanceType !== 'strict') {
+      console.log(`[updateNoShow] Skipping no-show update for ${attendanceType} event ${eventId}`);
+      return { success: true, message: 'No penalties for non-strict events' };
+    }
+
     const userRef = doc(db, 'users', userId);
 
     await updateDoc(userRef, {
@@ -194,7 +235,7 @@ export const updateNoShow = async (userId, eventId) => {
       'userdata.metrics.events.lastActivity': Timestamp.now(),
     });
 
-    console.log(`Updated no-show metrics for user ${userId}`);
+    console.log(`Updated no-show metrics for user ${userId} (strict event)`);
     return { success: true };
   } catch (error) {
     console.error('Error updating no-show metrics:', error);
@@ -278,11 +319,16 @@ export const getUserReliabilityStatus = (userData) => {
 /**
  * Mark an event as completed and update attendance for all subscribers
  * Call this when an event finishes
+ * @param {string} eventId - Event ID
+ * @param {Array} attendeeUserIds - Array of user IDs who attended
+ * @param {Array} noShowUserIds - Array of user IDs who didn't show
+ * @param {string} attendanceType - Event attendance type ('strict', 'casual', 'open')
  */
 export const completeEvent = async (
   eventId,
   attendeeUserIds = [],
-  noShowUserIds = []
+  noShowUserIds = [],
+  attendanceType = 'casual'
 ) => {
   try {
     console.log(`[completeEvent] Starting completion for event ${eventId}`);
@@ -307,16 +353,16 @@ export const completeEvent = async (
     console.log(`[completeEvent] Updating attendance metrics for ${attendeeUserIds.length} attendees`);
     const attendanceUpdates = attendeeUserIds.map(async (userId) => {
       console.log(`[completeEvent] Updating attendance for user ${userId}`);
-      const result = await updateEventAttendance(userId, eventId);
+      const result = await updateEventAttendance(userId, eventId, attendanceType);
       console.log(`[completeEvent] Attendance update result for ${userId}:`, result);
       return result;
     });
 
-    // Update metrics for no-shows
+    // Update metrics for no-shows (only for strict events)
     console.log(`[completeEvent] Updating no-show metrics for ${noShowUserIds.length} no-shows`);
     const noShowUpdates = noShowUserIds.map(async (userId) => {
       console.log(`[completeEvent] Updating no-show for user ${userId}`);
-      const result = await updateNoShow(userId, eventId);
+      const result = await updateNoShow(userId, eventId, attendanceType);
       console.log(`[completeEvent] No-show update result for ${userId}:`, result);
       return result;
     });
