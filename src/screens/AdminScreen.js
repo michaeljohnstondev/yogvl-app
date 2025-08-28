@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,340 +6,364 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  TextInput,
-  Switch,
+  ActivityIndicator,
+  FlatList,
 } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
 import theme from '../theme/themes';
 import VibeButton from '../components/ui/VibeButton';
 import CloseButton from '../components/ui/CloseButton';
+import { 
+  isGlobalAdmin, 
+  getAllReportsForGlobalAdmin, 
+  getReportStatsByStudio,
+  updateReport,
+  getStudioOptions 
+} from '../services/adminService';
+import { moderationService } from '../services/moderationService';
+import ModerationActionModal from '../components/ui/ModerationActionModal';
+import AdminNotificationTool from '../components/ui/AdminNotificationTool';
 
 export default function AdminScreen({ navigation }) {
-  const { currentUserId, userData } = useAuth();
-  const [debugMode, setDebugMode] = useState(false);
-  const [targetUserId, setTargetUserId] = useState('0O6cWgFu26XvH0gOJXyRKD39l3v1');
-  const [customMessage, setCustomMessage] = useState('');
-  const [searchName, setSearchName] = useState('');
+  const { userData, currentUserId } = useAuth();
+  
+  // Reports management state
+  const [reports, setReports] = useState([]);
+  const [loadingReports, setLoadingReports] = useState(false);
+  const [selectedStudioFilter, setSelectedStudioFilter] = useState('all');
+  const [reportStats, setReportStats] = useState({});
+  const [showReportsSection, setShowReportsSection] = useState(false);
+  
+  // Moderation modal state
+  const [showModerationModal, setShowModerationModal] = useState(false);
+  const [selectedReport, setSelectedReport] = useState(null);
+  const [selectedAction, setSelectedAction] = useState(null);
+  
+  // Tab state
+  const [activeTab, setActiveTab] = useState('messages');
 
   const handleGoBack = () => {
     navigation.goBack();
   };
 
-  // Friend Management Functions
-  const clearSpecificFriendData = async () => {
-    if (!targetUserId.trim()) {
-      Alert.alert('Error', 'Please enter a User ID');
+  // Reports Management Functions
+  const loadReports = async () => {
+    if (!isGlobalAdmin(userData)) {
+      console.log('User is not a global admin, skipping reports load');
       return;
     }
-    
+
+    setLoadingReports(true);
     try {
-      const { clearFriendshipData } = await import('../services/friendService');
-      await clearFriendshipData(currentUserId, targetUserId.trim());
-      Alert.alert('Success', 'Friendship data cleared successfully!');
-      setTargetUserId('');
+      const allReports = await getAllReportsForGlobalAdmin(100);
+      setReports(allReports);
+      setReportStats(getReportStatsByStudio(allReports));
+      console.log(`[AdminScreen] Loaded ${allReports.length} reports across all studios`);
     } catch (error) {
-      console.error('Error clearing friendship data:', error);
-      Alert.alert('Error', 'Failed to clear friendship data: ' + error.message);
+      console.error('[AdminScreen] Error loading reports:', error);
+      Alert.alert('Error', 'Failed to load reports: ' + error.message);
+    } finally {
+      setLoadingReports(false);
     }
   };
 
-  const followTestUser = async () => {
-    if (!targetUserId.trim()) {
-      Alert.alert('Error', 'Please enter a User ID');
-      return;
-    }
-    
+  const openModerationModal = (report, action) => {
+    setSelectedReport(report);
+    setSelectedAction(action);
+    setShowModerationModal(true);
+  };
+
+  const handleModerationAction = async (customMessage) => {
     try {
-      const { followUser } = await import('../services/followService');
-      await followUser(currentUserId, targetUserId.trim(), userData);
-      Alert.alert('Success', 'Now following user!');
-      setTargetUserId('');
-    } catch (error) {
-      console.error('Error following user:', error);
-      Alert.alert('Error', 'Failed to follow user: ' + error.message);
-    }
-  };
-
-  const addToFavorites = async () => {
-    if (!targetUserId.trim()) {
-      Alert.alert('Error', 'Please enter a User ID');
-      return;
-    }
-    
-    try {
-      const { addToFavorites } = await import('../services/friendService');
-      await addToFavorites(currentUserId, targetUserId.trim());
-      Alert.alert('Success', 'User added to favorites!');
-      setTargetUserId('');
-    } catch (error) {
-      console.error('Error adding to favorites:', error);
-      Alert.alert('Error', 'Failed to add to favorites: ' + error.message);
-    }
-  };
-
-  const removeFromFavorites = async () => {
-    if (!targetUserId.trim()) {
-      Alert.alert('Error', 'Please enter a User ID');
-      return;
-    }
-    
-    try {
-      const { removeFromFavorites } = await import('../services/friendService');
-      await removeFromFavorites(currentUserId, targetUserId.trim());
-      Alert.alert('Success', 'User removed from favorites!');
-      setTargetUserId('');
-    } catch (error) {
-      console.error('Error removing from favorites:', error);
-      Alert.alert('Error', 'Failed to remove from favorites: ' + error.message);
-    }
-  };
-
-  const unfollowTestUser = async () => {
-    if (!targetUserId.trim()) {
-      Alert.alert('Error', 'Please enter a User ID');
-      return;
-    }
-    
-    Alert.alert(
-      'Confirm Unfollow',
-      'Are you sure you want to unfollow this user?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Unfollow',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { unfollowUser } = await import('../services/followService');
-              await unfollowUser(currentUserId, targetUserId.trim());
-              Alert.alert('Success', 'User unfollowed!');
-              setTargetUserId('');
-            } catch (error) {
-              console.error('Error unfollowing user:', error);
-              Alert.alert('Error', 'Failed to unfollow user: ' + error.message);
-            }
-          }
-        }
-      ]
-    );
-  };
-
-  // Data Management Functions
-  const showUserData = () => {
-    const userDataString = JSON.stringify(userData, null, 2);
-    Alert.alert('User Data', userDataString.substring(0, 1000) + (userDataString.length > 1000 ? '...' : ''));
-  };
-
-  const copyUserId = async () => {
-    // For debugging - shows user ID
-    Alert.alert('Your User ID', currentUserId, [
-      { text: 'OK' }
-    ]);
-    console.log('User ID:', currentUserId);
-  };
-
-  const showStudioInfo = () => {
-    const studioInfo = userData?.userdata?.studios?.default;
-    const info = `Studio ID: ${studioInfo?.studioId || 'None'}
-Studio Name: ${studioInfo?.studioName || 'None'}
-Location: ${studioInfo?.location || 'None'}`;
-    Alert.alert('Studio Info', info);
-  };
-
-  const showFollowingList = async () => {
-    try {
-      const { getFollowing, getMutualFollows } = await import('../services/followService');
-      const [following, mutualFollows] = await Promise.all([
-        getFollowing(currentUserId, 20),
-        getMutualFollows(currentUserId, 20)
-      ]);
+      let result;
+      let successMessage;
       
-      if (following.length === 0 && mutualFollows.length === 0) {
-        Alert.alert('Following List', 'You are not following anyone yet.');
-        return;
-      }
-
-      let listText = '';
-      
-      if (mutualFollows.length > 0) {
-        listText += `FRIENDS (Mutual Follows): ${mutualFollows.length}\n`;
-        listText += mutualFollows.map(friend => 
-          `${friend.displayName || friend.name || 'Unknown'}\nID: ${friend.id}`
-        ).join('\n\n');
-        listText += '\n\n';
+      switch (selectedAction) {
+        case 'warning':
+          result = await moderationService.issueWarning(selectedReport, currentUserId, customMessage);
+          successMessage = 'Warning issued';
+          break;
+        case 'strike':
+          result = await moderationService.issueStrike(selectedReport, currentUserId, customMessage);
+          successMessage = `Strike issued (${result.totalStrikes} total)`;
+          break;
+        case 'temp_ban':
+          result = await moderationService.issueTempBan(selectedReport, 7, customMessage, currentUserId); // 7 day temp ban
+          successMessage = 'Temporary ban issued (7 days)';
+          break;
+        case 'perm_ban':
+          result = await moderationService.issuePermBan(selectedReport, customMessage, currentUserId);
+          successMessage = 'Permanent ban issued';
+          break;
+        case 'dismiss':
+          result = await moderationService.dismissReport(selectedReport, customMessage);
+          successMessage = 'Report dismissed';
+          break;
+        default:
+          throw new Error('Invalid moderation action');
       }
       
-      if (following.length > mutualFollows.length) {
-        const onlyFollowing = following.filter(f => 
-          !mutualFollows.some(m => m.id === f.targetUserId)
-        );
-        if (onlyFollowing.length > 0) {
-          listText += `FOLLOWING: ${onlyFollowing.length}\n`;
-          listText += onlyFollowing.map(user => 
-            `${user.targetData?.displayName || 'Unknown'}\nID: ${user.targetUserId}`
-          ).join('\n\n');
-        }
-      }
-
-      Alert.alert('Your Following List', listText);
+      // Close modal and reset state
+      setShowModerationModal(false);
+      setSelectedReport(null);
+      setSelectedAction(null);
+      
+      // Refresh reports
+      await loadReports();
+      
+      Alert.alert('Success', successMessage);
     } catch (error) {
-      console.error('Error fetching following list:', error);
-      Alert.alert('Error', 'Failed to load following list: ' + error.message);
+      console.error('[AdminScreen] Error with moderation action:', error);
+      Alert.alert('Error', 'Failed to complete moderation action: ' + error.message);
     }
   };
 
-  const searchUserByName = async () => {
-    if (!searchName.trim()) {
-      Alert.alert('Error', 'Please enter a first name to search');
-      return;
+  const cancelModerationAction = () => {
+    setShowModerationModal(false);
+    setSelectedReport(null);
+    setSelectedAction(null);
+  };
+
+  const filterReportsByStudio = (reports, studioFilter) => {
+    if (studioFilter === 'all') {
+      return reports;
     }
+    return reports.filter(report => report.studioId === studioFilter);
+  };
 
-    try {
-      const { getStudioUsers } = await import('../services/userService');
-      const studioId = userData?.userdata?.studios?.default?.studioId;
-      
-      if (!studioId) {
-        Alert.alert('Error', 'Studio information not found');
-        return;
-      }
+  const formatReportDate = (timestamp) => {
+    if (!timestamp || !timestamp.seconds) return 'Unknown';
+    const date = new Date(timestamp.seconds * 1000);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+  };
 
-      const users = await getStudioUsers(currentUserId, studioId);
-      const searchTerm = searchName.trim().toLowerCase();
+  const handleViewReportedItem = (report) => {
+    if (report.type === 'event' && report.reportedEvent) {
+      // Navigate to EventDetail screen
+      navigation.navigate('EventDetail', {
+        eventId: report.reportedEvent.id,
+        studioId: report.studioId,
+        fromAdmin: true
+      });
+    } else if (report.type === 'user' && report.reportedUser) {
+      // Navigate to HostProfile screen to view user profile
+      navigation.navigate('HostProfile', {
+        hostId: report.reportedUser.id,
+        fromAdmin: true
+      });
+    }
+  };
+
+  const renderReportItem = ({ item: report }) => (
+    <TouchableOpacity 
+      style={styles.reportItem}
+      onPress={() => handleViewReportedItem(report)}
+      activeOpacity={0.7}
+    >
+      <View style={styles.reportHeader}>
+        <Text style={styles.reportType}>{report.type === 'user' ? 'User Report' : 'Event Report'}</Text>
+        <Text style={styles.reportStudio}>{report.studioDisplayName}</Text>
+      </View>
       
-      const matchingUsers = users.filter(user => {
-        const firstName = user.firstName?.toLowerCase();
-        const lastName = user.lastName?.toLowerCase();
-        const fullName = user.name?.toLowerCase();
+      <View style={styles.reportContent}>
+        <Text style={styles.reportReason}>Reason: {report.reason}</Text>
+        <Text style={styles.reportDate}>Reported: {formatReportDate(report.reportedAt)}</Text>
+        <Text style={styles.reportBy}>By: {report.reporterInfo?.name || 'Unknown'}</Text>
         
-        return firstName?.includes(searchTerm) || 
-               lastName?.includes(searchTerm) || 
-               fullName?.includes(searchTerm);
-      });
-
-      if (matchingUsers.length === 0) {
-        Alert.alert('No Results', `No users found with name "${searchName}"`);
-        return;
-      }
-
-      const usersList = matchingUsers.map(user => {
-        const displayName = user.name || 'Unknown';
-        return `${displayName}\nID: ${user.id}`;
-      }).join('\n\n');
-
-      Alert.alert(`Found ${matchingUsers.length} user(s)`, usersList);
-    } catch (error) {
-      console.error('Error searching users:', error);
-      Alert.alert('Error', 'Failed to search users: ' + error.message);
-    }
-  };
-
-  const testNotification = async () => {
-    try {
-      // Import notification service and send test
-      const { notifyFriendRequest } = await import('../services/notifications');
-      await notifyFriendRequest({
-        recipientId: currentUserId,
-        senderId: 'test_sender',
-        senderName: 'Test Sender'
-      });
-      Alert.alert('Success', 'Test notification sent!');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to send test notification: ' + error.message);
-    }
-  };
-
-  // Debug Functions
-  const clearAsyncStorage = async () => {
-    Alert.alert(
-      'Clear Storage',
-      'This will clear all local app data. Are you sure?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const AsyncStorage = await import('@react-native-async-storage/async-storage');
-              await AsyncStorage.default.clear();
-              Alert.alert('Success', 'AsyncStorage cleared! Please restart the app.');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to clear storage: ' + error.message);
-            }
-          }
-        }
-      ]
-    );
-  };
-
-  const forceCrash = () => {
-    Alert.alert(
-      'Force Crash',
-      'This will intentionally crash the app for testing. Continue?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Crash',
-          style: 'destructive',
-          onPress: () => {
-            throw new Error('Intentional crash for testing');
-          }
-        }
-      ]
-    );
-  };
-
-  const logConsoleMessage = () => {
-    const message = customMessage || 'Test console message from AdminScreen';
-    console.log('[AdminScreen]', message);
-    console.warn('[AdminScreen] Warning:', message);
-    console.error('[AdminScreen] Error:', message);
-    Alert.alert('Success', 'Messages logged to console! Check your debugger.');
-  };
-
-  // Event Management Functions
-  const navigateToEventManagement = () => {
-    // Navigate to a future event management screen
-    Alert.alert('Coming Soon', 'Event management features will be added here.');
-  };
-
-  const showEventMetrics = async () => {
-    try {
-      // Get event counts from Firebase
-      const metrics = `User Metrics:
-- User ID: ${currentUserId}
-- Studio: ${userData?.userdata?.studios?.default?.studioId || 'None'}
-- Has Contact Info: ${userData?.userdata?.contactInfo?.firstName ? 'Yes' : 'No'}
-- Has Location: ${userData?.userdata?.studios?.default?.studioId ? 'Yes' : 'No'}
-
-Debug Info:
-- Debug Mode: ${debugMode ? 'ON' : 'OFF'}
-- App Version: 1.0.0
-- Platform: React Native`;
-
-      Alert.alert('App Metrics', metrics);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to load metrics: ' + error.message);
-    }
-  };
-
-  // Render helper for action buttons
-  const renderActionButton = (title, onPress, color = 'blue', style = {}) => (
-    <VibeButton
-      label={title}
-      onPress={onPress}
-      variant="toggle"
-      color={color}
-      style={[styles.actionButton, style]}
-    />
+        {report.type === 'user' && (
+          <Text style={styles.reportTarget}>
+            👤 {report.reportedUser?.reportedInfo?.name || 'Unknown User'}
+          </Text>
+        )}
+        
+        {report.type === 'event' && (
+          <>
+            <Text style={styles.reportTarget}>
+              📅 {report.reportedEvent?.eventData?.title || 'Unknown Event'}
+            </Text>
+            <Text style={styles.reportEventDetails}>
+              {report.reportedEvent?.eventData?.location} • {formatReportDate(report.reportedEvent?.eventData?.eventTimestamp)}
+            </Text>
+          </>
+        )}
+        
+        <Text style={styles.tapToView}>Tap to view {report.type === 'event' ? 'event' : 'profile'}</Text>
+      </View>
+      
+      <View style={styles.reportActions}>
+        <Text style={[styles.reportStatus, { color: getStatusColor(report.status) }]}>
+          {report.status.toUpperCase()}
+        </Text>
+        
+        {report.status === 'pending' && (
+          <View style={styles.reportButtons}>
+            <TouchableOpacity 
+              style={[styles.reportButton, { backgroundColor: theme.colors.vibeBlue }]}
+              onPress={(e) => {
+                e.stopPropagation();
+                openModerationModal(report, 'warning');
+              }}
+            >
+              <Text style={styles.reportButtonText}>Warning</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.reportButton, { backgroundColor: theme.colors.vibeYellow }]}
+              onPress={(e) => {
+                e.stopPropagation();
+                openModerationModal(report, 'strike');
+              }}
+            >
+              <Text style={styles.reportButtonText}>Strike</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.reportButton, { backgroundColor: theme.colors.vibeOrange }]}
+              onPress={(e) => {
+                e.stopPropagation();
+                openModerationModal(report, 'temp_ban');
+              }}
+            >
+              <Text style={styles.reportButtonText}>Temp Ban</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.reportButton, { backgroundColor: theme.colors.vibeRed }]}
+              onPress={(e) => {
+                e.stopPropagation();
+                openModerationModal(report, 'perm_ban');
+              }}
+            >
+              <Text style={styles.reportButtonText}>Perm Ban</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.reportButton, { backgroundColor: theme.colors.gray }]}
+              onPress={(e) => {
+                e.stopPropagation();
+                openModerationModal(report, 'dismiss');
+              }}
+            >
+              <Text style={styles.reportButtonText}>Dismiss</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    </TouchableOpacity>
   );
 
-  const renderSection = (title, children) => (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {children}
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'pending': return theme.colors.vibePink;
+      case 'reviewed': return theme.colors.vibeBlue;
+      case 'resolved': return theme.colors.vibeGreen;
+      case 'dismissed': return theme.colors.gray;
+      default: return theme.colors.white;
+    }
+  };
+
+  const getReportsSummary = () => {
+    const filteredReports = filterReportsByStudio(reports, selectedStudioFilter);
+    const pending = filteredReports.filter(r => r.status === 'pending').length;
+    const total = filteredReports.length;
+    
+    if (selectedStudioFilter === 'all') {
+      return `${total} total reports (${pending} pending) across all studios`;
+    } else {
+      const studioName = getStudioOptions().find(s => s.id === selectedStudioFilter)?.displayName || 'Unknown Studio';
+      return `${total} reports (${pending} pending) in ${studioName}`;
+    }
+  };
+
+  // Load reports when component mounts if user is global admin
+  useEffect(() => {
+    if (isGlobalAdmin(userData)) {
+      setShowReportsSection(true);
+      loadReports();
+    }
+  }, [userData]);
+
+  // Check if user is not a global admin
+  if (!isGlobalAdmin(userData)) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <CloseButton onPress={handleGoBack} />
+          <Text style={styles.headerTitle}>Admin Tools</Text>
+        </View>
+        <View style={styles.noAccessContainer}>
+          <Text style={styles.noAccessText}>Access Denied</Text>
+          <Text style={styles.noAccessSubtext}>You don't have admin privileges.</Text>
+        </View>
+      </View>
+    );
+  }
+
+  const renderMessagesTab = () => (
+    <View style={styles.tabContent}>
+      <AdminNotificationTool currentUserId={currentUserId} />
     </View>
   );
+
+  const renderReportsTab = () => (
+    <View style={styles.tabContent}>
+      {showReportsSection && (
+        <View>
+          <Text style={styles.sectionTitle}>Reports Management</Text>
+          
+          {/* Reports Summary */}
+          <View style={styles.reportsSummary}>
+            <Text style={styles.summaryText}>{getReportsSummary()}</Text>
+            <VibeButton
+              label={loadingReports ? "Loading..." : "Refresh Reports"}
+              onPress={loadReports}
+              variant="toggle"
+              color="blue"
+              disabled={loadingReports}
+              style={styles.refreshButton}
+            />
+          </View>
+
+          {/* Studio Filter */}
+          <View style={styles.filterContainer}>
+            <Text style={styles.filterLabel}>Filter by Studio:</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScrollView}>
+              {getStudioOptions().map((studio) => (
+                <TouchableOpacity
+                  key={studio.id}
+                  style={[
+                    styles.filterButton,
+                    selectedStudioFilter === studio.id && styles.filterButtonActive
+                  ]}
+                  onPress={() => setSelectedStudioFilter(studio.id)}
+                >
+                  <Text style={[
+                    styles.filterButtonText,
+                    selectedStudioFilter === studio.id && styles.filterButtonTextActive
+                  ]}>
+                    {studio.displayName}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      )}
+    </View>
+  );
+
+  const renderEmptyComponent = () => {
+    if (loadingReports) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.colors.vibeBlue} />
+          <Text style={styles.loadingText}>Loading reports...</Text>
+        </View>
+      );
+    }
+
+    return (
+      <Text style={styles.noReportsText}>
+        {selectedStudioFilter === 'all' ? 'No reports found across all studios' : 'No reports found for this studio'}
+      </Text>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -347,124 +371,54 @@ Debug Info:
       <View style={styles.header}>
         <CloseButton onPress={handleGoBack} />
         <Text style={styles.headerTitle}>Admin Tools</Text>
-        <View style={styles.headerRight}>
-          <Text style={styles.debugText}>Debug</Text>
-          <Switch
-            value={debugMode}
-            onValueChange={setDebugMode}
-            trackColor={{ false: theme.colors.darkGray, true: theme.colors.vibeBlue }}
-            thumbColor={debugMode ? theme.colors.white : theme.colors.gray}
-          />
-        </View>
       </View>
 
-      <ScrollView style={styles.scrollView}>
-        {/* User ID Input */}
-        <View style={styles.inputSection}>
-          <Text style={styles.inputLabel}>Target User ID:</Text>
-          <TextInput
-            style={styles.textInput}
-            value={targetUserId}
-            onChangeText={setTargetUserId}
-            placeholder="Enter user ID for friend operations"
-            placeholderTextColor={theme.colors.gray}
-          />
-        </View>
+      {/* Tab Bar */}
+      <View style={styles.tabBar}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'messages' && styles.activeTab]}
+          onPress={() => setActiveTab('messages')}
+        >
+          <Text style={[styles.tabText, activeTab === 'messages' && styles.activeTabText]}>
+            Messages
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'reports' && styles.activeTab]}
+          onPress={() => setActiveTab('reports')}
+        >
+          <Text style={[styles.tabText, activeTab === 'reports' && styles.activeTabText]}>
+            Reports
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-        {/* Name Search */}
-        <View style={styles.inputSection}>
-          <Text style={styles.inputLabel}>Search by Name:</Text>
-          <TextInput
-            style={styles.textInput}
-            value={searchName}
-            onChangeText={setSearchName}
-            placeholder="Enter first name, last name, or full name"
-            placeholderTextColor={theme.colors.gray}
-          />
-          <VibeButton
-            label="Search Users"
-            onPress={searchUserByName}
-            variant="toggle"
-            color="cyan"
-            style={styles.searchButton}
-          />
-        </View>
+      {/* Tab Content */}
+      {activeTab === 'messages' ? (
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
+          {renderMessagesTab()}
+        </ScrollView>
+      ) : (
+        <FlatList
+          data={filterReportsByStudio(reports, selectedStudioFilter)}
+          renderItem={renderReportItem}
+          keyExtractor={(item) => item.id}
+          ListHeaderComponent={renderReportsTab}
+          ListEmptyComponent={renderEmptyComponent}
+          style={styles.scrollView}
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
-        {/* Follow Management */}
-        {renderSection('Follow Management', (
-          <View style={styles.buttonGrid}>
-            {renderActionButton('Follow User', followTestUser, 'green')}
-            {renderActionButton('Unfollow User', unfollowTestUser, 'red')}
-            {renderActionButton('Add to Favorites', addToFavorites, 'yellow')}
-            {renderActionButton('Remove from Favorites', removeFromFavorites, 'orange')}
-            {renderActionButton('Clear Friend Data (Legacy)', clearSpecificFriendData, 'red')}
-          </View>
-        ))}
-
-        {/* User Data */}
-        {renderSection('User Data', (
-          <View style={styles.buttonGrid}>
-            {renderActionButton('Show User Data', showUserData, 'blue')}
-            {renderActionButton('Copy User ID', copyUserId, 'cyan')}
-            {renderActionButton('Show Studio Info', showStudioInfo, 'purple')}
-            {renderActionButton('Show Following List', showFollowingList, 'green')}
-            {renderActionButton('Show Metrics', showEventMetrics, 'teal')}
-          </View>
-        ))}
-
-        {/* Notifications */}
-        {renderSection('Notifications', (
-          <View style={styles.buttonGrid}>
-            {renderActionButton('Send Test Notification', testNotification, 'pink')}
-            {renderActionButton('Navigate to Notifications', () => navigation.navigate('Notifications'), 'blue')}
-          </View>
-        ))}
-
-        {/* Event Management */}
-        {renderSection('Event Management', (
-          <View style={styles.buttonGrid}>
-            {renderActionButton('Event Metrics', navigateToEventManagement, 'green')}
-            {renderActionButton('Create Test Event', navigateToEventManagement, 'blue')}
-            {renderActionButton('Manage Templates', navigateToEventManagement, 'purple')}
-          </View>
-        ))}
-
-        {/* Debug Tools */}
-        {renderSection('Debug Tools', (
-          <View>
-            <View style={styles.inputSection}>
-              <Text style={styles.inputLabel}>Custom Log Message:</Text>
-              <TextInput
-                style={styles.textInput}
-                value={customMessage}
-                onChangeText={setCustomMessage}
-                placeholder="Enter message to log to console"
-                placeholderTextColor={theme.colors.gray}
-              />
-            </View>
-            <View style={styles.buttonGrid}>
-              {renderActionButton('Log Console Message', logConsoleMessage, 'cyan')}
-              {renderActionButton('Clear AsyncStorage', clearAsyncStorage, 'orange')}
-              {renderActionButton('Force Crash (Testing)', forceCrash, 'red')}
-            </View>
-          </View>
-        ))}
-
-        {/* Navigation Shortcuts */}
-        {renderSection('Navigation', (
-          <View style={styles.buttonGrid}>
-            {renderActionButton('User Profile', () => navigation.navigate('UserProfile'), 'blue')}
-            {renderActionButton('Privacy Settings', () => navigation.navigate('PrivacySettings'), 'purple')}
-            {renderActionButton('Notification Settings', () => navigation.navigate('NotificationSettings'), 'pink')}
-            {renderActionButton('Create Event', () => navigation.navigate('CreateEvent'), 'green')}
-          </View>
-        ))}
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Admin Tools v1.0</Text>
-          <Text style={styles.footerText}>Debug Mode: {debugMode ? 'ON' : 'OFF'}</Text>
-        </View>
-      </ScrollView>
+      {/* Moderation Action Modal */}
+      <ModerationActionModal
+        visible={showModerationModal}
+        report={selectedReport}
+        action={selectedAction}
+        onConfirm={handleModerationAction}
+        onCancel={cancelModerationAction}
+      />
     </View>
   );
 }
@@ -497,6 +451,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: theme.colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.darkGray,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  activeTab: {
+    borderBottomColor: theme.colors.vibeBlue,
+  },
+  tabText: {
+    color: theme.colors.gray,
+    fontSize: 16,
+    fontWeight: '500',
+    fontFamily: theme.fonts.main,
+  },
+  activeTabText: {
+    color: theme.colors.vibeBlue,
+    fontWeight: 'bold',
+  },
+  tabContent: {
+    flex: 1,
+  },
   debugText: {
     color: theme.colors.white,
     fontSize: 14,
@@ -504,7 +488,10 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  contentContainer: {
     paddingHorizontal: 20,
+    paddingBottom: 40,
   },
   section: {
     marginVertical: 20,
@@ -560,5 +547,170 @@ const styles = StyleSheet.create({
   searchButton: {
     marginTop: 8,
     alignSelf: 'flex-start',
+  },
+
+  // Reports Management Styles
+  reportsSummary: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: theme.colors.vibeBackgroundBlue,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.vibeBlue,
+  },
+  summaryText: {
+    color: theme.colors.white,
+    fontSize: 14,
+    fontFamily: theme.fonts.main,
+    flex: 1,
+  },
+  refreshButton: {
+    marginLeft: 12,
+  },
+  filterContainer: {
+    marginBottom: 16,
+  },
+  filterLabel: {
+    color: theme.colors.white,
+    fontSize: 16,
+    fontWeight: 'bold',
+    fontFamily: theme.fonts.main,
+    marginBottom: 8,
+  },
+  filterScrollView: {
+    flexDirection: 'row',
+  },
+  filterButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 8,
+    backgroundColor: theme.colors.darkGray,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.vibeBlue,
+  },
+  filterButtonActive: {
+    backgroundColor: theme.colors.vibeBlue,
+  },
+  filterButtonText: {
+    color: theme.colors.white,
+    fontSize: 12,
+    fontFamily: theme.fonts.main,
+  },
+  filterButtonTextActive: {
+    fontWeight: 'bold',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    color: theme.colors.white,
+    fontSize: 14,
+    fontFamily: theme.fonts.main,
+    marginTop: 8,
+  },
+  noReportsText: {
+    color: theme.colors.gray,
+    fontSize: 14,
+    fontFamily: theme.fonts.main,
+    textAlign: 'center',
+    paddingVertical: 40,
+  },
+  reportItem: {
+    backgroundColor: theme.colors.vibeBackgroundBlue,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.vibeBlue,
+  },
+  reportHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  reportType: {
+    color: theme.colors.vibeBlue,
+    fontSize: 14,
+    fontWeight: 'bold',
+    fontFamily: theme.fonts.main,
+  },
+  reportStudio: {
+    color: theme.colors.gray,
+    fontSize: 12,
+    fontFamily: theme.fonts.main,
+  },
+  reportContent: {
+    flex: 1,
+    marginVertical: 8,
+  },
+  reportReason: {
+    color: theme.colors.white,
+    fontSize: 14,
+    fontFamily: theme.fonts.main,
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  reportDate: {
+    color: theme.colors.gray,
+    fontSize: 12,
+    fontFamily: theme.fonts.main,
+    marginBottom: 2,
+  },
+  reportBy: {
+    color: theme.colors.gray,
+    fontSize: 12,
+    fontFamily: theme.fonts.main,
+    marginBottom: 6,
+  },
+  reportTarget: {
+    color: theme.colors.white,
+    fontSize: 15,
+    fontFamily: theme.fonts.main,
+    marginBottom: 4,
+    fontWeight: '600',
+  },
+  reportEventDetails: {
+    color: theme.colors.gray,
+    fontSize: 13,
+    fontFamily: theme.fonts.main,
+    marginBottom: 6,
+  },
+  tapToView: {
+    color: theme.colors.vibeBlue,
+    fontSize: 12,
+    fontFamily: theme.fonts.main,
+    fontStyle: 'italic',
+    marginTop: 4,
+  },
+  reportActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  reportStatus: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    fontFamily: theme.fonts.main,
+  },
+  reportButtons: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  reportButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  reportButtonText: {
+    color: theme.colors.white,
+    fontSize: 10,
+    fontWeight: 'bold',
+    fontFamily: theme.fonts.main,
   },
 });

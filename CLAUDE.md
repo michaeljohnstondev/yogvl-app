@@ -250,3 +250,7 @@ look for file/folder names that dont make sense for the code they have and make 
 look for extreme places of spaghetti code and make note of it in flags.md
 
 dont change flagged items til i give permission
+
+10
+
+ALWAYS LOOK AT DATABASE.MD TO UNDERSTAND MY DATASTRUCTURE. AS ME BEFORE YOU CHANGE HOW THINGS ARE STRUCTURED OR ADD SOMETHING TOO IT. IF WE CHANGE OR ADD TO IT, UPDATE DATABASE.MD

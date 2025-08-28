@@ -385,6 +385,37 @@ export class ReliabilityService {
   }
 
   /**
+   * Convert reliability score to star rating (1-5 stars with decimal support)
+   * @param {number} score - Reliability score (0-100)
+   * @returns {number} Star rating (1-5, rounded to 1 decimal place)
+   */
+  static scoreToStars(score) {
+    // Convert 0-100 score to 1-5 stars with linear mapping
+    // Map 0-100 to 1-5: ((score / 100) * 4) + 1
+    let stars = ((score / 100) * 4) + 1;
+    
+    // Ensure we stay within 1-5 range and round to 1 decimal place
+    stars = Math.max(1, Math.min(5, stars));
+    return Math.round(stars * 10) / 10;
+  }
+
+  /**
+   * Format star rating display
+   * @param {number} stars - Number of stars (1-5, with decimals)
+   * @returns {string} Formatted star display
+   */
+  static formatStarDisplay(stars) {
+    const fullStars = '⭐'.repeat(Math.floor(stars));
+    const decimal = stars % 1;
+    const hasPartialStar = decimal > 0;
+    const halfStar = hasPartialStar ? '✨' : ''; // Use half star for any decimal
+    const totalFilledStars = Math.floor(stars) + (hasPartialStar ? 1 : 0);
+    const emptyStars = '☆'.repeat(Math.max(0, 5 - totalFilledStars));
+    
+    return `${fullStars}${halfStar}${emptyStars}`;
+  }
+
+  /**
    * Get user reliability display data
    * @param {Object} userData - User document data
    * @returns {Object} Display-ready reliability data
@@ -396,14 +427,19 @@ export class ReliabilityService {
     const metrics = reliabilityData.metrics || {};
     const streaks = reliabilityData.streaks || {};
     
+    // Convert score to stars and format display
+    const stars = this.scoreToStars(score);
+    const starDisplay = this.formatStarDisplay(stars);
+    
     return {
       score,
+      stars,
       tier,
       metrics,
       streaks,
       warning: this.getReliabilityWarning({ reliabilityScore: score, metrics, streaks }),
-      displayText: `${tier.emoji} ${score}% ${tier.label}`,
-      shortDisplayText: `${score}%`,
+      displayText: `${starDisplay} ${stars}/5 ${tier.label}`,
+      shortDisplayText: `${stars}/5`,
     };
   }
 }

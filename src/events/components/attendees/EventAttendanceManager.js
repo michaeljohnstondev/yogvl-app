@@ -68,7 +68,6 @@ const EventAttendanceManager = ({ eventId, navigation }) => {
         }
       }
     } catch (error) {
-      console.error('Error loading event and subscribers:', error);
       vibeAlert.error('Error', 'Failed to load event data');
     } finally {
       setIsLoading(false);
@@ -143,24 +142,16 @@ const EventAttendanceManager = ({ eventId, navigation }) => {
   const submitAttendance = async () => {
     setIsSubmitting(true);
     try {
-      console.log('[EventAttendanceManager] Submitting attendance...');
-      console.log('[EventAttendanceManager] Attendees:', Array.from(attendees));
-      console.log('[EventAttendanceManager] No-shows:', Array.from(noShows));
-      
       const result = await completeEvent(eventId, Array.from(attendees), Array.from(noShows));
-      
-      console.log('[EventAttendanceManager] CompleteEvent result:', result);
       
       if (result.success) {
         vibeAlert.success('Success!', 'Event completed and attendance recorded.', [
           { text: 'OK', onPress: () => navigation.goBack() },
         ]);
       } else {
-        console.error('[EventAttendanceManager] CompleteEvent failed:', result.error);
         vibeAlert.error('Error', `Failed to complete event: ${result.error?.message || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('[EventAttendanceManager] Error completing event:', error);
       vibeAlert.error('Error', `Failed to complete event: ${error.message || 'Please try again.'}`);
     } finally {
       setIsSubmitting(false);

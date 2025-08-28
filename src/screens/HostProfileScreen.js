@@ -1,6 +1,6 @@
 // FILE: screens/HostProfileScreen.js
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,58 +8,117 @@ import {
   ScrollView,
   TouchableOpacity,
   Linking,
+  BackHandler,
 } from 'react-native';
 import VibeButton from '../components/ui/VibeButton';
 import VibeScreen from '../components/ui/VibeScreen';
+import ProfileAvatar from '../components/ui/ProfileAvatar';
 import { UserReliabilityCard } from '../events/components/UserReliabilityCard';
 import { getUserEventStats } from '../events/lib/userMetrics';
 import { useVibeAlert } from '../components/ui/VibeAlertContext';
+import { getVisibleContactInfo, canViewUserStats } from '../services/privacyService';
+import { followUser, unfollowUser, checkIfFollowing, getFollowStats } from '../services/followService';
+import { reportUser } from '../services/reportingService';
+import { useAuth } from '../auth/AuthContext';
 import theme from '../theme/themes';
 
-// Privacy helper functions
-const checkContactInfoVisibility = (hostData, currentUserId, contactType) => {
-  // If it's the current user viewing their own profile, always show
-  if (currentUserId === hostData.id) return true;
-
-  // Get privacy settings with fallbacks to default
-  const privacySettings = hostData?.userdata?.settings?.privacy || {};
-  const visibilitySetting = contactType === 'email' 
-    ? (privacySettings.emailVisibility || 'friends')
-    : (privacySettings.phoneVisibility || 'friends');
-
-  switch (visibilitySetting) {
-    case 'never':
-      return false;
-    case 'always':
-      return true;
-    case 'friends':
-      // Check if current user is a friend of the host
-      return checkIfFriend(hostData, currentUserId);
-    case 'followers': 
-      // Check if current user follows the host
-      return checkIfFollowing(hostData, currentUserId);
-    default:
-      return false; // Default to private for unknown settings
-  }
-};
-
-const checkIfFriend = (hostData, currentUserId) => {
-  // Check if current user is in host's friends list
-  const hostFriends = hostData?.userdata?.social?.friends || [];
-  return hostFriends.includes(currentUserId);
-};
-
-const checkIfFollowing = (hostData, currentUserId) => {
-  // Check if current user is in host's followers list or if mutual
-  const hostFollowers = hostData?.userdata?.social?.followers || [];
-  const hostFollowing = hostData?.userdata?.social?.following || [];
-  return hostFollowers.includes(currentUserId) || hostFollowing.includes(currentUserId);
-};
 
 const HostProfileScreen = ({ navigation, route }) => {
-  const { hostData, currentUserId, eventId } = route.params;
-  const [isFollowing, setIsFollowing] = useState(false); // Future: check actual follow status
+  console.log('HostProfile component mounted/re-rendered with params:', !!route.params?.returnTo);
+  const { hostData, eventId } = route.params;
+  const { currentUserId, userData } = useAuth();
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [visibleContactInfo, setVisibleContactInfo] = useState({});
+  const [canViewStats, setCanViewStats] = useState(true);
+  const [followStats, setFollowStats] = useState({
+    followingCount: 0,
+    followerCount: 0,
+    mutualCount: 0
+  });
+  const [loadingFollowStats, setLoadingFollowStats] = useState(true);
+  const [hasNavigatedAway, setHasNavigatedAway] = useState(false);
   const vibeAlert = useVibeAlert();
+
+  // Load privacy-filtered contact information
+  useEffect(() => {
+    const loadVisibleInfo = async () => {
+      if (!hostData || !currentUserId) return;
+
+      try {
+        const contactInfo = await getVisibleContactInfo(currentUserId, hostData);
+        const statsVisible = await canViewUserStats(currentUserId, hostData);
+        
+        setVisibleContactInfo(contactInfo);
+        setCanViewStats(statsVisible);
+      } catch (error) {
+        console.error('Error loading visible contact info:', error);
+        // Fallback to basic info
+        setVisibleContactInfo({
+          firstName: hostData?.userdata?.contactInfo?.firstName,
+          lastName: hostData?.userdata?.contactInfo?.lastName,
+        });
+      }
+    };
+
+    loadVisibleInfo();
+  }, [hostData, currentUserId]);
+
+  // Check follow status on mount
+  useEffect(() => {
+    const checkFollowStatus = async () => {
+      if (!isCurrentUser && currentUserId && hostData.id) {
+        try {
+          const following = await checkIfFollowing(currentUserId, hostData.id);
+          setIsFollowing(following);
+        } catch (error) {
+          console.error('Error checking follow status:', error);
+        }
+      }
+    };
+    
+    checkFollowStatus();
+  }, [currentUserId, hostData.id, isCurrentUser]);
+
+  // Load follow statistics
+  useEffect(() => {
+    const loadFollowStats = async () => {
+      if (!hostData.id) return;
+      
+      setLoadingFollowStats(true);
+      try {
+        const stats = await getFollowStats(hostData.id);
+        setFollowStats(stats);
+      } catch (error) {
+        console.error('Error loading follow stats:', error);
+      } finally {
+        setLoadingFollowStats(false);
+      }
+    };
+
+    loadFollowStats();
+  }, [hostData.id]);
+
+  // Handle Android hardware back button
+  useEffect(() => {
+    const backAction = () => {
+      // Don't handle back button if we've already navigated away
+      if (hasNavigatedAway) {
+        console.log('HostProfile ignoring back button - already navigated away');
+        return false; // Allow default back action
+      }
+      
+      console.log('Android back button pressed in HostProfile');
+      handleBack();
+      return true; // Prevent default back action
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction
+    );
+
+    return () => backHandler.remove();
+  }, [hasNavigatedAway]); // Re-run when navigation state changes
 
   if (!hostData) {
     return (
@@ -74,18 +133,39 @@ const HostProfileScreen = ({ navigation, route }) => {
   const contactInfo = hostData?.userdata?.contactInfo || {};
   const displayName =
     hostData.displayName ||
-    `${contactInfo.firstName || ''} ${contactInfo.lastName || ''}`.trim() ||
-    (contactInfo.email || hostData.email)?.split('@')[0] ||
+    `${visibleContactInfo.firstName || contactInfo.firstName || ''} ${visibleContactInfo.lastName || contactInfo.lastName || ''}`.trim() ||
+    (visibleContactInfo.email || contactInfo.email || hostData.email)?.split('@')[0] ||
     'Unknown Host';
 
   const stats = getUserEventStats(hostData);
   const isCurrentUser = currentUserId === hostData.id;
 
 
-  const handleFollow = () => {
-    // Future implementation
-    setIsFollowing(!isFollowing);
-    vibeAlert.info('Follow Feature', 'Follow functionality coming soon!');
+  const handleFollow = async () => {
+    if (!currentUserId || !hostData.id || !userData) {
+      vibeAlert.error('Error', 'Unable to process follow request');
+      return;
+    }
+
+    try {
+      const hostName = displayName;
+      
+      if (isFollowing) {
+        // Unfollow
+        await unfollowUser(currentUserId, hostData.id);
+        setIsFollowing(false);
+        vibeAlert.error('Unfollowed', `You have unfollowed ${hostName}.`);
+      } else {
+        // Follow
+        await followUser(currentUserId, hostData.id, userData);
+        setIsFollowing(true);
+        vibeAlert.success('Success', `You are following ${hostName}!`);
+      }
+    } catch (error) {
+      console.error('Error toggling follow:', error);
+      const action = isFollowing ? 'unfollow' : 'follow';
+      vibeAlert.error('Error', `Failed to ${action} ${displayName}`);
+    }
   };
 
   const formatJoinDate = (timestamp) => {
@@ -100,16 +180,75 @@ const HostProfileScreen = ({ navigation, route }) => {
     }
   };
 
+  const handleReport = async () => {
+    vibeAlert.confirm(
+      'Report User',
+      `Report ${displayName} for inappropriate content?`,
+      async () => {
+        try {
+          // reportUser now auto-detects the reported user's studio
+          const result = await reportUser(currentUserId, hostData.id, 'Inappropriate content');
+          
+          if (result.success) {
+            vibeAlert.success('Reported', result.message);
+          } else {
+            vibeAlert.error('Error', 'Failed to submit report. Please try again.');
+          }
+        } catch (error) {
+          console.error('Error submitting user report:', error);
+          vibeAlert.error('Error', error.message || 'Failed to submit report. Please try again.');
+        }
+      }
+    );
+  };
+
+  const handleBlock = () => {
+    vibeAlert.confirm(
+      'Block User',
+      `Block ${displayName}? They won't be able to see your events or contact you.`,
+      () => {
+        // TODO: Implement block functionality
+        vibeAlert.success('Blocked', `You have blocked ${displayName}.`);
+      }
+    );
+  };
+
+  const handleBack = () => {
+    console.log('HostProfile handleBack called - using default navigation.goBack()');
+    
+    // Mark that we've navigated away to disable future back button handling
+    setHasNavigatedAway(true);
+    
+    // Use standard back navigation - this will work correctly with the screen-based approach
+    navigation.goBack();
+  };
+
   return (
-    <VibeScreen title="Host Profile" onBack={() => navigation.goBack()}>
+    <VibeScreen>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Profile Info */}
         <View style={styles.profileSection}>
-          <View style={styles.avatarContainer}>
-            <Text style={styles.avatarText}>
-              {displayName.charAt(0).toUpperCase()}
-            </Text>
-          </View>
+          {/* Close button - left side, aligned with top of picture */}
+          <TouchableOpacity 
+            onPress={() => {
+              console.log('Back button touched!');
+              handleBack();
+            }} 
+            style={styles.closeButton}
+          >
+            <Text style={styles.closeButtonText}>✕</Text>
+          </TouchableOpacity>
+
+          {/* Report button - right side, aligned with top of picture */}
+          <TouchableOpacity onPress={handleReport} style={styles.reportButtonTop}>
+            <Text style={styles.reportButtonText}>⚠️</Text>
+          </TouchableOpacity>
+
+          <ProfileAvatar 
+            userData={hostData} 
+            size={120}
+            showBorder={true}
+          />
 
           <Text style={styles.hostName}>{displayName}</Text>
 
@@ -120,21 +259,18 @@ const HostProfileScreen = ({ navigation, route }) => {
           </Text>
         </View>
 
-        {/* Event Statistics */}
-        <UserReliabilityCard userData={hostData} />
-
         {/* Contact Info */}
         {(() => {
           const contactItems = [];
           
           // Check email visibility
-          if (hostData.userdata?.contactInfo?.email && checkContactInfoVisibility(hostData, currentUserId, 'email')) {
+          if (visibleContactInfo.email) {
             contactItems.push(
               <TouchableOpacity
                 key="email"
                 style={styles.contactItem}
                 onPress={() => {
-                  const email = hostData.userdata.contactInfo.email;
+                  const email = visibleContactInfo.email;
                   const subject = encodeURIComponent('Regarding your event');
                   const mailtoUrl = `mailto:${email}?subject=${subject}`;
                   Linking.openURL(mailtoUrl).catch(() => {
@@ -143,22 +279,32 @@ const HostProfileScreen = ({ navigation, route }) => {
                 }}
               >
                 <Text style={styles.contactIcon}>📧</Text>
-                <Text style={styles.contactText}>{hostData.userdata.contactInfo.email}</Text>
+                <Text style={styles.contactText}>{visibleContactInfo.email}</Text>
               </TouchableOpacity>
             );
           }
 
           // Check phone visibility
-          if (hostData.userdata?.contactInfo?.phoneNumber && checkContactInfoVisibility(hostData, currentUserId, 'phone')) {
+          if (visibleContactInfo.phone) {
             contactItems.push(
               <TouchableOpacity
                 key="phone"
                 style={styles.contactItem}
-                onPress={() => Linking.openURL(`tel:${hostData.userdata.contactInfo.phoneNumber}`)}
+                onPress={() => Linking.openURL(`tel:${visibleContactInfo.phone}`)}
               >
                 <Text style={styles.contactIcon}>📞</Text>
-                <Text style={styles.contactText}>{hostData.userdata.contactInfo.phoneNumber}</Text>
+                <Text style={styles.contactText}>{visibleContactInfo.phone}</Text>
               </TouchableOpacity>
+            );
+          }
+
+          // Check location visibility
+          if (visibleContactInfo.location) {
+            contactItems.push(
+              <View key="location" style={styles.contactItem}>
+                <Text style={styles.contactIcon}>📍</Text>
+                <Text style={styles.contactText}>{visibleContactInfo.location}</Text>
+              </View>
             );
           }
 
@@ -206,6 +352,54 @@ const HostProfileScreen = ({ navigation, route }) => {
             </View>
           ) : null;
         })()}
+
+        {/* User Metrics */}
+        <View style={styles.metricsSection}>
+          <View style={styles.metricsContainer}>
+            <Text style={styles.metricsTitle}>Events</Text>
+            <View style={styles.quickStats}>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{stats.eventsCreated}</Text>
+                <Text style={styles.statLabel}>Created</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{stats.eventsAttended}</Text>
+                <Text style={styles.statLabel}>Attended</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{stats.noShows}</Text>
+                <Text style={styles.statLabel}>No Shows</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Social Stats */}
+        <View style={styles.socialSection}>
+          <View style={styles.socialContainer}>
+            <Text style={styles.socialTitle}>Social</Text>
+            <View style={styles.quickStats}>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{loadingFollowStats ? '...' : followStats.mutualCount}</Text>
+                <Text style={styles.statLabel}>Mutual Friends</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{loadingFollowStats ? '...' : followStats.followingCount}</Text>
+                <Text style={styles.statLabel}>Following</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{loadingFollowStats ? '...' : followStats.followerCount}</Text>
+                <Text style={styles.statLabel}>Followers</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Event Statistics - Only show if user has been rated */}
+        {canViewStats && (hostData?.ratings?.stars?.length > 0 || hostData?.userdata?.metrics?.engagement?.totalRatings > 0) && (
+          <UserReliabilityCard userData={hostData} />
+        )}
+
 
         {/* Host Highlights */}
         {(() => {
@@ -410,8 +604,19 @@ const HostProfileScreen = ({ navigation, route }) => {
                 isFollowing && styles.followingButton,
               ]}
             />
+            
+            {/* Block Button */}
+            <VibeButton
+              label="BLOCK USER"
+              onPress={handleBlock}
+              variant="outline"
+              style={styles.blockButton}
+            />
           </View>
         )}
+        
+        {/* Safe area spacing */}
+        <View style={styles.safeAreaBottom} />
       </ScrollView>
     </VibeScreen>
   );
@@ -434,20 +639,30 @@ const styles = StyleSheet.create({
   profileSection: {
     alignItems: 'center',
     marginBottom: 24,
+    gap: 16,
+    position: 'relative',
   },
-  avatarContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#4CAF50',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
+  closeButton: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    padding: 8,
+    zIndex: 10,
   },
-  avatarText: {
-    fontSize: 32,
-    fontWeight: 'bold',
+  closeButtonText: {
     color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  reportButtonTop: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    padding: 8,
+    zIndex: 10,
+  },
+  reportButtonText: {
+    fontSize: 18,
   },
   hostName: {
     fontSize: 24,
@@ -558,6 +773,64 @@ const styles = StyleSheet.create({
   },
   followingButton: {
     borderColor: theme.colors.vibeGreen,
+  },
+  blockButton: {
+    borderColor: theme.colors.vibeRed,
+    marginTop: 12,
+  },
+  metricsSection: {
+    marginBottom: 20,
+  },
+  metricsContainer: {
+    backgroundColor: theme.colors.vibeBackgroundBlue,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.vibeBlue,
+  },
+  metricsTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  socialSection: {
+    marginBottom: 20,
+  },
+  socialContainer: {
+    backgroundColor: theme.colors.vibeBackgroundBlue,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.vibeBlue,
+  },
+  socialTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  quickStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#00C6FF',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 4,
+  },
+  safeAreaBottom: {
+    height: 100,
   },
 });
 

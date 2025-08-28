@@ -6,6 +6,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import ProfileAvatar from './ProfileAvatar';
 import ReliabilityBadge from './ReliabilityBadge';
 import ReliabilityWarning from './ReliabilityWarning';
 import ReliabilityDetail from './ReliabilityDetail';
@@ -36,11 +37,11 @@ export default function AttendanceCard({
   return (
     <View style={styles.card}>
       <View style={styles.userInfo}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {user.firstName ? user.firstName.charAt(0).toUpperCase() : '?'}
-          </Text>
-        </View>
+        <ProfileAvatar 
+          userData={user} 
+          size={50}
+          showBorder={true}
+        />
         
         <View style={styles.userDetails}>
           <Text style={styles.userName}>
@@ -117,20 +118,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: theme.colors.vibeBlue || '#00C6FF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  avatarText: {
-    color: theme.colors.textPrimary,
-    fontSize: 18,
-    fontWeight: 'bold',
+    gap: 12,
   },
   userDetails: {
     flex: 1,

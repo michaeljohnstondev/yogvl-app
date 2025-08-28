@@ -21,6 +21,20 @@ const hasEmojiAtStart = (text) => {
   return emojiRegex.test(trimmed);
 };
 
+// Helper to normalize text for comparison (strip emojis)
+const normalizeForComparison = (text) => {
+  if (!text || typeof text !== 'string') return '';
+  
+  const emojiRegex = /^[\u{1F600}-\u{1F64F}]|^[\u{1F300}-\u{1F5FF}]|^[\u{1F680}-\u{1F6FF}]|^[\u{1F1E6}-\u{1F1FF}]|^[\u{2600}-\u{26FF}]|^[\u{2700}-\u{27BF}]|^\u{2764}|^\u{2049}|^\u{203C}|^[\u{1F900}-\u{1F9FF}]|^[\u{1FA70}-\u{1FAFF}]/u;
+  
+  let normalized = text.trim();
+  while (emojiRegex.test(normalized)) {
+    normalized = normalized.replace(emojiRegex, '').trim();
+  }
+  
+  return normalized.toLowerCase();
+};
+
 const VibeAutoComplete = React.memo(
   ({
     suggestions,
@@ -38,10 +52,19 @@ const VibeAutoComplete = React.memo(
     // Create unified suggestions list: prioritize historical suggestions, then add contextual ones
     const createUnifiedSuggestions = () => {
       const unifiedSuggestions = [];
+      const seenNormalized = new Set();
 
       // Add historical suggestions first (these are smart suggestions from past events)
       if (suggestions && suggestions.length > 0) {
-        unifiedSuggestions.push(...suggestions);
+        suggestions.forEach((suggestion) => {
+          const suggestionText = typeof suggestion === 'string' ? suggestion : suggestion.text;
+          const normalized = normalizeForComparison(suggestionText);
+          
+          if (!seenNormalized.has(normalized) && normalized) {
+            seenNormalized.add(normalized);
+            unifiedSuggestions.push(suggestion);
+          }
+        });
       }
 
       // Add contextual suggestions if we need more and have input  
@@ -51,18 +74,21 @@ const VibeAutoComplete = React.memo(
           context
         );
         contextualSuggestions.forEach((contextSuggestion) => {
-          // Only add if not already in historical suggestions
-          const exists = unifiedSuggestions.some(
-            (existing) =>
-              (typeof existing === 'string'
-                ? existing
-                : existing.text
-              )?.toLowerCase() === contextSuggestion.text?.toLowerCase()
-          );
-          if (!exists) {
+          // Only add if not already seen (normalize for comparison)
+          const contextNormalized = normalizeForComparison(contextSuggestion.text);
+          
+          if (!seenNormalized.has(contextNormalized) && contextNormalized) {
+            seenNormalized.add(contextNormalized);
             unifiedSuggestions.push(contextSuggestion.text);
           }
         });
+      }
+
+      // Debug logging (can be removed later)
+      if (unifiedSuggestions.length > 0) {
+        console.log('VibeAutoComplete unified suggestions:', unifiedSuggestions.map(s => 
+          typeof s === 'string' ? s : s.text
+        ));
       }
 
       return unifiedSuggestions;

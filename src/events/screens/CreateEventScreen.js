@@ -19,6 +19,8 @@ import { usePastEventsManager } from '../hooks/usePastEventsManager';
 
 // Utils and Context
 import { useAuth } from '../../auth/AuthContext';
+import { banEnforcementService } from '../../services/banEnforcementService';
+import BannedUserModal from '../../components/ui/BannedUserModal';
 
 export default function CreateEventScreen({ navigation, route }) {
   const { currentUserId, userData } = useAuth();
@@ -26,6 +28,10 @@ export default function CreateEventScreen({ navigation, route }) {
   
   // Track if event was successfully created to allow navigation
   const [eventCreatedSuccessfully, setEventCreatedSuccessfully] = useState(false);
+  
+  // Ban enforcement state
+  const [banStatus, setBanStatus] = useState(null);
+  const [showBannedModal, setShowBannedModal] = useState(false);
 
   // Check if we have preserved form state from template save or template from event
   const preservedFormState = route?.params?.preservedFormState;

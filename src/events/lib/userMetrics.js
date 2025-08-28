@@ -8,6 +8,7 @@ import {
   arrayRemove,
 } from 'firebase/firestore';
 import { db } from '../../auth/services/firebase';
+import { AttendanceService } from '../../services/AttendanceService';
 
 /**
  * Updates user metrics when they attend an event
@@ -131,27 +132,69 @@ export const updateEventUnsubscription = async (userId, eventId) => {
  * Updates user metrics when they create an event
  * @param {string} userId - User ID
  * @param {string} eventId - Event ID
+ * @param {string} studioId - Studio ID where the event is located
  * @returns {Promise<Object>} Success/error result
  */
-export const updateEventCreationMetrics = async (userId, eventId) => {
+export const updateEventCreationMetrics = async (userId, eventId, studioId) => {
   try {
     const userRef = doc(db, 'users', userId);
 
     await updateDoc(userRef, {
       'userdata.metrics.events.subscribedEvents': arrayUnion(eventId),
       'userdata.metrics.events.created': increment(1),
-      'userdata.metrics.events.attended': increment(0),
+      'userdata.metrics.events.attended': increment(1), // Auto-increment attended for hosts
+      'userdata.metrics.events.attendedEvents': arrayUnion(eventId), // Add to attended events array
       'userdata.metrics.events.noShows': increment(0),
       'userdata.metrics.events.lastEventCreated': Timestamp.now(),
       'userdata.metrics.events.lastActivity': Timestamp.now(),
     });
 
-    console.log(`Updated creation metrics for user ${userId}`);
+    // Host attendance is now automatically added during event creation
+    console.log(`Updated creation metrics for host ${userId}`);
+
     return { success: true };
   } catch (error) {
     console.error('Error updating creation metrics:', error);
     return { success: false, error };
   }
+};
+
+/**
+ * Updates user metrics when they delete an event (removes host metrics)
+ * @param {string} userId - Host's user ID
+ * @param {string} eventId - Event ID
+ * @returns {Promise<Object>} Success/error result
+ */
+export const updateEventDeletionMetrics = async (userId, eventId) => {
+  try {
+    const userRef = doc(db, 'users', userId);
+
+    await updateDoc(userRef, {
+      'userdata.metrics.events.subscribedEvents': arrayRemove(eventId),
+      'userdata.metrics.events.created': increment(-1),
+      'userdata.metrics.events.attended': increment(-1), // Remove attended count for deleted event
+      'userdata.metrics.events.attendedEvents': arrayRemove(eventId), // Remove from attended events array
+      'userdata.metrics.events.lastActivity': Timestamp.now(),
+    });
+
+    console.log(`Updated deletion metrics for host ${userId} - removed event ${eventId}`);
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating deletion metrics:', error);
+    return { success: false, error };
+  }
+};
+
+/**
+ * Calculate average rating from stars array
+ */
+const calculateAverageRating = (starsArray) => {
+  if (!starsArray || !Array.isArray(starsArray) || starsArray.length === 0) {
+    return 0;
+  }
+  
+  const sum = starsArray.reduce((acc, rating) => acc + rating, 0);
+  return Math.round((sum / starsArray.length) * 10) / 10; // Round to 1 decimal place
 };
 
 /**
@@ -199,8 +242,8 @@ export const getUserEventStats = (userData) => {
     totalEvents,
     followersCount: socialMetrics?.followersCount || 0,
     commentsPosted: engagementMetrics?.commentsPosted || 0,
-    averageEventRating: engagementMetrics?.averageEventRating || 0,
-    totalRatings: engagementMetrics?.totalRatings || 0,
+    averageEventRating: calculateAverageRating(userData?.ratings?.stars),
+    totalRatings: userData?.ratings?.stars?.length || engagementMetrics?.totalRatings || 0,
     monthsSinceCreation,
     averageEventsPerMonth,
     profileViews: socialMetrics?.profileViews || 0,

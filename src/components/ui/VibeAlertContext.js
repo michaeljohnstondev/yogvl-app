@@ -32,6 +32,7 @@ export const VibeAlertProvider = ({ children }) => {
 
   const alertMethods = {
     alert: (title, message, buttons) => showAlert(title, message, buttons, 'info'),
+    info: (title, message, buttons) => showAlert(title, message, buttons, 'info'),
     success: (title, message, buttons) => showAlert(title, message, buttons, 'success'),
     error: (title, message, buttons) => showAlert(title, message, buttons, 'error'),
     warning: (title, message, buttons) => showAlert(title, message, buttons, 'warning'),
@@ -40,6 +41,7 @@ export const VibeAlertProvider = ({ children }) => {
     aqua: (title, message, buttons) => showAlert(title, message, buttons, 'aqua'),
     teal: (title, message, buttons) => showAlert(title, message, buttons, 'teal'),
     menu: (title, message, buttons) => showAlert(title, message, buttons, 'menu'),
+    redmenu: (title, message, buttons) => showAlert(title, message, buttons, 'redmenu'),
     confirm: (title, message, onConfirm, onCancel) => {
       showAlert(title, message, [
         { text: 'Cancel', onPress: onCancel },
@@ -69,6 +71,8 @@ export const VibeAlertProvider = ({ children }) => {
         return { border: theme.colors.vibeBlue, icon: '🔔' };
       case 'menu':
         return { border: theme.colors.vibeBlue, icon: '👤' };
+      case 'redmenu':
+        return { border: theme.colors.vibeRed, icon: '🚨' };
       case 'cyan':
         return { border: theme.colors.vibeCyan, icon: '🔵' };
       case 'turquoise':
@@ -108,10 +112,11 @@ export const VibeAlertProvider = ({ children }) => {
                 <Text style={styles.message}>{alert.message}</Text>
               ) : null}
               
-              <View style={[styles.buttonContainer, (alert.type === 'subscribe' || alert.type === 'menu') && styles.subscribeButtonContainer]}>
+              <View style={[styles.buttonContainer, (alert.type === 'subscribe' || alert.type === 'menu' || alert.type === 'redmenu') && styles.subscribeButtonContainer]}>
                 {alert.buttons.map((button, index) => {
                   const isSubscribe = alert.type === 'subscribe';
                   const isMenu = alert.type === 'menu';
+                  const isRedMenu = alert.type === 'redmenu';
                   const isPrimary = button.style === 'primary';
                   const isSecondary = button.style === 'secondary';
                   const isCancel = button.style === 'cancel';
@@ -125,10 +130,17 @@ export const VibeAlertProvider = ({ children }) => {
                         isSubscribe && styles.subscribeButton,
                         isMenu && styles.menuButton,
                         isMenu && isLastButton && styles.menuCancelButton,
+                        isRedMenu && styles.subscribeButton,
+                        isRedMenu && isLastButton && styles.cancelButton,
                         isPrimary && styles.primaryButton,
                         isSecondary && styles.secondaryButton,
                         isCancel && styles.cancelButton,
-                        !isSubscribe && !isMenu && { backgroundColor: getAlertColors(alert.type).border }
+                        !isSubscribe && !isMenu && !isRedMenu && { backgroundColor: getAlertColors(alert.type).border },
+                        isRedMenu && !isLastButton && { 
+                          backgroundColor: 'transparent', 
+                          borderColor: getAlertColors(alert.type).border,
+                          borderWidth: 2
+                        }
                       ]}
                       onPress={() => handleButtonPress(button.onPress)}
                     >
@@ -136,7 +148,9 @@ export const VibeAlertProvider = ({ children }) => {
                         styles.buttonText,
                         isSecondary && styles.secondaryButtonText,
                         isCancel && styles.cancelButtonText,
-                        isMenu && isLastButton && styles.cancelButtonText
+                        isMenu && isLastButton && styles.cancelButtonText,
+                        isRedMenu && isLastButton && styles.cancelButtonText,
+                        isRedMenu && !isLastButton && { color: getAlertColors(alert.type).border }
                       ]}>
                         {button.text}
                       </Text>

@@ -22,7 +22,6 @@ export class EventEndNotificationService {
    */
   static async checkAndNotifyEventEnds() {
     try {
-      console.log('[EventEndNotificationService] Checking for recently ended events...');
       
       const now = new Date();
       const oneHourAgo = new Date(now.getTime() - (60 * 60 * 1000));
@@ -36,7 +35,6 @@ export class EventEndNotificationService {
       );
       
       const querySnapshot = await getDocs(q);
-      console.log(`[EventEndNotificationService] Found ${querySnapshot.size} potentially ended events`);
       
       const notifications = [];
       
@@ -51,7 +49,6 @@ export class EventEndNotificationService {
         
         // Skip if event doesn't have attendance tracking enabled
         if (eventData.trackAttendance === false) {
-          console.log(`[EventEndNotificationService] Skipping event ${eventData.title} - attendance tracking disabled`);
           continue;
         }
         
@@ -93,17 +90,13 @@ export class EventEndNotificationService {
                 success: true,
               });
               
-              console.log(`[EventEndNotificationService] Sent attendance notification for event: ${eventData.title}`);
             } else {
-              console.error(`[EventEndNotificationService] Failed to send attendance notification for event ${eventId}:`, result.error);
             }
           } catch (error) {
-            console.error(`[EventEndNotificationService] Error processing event ${eventId}:`, error);
           }
         }
       }
       
-      console.log(`[EventEndNotificationService] Sent ${notifications.length} attendance notifications`);
       return {
         success: true,
         checkedEvents: querySnapshot.size,
@@ -112,7 +105,6 @@ export class EventEndNotificationService {
       };
       
     } catch (error) {
-      console.error('[EventEndNotificationService] Error checking for ended events:', error);
       throw error;
     }
   }
@@ -147,7 +139,6 @@ export class EventEndNotificationService {
       });
       
     } catch (error) {
-      console.error('[EventEndNotificationService] Error sending attendance notification:', error);
       return { success: false, error: error.message };
     }
   }
@@ -200,23 +191,19 @@ export class EventEndNotificationService {
     // Check every 30 minutes
     const checkInterval = 30 * 60 * 1000; // 30 minutes
     
-    console.log('[EventEndNotificationService] Starting periodic event end checks...');
     
     // Initial check
     this.checkAndNotifyEventEnds().catch(error => {
-      console.error('[EventEndNotificationService] Error in initial check:', error);
     });
     
     // Set up periodic checks
     const intervalId = setInterval(() => {
       this.checkAndNotifyEventEnds().catch(error => {
-        console.error('[EventEndNotificationService] Error in periodic check:', error);
       });
     }, checkInterval);
     
     // Return cleanup function
     return () => {
-      console.log('[EventEndNotificationService] Stopping periodic checks');
       clearInterval(intervalId);
     };
   }
@@ -248,7 +235,6 @@ export class EventEndNotificationService {
       return result;
       
     } catch (error) {
-      console.error('[EventEndNotificationService] Error triggering manual notification:', error);
       throw error;
     }
   }

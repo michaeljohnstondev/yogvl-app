@@ -33,6 +33,7 @@ import InviteScreen from './screens/InviteScreen';
 import PrivacySettingsScreen from './screens/PrivacySettingsScreen';
 import NotificationSettingsScreen from './screens/NotificationSettingsScreen';
 import UserProfileScreen from './screens/UserProfileScreen';
+import SocialListScreen from './screens/SocialListScreen';
 import InterestsScreen from './screens/InterestsScreen';
 import AdminScreen from './screens/AdminScreen';
 import EditEventScreen from './events/screens/EditEventScreen';
@@ -271,6 +272,13 @@ export default function Navigation() {
             <Stack.Screen
               name="UserProfile"
               component={UserProfileScreen}
+            />
+            <Stack.Screen
+              name="SocialList"
+              component={SocialListScreen}
+              options={{
+                title: 'Social List',
+              }}
             />
             <Stack.Screen
               name="Privacy"

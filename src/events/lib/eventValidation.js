@@ -96,20 +96,23 @@ export const getUserEventPermissions = (currentUserId, userData, event) => {
       canDelete: false,
       canViewSubscribers: false,
       isCreator: false,
+      isCohost: false,
       isAdmin: false,
     };
   }
 
   const isCreator = event.createdBy === currentUserId;
+  const isCohost = event.cohosts?.includes(currentUserId) || false;
   const isAdmin = userData?.isAdmin || false;
   const isPast = isPastEvent(event);
 
   return {
-    canEdit: (isCreator || isAdmin) && !isPast,
-    canManageAttendance: (isCreator || isAdmin) && event.trackAttendance === true,
-    canDelete: isCreator || isAdmin,
-    canViewSubscribers: isCreator || isAdmin,
+    canEdit: (isCreator || isCohost || isAdmin) && !isPast,
+    canManageAttendance: (isCreator || isCohost || isAdmin) && event.trackAttendance === true,
+    canDelete: isCreator || isAdmin, // Keep delete restricted to creator/admin only
+    canViewSubscribers: isCreator || isCohost || isAdmin,
     isCreator,
+    isCohost,
     isAdmin,
   };
 };

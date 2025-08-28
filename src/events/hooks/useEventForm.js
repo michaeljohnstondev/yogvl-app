@@ -12,6 +12,7 @@ import {
 import { validateUserCanCreateEvent } from '../lib/eventValidation';
 import { updateEventCreationMetrics } from '../lib/userMetrics';
 import { eventFormValidators } from './useEventFormState';
+import { StudioStatsService } from '../../services/studioStatsService';
 
 export const useEventForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -103,7 +104,7 @@ export const useEventForm = () => {
   );
 
   // Helper function to generate invite message
-  const generateInviteMessage = useCallback((eventData) => {
+  const generateInviteMessage = useCallback((eventData, inviteCode = null) => {
     const appStoreUrl = 'https://apps.apple.com/app/your-app-name/id123456789';
     const playStoreUrl = 'https://play.google.com/store/apps/details?id=com.yourapp.name';
 
@@ -113,26 +114,84 @@ export const useEventForm = () => {
       ? eventData.datetime.toDate().toLocaleDateString()
       : 'soon';
 
-    return `Hey! I just created "${eventTitle}" and would love you to join!
+    let message = `Hey! I just created "${eventTitle}" and would love you to join!
 
 📅 When: ${eventDate}
 📍 Where: ${eventLocation}
 
-Join via our app:
+Download Big Vibe Studios app:
 iPhone: ${appStoreUrl}
-Android: ${playStoreUrl}
+Android: ${playStoreUrl}`;
+
+    if (inviteCode) {
+      message += `
+
+🎟️ Use invite code: ${inviteCode}`;
+    }
+
+    message += `
 
 Hope to see you there! 🎉`;
+
+    return message;
   }, []);
 
   // Helper function to send text invites after event creation
-  const sendTextInvites = useCallback(async (selectedContacts, eventData, vibeAlert) => {
+  const sendTextInvites = useCallback(async (selectedContacts, eventData, vibeAlert, currentUserId, userData) => {
     if (!selectedContacts || selectedContacts.length === 0) {
       return;
     }
 
     try {
-      const inviteMessage = generateInviteMessage(eventData);
+      // Import services
+      const { sendPhoneInvitation } = await import('../services/invitations');
+      const { enableInviteCodeForEvent } = await import('../../services/inviteCodeService');
+      
+      // Get user's studio info
+      const userStudio = userData?.studioId || userData?.userdata?.studios?.default?.studioId || 'greenville_sc';
+      
+      // Ensure event has invite code for SMS invites
+      let inviteCode = eventData.inviteCode;
+      if (!inviteCode) {
+        try {
+          inviteCode = await enableInviteCodeForEvent(userStudio, eventData.id);
+        } catch (error) {
+          console.warn('Could not generate invite code:', error);
+        }
+      }
+      
+      // Create phone invitation records for tracking
+      const invitationPromises = selectedContacts.map(async (contact) => {
+        try {
+          return await sendPhoneInvitation({
+            eventId: eventData.id,
+            hostId: currentUserId,
+            guestPhone: contact.phone,
+            message: `You're invited to ${eventData.title}!`,
+            studioId: userStudio,
+            inviteCode: inviteCode,
+          });
+        } catch (error) {
+          console.warn(`Failed to create invitation record for ${contact.phone}:`, error);
+          return null;
+        }
+      });
+      
+      // Wait for all invitation records to be created
+      await Promise.all(invitationPromises);
+      
+      // Add phone numbers to event's invitedPhones array for fast access checking
+      try {
+        const { addPhonesToEventAccess } = await import('../../services/phoneAccessService');
+        const phoneNumbers = selectedContacts.map(contact => contact.phone);
+        await addPhonesToEventAccess(userStudio, eventData.id, phoneNumbers);
+      } catch (error) {
+        console.warn('Failed to add phones to event access list:', error);
+        // Don't fail SMS invite if this fails
+      }
+      
+      // Generate SMS message with invite code
+      const inviteMessage = generateInviteMessage(eventData, inviteCode);
       const phoneNumbers = selectedContacts.map(contact => contact.phone).join(',');
       
       const smsUrl = Platform.OS === 'ios'
@@ -176,13 +235,29 @@ Hope to see you there! 🎉`;
       studioCity: studioCity,
       studioState: studioState,
       cohosts: [], // Initialize empty cohosts array (will be populated when invitations are accepted)
+      attendance: [{ // Auto-add host to attendance
+        userId: currentUserId,
+        attended: true,
+        isHost: true,
+        markedBy: currentUserId,
+        markedAt: new Date()
+      }],
+      attendanceCount: 1, // Start with 1 (the host)
     };
     
     // Save to studio-specific events collection: /studios/{studioId}/events
     const studioEventsRef = collection(db, 'studios', userStudio, 'events');
     const eventRef = await addDoc(studioEventsRef, eventDataWithStudio);
     
-    await updateEventCreationMetrics(currentUserId, eventRef.id);
+    await updateEventCreationMetrics(currentUserId, eventRef.id, userStudio);
+    
+    // Update studio event count
+    try {
+      await StudioStatsService.incrementEventCount(userStudio);
+    } catch (error) {
+      console.warn('Failed to update studio event count:', error);
+      // Don't fail event creation if stats update fails
+    }
     
     // Send all invitations using batch service
     try {
@@ -280,7 +355,7 @@ Hope to see you there! 🎉`;
     
     // Send text invites after successful event creation
     if (selectedInvitations.textContacts && selectedInvitations.textContacts.length > 0) {
-      await sendTextInvites(selectedInvitations.textContacts, eventDataWithStudio, vibeAlert);
+      await sendTextInvites(selectedInvitations.textContacts, eventDataWithStudio, vibeAlert, currentUserId, userData);
     }
     
     return eventRef;
@@ -478,7 +553,7 @@ Hope to see you there! 🎉`;
             const updatedEventDoc = await getDoc(eventRef);
             if (updatedEventDoc.exists()) {
               const updatedEventData = updatedEventDoc.data();
-              await sendTextInvites(selectedInvitations.textContacts, updatedEventData, vibeAlert);
+              await sendTextInvites(selectedInvitations.textContacts, updatedEventData, vibeAlert, currentUserId, userData);
             }
           }
         } catch (error) {

@@ -11,6 +11,7 @@ import {
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 import VibeButton from '../components/ui/VibeButton';
+import CloseButton from '../components/ui/CloseButton';
 import { useAuth } from '../auth/AuthContext';
 import { useVibeAlert } from '../components/ui/VibeAlertContext';
 import theme from '../theme/themes';
@@ -18,14 +19,12 @@ import theme from '../theme/themes';
 const VISIBILITY_OPTIONS = {
   NEVER: 'never',
   FRIENDS: 'friends',
-  FOLLOWERS: 'followers', 
   ALWAYS: 'always'
 };
 
 const VISIBILITY_LABELS = {
   [VISIBILITY_OPTIONS.NEVER]: 'Never',
   [VISIBILITY_OPTIONS.FRIENDS]: 'Mutual Friends Only',
-  [VISIBILITY_OPTIONS.FOLLOWERS]: 'Followers Only',
   [VISIBILITY_OPTIONS.ALWAYS]: 'Everyone'
 };
 
@@ -37,28 +36,12 @@ function PrivacySettings({ navigation }) {
     // Contact Information Visibility
     emailVisibility: userData?.userdata?.settings?.privacy?.emailVisibility ?? VISIBILITY_OPTIONS.FRIENDS,
     phoneVisibility: userData?.userdata?.settings?.privacy?.phoneVisibility ?? VISIBILITY_OPTIONS.FRIENDS,
-    locationVisibility: userData?.userdata?.settings?.privacy?.locationVisibility ?? VISIBILITY_OPTIONS.FOLLOWERS,
+    locationVisibility: userData?.userdata?.settings?.privacy?.locationVisibility ?? VISIBILITY_OPTIONS.ALWAYS,
     
-    // Profile Visibility
-    profileVisibility: userData?.userdata?.settings?.privacy?.profileVisibility ?? true,
-    showOnlineStatus: userData?.userdata?.settings?.privacy?.showOnlineStatus ?? true,
-    showLastSeen: userData?.userdata?.settings?.privacy?.showLastSeen ?? VISIBILITY_OPTIONS.FRIENDS,
     
-    // Follow Privacy
-    allowFollowRequests: userData?.userdata?.settings?.privacy?.allowFollowRequests ?? true,
-    showFollowerCounts: userData?.userdata?.settings?.privacy?.showFollowerCounts ?? true,
-    whoCanFollowMe: userData?.userdata?.settings?.privacy?.whoCanFollowMe ?? VISIBILITY_OPTIONS.ALWAYS,
     
     // Event Privacy
-    allowEventDiscovery: userData?.userdata?.settings?.privacy?.allowEventDiscovery ?? true,
     requireFollowForEvents: userData?.userdata?.settings?.privacy?.requireFollowForEvents ?? false,
-    shareEventHistory: userData?.userdata?.settings?.privacy?.shareEventHistory ?? VISIBILITY_OPTIONS.FOLLOWERS,
-    showAttendanceStats: userData?.userdata?.settings?.privacy?.showAttendanceStats ?? true,
-    eventJoinVisibility: userData?.userdata?.settings?.privacy?.eventJoinVisibility ?? VISIBILITY_OPTIONS.FOLLOWERS,
-    
-    // Activity Privacy
-    showActivityStatus: userData?.userdata?.settings?.privacy?.showActivityStatus ?? VISIBILITY_OPTIONS.FRIENDS,
-    shareRecentActivity: userData?.userdata?.settings?.privacy?.shareRecentActivity ?? VISIBILITY_OPTIONS.FOLLOWERS,
     
     // Data & Analytics
     dataCollectionConsent: userData?.userdata?.settings?.privacy?.dataCollectionConsent ?? true,
@@ -127,20 +110,8 @@ function PrivacySettings({ navigation }) {
             setSettings({
               emailVisibility: VISIBILITY_OPTIONS.FRIENDS,
               phoneVisibility: VISIBILITY_OPTIONS.FRIENDS,
-              locationVisibility: VISIBILITY_OPTIONS.FOLLOWERS,
-              profileVisibility: true,
-              showOnlineStatus: true,
-              showLastSeen: VISIBILITY_OPTIONS.FRIENDS,
-              allowFollowRequests: true,
-              showFollowerCounts: true,
-              whoCanFollowMe: VISIBILITY_OPTIONS.ALWAYS,
-              allowEventDiscovery: true,
+              locationVisibility: VISIBILITY_OPTIONS.ALWAYS,
               requireFollowForEvents: false,
-              shareEventHistory: VISIBILITY_OPTIONS.FOLLOWERS,
-              showAttendanceStats: true,
-              eventJoinVisibility: VISIBILITY_OPTIONS.FOLLOWERS,
-              showActivityStatus: VISIBILITY_OPTIONS.FRIENDS,
-              shareRecentActivity: VISIBILITY_OPTIONS.FOLLOWERS,
               dataCollectionConsent: true,
               shareLocation: false,
               personalizedAds: true,
@@ -203,16 +174,15 @@ function PrivacySettings({ navigation }) {
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Privacy Settings</Text>
-        <Text style={styles.headerSubtitle}>
-          Control who can see your information and how your data is used
-        </Text>
+        <View style={styles.headerRow}>
+          <View style={styles.headerContent}>
+            <Text style={styles.headerTitle}>Privacy Settings</Text>
+            <Text style={styles.headerSubtitle}>
+              Control who can see your information and how your data is used
+            </Text>
+          </View>
+          <CloseButton onPress={() => navigation.goBack()} />
+        </View>
       </View>
 
       {/* Contact Information Section */}
@@ -221,19 +191,19 @@ function PrivacySettings({ navigation }) {
         <View style={styles.settingsGroup}>
           <VisibilitySettingItem
             title="Email Address"
-            description="Who can see your email address"
+            description="Email address visibility"
             value={settings.emailVisibility}
             onValueChange={(value) => updateVisibilitySetting('emailVisibility', value)}
           />
           <VisibilitySettingItem
             title="Phone Number"
-            description="Who can see your phone number"
+            description="Phone number visibility"
             value={settings.phoneVisibility}
             onValueChange={(value) => updateVisibilitySetting('phoneVisibility', value)}
           />
           <VisibilitySettingItem
             title="Location"
-            description="Who can see your location information"
+            description="Location information visibility"
             value={settings.locationVisibility}
             onValueChange={(value) => updateVisibilitySetting('locationVisibility', value)}
             isLast
@@ -242,114 +212,22 @@ function PrivacySettings({ navigation }) {
       </View>
 
       {/* Profile Privacy Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>PROFILE PRIVACY</Text>
-        <View style={styles.settingsGroup}>
-          <SettingItem
-            title="Profile Visibility"
-            description="Allow others to find and view your profile"
-            value={settings.profileVisibility}
-            onToggle={() => toggleSetting('profileVisibility')}
-          />
-          <SettingItem
-            title="Online Status"
-            description="Show when you're active on the app"
-            value={settings.showOnlineStatus}
-            onToggle={() => toggleSetting('showOnlineStatus')}
-          />
-          <VisibilitySettingItem
-            title="Last Seen"
-            description="Who can see when you were last active"
-            value={settings.showLastSeen}
-            onValueChange={(value) => updateVisibilitySetting('showLastSeen', value)}
-            isLast
-          />
-        </View>
-      </View>
 
-      {/* Follow Privacy Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>FOLLOW PRIVACY</Text>
-        <View style={styles.settingsGroup}>
-          <SettingItem
-            title="Allow Follow Requests"
-            description="Let others follow you to see your events"
-            value={settings.allowFollowRequests}
-            onToggle={() => toggleSetting('allowFollowRequests')}
-          />
-          <VisibilitySettingItem
-            title="Who Can Follow Me"
-            description="Control who is allowed to follow you"
-            value={settings.whoCanFollowMe}
-            onValueChange={(value) => updateVisibilitySetting('whoCanFollowMe', value)}
-          />
-          <SettingItem
-            title="Show Follower Counts"
-            description="Display your follower and following numbers publicly"
-            value={settings.showFollowerCounts}
-            onToggle={() => toggleSetting('showFollowerCounts')}
-            isLast
-          />
-        </View>
-      </View>
 
       {/* Event Privacy Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>EVENT PRIVACY</Text>
         <View style={styles.settingsGroup}>
           <SettingItem
-            title="Event Discovery"
-            description="Allow your public events to appear in discovery feeds"
-            value={settings.allowEventDiscovery}
-            onToggle={() => toggleSetting('allowEventDiscovery')}
-          />
-          <SettingItem
-            title="Follower-Only Events"
-            description="Require users to follow you to see your events"
+            title="Friends-Only Events"
+            description="Only friends can see your events"
             value={settings.requireFollowForEvents}
             onToggle={() => toggleSetting('requireFollowForEvents')}
-          />
-          <VisibilitySettingItem
-            title="Event History"
-            description="Who can see your past events"
-            value={settings.shareEventHistory}
-            onValueChange={(value) => updateVisibilitySetting('shareEventHistory', value)}
-          />
-          <VisibilitySettingItem
-            title="Event Attendance"
-            description="Who can see which events you've joined"
-            value={settings.eventJoinVisibility}
-            onValueChange={(value) => updateVisibilitySetting('eventJoinVisibility', value)}
-          />
-          <SettingItem
-            title="Attendance Statistics"
-            description="Show your reliability and attendance stats"
-            value={settings.showAttendanceStats}
-            onToggle={() => toggleSetting('showAttendanceStats')}
             isLast
           />
         </View>
       </View>
 
-      {/* Activity Privacy Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>ACTIVITY PRIVACY</Text>
-        <View style={styles.settingsGroup}>
-          <VisibilitySettingItem
-            title="Activity Status"
-            description="Who can see your recent app activity"
-            value={settings.showActivityStatus}
-            onValueChange={(value) => updateVisibilitySetting('showActivityStatus', value)}
-          />
-          <VisibilitySettingItem
-            title="Recent Activity"
-            description="Who can see your recent events and interactions"
-            value={settings.shareRecentActivity}
-            onValueChange={(value) => updateVisibilitySetting('shareRecentActivity', value)}
-            isLast
-          />
-        </View>
-      </View>
 
       {/* Data & Analytics Section */}
       <View style={styles.section}>
@@ -409,10 +287,6 @@ function PrivacySettings({ navigation }) {
           <Text style={styles.helpText}>Only people you both follow can see this</Text>
         </View>
         <View style={styles.helpItem}>
-          <Text style={styles.helpLabel}>• Followers:</Text>
-          <Text style={styles.helpText}>Anyone who follows you can see this</Text>
-        </View>
-        <View style={styles.helpItem}>
           <Text style={styles.helpLabel}>• Everyone:</Text>
           <Text style={styles.helpText}>All app users can see this information</Text>
         </View>
@@ -434,13 +308,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.darkGray,
   },
-  backButton: {
-    marginBottom: 10,
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
   },
-  backButtonText: {
-    color: theme.colors.vibeBlue,
-    fontSize: 16,
-    fontWeight: '600',
+  headerContent: {
+    flex: 1,
+    marginRight: 15,
   },
   headerTitle: {
     color: theme.colors.textPrimary,

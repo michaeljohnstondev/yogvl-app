@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,13 +8,35 @@ import {
   Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../../auth/services/firebase';
+import ProfileAvatar from '../ProfileAvatar';
 import { useAuth } from '../../../auth/AuthContext';
 import { formatTimestamp } from './utils/commentUtils';
 import theme from '../../../theme/themes';
 
 const CommentItem = ({ comment, onDelete }) => {
   const { currentUserId } = useAuth();
+  const [commentUserData, setCommentUserData] = useState(null);
   const isOwner = currentUserId === comment.userId;
+
+  // Fetch user data for profile picture
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (comment.userId) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', comment.userId));
+          if (userDoc.exists()) {
+            setCommentUserData(userDoc.data());
+          }
+        } catch (error) {
+          // Silently fail - will just show initials
+        }
+      }
+    };
+    
+    fetchUserData();
+  }, [comment.userId]);
 
   // Border + glow spec per role
   const getGradientSpec = () => {
@@ -100,6 +122,13 @@ const CommentItem = ({ comment, onDelete }) => {
             style={styles.cardBackground}
           >
             <View style={styles.header}>
+              <View style={styles.avatarWrapper}>
+                <ProfileAvatar 
+                  userData={commentUserData} 
+                  size={44}
+                  showBorder={true}
+                />
+              </View>
               <View style={styles.leftHeader}>
                 <Text style={styles.userName}>{comment.userName}</Text>
                 <Text style={styles.timestamp}>
@@ -172,6 +201,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 8,
+    gap: 10,
+  },
+  avatarWrapper: {
+    marginTop: 4,
   },
   leftHeader: {
     flex: 1,

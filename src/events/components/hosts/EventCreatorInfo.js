@@ -1,6 +1,7 @@
 // components/events/hosts/EventCreatorInfo.js
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import ProfileAvatar from '../../../components/ui/ProfileAvatar';
 import ReliabilityBadge from '../../../components/ui/ReliabilityBadge';
 
 const EventCreatorInfo = ({
@@ -46,6 +47,11 @@ const EventCreatorInfo = ({
   if (compact) {
     return (
       <Container style={[styles.compactContainer, style]} {...containerProps}>
+        <ProfileAvatar 
+          userData={creatorData} 
+          size={32}
+          showBorder={true}
+        />
         <Text style={styles.compactName} numberOfLines={1}>
           {displayName}
         </Text>
@@ -61,6 +67,11 @@ const EventCreatorInfo = ({
     <Container style={[styles.container, style]} {...containerProps}>
       {showLabel && <Text style={styles.label}>Hosted by:</Text>}
       <View style={styles.details}>
+        <ProfileAvatar 
+          userData={creatorData} 
+          size={40}
+          showBorder={true}
+        />
         <View style={styles.nameContainer}>
           <Text style={styles.name}>{displayName}</Text>
           {onPress && <Text style={styles.clickHint}>ⓘ</Text>}
@@ -115,6 +126,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 12,
   },
   nameContainer: {
     flexDirection: 'row',
@@ -139,6 +151,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 4,
+    gap: 8,
   },
   compactName: {
     color: '#fff',

@@ -8,6 +8,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import ReliabilityBadge from './ReliabilityBadge';
 import ReliabilityDetail from './ReliabilityDetail';
+import ProfileAvatar from './ProfileAvatar';
 import { useReliability } from '../../hooks/useReliability';
 import theme from '../../theme/themes';
 
@@ -22,10 +23,6 @@ export default function UserProfileCard({ userData, style, showDetails = true })
     ? `${contactInfo.firstName} ${contactInfo.lastName}`
     : contactInfo.email || userData.email || 'User';
 
-  const initials = contactInfo.firstName && contactInfo.lastName
-    ? `${contactInfo.firstName.charAt(0)}${contactInfo.lastName.charAt(0)}`.toUpperCase()
-    : (contactInfo.email || userData.email ? (contactInfo.email || userData.email).charAt(0).toUpperCase() : '?');
-
   return (
     <View style={[styles.container, style]}>
       <LinearGradient
@@ -34,9 +31,11 @@ export default function UserProfileCard({ userData, style, showDetails = true })
       >
         {/* User Avatar & Basic Info */}
         <View style={styles.header}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initials}</Text>
-          </View>
+          <ProfileAvatar 
+            userData={userData} 
+            size={60}
+            showBorder={true}
+          />
           
           <View style={styles.userInfo}>
             <Text style={styles.userName}>{displayName}</Text>
@@ -124,20 +123,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 16,
-  },
-  avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: theme.colors.vibeBlue || '#00C6FF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  avatarText: {
-    color: theme.colors.textPrimary,
-    fontSize: 20,
-    fontWeight: 'bold',
+    gap: 16,
   },
   userInfo: {
     flex: 1,

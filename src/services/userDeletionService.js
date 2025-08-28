@@ -216,13 +216,7 @@ export const deleteUserAccount = async (userId, currentUser) => {
           batchCount++;
         }
         
-        if (eventData.attendees?.includes(userId)) {
-          batch.update(eventRef, {
-            attendees: arrayRemove(userId),
-            attendeeCount: Math.max(0, (eventData.attendeeCount || 0) - 1)
-          });
-          batchCount++;
-        }
+        // Legacy attendees field - no longer used (replaced by subscribers)
         
         if (eventData.coHosts?.includes(userId)) {
           batch.update(eventRef, {
@@ -258,36 +252,23 @@ export const deleteUserAccount = async (userId, currentUser) => {
       }
     }
 
-    // 8. Clean up Notifications
+    // 8. Clean up Notifications (from user's subcollection)
     console.log('[UserDeletion] Cleaning up notifications...');
     
-    // Notifications to user
-    const notificationsToUserQuery = query(
-      collection(db, 'notifications'),
-      where('userId', '==', userId)
-    );
-    const notificationsToUserSnap = await getDocs(notificationsToUserQuery);
-    console.log(`[UserDeletion] Found ${notificationsToUserSnap.docs.length} notifications to user`);
+    // Delete all notifications for this user from their notifications subcollection
+    const userNotificationsRef = collection(db, 'users', userId, 'notifications');
+    const userNotificationsSnap = await getDocs(userNotificationsRef);
+    console.log(`[UserDeletion] Found ${userNotificationsSnap.docs.length} notifications for user`);
     
-    notificationsToUserSnap.docs.forEach((notificationDoc) => {
+    userNotificationsSnap.docs.forEach((notificationDoc) => {
       batch.delete(notificationDoc.ref);
       batchCount++;
     });
     await commitBatchIfNeeded();
 
-    // Notifications from user (where they are the sender)
-    const notificationsFromUserQuery = query(
-      collection(db, 'notifications'),
-      where('data.senderId', '==', userId)
-    );
-    const notificationsFromUserSnap = await getDocs(notificationsFromUserQuery);
-    console.log(`[UserDeletion] Found ${notificationsFromUserSnap.docs.length} notifications from user`);
-    
-    notificationsFromUserSnap.docs.forEach((notificationDoc) => {
-      batch.delete(notificationDoc.ref);
-      batchCount++;
-    });
-    await commitBatchIfNeeded();
+    // Note: Notifications from this user to others would remain in their respective
+    // user subcollections, but the sender reference becomes invalid.
+    // This is acceptable since the user is being deleted.
 
     // 9. Update User Metrics for Other Users
     console.log('[UserDeletion] Updating metrics for related users...');
@@ -376,8 +357,8 @@ export const getUserDeletionPreview = async (userId) => {
     preview.friendRequests = sentRequestsSnap.docs.length + receivedRequestsSnap.docs.length;
 
     // Count notifications
-    const notificationsQuery = query(collection(db, 'notifications'), where('userId', '==', userId));
-    const notificationsSnap = await getDocs(notificationsQuery);
+    const userNotificationsRef = collection(db, 'users', userId, 'notifications');
+    const notificationsSnap = await getDocs(userNotificationsRef);
     preview.notifications = notificationsSnap.docs.length;
 
     if (userStudio) {

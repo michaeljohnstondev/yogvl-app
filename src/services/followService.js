@@ -435,6 +435,110 @@ export const migrateFriendsToFollows = async (userId, userData) => {
   }
 };
 
+/**
+ * Get full user data for followers list (includes follow status)
+ */
+export const getFollowersList = async (userId) => {
+  try {
+    const followers = await getFollowers(userId);
+    const userIds = followers.map(f => f.followerId);
+    
+    // Get full user data
+    const userPromises = userIds.map(async (id) => {
+      try {
+        const userDoc = await getDoc(doc(db, 'users', id));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          const isFollowing = await checkIfFollowing(userId, id);
+          return {
+            id,
+            ...userData,
+            isFollowing,
+          };
+        }
+      } catch (error) {
+        console.error(`Error fetching user ${id}:`, error);
+      }
+      return null;
+    });
+    
+    const users = await Promise.all(userPromises);
+    return users.filter(Boolean);
+  } catch (error) {
+    console.error('Error getting followers list:', error);
+    return [];
+  }
+};
+
+/**
+ * Get full user data for following list (includes follow status)
+ */
+export const getFollowingList = async (userId) => {
+  try {
+    const following = await getFollowing(userId);
+    const userIds = following.map(f => f.targetUserId);
+    
+    // Get full user data
+    const userPromises = userIds.map(async (id) => {
+      try {
+        const userDoc = await getDoc(doc(db, 'users', id));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          return {
+            id,
+            ...userData,
+            isFollowing: true, // They're in the following list
+          };
+        }
+      } catch (error) {
+        console.error(`Error fetching user ${id}:`, error);
+      }
+      return null;
+    });
+    
+    const users = await Promise.all(userPromises);
+    return users.filter(Boolean);
+  } catch (error) {
+    console.error('Error getting following list:', error);
+    return [];
+  }
+};
+
+/**
+ * Get full user data for mutual friends list (includes follow status)
+ */
+export const getMutualFriendsList = async (userId) => {
+  try {
+    const mutualFollows = await getMutualFollows(userId);
+    const userIds = mutualFollows.map(f => f.id);
+    
+    // Get full user data
+    const userPromises = userIds.map(async (id) => {
+      try {
+        const userDoc = await getDoc(doc(db, 'users', id));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          return {
+            id,
+            ...userData,
+            isFollowing: true, // They're mutual friends
+            isMutual: true,
+          };
+        }
+      } catch (error) {
+        console.error(`Error fetching user ${id}:`, error);
+      }
+      return null;
+    });
+    
+    const users = await Promise.all(userPromises);
+    return users.filter(Boolean);
+  } catch (error) {
+    console.error('Error getting mutual friends list:', error);
+    return [];
+  }
+};
+
 // Export for backward compatibility (temporary)
 export const getFriends = getMutualFollows;
 export const sendFriendRequest = followUser;

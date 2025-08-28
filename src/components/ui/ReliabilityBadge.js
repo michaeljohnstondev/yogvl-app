@@ -45,7 +45,6 @@ export default function ReliabilityBadge({
       { backgroundColor: `${tier.color}20`, borderColor: tier.color },
       style
     ]}>
-      <Text style={[styles.emoji, sizeStyle.emoji]}>{tier.emoji}</Text>
       <Text style={[styles.score, sizeStyle.text, { color: tier.color }]}>
         {showLabel ? displayText : shortDisplayText}
       </Text>

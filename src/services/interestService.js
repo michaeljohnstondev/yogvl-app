@@ -21,7 +21,6 @@ import { db } from '../auth/services/firebase';
 export const getUserInterests = async (userId) => {
   try {
     if (!userId) {
-      console.warn('[interestService] No userId provided');
       return [];
     }
 
@@ -29,7 +28,6 @@ export const getUserInterests = async (userId) => {
     const userSnap = await getDoc(userRef);
     
     if (!userSnap.exists()) {
-      console.warn(`[interestService] User ${userId} not found`);
       return [];
     }
 
@@ -38,21 +36,17 @@ export const getUserInterests = async (userId) => {
     
     // If user has no preferences structure, initialize it
     if (!userData?.preferences) {
-      console.log(`[interestService] User ${userId} has no preferences structure, initializing empty interests`);
       try {
         await updateDoc(userRef, {
           'preferences.interests': []
         });
       } catch (error) {
-        console.warn(`[interestService] Could not initialize preferences for user ${userId}:`, error);
       }
     }
     
-    console.log(`[interestService] Found ${interests.length} interests for user ${userId}`);
     return interests;
     
   } catch (error) {
-    console.error('[interestService] Error getting user interests:', error);
     return [];
   }
 };
@@ -66,13 +60,11 @@ export const getUserInterests = async (userId) => {
 export const addUserInterest = async (userId, interest) => {
   try {
     if (!userId || !interest) {
-      console.warn('[interestService] Missing userId or interest');
       return false;
     }
 
     const trimmedInterest = interest.trim();
     if (!trimmedInterest) {
-      console.warn('[interestService] Empty interest after trimming');
       return false;
     }
 
@@ -85,12 +77,10 @@ export const addUserInterest = async (userId, interest) => {
     if (existingInterest) {
       // If exact match (same case), no need to update
       if (existingInterest === trimmedInterest) {
-        console.log(`[interestService] Interest "${trimmedInterest}" already exists for user ${userId}`);
         return true;
       }
       
       // If case mismatch, update to new capitalization
-      console.log(`[interestService] Updating interest case from "${existingInterest}" to "${trimmedInterest}" for user ${userId}`);
       await updateDoc(userRef, {
         'preferences.interests': arrayRemove(existingInterest)
       });
@@ -105,11 +95,9 @@ export const addUserInterest = async (userId, interest) => {
       'preferences.interests': arrayUnion(trimmedInterest) // Keep original case
     });
 
-    console.log(`[interestService] Added interest "${trimmedInterest}" for user ${userId}`);
     return true;
     
   } catch (error) {
-    console.error('[interestService] Error adding user interest:', error);
     return false;
   }
 };
@@ -123,7 +111,6 @@ export const addUserInterest = async (userId, interest) => {
 export const removeUserInterest = async (userId, interest) => {
   try {
     if (!userId || !interest) {
-      console.warn('[interestService] Missing userId or interest');
       return false;
     }
 
@@ -133,11 +120,9 @@ export const removeUserInterest = async (userId, interest) => {
       'preferences.interests': arrayRemove(interest)
     });
 
-    console.log(`[interestService] Removed interest "${interest}" for user ${userId}`);
     return true;
     
   } catch (error) {
-    console.error('[interestService] Error removing user interest:', error);
     return false;
   }
 };
@@ -150,7 +135,6 @@ export const removeUserInterest = async (userId, interest) => {
 export const getStudioInterests = async (studioId) => {
   try {
     if (!studioId) {
-      console.warn('[interestService] No studioId provided');
       return [];
     }
 
@@ -159,7 +143,6 @@ export const getStudioInterests = async (studioId) => {
     const studioSnap = await getDoc(studioRef);
     
     if (!studioSnap.exists()) {
-      console.warn(`[interestService] Studio ${studioId} not found`);
       return [];
     }
 
@@ -167,7 +150,6 @@ export const getStudioInterests = async (studioId) => {
     const userIds = studioData.users || [];
     
     if (userIds.length === 0) {
-      console.log(`[interestService] No users in studio ${studioId}`);
       return [];
     }
 
@@ -207,11 +189,9 @@ export const getStudioInterests = async (studioId) => {
       }))
       .sort((a, b) => b.count - a.count);
 
-    console.log(`[interestService] Found ${popularInterests.length} unique interests in studio ${studioId}`);
     return popularInterests;
     
   } catch (error) {
-    console.error('[interestService] Error getting studio interests:', error);
     return [];
   }
 };
@@ -226,7 +206,6 @@ export const getStudioInterests = async (studioId) => {
 export const findUsersWithInterests = async (studioId, interests, excludeUserId = null) => {
   try {
     if (!studioId || !interests || interests.length === 0) {
-      console.warn('[interestService] Missing studioId or interests');
       return [];
     }
 
@@ -237,7 +216,6 @@ export const findUsersWithInterests = async (studioId, interests, excludeUserId 
     const studioSnap = await getDoc(studioRef);
     
     if (!studioSnap.exists()) {
-      console.warn(`[interestService] Studio ${studioId} not found`);
       return [];
     }
 
@@ -245,7 +223,6 @@ export const findUsersWithInterests = async (studioId, interests, excludeUserId 
     const userIds = studioData.users || [];
     
     if (userIds.length === 0) {
-      console.log(`[interestService] No users in studio ${studioId}`);
       return [];
     }
 
@@ -281,11 +258,9 @@ export const findUsersWithInterests = async (studioId, interests, excludeUserId 
       });
     }
 
-    console.log(`[interestService] Found ${matchingUserIds.length} users with matching interests in studio ${studioId}`);
     return matchingUserIds;
     
   } catch (error) {
-    console.error('[interestService] Error finding users with interests:', error);
     return [];
   }
 };

@@ -20,7 +20,7 @@ import VibeButton from '../../components/ui/VibeButton';
 import theme from '../../theme/themes';
 
 export default function AttendanceScreen({ route, navigation }) {
-  const { eventId } = route.params;
+  const { eventId, studioId } = route.params;
   const { currentUserId } = useAuth();
   const vibeAlert = useVibeAlert();
 
@@ -40,8 +40,8 @@ export default function AttendanceScreen({ route, navigation }) {
     try {
       setLoading(true);
 
-      // Check if user can mark attendance (is host)
-      const canMark = await AttendanceService.canMarkAttendance(eventId, currentUserId);
+      // Check if user can mark attendance (is host)  
+      const canMark = await AttendanceService.canMarkAttendance(studioId, eventId, currentUserId);
       setCanMarkAttendance(canMark);
 
       if (!canMark) {
@@ -50,15 +50,16 @@ export default function AttendanceScreen({ route, navigation }) {
         return;
       }
 
-      // Load event data
-      const eventDoc = await getDoc(doc(db, 'events', eventId));
+      // Load event data from studio-specific collection
+      
+      const eventDoc = await getDoc(doc(db, 'studios', studioId, 'events', eventId));
       if (!eventDoc.exists()) {
         vibeAlert.error('Error', 'Event not found.');
         navigation.goBack();
         return;
       }
 
-      const eventData = { id: eventDoc.id, ...eventDoc.data() };
+      const eventData = { id: eventDoc.id, studioId, ...eventDoc.data() };
       setEvent(eventData);
 
       // Load RSVP users
@@ -75,7 +76,7 @@ export default function AttendanceScreen({ route, navigation }) {
       setRsvpUsers(users);
 
       // Load attendance data
-      const attendance = await AttendanceService.getEventAttendance(eventId);
+      const attendance = await AttendanceService.getEventAttendance(studioId, eventId);
       setAttendanceData(attendance.attendanceData);
       setAttendanceStats(attendance.stats);
 

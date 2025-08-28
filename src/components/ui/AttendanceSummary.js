@@ -8,7 +8,7 @@ import {
 import { AttendanceService } from '../../services/AttendanceService';
 import theme from '../../theme/themes';
 
-export default function AttendanceSummary({ eventId, onPress, isHost = false }) {
+export default function AttendanceSummary({ eventId, studioId, onPress, isHost = false }) {
   const [attendanceStats, setAttendanceStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -18,11 +18,11 @@ export default function AttendanceSummary({ eventId, onPress, isHost = false }) 
     } else {
       setLoading(false);
     }
-  }, [eventId, isHost]);
+  }, [eventId, studioId, isHost]);
 
   const loadAttendanceStats = async () => {
     try {
-      const attendance = await AttendanceService.getEventAttendance(eventId);
+      const attendance = await AttendanceService.getEventAttendance(studioId, eventId);
       setAttendanceStats(attendance.stats);
     } catch (error) {
       // Silently fail - attendance might not be marked yet

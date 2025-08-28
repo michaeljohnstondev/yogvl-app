@@ -1,11 +1,13 @@
-import React from 'react';
-import { View, Text, StyleSheet, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Alert, TouchableOpacity } from 'react-native';
 import { useComments } from './hooks/useComments';
 import CommentList from './CommentList';
 import AddCommentInput from './AddCommentInput';
 import theme from '../../../theme/themes';
 
 const CommentSection = ({ eventId }) => {
+  const [showComments, setShowComments] = useState(true);
+  
   const {
     comments,
     loading,
@@ -43,13 +45,24 @@ const CommentSection = ({ eventId }) => {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Discussion</Text>
-        {!loading && (
-          <Text style={styles.commentCount}>
-            {comments.length === 0
-              ? 'No comments'
-              : `${comments.length} comment${comments.length === 1 ? '' : 's'}`}
-          </Text>
-        )}
+        <View style={styles.headerRight}>
+          {!loading && (
+            <Text style={styles.commentCount}>
+              {comments.length === 0
+                ? 'No comments'
+                : `${comments.length} comment${comments.length === 1 ? '' : 's'}`}
+            </Text>
+          )}
+          <TouchableOpacity
+            onPress={() => setShowComments(!showComments)}
+            style={styles.toggleButton}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.toggleButtonText}>
+              {showComments ? '👁️' : '👁️‍🗨️'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Add Comment Input */}
@@ -59,12 +72,14 @@ const CommentSection = ({ eventId }) => {
         disabled={loading}
       />
 
-      {/* Comments List */}
-      <CommentList
-        comments={comments}
-        loading={loading}
-        onDeleteComment={handleDeleteComment}
-      />
+      {/* Comments List - Only show when showComments is true */}
+      {showComments && (
+        <CommentList
+          comments={comments}
+          loading={loading}
+          onDeleteComment={handleDeleteComment}
+        />
+      )}
     </View>
   );
 };
@@ -86,10 +101,22 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
     fontFamily: theme.fonts.main,
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   commentCount: {
     fontSize: 14,
     color: theme.colors.textSecondary,
     fontFamily: theme.fonts.main,
+  },
+  toggleButton: {
+    padding: 4,
+    borderRadius: 8,
+  },
+  toggleButtonText: {
+    fontSize: 18,
   },
 });
 

@@ -8,6 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import VibeButton from '../components/ui/VibeButton';
+import ProfileAvatar from '../components/ui/ProfileAvatar';
 import { useVibeAlert } from '../components/ui/VibeAlertContext';
 import VibeCarousel from '../components/ui/VibeCarousel';
 import EventCard from '../events/components/EventCard';
@@ -19,6 +20,12 @@ import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 import { useAuth } from '../auth/AuthContext';
 import { getEventFeed } from '../services/feedService';
+import { hasAdminAccess } from '../services/adminService';
+import { banEnforcementService } from '../services/banEnforcementService';
+import { adminNotificationService } from '../services/adminNotificationService';
+import { globalAdminService } from '../services/globalAdminService';
+import BannedUserModal from '../components/ui/BannedUserModal';
+import AdminNotificationModal from '../components/ui/AdminNotificationModal';
 import theme from '../theme/themes';
 
 export default function HomeScreen({ navigation }) {
@@ -26,9 +33,18 @@ export default function HomeScreen({ navigation }) {
   const [followedEvents, setFollowedEvents] = useState([]);
   const [suggestedEvents, setSuggestedEvents] = useState([]);
   const [pastEvents, setPastEvents] = useState([]);
+  
+  // Ban enforcement state
+  const [banStatus, setBanStatus] = useState(null);
+  const [showBannedModal, setShowBannedModal] = useState(false);
+  const [checkingBanStatus, setCheckingBanStatus] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [showAccountSettings, setShowAccountSettings] = useState(false);
   const [feedStats, setFeedStats] = useState(null);
+  
+  // Admin notifications state
+  const [currentNotification, setCurrentNotification] = useState(null);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
 
   // Get auth and alert context
   const { currentUserId, userData, isAuthenticated } = useAuth();
@@ -38,10 +54,30 @@ export default function HomeScreen({ navigation }) {
     const defaultStudio = userData?.userdata?.studios?.default;
     if (!defaultStudio?.studioId || !currentUserId) return; // Wait for user studio info and auth
     
+    // Check ban status first
+    const checkBanStatus = async () => {
+      setCheckingBanStatus(true);
+      try {
+        const status = await banEnforcementService.checkBanStatus(currentUserId);
+        setBanStatus(status);
+        
+        if (status?.isBanned) {
+          setShowBannedModal(true);
+        }
+        
+        setCheckingBanStatus(false);
+        return status;
+      } catch (error) {
+        console.error('[HomeScreen] Error checking ban status:', error);
+        setCheckingBanStatus(false);
+        return { isBanned: false, error: true };
+      }
+    };
+    
     // Get user's studio
     const userStudio = defaultStudio.studioId;
     
-    // Load follow-based event feed
+    // Load follow-based event feed (only if not banned)
     const loadEventFeed = async () => {
       setIsLoading(true);
       try {
@@ -111,7 +147,44 @@ export default function HomeScreen({ navigation }) {
       }
     };
 
-    loadEventFeed();
+    // Check for admin notifications (both individual and global)
+    const checkAdminNotifications = async () => {
+      try {
+        // Check individual notifications first
+        const unacknowledgedNotifications = await adminNotificationService.getUnacknowledgedNotifications(currentUserId);
+        
+        // Check global notifications
+        const globalMessages = await globalAdminService.getActiveGlobalMessages(currentUserId);
+        
+        // Combine and prioritize (global messages first, then individual)
+        const allNotifications = [...globalMessages, ...unacknowledgedNotifications];
+        
+        if (allNotifications.length > 0) {
+          // Show the most recent/highest priority notification
+          const notification = allNotifications[0];
+          // Mark if it's a global message for acknowledgment handling
+          notification.isGlobal = globalMessages.includes(notification);
+          setCurrentNotification(notification);
+          setShowNotificationModal(true);
+        }
+      } catch (error) {
+        console.error('[HomeScreen] Error checking admin notifications:', error);
+      }
+    };
+
+    // First check ban status, then load events if not banned, and check notifications
+    const initializeHomeScreen = async () => {
+      const status = await checkBanStatus();
+      
+      // Only load events if user is not banned
+      if (!status?.isBanned) {
+        loadEventFeed();
+        // Check for admin notifications after loading events
+        await checkAdminNotifications();
+      }
+    };
+    
+    initializeHomeScreen();
     
     // Optionally, set up a real-time subscription for my events only
     const q = query(
@@ -146,11 +219,74 @@ export default function HomeScreen({ navigation }) {
     navigation.navigate('Admin');
   };
 
-  // Don't show empty state while loading
-  if (isLoading) {
+  // Handle notification acknowledgment
+  const handleNotificationAcknowledge = async () => {
+    try {
+      if (currentNotification) {
+        // Handle global vs individual notifications
+        if (currentNotification.isGlobal) {
+          await globalAdminService.acknowledgeGlobalMessage(currentUserId, currentNotification.id);
+        } else {
+          await adminNotificationService.acknowledgeNotification(currentUserId, currentNotification.id);
+        }
+        
+        setShowNotificationModal(false);
+        setCurrentNotification(null);
+        
+        // Check if there are more notifications to show
+        const individualNotifications = await adminNotificationService.getUnacknowledgedNotifications(currentUserId);
+        const globalMessages = await globalAdminService.getActiveGlobalMessages(currentUserId);
+        const allRemainingNotifications = [...globalMessages, ...individualNotifications];
+        
+        if (allRemainingNotifications.length > 0) {
+          const nextNotification = allRemainingNotifications[0];
+          nextNotification.isGlobal = globalMessages.includes(nextNotification);
+          setCurrentNotification(nextNotification);
+          setShowNotificationModal(true);
+        }
+      }
+    } catch (error) {
+      console.error('[HomeScreen] Error acknowledging notification:', error);
+      vibeAlert.error('Error', 'Failed to acknowledge notification. Please try again.');
+    }
+  };
+
+  // Don't show empty state while loading or checking ban status
+  if (isLoading || checkingBanStatus) {
     return (
       <View style={[styles.screen, styles.centerContent]}>
-        <Text style={styles.loadingText}>Loading events...</Text>
+        <Text style={styles.loadingText}>
+          {checkingBanStatus ? 'Checking account status...' : 'Loading events...'}
+        </Text>
+      </View>
+    );
+  }
+
+  // If user is banned, show minimal interface (banned modal will show)
+  if (banStatus?.isBanned) {
+    return (
+      <View style={styles.screen}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Big Vibe Studios</Text>
+        </View>
+        
+        <View style={[styles.centerContent, { flex: 1 }]}>
+          <Text style={styles.loadingText}>Account Restricted</Text>
+        </View>
+
+        {/* Banned User Modal */}
+        <BannedUserModal
+          visible={showBannedModal}
+          banStatus={banStatus}
+          onClose={() => setShowBannedModal(false)}
+          onLogout={() => {
+            setShowBannedModal(false);
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Landing' }],
+            });
+          }}
+        />
       </View>
     );
   }
@@ -169,13 +305,11 @@ export default function HomeScreen({ navigation }) {
             style={styles.profileButton}
             onPress={() => setShowAccountSettings(true)}
           >
-            <View style={styles.profileIcon}>
-              <Text style={styles.profileIconText}>
-                {userData?.userdata?.contactInfo?.firstName
-                  ? userData.userdata.contactInfo.firstName.charAt(0).toUpperCase()
-                  : '?'}
-              </Text>
-            </View>
+            <ProfileAvatar 
+              userData={userData} 
+              size={40}
+              showBorder={true}
+            />
           </TouchableOpacity>
         </View>
       </View>
@@ -272,13 +406,15 @@ export default function HomeScreen({ navigation }) {
             variant="filled"
             style={styles.fullButton}
           />
-          <VibeButton
-            label="ADMIN TOOLS"
-            onPress={handleAdminMenu}
-            variant="toggle"
-            color="purple"
-            style={[styles.fullButton, styles.adminButton]}
-          />
+          {hasAdminAccess(userData) && (
+            <VibeButton
+              label="ADMIN TOOLS"
+              onPress={handleAdminMenu}
+              variant="toggle"
+              color="purple"
+              style={[styles.fullButton, styles.adminButton]}
+            />
+          )}
         </View>
       </ScrollView>
       )}
@@ -296,6 +432,28 @@ export default function HomeScreen({ navigation }) {
         onClose={() => setShowAccountSettings(false)}
         navigation={navigation}
         userData={userData}
+      />
+
+      {/* Banned User Modal */}
+      <BannedUserModal
+        visible={showBannedModal}
+        banStatus={banStatus}
+        onClose={() => setShowBannedModal(false)}
+        onLogout={() => {
+          setShowBannedModal(false);
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Landing' }],
+          });
+        }}
+      />
+
+      {/* Admin Notification Modal */}
+      <AdminNotificationModal
+        visible={showNotificationModal}
+        notification={currentNotification}
+        onClose={() => setShowNotificationModal(false)}
+        onAcknowledge={handleNotificationAcknowledge}
       />
     </View>
   );
@@ -331,19 +489,6 @@ const styles = StyleSheet.create({
   },
   profileButton: {
     padding: 4,
-  },
-  profileIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: theme.colors.vibeBlue || '#00C6FF',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  profileIconText: {
-    color: theme.colors.textPrimary,
-    fontSize: 16,
-    fontWeight: 'bold',
   },
   container: {
     paddingTop: 20,

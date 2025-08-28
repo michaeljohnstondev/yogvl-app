@@ -23,7 +23,7 @@ const SUGGESTION_LIMITS = {
   DISPLAY_MAX: 8,
 };
 
-// Utility function
+// Utility functions
 const parsePhrases = (details) => {
   return details
     .trim()
@@ -31,6 +31,21 @@ const parsePhrases = (details) => {
     .filter((phrase) => phrase.length > 10 && phrase.length < 100)
     .map((phrase) => phrase.trim())
     .filter(Boolean);
+};
+
+// Strip leading emojis for deduplication while preserving original text
+const normalizeTitle = (title) => {
+  if (!title || typeof title !== 'string') return '';
+  
+  // Remove leading emojis and trim
+  const emojiRegex = /^[\u{1F600}-\u{1F64F}]|^[\u{1F300}-\u{1F5FF}]|^[\u{1F680}-\u{1F6FF}]|^[\u{1F1E6}-\u{1F1FF}]|^[\u{2600}-\u{26FF}]|^[\u{2700}-\u{27BF}]|^\u{2764}|^\u{2049}|^\u{203C}|^[\u{1F900}-\u{1F9FF}]|^[\u{1FA70}-\u{1FAFF}]/u;
+  
+  let normalized = title.trim();
+  while (emojiRegex.test(normalized)) {
+    normalized = normalized.replace(emojiRegex, '').trim();
+  }
+  
+  return normalized;
 };
 
 // Custom Hook for Suggestions
@@ -66,11 +81,12 @@ export const useSuggestions = (studioId = null) => {
         getStudioInterests(studioId)
       ]);
       const counts = { titles: {}, locations: {}, details: {} };
+      const titleMap = {}; // Map normalized titles to original titles with emojis
 
       querySnapshot.docs.forEach((doc) => {
         const data = doc.data();
         
-        // Client-side filters to avoid composite index
+        // Client-side filters to avoid composite index - only use recent events
         if (data.createdAt && data.createdAt.toDate() < sixMonthsAgo) {
           return;
         }
@@ -80,10 +96,21 @@ export const useSuggestions = (studioId = null) => {
           return;
         }
 
-        // Process titles
+        // Process titles - use normalized version for deduplication
         if (data.title?.trim()) {
-          const title = data.title.trim();
-          counts.titles[title] = (counts.titles[title] || 0) + 1;
+          const originalTitle = data.title.trim();
+          const normalizedTitle = normalizeTitle(originalTitle);
+          
+          // Skip empty normalized titles
+          if (!normalizedTitle) return;
+          
+          // Count based on normalized title
+          counts.titles[normalizedTitle] = (counts.titles[normalizedTitle] || 0) + 1;
+          
+          // Keep track of the best original title (prefer one with emoji if available)
+          if (!titleMap[normalizedTitle] || originalTitle !== normalizedTitle) {
+            titleMap[normalizedTitle] = originalTitle;
+          }
         }
 
         // Process locations
@@ -107,8 +134,18 @@ export const useSuggestions = (studioId = null) => {
           .sort((a, b) => b.count - a.count)
           .slice(0, limit);
 
+      // Special handling for titles to map back to original titles with emojis
+      const sortTitlesByCount = (countObj, titleMapObj, limit) =>
+        Object.entries(countObj)
+          .map(([normalizedText, count]) => ({ 
+            text: titleMapObj[normalizedText] || normalizedText, // Use original title
+            count 
+          }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, limit);
+
       setSuggestions({
-        titles: sortByCount(counts.titles, SUGGESTION_LIMITS.TITLES),
+        titles: sortTitlesByCount(counts.titles, titleMap, SUGGESTION_LIMITS.TITLES),
         locations: sortByCount(counts.locations, SUGGESTION_LIMITS.LOCATIONS),
         details: sortByCount(counts.details, SUGGESTION_LIMITS.DETAILS),
         interests: studioInterests.slice(0, 15), // Top 15 interests

@@ -44,14 +44,8 @@ export const getDefaultPrivacySettings = () => ({
   
   // Profile Visibility
   profileVisibility: true,
-  showOnlineStatus: true,
-  showLastSeen: 'friends',
   
-  // Follow Privacy
-  allowFollowRequests: true,
-  showFollowerCounts: true,
-  whoCanFollowMe: 'always',
-  requireFollowApproval: false,
+  // Follow Privacy (removed - anyone can follow anyone)
   
   // Event Privacy
   canSeeMyEvents: 'followers',

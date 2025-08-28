@@ -3,6 +3,7 @@ import {
   setDoc, 
   getDoc, 
   updateDoc, 
+  deleteDoc,
   arrayUnion, 
   arrayRemove, 
   collection, 
@@ -26,23 +27,50 @@ export class AttendanceService {
    */
   static async markAttended(studioId, eventId, userId, markedBy) {
     try {
-      const attendanceRef = doc(db, 'studios', studioId, 'events', eventId, 'attendance', userId);
+      const eventRef = doc(db, 'studios', studioId, 'events', eventId);
+      const eventDoc = await getDoc(eventRef);
       
-      await setDoc(attendanceRef, {
-        userId: userId,
-        eventId: eventId,
-        attended: true,
-        markedBy: markedBy,
-        markedAt: serverTimestamp(),
-        checkInTime: serverTimestamp(),
-      });
+      if (!eventDoc.exists()) {
+        throw new Error(`Event ${eventId} not found`);
+      }
 
-      // Update event document with attendance count
-      await this.updateEventAttendanceCount(eventId);
+      const eventData = eventDoc.data();
+      const attendance = eventData.attendance || [];
+      const isHost = eventData.hostId === userId;
+      
+      // Find existing attendance record or create new one
+      const existingIndex = attendance.findIndex(a => a.userId === userId);
+      
+      if (existingIndex >= 0) {
+        // Update existing record
+        attendance[existingIndex] = {
+          userId: userId,
+          attended: true,
+          isHost: isHost,
+          markedBy: markedBy,
+          markedAt: serverTimestamp()
+        };
+      } else {
+        // Add new record
+        attendance.push({
+          userId: userId,
+          attended: true,
+          isHost: isHost,
+          markedBy: markedBy,
+          markedAt: serverTimestamp()
+        });
+      }
+
+      // Update event with new attendance array
+      await updateDoc(eventRef, {
+        attendance: attendance,
+        attendanceCount: attendance.filter(a => a.attended).length
+      });
 
       // Update user's reliability score
       await ReliabilityService.updateUserReliability(userId);
 
+      console.log(`Marked ${userId} as attended for event ${eventId} ${isHost ? '(host)' : '(guest)'}`);
       return true;
     } catch (error) {
       throw error;
@@ -51,6 +79,7 @@ export class AttendanceService {
 
   /**
    * Mark user as not attended (no-show)
+   * @param {string} studioId - Studio ID
    * @param {string} eventId - Event ID  
    * @param {string} userId - User ID
    * @param {string} markedBy - ID of user marking attendance (host)
@@ -58,15 +87,44 @@ export class AttendanceService {
    */
   static async markNoShow(studioId, eventId, userId, markedBy) {
     try {
-      const attendanceRef = doc(db, 'studios', studioId, 'events', eventId, 'attendance', userId);
+      const eventRef = doc(db, 'studios', studioId, 'events', eventId);
+      const eventDoc = await getDoc(eventRef);
       
-      await setDoc(attendanceRef, {
-        userId: userId,
-        eventId: eventId,
-        attended: false,
-        markedBy: markedBy,
-        markedAt: serverTimestamp(),
-        noShow: true,
+      if (!eventDoc.exists()) {
+        throw new Error(`Event ${eventId} not found`);
+      }
+
+      const eventData = eventDoc.data();
+      const attendance = eventData.attendance || [];
+      const isHost = eventData.hostId === userId;
+      
+      // Find existing attendance record or create new one
+      const existingIndex = attendance.findIndex(a => a.userId === userId);
+      
+      if (existingIndex >= 0) {
+        // Update existing record
+        attendance[existingIndex] = {
+          userId: userId,
+          attended: false,
+          isHost: isHost,
+          markedBy: markedBy,
+          markedAt: serverTimestamp()
+        };
+      } else {
+        // Add new record
+        attendance.push({
+          userId: userId,
+          attended: false,
+          isHost: isHost,
+          markedBy: markedBy,
+          markedAt: serverTimestamp()
+        });
+      }
+
+      // Update event with new attendance array
+      await updateDoc(eventRef, {
+        attendance: attendance,
+        attendanceCount: attendance.filter(a => a.attended).length
       });
 
       // Update user's reliability score
@@ -80,41 +138,33 @@ export class AttendanceService {
 
   /**
    * Get attendance data for an event
+   * @param {string} studioId - Studio ID
    * @param {string} eventId - Event ID
    * @returns {Promise<Object>} Attendance data with stats
    */
   static async getEventAttendance(studioId, eventId) {
     try {
-      const attendanceRef = collection(db, 'studios', studioId, 'events', eventId, 'attendance');
-      const snapshot = await getDocs(attendanceRef);
+      const eventRef = doc(db, 'studios', studioId, 'events', eventId);
+      const eventDoc = await getDoc(eventRef);
       
-      const attendanceData = [];
-      let attendedCount = 0;
-      let noShowCount = 0;
-      
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        attendanceData.push(data);
-        
-        if (data.attended) {
-          attendedCount++;
-        } else if (data.noShow) {
-          noShowCount++;
-        }
-      });
+      if (!eventDoc.exists()) {
+        throw new Error(`Event ${eventId} not found`);
+      }
 
-      // Get event RSVP data for comparison
-      const eventDoc = await getDoc(doc(db, 'events', eventId));
       const eventData = eventDoc.data();
-      const rsvpCount = eventData?.subscribers?.length || 0;
+      const attendance = eventData.attendance || [];
+      const rsvpCount = eventData.subscribers?.length || 0;
+      
+      const attendedCount = attendance.filter(a => a.attended).length;
+      const noShowCount = attendance.filter(a => !a.attended).length;
 
       return {
-        attendanceData,
+        attendanceData: attendance,
         stats: {
           rsvpCount,
           attendedCount,
           noShowCount,
-          pendingCount: rsvpCount - attendedCount - noShowCount,
+          pendingCount: rsvpCount - attendance.length, // People who haven't been marked yet
           attendanceRate: rsvpCount > 0 ? (attendedCount / rsvpCount) * 100 : 0,
         },
       };
@@ -195,34 +245,18 @@ export class AttendanceService {
   }
 
 
-  /**
-   * Update event's attendance count
-   * @param {string} eventId - Event ID
-   */
-  static async updateEventAttendanceCount(eventId) {
-    try {
-      const attendanceData = await this.getEventAttendance(eventId);
-      const eventRef = doc(db, 'events', eventId);
-      
-      await updateDoc(eventRef, {
-        attendanceCount: attendanceData.stats.attendedCount,
-        attendanceRate: Math.round(attendanceData.stats.attendanceRate),
-        lastAttendanceUpdate: serverTimestamp(),
-      });
-    } catch (error) {
-      throw error;
-    }
-  }
+  // This function is no longer needed as attendance count is updated inline
 
   /**
    * Check if user can mark attendance (is host of event)
+   * @param {string} studioId - Studio ID
    * @param {string} eventId - Event ID
    * @param {string} userId - User ID
    * @returns {Promise<boolean>} Whether user can mark attendance
    */
-  static async canMarkAttendance(eventId, userId) {
+  static async canMarkAttendance(studioId, eventId, userId) {
     try {
-      const eventDoc = await getDoc(doc(db, 'events', eventId));
+      const eventDoc = await getDoc(doc(db, 'studios', studioId, 'events', eventId));
       if (!eventDoc.exists()) return false;
       
       const eventData = eventDoc.data();
@@ -234,20 +268,24 @@ export class AttendanceService {
 
   /**
    * Get attendance status for a specific user and event
+   * @param {string} studioId - Studio ID
    * @param {string} eventId - Event ID
    * @param {string} userId - User ID  
    * @returns {Promise<Object|null>} Attendance status or null if not marked
    */
-  static async getUserEventAttendance(eventId, userId) {
+  static async getUserEventAttendance(studioId, eventId, userId) {
     try {
-      const attendanceRef = doc(db, 'events', eventId, 'attendance', userId);
-      const attendanceDoc = await getDoc(attendanceRef);
+      const eventRef = doc(db, 'studios', studioId, 'events', eventId);
+      const eventDoc = await getDoc(eventRef);
       
-      if (attendanceDoc.exists()) {
-        return attendanceDoc.data();
+      if (!eventDoc.exists()) {
+        return null;
       }
+
+      const eventData = eventDoc.data();
+      const attendance = eventData.attendance || [];
       
-      return null;
+      return attendance.find(a => a.userId === userId) || null;
     } catch (error) {
       throw error;
     }
@@ -276,4 +314,81 @@ export class AttendanceService {
       throw error;
     }
   }
+
+  /**
+   * Auto-mark host as attended when they create an event
+   * Hosts are automatically considered to attend their own events
+   * @param {string} eventId - Event ID
+   * @param {string} hostUserId - Host's user ID
+   * @param {string} studioId - Studio ID where the event is located
+   * @returns {Promise<boolean>} Success status
+   */
+  static async markHostAttendance(eventId, hostUserId, studioId) {
+    try {
+      const eventRef = doc(db, 'studios', studioId, 'events', eventId);
+      const eventDoc = await getDoc(eventRef);
+      
+      if (!eventDoc.exists()) {
+        throw new Error(`Event ${eventId} not found in studio ${studioId}`);
+      }
+
+      const eventData = eventDoc.data();
+      const attendance = eventData.attendance || [];
+      
+      // Check if host is already in attendance array
+      const existingIndex = attendance.findIndex(a => a.userId === hostUserId);
+      
+      if (existingIndex === -1) {
+        // Add host to attendance array
+        attendance.push({
+          userId: hostUserId,
+          attended: true,
+          isHost: true,
+          markedBy: hostUserId,
+          markedAt: serverTimestamp()
+        });
+
+        // Update event with host in attendance
+        await updateDoc(eventRef, {
+          attendance: attendance,
+          attendanceCount: attendance.filter(a => a.attended).length
+        });
+      }
+
+      // Update user's reliability score
+      await ReliabilityService.updateUserReliability(hostUserId);
+
+      console.log(`Auto-marked host ${hostUserId} as attended for event ${eventId} in studio ${studioId}`);
+      return true;
+    } catch (error) {
+      console.error('Error marking host attendance:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete all attendance records for an event (used when deleting event)
+   * @param {string} studioId - Studio ID
+   * @param {string} eventId - Event ID
+   * @returns {Promise<boolean>} Success status
+   */
+  static async deleteEventAttendance(studioId, eventId) {
+    try {
+      const eventRef = doc(db, 'studios', studioId, 'events', eventId);
+      
+      // Simply clear the attendance array
+      await updateDoc(eventRef, {
+        attendance: [],
+        attendanceCount: 0
+      });
+
+      console.log(`Cleared attendance array for event ${eventId}`);
+      return true;
+    } catch (error) {
+      console.error('Error clearing event attendance:', error);
+      throw error;
+    }
+  }
+
+  // Double-counting check no longer needed with array-based approach
 }

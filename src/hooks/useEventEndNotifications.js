@@ -18,7 +18,6 @@ export const useEventEndNotifications = () => {
     currentUserId = authData.currentUserId;
   } catch (error) {
     // AuthProvider not available yet, which is fine during app initialization
-    console.log('[useEventEndNotifications] AuthProvider not ready yet');
   }
   const cleanupRef = useRef(null);
   const appStateRef = useRef(AppState.currentState);
@@ -26,7 +25,6 @@ export const useEventEndNotifications = () => {
   // Start the service when user is authenticated
   useEffect(() => {
     if (isAuthenticated && currentUserId) {
-      console.log('[useEventEndNotifications] Starting event end notification service');
       
       // Start periodic checks
       cleanupRef.current = EventEndNotificationService.schedulePeriodicCheck();
@@ -49,18 +47,15 @@ export const useEventEndNotifications = () => {
   // Handle app state changes (pause when app is backgrounded)
   useEffect(() => {
     const handleAppStateChange = (nextAppState) => {
-      console.log('[useEventEndNotifications] App state changed:', appStateRef.current, '->', nextAppState);
       
       if (appStateRef.current.match(/inactive|background/) && nextAppState === 'active') {
         // App has come to the foreground
         if (isAuthenticated && currentUserId && !cleanupRef.current) {
-          console.log('[useEventEndNotifications] App became active, restarting service');
           cleanupRef.current = EventEndNotificationService.schedulePeriodicCheck();
         }
       } else if (appStateRef.current === 'active' && nextAppState.match(/inactive|background/)) {
         // App has gone to the background
         if (cleanupRef.current) {
-          console.log('[useEventEndNotifications] App went to background, stopping service');
           cleanupRef.current();
           cleanupRef.current = null;
         }

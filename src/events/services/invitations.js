@@ -300,6 +300,108 @@ export const sendEmailInvitation = async ({
 };
 
 /**
+ * Send invitation via phone/SMS
+ */
+export const sendPhoneInvitation = async ({
+  eventId,
+  hostId,
+  guestPhone,
+  message = '',
+  studioId,
+  inviteCode = null,
+}) => {
+  const batch = writeBatch(db);
+  
+  try {
+    // Validate inputs
+    if (!eventId || !hostId || !guestPhone || !studioId) {
+      throw new Error('Event ID, host ID, guest phone, and studio ID are required');
+    }
+
+    // Normalize phone number using the phone service
+    const { normalizePhoneNumber } = await import('../../services/phoneAccessService');
+    const normalizedPhone = normalizePhoneNumber(guestPhone);
+
+    // Check if phone is already invited
+    const existingInvite = await checkExistingPhoneInvitation(eventId, normalizedPhone);
+    if (existingInvite) {
+      throw new Error('This phone number has already been invited to this event');
+    }
+
+    // Create invitation document
+    const inviteId = `invite_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const inviteRef = doc(db, 'invitations', inviteId);
+    
+    const invitation = {
+      id: inviteId,
+      eventId,
+      hostId,
+      guestPhone: normalizedPhone,
+      status: INVITATION_STATUS.PENDING,
+      type: INVITATION_TYPE.PHONE,
+      invitedAt: Timestamp.now(),
+      message: message.trim(),
+      studioId,
+      inviteCode, // Include invite code for access verification
+    };
+
+    batch.set(inviteRef, invitation);
+
+    // Update event document (in studio collection)
+    const eventRef = doc(db, 'studios', studioId, 'events', eventId);
+    batch.update(eventRef, {
+      invitations: arrayUnion(inviteId),
+      pendingInvites: increment(1),
+      invitedPhones: arrayUnion(normalizedPhone), // Add phone to fast access list
+    });
+
+    // Update host's sent invitations
+    const hostRef = doc(db, 'users', hostId);
+    batch.update(hostRef, {
+      sentInvitations: arrayUnion(inviteId),
+    });
+
+    await batch.commit();
+
+    // Note: Phone invitations don't send push notifications since the recipient
+    // may not have the app yet. They will get the invitation via SMS.
+
+    return {
+      success: true,
+      invitationId: inviteId,
+      invitation: {
+        ...invitation,
+        invitedAt: invitation.invitedAt.toDate(),
+      },
+    };
+  } catch (error) {
+    console.error('Error sending phone invitation:', error);
+    throw error;
+  }
+};
+
+/**
+ * Check if phone number already has invitation to event
+ */
+const checkExistingPhoneInvitation = async (eventId, phoneNumber) => {
+  try {
+    const invitesRef = collection(db, 'invitations');
+    const q = query(
+      invitesRef,
+      where('eventId', '==', eventId),
+      where('guestPhone', '==', phoneNumber),
+      where('status', '==', INVITATION_STATUS.PENDING)
+    );
+    
+    const snapshot = await getDocs(q);
+    return !snapshot.empty;
+  } catch (error) {
+    console.error('Error checking existing phone invitation:', error);
+    return false;
+  }
+};
+
+/**
  * Accept an invitation
  */
 export const acceptInvitation = async (invitationId, userId, studioId = null) => {
@@ -555,6 +657,9 @@ export const cancelInvitation = async (invitationId, hostId) => {
  */
 export const getEventInvitations = async (eventId) => {
   try {
+    // Note: This now requires querying multiple user subcollections
+    // For now, keeping the root collection query for backward compatibility
+    // TODO: Migrate to user subcollections
     const q = query(
       collection(db, 'invitations'),
       where('eventId', '==', eventId)
@@ -958,6 +1063,113 @@ export const expireOldInvitations = async (daysOld = 7) => {
     return snapshot.size;
   } catch (error) {
     console.error('Error expiring old invitations:', error);
+    throw error;
+  }
+};
+
+/**
+ * Find pending invitations by phone number (for new user signup)
+ */
+export const findInvitationsByPhone = async (phoneNumber) => {
+  try {
+    const { normalizePhoneNumber } = await import('../../services/phoneAccessService');
+    const normalizedPhone = normalizePhoneNumber(phoneNumber);
+    
+    const q = query(
+      collection(db, 'invitations'),
+      where('guestPhone', '==', normalizedPhone),
+      where('status', '==', INVITATION_STATUS.PENDING)
+    );
+    
+    const snapshot = await getDocs(q);
+    const invitations = [];
+    
+    for (const doc of snapshot.docs) {
+      const data = doc.data();
+      
+      // Get event data (from studio collection)
+      let eventData = null;
+      try {
+        const eventDoc = await getDoc(doc(db, 'studios', data.studioId, 'events', data.eventId));
+        eventData = eventDoc.exists() ? eventDoc.data() : null;
+      } catch (error) {
+        console.warn('Could not fetch event data for invitation:', data.eventId);
+      }
+      
+      // Get host data
+      let hostData = null;
+      try {
+        const hostDoc = await getDoc(doc(db, 'users', data.hostId));
+        hostData = hostDoc.exists() ? hostDoc.data() : null;
+      } catch (error) {
+        console.warn('Could not fetch host data for invitation:', data.hostId);
+      }
+      
+      invitations.push({
+        ...data,
+        invitedAt: data.invitedAt.toDate(),
+        respondedAt: data.respondedAt?.toDate(),
+        eventData,
+        hostData,
+      });
+    }
+    
+    return invitations;
+  } catch (error) {
+    console.error('Error finding invitations by phone:', error);
+    return [];
+  }
+};
+
+/**
+ * Link phone invitations to user account (for new user signup)
+ */
+export const linkPhoneInvitationsToUser = async (phoneNumber, userId) => {
+  try {
+    const { normalizePhoneNumber } = await import('../../services/phoneAccessService');
+    const normalizedPhone = normalizePhoneNumber(phoneNumber);
+    
+    const q = query(
+      collection(db, 'invitations'),
+      where('guestPhone', '==', normalizedPhone),
+      where('status', '==', INVITATION_STATUS.PENDING)
+    );
+    
+    const snapshot = await getDocs(q);
+    const batch = writeBatch(db);
+    let linkedCount = 0;
+    
+    snapshot.docs.forEach((doc) => {
+      batch.update(doc.ref, {
+        guestId: userId, // Link invitation to user account
+        linkedAt: Timestamp.now(),
+      });
+      linkedCount++;
+    });
+    
+    if (linkedCount > 0) {
+      // Also update user's received invitations
+      const userRef = doc(db, 'users', userId);
+      const invitationIds = snapshot.docs.map(doc => doc.id);
+      
+      batch.update(userRef, {
+        receivedInvitations: arrayUnion(...invitationIds),
+      });
+      
+      await batch.commit();
+      console.log(`Linked ${linkedCount} phone invitations to user ${userId}`);
+    }
+    
+    return {
+      success: true,
+      linkedCount,
+      invitations: snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+    };
+  } catch (error) {
+    console.error('Error linking phone invitations to user:', error);
     throw error;
   }
 };

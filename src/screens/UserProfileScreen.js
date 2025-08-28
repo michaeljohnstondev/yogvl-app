@@ -7,20 +7,33 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  ActionSheetIOS,
+  Platform,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import VibeButton from '../components/ui/VibeButton';
 import VibeInput from '../components/ui/VibeInput';
 import CloseButton from '../components/ui/CloseButton';
 import AttendanceStats from '../components/ui/AttendanceStats';
 import ReliabilityBadge from '../components/ui/ReliabilityBadge';
+import ProfileAvatar from '../components/ui/ProfileAvatar';
 import { useAuth } from '../auth/AuthContext';
 import { getFollowStats } from '../services/followService';
 import { deleteUserAccount, getUserDeletionPreview } from '../services/userDeletionService';
+import { uploadProfilePicture, removeProfilePicture, hasProfilePicture } from '../services/profilePictureService';
 import { auth } from '../auth/services/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../auth/services/firebase';
+import { useVibeAlert } from '../components/ui/VibeAlertContext';
 import theme from '../theme/themes';
 
-function UserProfile({ navigation }) {
+function UserProfile({ navigation, route }) {
   const { userData, logout, currentUserId } = useAuth();
+  const vibeAlert = useVibeAlert();
+  
+  // Check if viewing someone else's profile or own profile
+  const targetUserId = route?.params?.userId || currentUserId;
+  const isOwnProfile = targetUserId === currentUserId;
   
   const [isEditing, setIsEditing] = useState(false);
   const [followStats, setFollowStats] = useState({
@@ -30,12 +43,10 @@ function UserProfile({ navigation }) {
   });
   const [loadingStats, setLoadingStats] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
   const contactInfo = userData?.userdata?.contactInfo || {};
-  
-  // Debug log to see the actual data structure
-  console.log('[UserProfile] userData:', userData);
-  console.log('[UserProfile] contactInfo:', contactInfo);
   
   const [editedData, setEditedData] = useState({
     firstName: contactInfo.firstName || '',
@@ -47,8 +58,181 @@ function UserProfile({ navigation }) {
   });
 
   const handleSave = async () => {
-    // TODO: Save to Firebase
-    setIsEditing(false);
+    if (!currentUserId || isSaving) {
+      vibeAlert.error('Error', 'Unable to save profile changes');
+      return;
+    }
+
+    // Validate required fields
+    if (!editedData.firstName.trim()) {
+      vibeAlert.error('Error', 'First name is required');
+      return;
+    }
+
+    if (!editedData.phone.trim()) {
+      vibeAlert.error('Error', 'Phone number is required');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // Prepare the update data
+      const updateData = {
+        'userdata.contactInfo.firstName': editedData.firstName.trim(),
+        'userdata.contactInfo.lastName': editedData.lastName.trim(),
+        'userdata.contactInfo.email': editedData.email.trim(),
+        'userdata.contactInfo.phone': editedData.phone.trim(),
+        'bio': editedData.bio.trim(),
+        'location': editedData.location.trim(),
+        'userdata.lastUpdated': new Date()
+      };
+
+      // Update the user document in Firestore
+      const userRef = doc(db, 'users', currentUserId);
+      await updateDoc(userRef, updateData);
+
+      vibeAlert.success('Success', 'Profile updated successfully!');
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      vibeAlert.error('Error', 'Failed to save profile changes');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleProfilePicturePress = () => {
+    if (uploadingPhoto) return;
+
+    const options = [
+      'Take Photo',
+      'Choose from Library',
+      ...(hasProfilePicture(userData) ? ['Remove Photo'] : []),
+      'Cancel'
+    ];
+
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options,
+          cancelButtonIndex: options.length - 1,
+          destructiveButtonIndex: hasProfilePicture(userData) ? 2 : undefined,
+          title: 'Profile Picture',
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 0) {
+            openCamera();
+          } else if (buttonIndex === 1) {
+            openImageLibrary();
+          } else if (buttonIndex === 2 && hasProfilePicture(userData)) {
+            handleRemovePhoto();
+          }
+        }
+      );
+    } else {
+      Alert.alert(
+        'Profile Picture',
+        'Choose an option',
+        [
+          { text: 'Take Photo', onPress: openCamera },
+          { text: 'Choose from Library', onPress: openImageLibrary },
+          ...(hasProfilePicture(userData) ? [{ text: 'Remove Photo', onPress: handleRemovePhoto, style: 'destructive' }] : []),
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+    }
+  };
+
+  const openCamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Camera permission is required to take photos.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: 'images',
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      handleImageUpload(result.assets[0].uri);
+    }
+  };
+
+  const openImageLibrary = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Photo library permission is required to choose photos.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: 'images',
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      handleImageUpload(result.assets[0].uri);
+    }
+  };
+
+  const handleImageUpload = async (imageUri) => {
+    if (!imageUri) {
+      Alert.alert('Error', 'No image selected');
+      return;
+    }
+
+    setUploadingPhoto(true);
+    try {
+      console.log('Uploading image:', imageUri);
+      const result = await uploadProfilePicture(currentUserId, imageUri);
+      if (result.success) {
+        Alert.alert('Success', 'Profile picture updated!');
+        // The UI will automatically update when the user data refreshes
+      } else {
+        console.error('Upload failed:', result.error);
+        Alert.alert('Error', result.error || 'Failed to update profile picture');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      Alert.alert('Error', 'Failed to update profile picture');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    Alert.alert(
+      'Remove Photo',
+      'Are you sure you want to remove your profile picture?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            setUploadingPhoto(true);
+            try {
+              const result = await removeProfilePicture(currentUserId);
+              if (result.success) {
+                Alert.alert('Success', 'Profile picture removed!');
+              } else {
+                Alert.alert('Error', result.error || 'Failed to remove profile picture');
+              }
+            } catch (error) {
+              Alert.alert('Error', 'Failed to remove profile picture');
+            } finally {
+              setUploadingPhoto(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleLogout = async () => {
@@ -126,8 +310,6 @@ function UserProfile({ navigation }) {
     setIsDeleting(true);
     
     try {
-      console.log('[UserProfile] Starting account deletion for:', currentUserId);
-      
       const result = await deleteUserAccount(currentUserId, auth.currentUser);
       
       if (result.success) {
@@ -151,7 +333,6 @@ function UserProfile({ navigation }) {
         throw new Error(result.message || 'Deletion failed');
       }
     } catch (error) {
-      console.error('[UserProfile] Account deletion failed:', error);
       Alert.alert(
         'Deletion Failed',
         error.message || 'Unable to delete account. Please try again or contact support.',
@@ -163,25 +344,25 @@ function UserProfile({ navigation }) {
   };
 
   // Load follow statistics
-  useEffect(() => {
-    const loadFollowStats = async () => {
-      if (!currentUserId) return;
-      
-      setLoadingStats(true);
-      try {
-        console.log('[UserProfile] Loading follow stats for user:', currentUserId);
-        const stats = await getFollowStats(currentUserId);
-        setFollowStats(stats);
-        console.log('[UserProfile] Follow stats loaded:', stats);
-      } catch (error) {
-        console.error('[UserProfile] Failed to load follow stats:', error);
-      } finally {
-        setLoadingStats(false);
-      }
-    };
+  const loadFollowStats = async () => {
+    if (!currentUserId) return;
+    
+    setLoadingStats(true);
+    try {
+      const stats = await getFollowStats(currentUserId);
+      setFollowStats(stats);
+    } catch (error) {
+      console.error('[UserProfile] Failed to load follow stats:', error);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
 
+  useEffect(() => {
     loadFollowStats();
   }, [currentUserId]);
+
+  // Detect if we're returning from navigation with an activeTab set
 
   const formatPhoneNumber = (phoneNumber) => {
     if (!phoneNumber) return null;
@@ -203,6 +384,18 @@ function UserProfile({ navigation }) {
     return phoneNumber;
   };
 
+  const formatJoinDate = (timestamp) => {
+    if (!timestamp) return 'Recently joined';
+
+    try {
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      const options = { year: 'numeric', month: 'long' };
+      return `Joined ${date.toLocaleDateString(undefined, options)}`;
+    } catch {
+      return 'Recently joined';
+    }
+  };
+
   const StatCard = ({ title, value, color = theme.colors.vibeBlue }) => (
     <View style={styles.statCard}>
       <Text style={[styles.statValue, { color }]}>{value}</Text>
@@ -212,101 +405,112 @@ function UserProfile({ navigation }) {
 
   return (
     <View style={styles.container}>
+      
+      {/* Main Profile Content */}
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
 
-      {/* Profile Picture & Basic Info */}
+      {/* Profile Picture with buttons */}
       <View style={styles.profileSection}>
-        <View style={styles.avatarContainer}>
-          <View style={styles.avatarWrapper}>
-            <CloseButton onPress={() => navigation.goBack()} style={styles.closeButton} />
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {contactInfo?.firstName ? contactInfo.firstName.charAt(0).toUpperCase() : '?'}
-              </Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => setIsEditing(!isEditing)}
-              style={styles.editButton}
-            >
-              <Text style={styles.editButtonText}>
-                {isEditing ? 'Cancel' : 'Edit'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-          {isEditing && (
-            <TouchableOpacity style={styles.changePhotoButton}>
-              <Text style={styles.changePhotoText}>Change Photo</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        <CloseButton onPress={() => navigation.goBack()} style={styles.closeButton} />
+        
+        <TouchableOpacity onPress={handleProfilePicturePress}>
+          <ProfileAvatar 
+            userData={userData} 
+            size={120}
+            isLoading={uploadingPhoto}
+            showBorder={true}
+          />
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          onPress={() => setIsEditing(!isEditing)}
+          style={styles.editButton}
+        >
+          <Text style={styles.editButtonText}>
+            {isEditing ? 'Cancel' : 'Edit'}
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-        <View style={styles.profileInfo}>
-          {isEditing ? (
-            <>
-              <VibeInput
-                placeholder="First Name"
-                value={editedData.firstName}
-                onChangeText={(text) => setEditedData(prev => ({ ...prev, firstName: text }))}
-                style={styles.editInput}
-              />
-              <VibeInput
-                placeholder="Last Name"
-                value={editedData.lastName}
-                onChangeText={(text) => setEditedData(prev => ({ ...prev, lastName: text }))}
-                style={styles.editInput}
-              />
-            </>
-          ) : (
-            <Text style={styles.userName}>
-              {contactInfo?.firstName} {contactInfo?.lastName}
-            </Text>
-          )}
-          
+      {/* Profile Info Section */}
+      <View style={styles.profileInfoSection}>
+        <Text style={styles.joinDate}>
+          {formatJoinDate(userData?.userdata?.metadata?.createdAt)}
+        </Text>
+        
+        {/* Only show reliability badge if user has been rated */}
+        {(userData?.ratings?.stars?.length > 0 || userData?.userdata?.metrics?.engagement?.totalRatings > 0) && (
           <View style={styles.reliabilityContainer}>
             <ReliabilityBadge 
               userData={userData} 
               size="large"
             />
           </View>
-        </View>
+        )}
       </View>
 
       {/* Bio Section - Only show if has content OR in edit mode */}
       {(userData?.bio || isEditing) && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>ABOUT</Text>
-          <View style={styles.bioContainer}>
-            {isEditing ? (
-              <VibeInput
-                placeholder="Tell others about yourself..."
-                value={editedData.bio}
-                onChangeText={(text) => setEditedData(prev => ({ ...prev, bio: text }))}
-                multiline
-                numberOfLines={4}
-                style={styles.bioInput}
-              />
-            ) : (
-              <Text style={styles.bioText}>
-                {userData?.bio}
-              </Text>
-            )}
+        <View style={styles.aboutSection}>
+          <View style={styles.aboutContainer}>
+            <Text style={styles.aboutTitle}>About</Text>
+            <View style={styles.aboutItem}>
+              {isEditing ? (
+                <VibeInput
+                  placeholder="Tell others about yourself..."
+                  value={editedData.bio}
+                  onChangeText={(text) => setEditedData(prev => ({ ...prev, bio: text }))}
+                  multiline
+                  numberOfLines={4}
+                  style={styles.bioInput}
+                />
+              ) : (
+                <Text style={styles.aboutText}>
+                  {userData?.bio}
+                </Text>
+              )}
+            </View>
           </View>
         </View>
       )}
 
       {/* Contact Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>CONTACT</Text>
+      <View style={styles.contactSection}>
         <View style={styles.contactContainer}>
-          <View style={styles.contactRow}>
-            <Text style={styles.contactLabel}>Location</Text>
-            <Text style={styles.contactValue}>
+          <Text style={styles.contactTitle}>Contact Info</Text>
+          <View style={styles.contactItem}>
+            <Text style={styles.contactIcon}>👤</Text>
+            {isEditing ? (
+              <View style={styles.nameEditContainer}>
+                <VibeInput
+                  placeholder="First Name"
+                  value={editedData.firstName}
+                  onChangeText={(text) => setEditedData(prev => ({ ...prev, firstName: text }))}
+                  style={styles.nameInput}
+                />
+                <VibeInput
+                  placeholder="Last Name"
+                  value={editedData.lastName}
+                  onChangeText={(text) => setEditedData(prev => ({ ...prev, lastName: text }))}
+                  style={styles.nameInput}
+                />
+              </View>
+            ) : (
+              <Text style={styles.contactText}>
+                {contactInfo?.firstName && contactInfo?.lastName 
+                  ? `${contactInfo.firstName} ${contactInfo.lastName}`
+                  : contactInfo?.firstName || contactInfo?.lastName || contactInfo?.email?.split('@')[0] || userData?.email?.split('@')[0] || 'User'}
+              </Text>
+            )}
+          </View>
+          <View style={styles.contactItem}>
+            <Text style={styles.contactIcon}>📍</Text>
+            <Text style={styles.contactText}>
               {userData?.location || userData?.userdata?.studios?.default?.studioName || 'Not set'}
             </Text>
           </View>
-          <View style={styles.contactDivider} />
-          <View style={styles.contactRow}>
-            <Text style={styles.contactLabel}>Phone *</Text>
+          <View style={styles.contactItem}>
+            <Text style={styles.contactIcon}>📞</Text>
             {isEditing ? (
               <VibeInput
                 placeholder="Phone number (required)"
@@ -316,14 +520,13 @@ function UserProfile({ navigation }) {
                 keyboardType="phone-pad"
               />
             ) : (
-              <Text style={[styles.contactValue, !(contactInfo?.phone || contactInfo?.phoneNumber || userData?.phone || userData?.phoneNumber) && styles.requiredMissing]}>
+              <Text style={[styles.contactText, !(contactInfo?.phone || contactInfo?.phoneNumber || userData?.phone || userData?.phoneNumber) && styles.requiredMissing]}>
                 {formatPhoneNumber(contactInfo?.phone || contactInfo?.phoneNumber || userData?.phone || userData?.phoneNumber) || 'Required - Please add phone number'}
               </Text>
             )}
           </View>
-          <View style={styles.contactDivider} />
-          <View style={styles.contactRow}>
-            <Text style={styles.contactLabel}>Email</Text>
+          <View style={[styles.contactItem, { marginBottom: 0 }]}>
+            <Text style={styles.contactIcon}>📧</Text>
             {isEditing ? (
               <VibeInput
                 placeholder="Email address"
@@ -334,7 +537,7 @@ function UserProfile({ navigation }) {
                 autoCapitalize="none"
               />
             ) : (
-              <Text style={styles.contactValue}>
+              <Text style={styles.contactText}>
                 {contactInfo?.email || userData?.email || 'Not set'}
               </Text>
             )}
@@ -344,60 +547,96 @@ function UserProfile({ navigation }) {
 
 
       {/* Activity Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>ACTIVITY</Text>
-        <View style={styles.statsTable}>
-          <View style={styles.statsRow}>
-            <Text style={styles.statsLabel}>Events Hosted</Text>
-            <Text style={styles.statsValue}>
-              {userData?.userdata?.metrics?.events?.created || 0}
-            </Text>
-          </View>
-          <View style={styles.statsRow}>
-            <Text style={styles.statsLabel}>Events Attended</Text>
-            <Text style={styles.statsValue}>
-              {userData?.userdata?.metrics?.events?.attended || 0}
-            </Text>
-          </View>
-          <View style={[styles.statsRow, styles.lastRow]}>
-            <Text style={styles.statsLabel}>No Shows</Text>
-            <Text style={styles.statsValue}>
-              {userData?.userdata?.metrics?.events?.noShows || 0}
-            </Text>
+      <View style={styles.activitySection}>
+        <View style={styles.activityContainer}>
+          <Text style={styles.activityTitle}>Events</Text>
+          <View style={styles.quickStats}>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{userData?.userdata?.metrics?.events?.created || 0}</Text>
+              <Text style={styles.statLabel}>Hosted</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{userData?.userdata?.metrics?.events?.attended || 0}</Text>
+              <Text style={styles.statLabel}>Attended</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{userData?.userdata?.metrics?.events?.noShows || 0}</Text>
+              <Text style={styles.statLabel}>No Shows</Text>
+            </View>
           </View>
         </View>
       </View>
 
       {/* Social Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>SOCIAL</Text>
-        <View style={styles.statsTable}>
-          <View style={styles.statsRow}>
-            <Text style={styles.statsLabel}>Mutual Friends</Text>
-            <Text style={styles.statsValue}>
-              {loadingStats ? '...' : followStats.mutualCount}
-            </Text>
-          </View>
-          <View style={styles.statsRow}>
-            <Text style={styles.statsLabel}>Following</Text>
-            <Text style={styles.statsValue}>
-              {loadingStats ? '...' : followStats.followingCount}
-            </Text>
-          </View>
-          <View style={[styles.statsRow, styles.lastRow]}>
-            <Text style={styles.statsLabel}>Followers</Text>
-            <Text style={styles.statsValue}>
-              {loadingStats ? '...' : followStats.followerCount}
-            </Text>
+      <View style={styles.socialSection}>
+        <View style={styles.socialContainer}>
+          <Text style={styles.socialTitle}>Social</Text>
+          <View style={styles.quickStats}>
+            {isOwnProfile ? (
+              <TouchableOpacity 
+                style={styles.statItem}
+                onPress={() => navigation.navigate('SocialList', {
+                  userId: currentUserId,
+                  type: 'friends',
+                  onStatsChange: loadFollowStats
+                })}
+              >
+                <Text style={styles.statNumber}>{loadingStats ? '...' : followStats.mutualCount}</Text>
+                <Text style={styles.statLabel}>Mutual Friends</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{loadingStats ? '...' : followStats.mutualCount}</Text>
+                <Text style={styles.statLabel}>Mutual Friends</Text>
+              </View>
+            )}
+            {isOwnProfile ? (
+              <TouchableOpacity 
+                style={styles.statItem}
+                onPress={() => navigation.navigate('SocialList', {
+                  userId: currentUserId,
+                  type: 'following',
+                  onStatsChange: loadFollowStats
+                })}
+              >
+                <Text style={styles.statNumber}>{loadingStats ? '...' : followStats.followingCount}</Text>
+                <Text style={styles.statLabel}>Following</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{loadingStats ? '...' : followStats.followingCount}</Text>
+                <Text style={styles.statLabel}>Following</Text>
+              </View>
+            )}
+            {isOwnProfile ? (
+              <TouchableOpacity 
+                style={styles.statItem}
+                onPress={() => navigation.navigate('SocialList', {
+                  userId: currentUserId,
+                  type: 'followers',
+                  onStatsChange: loadFollowStats
+                })}
+              >
+                <Text style={styles.statNumber}>{loadingStats ? '...' : followStats.followerCount}</Text>
+                <Text style={styles.statLabel}>Followers</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{loadingStats ? '...' : followStats.followerCount}</Text>
+                <Text style={styles.statLabel}>Followers</Text>
+              </View>
+            )}
           </View>
         </View>
       </View>
 
       {/* Attendance Details */}
       {userData?.attendanceStats && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>ATTENDANCE BREAKDOWN</Text>
-          <AttendanceStats stats={userData.attendanceStats} />
+        <View style={styles.cardSection}>
+          <Text style={styles.sectionTitle}>Attendance Breakdown</Text>
+          <View style={styles.contactSection}>
+            <AttendanceStats stats={userData.attendanceStats} />
+          </View>
         </View>
       )}
 
@@ -405,9 +644,10 @@ function UserProfile({ navigation }) {
       <View style={styles.buttonContainer}>
         {isEditing ? (
           <VibeButton
-            label="SAVE CHANGES"
+            label={isSaving ? "SAVING..." : "SAVE CHANGES"}
             onPress={handleSave}
             style={styles.saveButton}
+            disabled={isSaving}
           />
         ) : (
           <>
@@ -446,7 +686,7 @@ function UserProfile({ navigation }) {
           </>
         )}
       </View>
-      </ScrollView>
+        </ScrollView>
     </View>
   );
 }
@@ -470,18 +710,13 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   closeButton: {
-    position: 'absolute',
-    left: 20,
-    top: 0,
+    // Default CloseButton styling
   },
   editButton: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 16,
+    borderRadius: 20,
     backgroundColor: theme.colors.vibeBlue,
-    position: 'absolute',
-    right: 20,
-    top: 10,
   },
   editButtonText: {
     color: theme.colors.white,
@@ -489,11 +724,25 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   profileSection: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingVertical: 20,
+    paddingHorizontal: 24,
+  },
+  profileInfoSection: {
     alignItems: 'center',
-    paddingVertical: 30,
-    paddingHorizontal: 0,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.vibeBlue,
+    paddingHorizontal: 24,
+    paddingBottom: 20,
+    gap: 16,
+  },
+  profilePictureContainer: {
+    alignItems: 'center',
+    gap: 12,
+  },
+  editingSection: {
+    width: '100%',
+    gap: 12,
   },
   avatarContainer: {
     alignItems: 'center',
@@ -521,14 +770,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontFamily: theme.fonts.main,
   },
-  changePhotoButton: {
-    marginTop: 10,
-  },
-  changePhotoText: {
-    color: theme.colors.vibeBlue,
-    fontSize: 14,
-    fontWeight: '600',
-  },
   profileInfo: {
     alignItems: 'center',
   },
@@ -551,6 +792,12 @@ const styles = StyleSheet.create({
   reliabilityContainer: {
     marginTop: 10,
   },
+  joinDate: {
+    fontSize: 14,
+    color: '#888',
+    textAlign: 'center',
+    marginTop: 8,
+  },
   editInput: {
     marginBottom: 10,
     width: 250,
@@ -572,30 +819,155 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: theme.colors.vibeBlue,
   },
-  contactLabel: {
-    color: theme.colors.white,
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: theme.fonts.main,
-    minWidth: 80,
-    marginRight: 20,
-  },
-  contactValue: {
-    color: theme.colors.gray,
-    fontSize: 16,
-    fontFamily: theme.fonts.main,
-    textAlign: 'right',
-    flex: 1,
-    flexWrap: 'wrap',
-  },
   requiredMissing: {
     color: theme.colors.vibeRed,
     fontStyle: 'italic',
   },
+  requiredText: {
+    color: theme.colors.vibeRed,
+    fontSize: 12,
+  },
   contactInput: {
     marginBottom: 0,
     flex: 1,
-    marginLeft: 20,
+  },
+  nameEditContainer: {
+    flex: 1,
+    gap: 8,
+  },
+  nameInput: {
+    marginBottom: 0,
+  },
+  cardSection: {
+    marginBottom: 20,
+    marginHorizontal: 20,
+  },
+  aboutSection: {
+    marginBottom: 20,
+    marginHorizontal: 20,
+  },
+  aboutContainer: {
+    backgroundColor: theme.colors.vibeBackgroundBlue,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.vibeBlue,
+  },
+  aboutTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  aboutItem: {
+    backgroundColor: 'rgba(0, 198, 255, 0.05)',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 198, 255, 0.2)',
+  },
+  aboutText: {
+    fontSize: 16,
+    color: '#fff',
+    lineHeight: 22,
+  },
+  activitySection: {
+    marginBottom: 20,
+    marginHorizontal: 20,
+  },
+  activityContainer: {
+    backgroundColor: theme.colors.vibeBackgroundBlue,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.vibeBlue,
+  },
+  activityTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  socialSection: {
+    marginBottom: 20,
+    marginHorizontal: 20,
+  },
+  socialContainer: {
+    backgroundColor: theme.colors.vibeBackgroundBlue,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.vibeBlue,
+  },
+  socialTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  quickStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#00C6FF',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 4,
+  },
+  contactSection: {
+    marginBottom: 20,
+    marginHorizontal: 20,
+  },
+  contactContainer: {
+    backgroundColor: theme.colors.vibeBackgroundBlue,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.vibeBlue,
+  },
+  contactTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 198, 255, 0.05)',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 198, 255, 0.2)',
+  },
+  contactIcon: {
+    fontSize: 18,
+    marginRight: 12,
+  },
+  contactText: {
+    fontSize: 16,
+    color: '#fff',
+    flex: 1,
+  },
+  bioCard: {
+    backgroundColor: 'rgba(0, 198, 255, 0.1)',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 198, 255, 0.2)',
   },
   section: {
     paddingHorizontal: 20,
@@ -604,62 +976,18 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.colors.darkGray,
   },
   sectionTitle: {
-    color: theme.colors.vibeBlue,
-    fontSize: 16,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-    marginBottom: 15,
-    fontFamily: theme.fonts.main,
-    textTransform: 'uppercase',
-  },
-  bioContainer: {
-    backgroundColor: 'transparent',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.vibeBlue,
-    padding: 15,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 12,
   },
   bioText: {
-    color: theme.colors.white,
+    color: '#fff',
     fontSize: 16,
-    lineHeight: 24,
-    fontFamily: theme.fonts.main,
+    lineHeight: 22,
   },
   bioInput: {
     minHeight: 100,
-  },
-  statsTable: {
-    backgroundColor: 'transparent',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.vibeBlue,
-    overflow: 'hidden',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.vibeBlue,
-  },
-  lastRow: {
-    borderBottomWidth: 0,
-  },
-  statsLabel: {
-    color: theme.colors.white,
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: theme.fonts.main,
-    flex: 1,
-  },
-  statsValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    fontFamily: theme.fonts.main,
-    textAlign: 'right',
-    color: theme.colors.white,
   },
   buttonContainer: {
     padding: 20,

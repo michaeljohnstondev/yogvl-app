@@ -14,6 +14,9 @@ import {
   getDoc,
   updateDoc,
   Timestamp,
+  increment,
+  arrayUnion,
+  arrayRemove,
 } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 import { useAuth } from '../auth/AuthContext';
@@ -41,10 +44,29 @@ const GuestEventWrapUpScreen = ({ navigation, route }) => {
   const [submitting, setSubmitting] = useState(false);
   const [attendanceStatus, setAttendanceStatus] = useState(null); // 'attended', 'missed', or null
   const [hasReported, setHasReported] = useState(false);
+  const [hostRating, setHostRating] = useState(0);
+  const [hasRatedHost, setHasRatedHost] = useState(false);
+  const [hostData, setHostData] = useState(null);
+
+  // Check if user has already rated host for this event
+  useEffect(() => {
+    if (eventData?.guestRatings?.[currentUserId]?.rated) {
+      setHasRatedHost(true);
+    }
+  }, [eventData, currentUserId]);
 
   useEffect(() => {
     loadEventData();
   }, [eventId]);
+
+  const getHostDisplayName = () => {
+    if (!hostData) return 'the host';
+    
+    const firstName = hostData.userdata?.contactInfo?.firstName;
+    const displayName = hostData.userdata?.contactInfo?.displayName;
+    
+    return firstName || displayName || 'the host';
+  };
 
   const loadEventData = async () => {
     try {
@@ -57,6 +79,19 @@ const GuestEventWrapUpScreen = ({ navigation, route }) => {
 
       const event = { id: eventDoc.id, ...eventDoc.data() };
       setEventData(event);
+
+      // Load host data for personalized rating
+      if (event.createdBy) {
+        try {
+          const hostDoc = await getDoc(doc(db, 'users', event.createdBy));
+          if (hostDoc.exists()) {
+            setHostData({ id: hostDoc.id, ...hostDoc.data() });
+          }
+        } catch (error) {
+          console.log('Could not load host data:', error);
+          // Not critical - continue without host name
+        }
+      }
 
       // Load subscriber data for attendees list
       if (event.subscribers && event.subscribers.length > 0) {
@@ -310,6 +345,108 @@ const GuestEventWrapUpScreen = ({ navigation, route }) => {
     );
   };
 
+  // Move handleRateHost outside so it can be reused
+  const handleRateHost = async (rating) => {
+    // Prevent self-rating at the function level too
+    if (currentUserId === eventData.createdBy) {
+      vibeAlert.error('Error', 'You cannot rate yourself as a host.');
+      return;
+    }
+
+    try {
+      setHostRating(rating);
+      
+      // Save rating to Firebase using simple arrays (keep last 50 ratings)
+      if (eventData.createdBy && currentUserId) {
+        const hostRef = doc(db, 'users', eventData.createdBy);
+        const eventRef = doc(db, 'studios', studioId, 'events', eventId);
+        
+        // Get current ratings to check if we need to remove old ones
+        const hostDoc = await getDoc(hostRef);
+        const currentStars = hostDoc.data()?.ratings?.stars || [];
+        const currentTimes = hostDoc.data()?.ratings?.timeRated || [];
+        
+        // If we have 50+ ratings, remove the oldest one first
+        if (currentStars.length >= 50) {
+          await updateDoc(hostRef, {
+            'ratings.stars': arrayRemove(currentStars[0]),
+            'ratings.timeRated': arrayRemove(currentTimes[0])
+          });
+        }
+        
+        // Now add the new rating and update metrics
+        const ratingData = {
+          'ratings.stars': arrayUnion(rating),
+          'ratings.timeRated': arrayUnion(Timestamp.now()),
+          'userdata.metrics.engagement.totalRatings': increment(1), // Always increment for new rating
+          'userdata.metrics.engagement.lastRated': Timestamp.now()
+        };
+        
+        // Mark in event that this guest rated the host
+        const eventUpdateData = {
+          [`guestRatings.${currentUserId}`]: {
+            rated: true,
+            timestamp: Timestamp.now(),
+            ratingValue: rating // Store the actual rating value too
+          }
+        };
+        
+        await Promise.all([
+          updateDoc(hostRef, ratingData),
+          updateDoc(eventRef, eventUpdateData)
+        ]);
+        
+        setHasRatedHost(true);
+        console.log(`Rating submitted: ${rating} stars for host ${eventData.createdBy} by user ${currentUserId}`);
+      }
+
+      vibeAlert.success('Thank you!', `You rated ${getHostDisplayName()} ${rating} star${rating !== 1 ? 's' : ''}!`);
+    } catch (error) {
+      console.error('Error submitting rating:', error);
+      vibeAlert.error('Error', 'Failed to submit rating. Please try again.');
+    }
+  };
+
+  const renderHostRating = () => {
+    if (!hasReported || attendanceStatus !== 'attended' || hasRatedHost) return null;
+    
+    // Prevent users from rating themselves
+    if (currentUserId === eventData.createdBy) return null;
+
+    return (
+      <View style={styles.ratingSection}>
+        <Text style={styles.ratingSectionTitle}>Rate {getHostDisplayName()} as host</Text>
+        <Text style={styles.ratingDescription}>
+          {hostRating > 0 
+            ? `You rated ${getHostDisplayName()} ${hostRating} star${hostRating !== 1 ? 's' : ''}! Tap to change.` 
+            : `How was your experience with ${getHostDisplayName()}?`}
+        </Text>
+        
+        <View style={styles.starRating}>
+          {[1, 2, 3, 4, 5].map((star) => (
+            <TouchableOpacity
+              key={star}
+              style={styles.starButton}
+              onPress={() => handleRateHost(star)}
+            >
+              <Text style={[
+                styles.starText,
+                hostRating >= star && styles.starSelected
+              ]}>
+                ⭐
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        
+        <View style={styles.ratingLabels}>
+          <Text style={styles.ratingLabel}>Poor</Text>
+          <Text style={styles.ratingLabel}>Excellent</Text>
+        </View>
+      </View>
+    );
+  };
+
   const renderFutureFeatures = () => {
     if (!hasReported) return null;
 
@@ -402,10 +539,7 @@ const GuestEventWrapUpScreen = ({ navigation, route }) => {
 
             {/* Show attendees list if available */}
             <View style={styles.attendeesSection}>
-              <Text style={styles.attendeesTitle}>Debug: Subscribers count: {subscribers?.length || 0}</Text>
-              <Text style={styles.attendeesSubtitle}>
-                Event subscribers: {eventData?.subscribers?.length || 0}
-              </Text>
+              <Text style={styles.attendeesTitle}>Event Attendees ({subscribers?.length || 0})</Text>
               
               {subscribers && subscribers.length > 0 ? (
                 <View style={styles.attendeesList}>
@@ -467,6 +601,40 @@ const GuestEventWrapUpScreen = ({ navigation, route }) => {
               )}
             </View>
 
+            {/* Host Rating for Open Events */}
+            {!hasRatedHost && currentUserId !== eventData.createdBy && (
+              <View style={styles.ratingSection}>
+                <Text style={styles.ratingSectionTitle}>Rate {getHostDisplayName()} as host</Text>
+                <Text style={styles.ratingDescription}>
+                  {hostRating > 0 
+                    ? `You rated ${getHostDisplayName()} ${hostRating} star${hostRating !== 1 ? 's' : ''}! Tap to change.` 
+                    : `How was your experience with ${getHostDisplayName()}?`}
+                </Text>
+                
+                <View style={styles.starRating}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <TouchableOpacity
+                      key={star}
+                      style={styles.starButton}
+                      onPress={() => handleRateHost(star)}
+                    >
+                      <Text style={[
+                        styles.starText,
+                        hostRating >= star && styles.starSelected
+                      ]}>
+                        ⭐
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                
+                <View style={styles.ratingLabels}>
+                  <Text style={styles.ratingLabel}>Poor</Text>
+                  <Text style={styles.ratingLabel}>Excellent</Text>
+                </View>
+              </View>
+            )}
+
             <VibeButton
               label="BACK TO EVENT"
               onPress={() => navigation.goBack()}
@@ -509,6 +677,9 @@ const GuestEventWrapUpScreen = ({ navigation, route }) => {
           <View style={styles.attendanceSection}>
             {renderAttendanceButtons()}
           </View>
+
+          {/* Host Rating Section */}
+          {renderHostRating()}
 
           {/* Future Features */}
           {renderFutureFeatures()}
@@ -660,6 +831,57 @@ const styles = StyleSheet.create({
     color: theme.colors.gray,
     textAlign: 'center',
     paddingHorizontal: 20,
+  },
+
+  // Host Rating Styles
+  ratingSection: {
+    marginBottom: 24,
+    backgroundColor: theme.colors.vibeBackgroundBlue,
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.vibeBlue,
+  },
+  ratingSectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.colors.white,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  ratingDescription: {
+    fontSize: 14,
+    color: theme.colors.gray,
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  starRating: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  starButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  starText: {
+    fontSize: 32,
+    opacity: 0.3,
+  },
+  starSelected: {
+    opacity: 1,
+  },
+  ratingLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+  },
+  ratingLabel: {
+    fontSize: 12,
+    color: theme.colors.gray,
+    fontStyle: 'italic',
   },
 
   // Future Features

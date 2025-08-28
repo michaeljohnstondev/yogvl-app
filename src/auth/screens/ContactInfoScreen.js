@@ -115,6 +115,49 @@ export default function ContactInfoScreen({ navigation }) {
 
       console.log('Contact info saved successfully');
 
+      // Check for and link any phone invitations to this user
+      try {
+        const { linkPhoneInvitationsToUser } = await import('../../events/services/invitations');
+        const linkResult = await linkPhoneInvitationsToUser(phoneNumber.trim(), user.uid);
+        
+        if (linkResult.linkedCount > 0) {
+          console.log(`Linked ${linkResult.linkedCount} phone invitations to user`);
+        }
+
+        // Also check for and auto-subscribe to events they were invited to by phone
+        try {
+          const { autoSubscribeToInvitedEvents } = await import('../../services/phoneAccessService');
+          const autoSubResult = await autoSubscribeToInvitedEvents(user.uid, phoneNumber.trim());
+          
+          if (autoSubResult.subscribedEvents.length > 0) {
+            console.log(`Auto-subscribed to ${autoSubResult.subscribedEvents.length} events based on phone`);
+            
+            const totalFound = linkResult.linkedCount + autoSubResult.subscribedEvents.length;
+            vibeAlert.success(
+              'Events Found!',
+              `Welcome! We found ${totalFound} event${totalFound > 1 ? 's' : ''} you were invited to. Check them out!`
+            );
+          } else if (linkResult.linkedCount > 0) {
+            vibeAlert.success(
+              'Invitations Found!',
+              `We found ${linkResult.linkedCount} event invitation${linkResult.linkedCount > 1 ? 's' : ''} for your phone number. Check your notifications!`
+            );
+          }
+        } catch (autoSubError) {
+          console.warn('Error auto-subscribing to invited events:', autoSubError);
+          // Still show invitation linking message if that worked
+          if (linkResult.linkedCount > 0) {
+            vibeAlert.success(
+              'Invitations Found!',
+              `We found ${linkResult.linkedCount} event invitation${linkResult.linkedCount > 1 ? 's' : ''} for your phone number. Check your notifications!`
+            );
+          }
+        }
+      } catch (inviteError) {
+        console.warn('Error linking phone invitations:', inviteError);
+        // Don't fail signup if invitation linking fails
+      }
+
       // Don't manually navigate - the Navigation component will automatically
       // detect completed contact info and switch to the next required screen
     } catch (err) {
