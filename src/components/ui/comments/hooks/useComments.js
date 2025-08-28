@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../../../auth/services/firebase';
 import { validateComment, sortComments } from '../utils/commentUtils';
+import { blockingService } from '../../../../services/blockingService';
 import { useAuth } from '../../../../auth/AuthContext';
 
 /**
@@ -92,7 +93,7 @@ export const useComments = (eventId) => {
 
     const unsubscribe = onSnapshot(
       q,
-      (snapshot) => {
+      async (snapshot) => {
         const commentsData = snapshot.docs.map((doc) => {
           const data = doc.data();
           return {
@@ -103,7 +104,27 @@ export const useComments = (eventId) => {
           };
         });
 
-        setComments(commentsData);
+        // Filter out comments from blocked users
+        let filteredComments = commentsData;
+        if (currentUserId && commentsData.length > 0) {
+          try {
+            // Get all unique user IDs from comments
+            const commentUserIds = [...new Set(commentsData.map(comment => comment.userId))];
+            
+            // Filter out blocked users
+            const allowedUserIds = await blockingService.filterBlockedUsers(currentUserId, commentUserIds);
+            
+            // Filter comments to only include allowed users
+            filteredComments = commentsData.filter(comment => 
+              allowedUserIds.includes(comment.userId)
+            );
+          } catch (error) {
+            console.error('[useComments] Error filtering blocked users:', error);
+            // On error, show all comments to avoid breaking the UI
+          }
+        }
+
+        setComments(filteredComments);
         setLoading(false);
         setError(null);
       },
@@ -115,7 +136,7 @@ export const useComments = (eventId) => {
     );
 
     return unsubscribe;
-  }, [eventId, studioId]);
+  }, [eventId, studioId, currentUserId]);
 
   /**
    * Add a new comment

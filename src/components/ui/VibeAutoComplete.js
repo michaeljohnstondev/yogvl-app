@@ -84,12 +84,6 @@ const VibeAutoComplete = React.memo(
         });
       }
 
-      // Debug logging (can be removed later)
-      if (unifiedSuggestions.length > 0) {
-        console.log('VibeAutoComplete unified suggestions:', unifiedSuggestions.map(s => 
-          typeof s === 'string' ? s : s.text
-        ));
-      }
 
       return unifiedSuggestions;
     };
@@ -109,6 +103,7 @@ const VibeAutoComplete = React.memo(
     // Show when visible prop is true AND we have suggestions
     // But don't show if we're hiding from recent selection
     const shouldShow = !shouldHideFromSelection && visible && hasSuggestions;
+    
     
 
     // Handle selection and hide
@@ -149,15 +144,7 @@ const VibeAutoComplete = React.memo(
                 styles.suggestionItem,
                 { opacity: pressed ? 0.7 : 1 },
               ]}
-              onPress={() => {
-                console.log(
-                  '🎯 CLICK on VibeAutoComplete suggestion:',
-                  text,
-                  'context:',
-                  context
-                );
-                handleSelect(text);
-              }}
+              onPress={() => handleSelect(text)}
             >
               <View style={styles.suggestionContent}>
                 <Text style={styles.suggestionText} numberOfLines={1}>

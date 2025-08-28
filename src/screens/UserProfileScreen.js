@@ -21,6 +21,7 @@ import { useAuth } from '../auth/AuthContext';
 import { getFollowStats } from '../services/followService';
 import { deleteUserAccount, getUserDeletionPreview } from '../services/userDeletionService';
 import { uploadProfilePicture, removeProfilePicture, hasProfilePicture } from '../services/profilePictureService';
+import { blockingService } from '../services/blockingService';
 import { auth } from '../auth/services/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
@@ -130,7 +131,7 @@ function UserProfile({ navigation, route }) {
         }
       );
     } else {
-      Alert.alert(
+      vibeAlert.menu(
         'Profile Picture',
         'Choose an option',
         [
@@ -146,7 +147,7 @@ function UserProfile({ navigation, route }) {
   const openCamera = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Camera permission is required to take photos.');
+      vibeAlert.error('Permission needed', 'Camera permission is required to take photos.');
       return;
     }
 
@@ -165,7 +166,7 @@ function UserProfile({ navigation, route }) {
   const openImageLibrary = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Photo library permission is required to choose photos.');
+      vibeAlert.error('Permission needed', 'Photo library permission is required to choose photos.');
       return;
     }
 
@@ -183,56 +184,57 @@ function UserProfile({ navigation, route }) {
 
   const handleImageUpload = async (imageUri) => {
     if (!imageUri) {
-      Alert.alert('Error', 'No image selected');
+      vibeAlert.error('Error', 'No image selected');
       return;
     }
 
     setUploadingPhoto(true);
     try {
       console.log('Uploading image:', imageUri);
-      const result = await uploadProfilePicture(currentUserId, imageUri);
+      const result = await uploadProfilePicture(currentUserId, imageUri, userData);
       if (result.success) {
-        Alert.alert('Success', 'Profile picture updated!');
+        vibeAlert.success('Success', 'Profile picture updated!');
         // The UI will automatically update when the user data refreshes
       } else {
         console.error('Upload failed:', result.error);
-        Alert.alert('Error', result.error || 'Failed to update profile picture');
+        vibeAlert.error('Error', result.error || 'Failed to update profile picture');
       }
     } catch (error) {
       console.error('Upload error:', error);
-      Alert.alert('Error', 'Failed to update profile picture');
+      vibeAlert.error('Error', 'Failed to update profile picture');
     } finally {
       setUploadingPhoto(false);
     }
   };
 
   const handleRemovePhoto = async () => {
-    Alert.alert(
-      'Remove Photo',
-      'Are you sure you want to remove your profile picture?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            setUploadingPhoto(true);
-            try {
-              const result = await removeProfilePicture(currentUserId);
-              if (result.success) {
-                Alert.alert('Success', 'Profile picture removed!');
-              } else {
-                Alert.alert('Error', result.error || 'Failed to remove profile picture');
-              }
-            } catch (error) {
-              Alert.alert('Error', 'Failed to remove profile picture');
-            } finally {
-              setUploadingPhoto(false);
+    console.log('🚨 handleRemovePhoto called');
+    // Small delay to allow the menu alert to close first
+    setTimeout(() => {
+      vibeAlert.confirm(
+        'Remove Photo',
+        'Are you sure you want to remove your profile picture?',
+        async () => {
+          console.log('🚨 Confirm pressed - starting removal');
+          setUploadingPhoto(true);
+          try {
+            const result = await removeProfilePicture(currentUserId, userData);
+            if (result.success) {
+              vibeAlert.success('Success', 'Profile picture removed!');
+            } else {
+              vibeAlert.error('Error', result.error || 'Failed to remove profile picture');
             }
+          } catch (error) {
+            vibeAlert.error('Error', 'Failed to remove profile picture');
+          } finally {
+            setUploadingPhoto(false);
           }
+        },
+        () => {
+          console.log('🚨 Cancel pressed');
         }
-      ]
-    );
+      );
+    }, 100);
   };
 
   const handleLogout = async () => {
@@ -362,6 +364,30 @@ function UserProfile({ navigation, route }) {
     loadFollowStats();
   }, [currentUserId]);
 
+  // Check for blocking restrictions when viewing other profiles
+  useEffect(() => {
+    const checkProfileAccess = async () => {
+      // Only check if viewing someone else's profile
+      if (isOwnProfile || !targetUserId || !currentUserId) return;
+
+      try {
+        // Check if current user is blocked by the target user
+        const isBlockedByResult = await blockingService.isBlockedBy(currentUserId, targetUserId);
+        
+        if (isBlockedByResult) {
+          console.log('[UserProfile] Access denied - user is blocked by target');
+          vibeAlert.error('User Not Available', 'This user is not available.');
+          setTimeout(() => navigation.goBack(), 1500);
+          return;
+        }
+      } catch (error) {
+        console.error('[UserProfile] Error checking profile access:', error);
+      }
+    };
+
+    checkProfileAccess();
+  }, [currentUserId, targetUserId, isOwnProfile, navigation, vibeAlert]);
+
   // Detect if we're returning from navigation with an activeTab set
 
   const formatPhoneNumber = (phoneNumber) => {
@@ -453,23 +479,22 @@ function UserProfile({ navigation, route }) {
       {(userData?.bio || isEditing) && (
         <View style={styles.aboutSection}>
           <View style={styles.aboutContainer}>
-            <Text style={styles.aboutTitle}>About</Text>
-            <View style={styles.aboutItem}>
-              {isEditing ? (
-                <VibeInput
-                  placeholder="Tell others about yourself..."
-                  value={editedData.bio}
-                  onChangeText={(text) => setEditedData(prev => ({ ...prev, bio: text }))}
-                  multiline
-                  numberOfLines={4}
-                  style={styles.bioInput}
-                />
-              ) : (
-                <Text style={styles.aboutText}>
-                  {userData?.bio}
-                </Text>
-              )}
-            </View>
+            <Text style={styles.aboutTitle}>About Me</Text>
+            {isEditing ? (
+              <VibeInput
+                placeholder="Tell others about yourself..."
+                value={editedData.bio}
+                onChangeText={(text) => setEditedData(prev => ({ ...prev, bio: text }))}
+                multiline
+                numberOfLines={4}
+                maxLength={300}
+                style={styles.bioInput}
+              />
+            ) : (
+              <Text style={styles.aboutText}>
+                {userData?.bio}
+              </Text>
+            )}
           </View>
         </View>
       )}
@@ -582,12 +607,12 @@ function UserProfile({ navigation, route }) {
                 })}
               >
                 <Text style={styles.statNumber}>{loadingStats ? '...' : followStats.mutualCount}</Text>
-                <Text style={styles.statLabel}>Mutual Friends</Text>
+                <Text style={styles.statLabel}>Friends</Text>
               </TouchableOpacity>
             ) : (
               <View style={styles.statItem}>
                 <Text style={styles.statNumber}>{loadingStats ? '...' : followStats.mutualCount}</Text>
-                <Text style={styles.statLabel}>Mutual Friends</Text>
+                <Text style={styles.statLabel}>Friends</Text>
               </View>
             )}
             {isOwnProfile ? (

@@ -17,13 +17,35 @@ import app from '../auth/services/firebase';
  * @param {string} imageUri - Local image URI from image picker
  * @returns {Promise<{success: boolean, imageUrl?: string, error?: string}>}
  */
-export const uploadProfilePicture = async (userId, imageUri) => {
+export const uploadProfilePicture = async (userId, imageUri, userData = null) => {
   try {
     if (!userId || !imageUri) {
       return { success: false, error: 'Missing userId or imageUri' };
     }
 
     console.log('Starting upload for user:', userId, 'with image:', imageUri);
+
+    // First, try to delete the old profile picture if it exists
+    if (userData) {
+      const oldImageUrl = userData?.userdata?.contactInfo?.profilePicture;
+      if (oldImageUrl && oldImageUrl.includes('firebase')) {
+        try {
+          console.log('Deleting old profile picture:', oldImageUrl);
+          const storage = getStorage(app);
+          const url = new URL(oldImageUrl);
+          const pathMatch = url.pathname.match(/\/o\/(.+?)\?/);
+          if (pathMatch) {
+            const decodedPath = decodeURIComponent(pathMatch[1]);
+            const oldImageRef = ref(storage, decodedPath);
+            await deleteObject(oldImageRef);
+            console.log('Successfully deleted old image from storage:', decodedPath);
+          }
+        } catch (deleteError) {
+          console.log('Could not delete old image (may not exist):', deleteError.message);
+          // Continue with upload even if old image deletion fails
+        }
+      }
+    }
 
     // Initialize storage directly to ensure it's available
     let storage;
@@ -125,22 +147,37 @@ export const uploadProfilePicture = async (userId, imageUri) => {
 /**
  * Remove profile picture from storage and user profile
  * @param {string} userId - User ID
+ * @param {Object} userData - User data to get current profile picture
  * @returns {Promise<{success: boolean, error?: string}>}
  */
-export const removeProfilePicture = async (userId) => {
+export const removeProfilePicture = async (userId, userData = null) => {
   try {
     if (!userId) {
       return { success: false, error: 'Missing userId' };
     }
 
-    // Create storage reference
-    const imageRef = ref(storage, `users/${userId}/profile/profile.jpg`);
+    // Initialize storage
+    const storage = getStorage(app);
     
-    // Delete from storage (ignore if doesn't exist)
-    try {
-      await deleteObject(imageRef);
-    } catch (deleteError) {
-      // File might not exist, which is fine
+    // Get current profile picture URL to delete the correct file
+    const currentImageUrl = userData?.userdata?.contactInfo?.profilePicture;
+    
+    // Only try to delete from storage if there's a Firebase Storage URL
+    if (currentImageUrl && currentImageUrl.includes('firebase')) {
+      try {
+        // Extract the file path from the Firebase Storage URL
+        const url = new URL(currentImageUrl);
+        const pathMatch = url.pathname.match(/\/o\/(.+?)\?/);
+        if (pathMatch) {
+          const decodedPath = decodeURIComponent(pathMatch[1]);
+          const imageRef = ref(storage, decodedPath);
+          await deleteObject(imageRef);
+          console.log('Successfully deleted image from storage:', decodedPath);
+        }
+      } catch (deleteError) {
+        console.log('Could not delete from storage (file may not exist):', deleteError.message);
+        // File might not exist, which is fine - continue to remove from profile
+      }
     }
     
     // Remove from user profile in Firestore
@@ -153,6 +190,7 @@ export const removeProfilePicture = async (userId) => {
     return { success: true };
     
   } catch (error) {
+    console.error('Error removing profile picture:', error);
     return { success: false, error: error.message };
   }
 };

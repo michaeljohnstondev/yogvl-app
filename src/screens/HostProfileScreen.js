@@ -19,6 +19,7 @@ import { useVibeAlert } from '../components/ui/VibeAlertContext';
 import { getVisibleContactInfo, canViewUserStats } from '../services/privacyService';
 import { followUser, unfollowUser, checkIfFollowing, getFollowStats } from '../services/followService';
 import { reportUser } from '../services/reportingService';
+import { blockingService } from '../services/blockingService';
 import { useAuth } from '../auth/AuthContext';
 import theme from '../theme/themes';
 
@@ -37,6 +38,7 @@ const HostProfileScreen = ({ navigation, route }) => {
   });
   const [loadingFollowStats, setLoadingFollowStats] = useState(true);
   const [hasNavigatedAway, setHasNavigatedAway] = useState(false);
+  const [blockStatus, setBlockStatus] = useState({ isBlocked: false, loading: true });
   const vibeAlert = useVibeAlert();
 
   // Load privacy-filtered contact information
@@ -78,6 +80,34 @@ const HostProfileScreen = ({ navigation, route }) => {
     
     checkFollowStatus();
   }, [currentUserId, hostData.id, isCurrentUser]);
+
+  // Check block status and access restrictions
+  useEffect(() => {
+    const checkBlockStatus = async () => {
+      if (!currentUserId || !hostData?.id) return;
+
+      try {
+        // Check if current user has blocked this host
+        const hasBlockedResult = await blockingService.hasBlocked(currentUserId, hostData.id);
+        setBlockStatus({ isBlocked: hasBlockedResult, loading: false });
+
+        // Check if current user is blocked by this host
+        const isBlockedByResult = await blockingService.isBlockedBy(currentUserId, hostData.id);
+        
+        if (isBlockedByResult) {
+          console.log('[HostProfile] Access denied - user is blocked by host');
+          vibeAlert.error('User Not Available', 'This user is not available.');
+          setTimeout(() => navigation.goBack(), 1500);
+          return;
+        }
+      } catch (error) {
+        console.error('[HostProfile] Error checking block status:', error);
+        setBlockStatus({ isBlocked: false, loading: false });
+      }
+    };
+
+    checkBlockStatus();
+  }, [currentUserId, hostData?.id, navigation, vibeAlert]);
 
   // Load follow statistics
   useEffect(() => {
@@ -202,15 +232,49 @@ const HostProfileScreen = ({ navigation, route }) => {
     );
   };
 
-  const handleBlock = () => {
-    vibeAlert.confirm(
-      'Block User',
-      `Block ${displayName}? They won't be able to see your events or contact you.`,
-      () => {
-        // TODO: Implement block functionality
-        vibeAlert.success('Blocked', `You have blocked ${displayName}.`);
-      }
-    );
+  const handleBlock = async () => {
+    if (blockStatus.isBlocked) {
+      // Unblock user
+      vibeAlert.confirm(
+        'Unblock User',
+        `Unblock ${displayName}? They will be able to see your profile again.`,
+        async () => {
+          try {
+            const result = await blockingService.unblockUser(currentUserId, hostData.id);
+            if (result.success) {
+              setBlockStatus({ isBlocked: false, loading: false });
+              vibeAlert.success('Unblocked', `You have unblocked ${displayName}.`);
+            } else {
+              vibeAlert.error('Error', 'Failed to unblock user. Please try again.');
+            }
+          } catch (error) {
+            console.error('[HostProfile] Error unblocking user:', error);
+            vibeAlert.error('Error', 'Failed to unblock user. Please try again.');
+          }
+        }
+      );
+    } else {
+      // Block user
+      vibeAlert.confirm(
+        'Block User',
+        `Block ${displayName}? They won't be able to see your profile, events, or contact you. You will both be unfollowed.`,
+        async () => {
+          try {
+            const result = await blockingService.blockUser(currentUserId, hostData.id);
+            if (result.success) {
+              setBlockStatus({ isBlocked: true, loading: false });
+              setIsFollowing(false); // Update follow status since blocking removes follows
+              vibeAlert.success('Blocked', `You have blocked ${displayName}.`);
+            } else {
+              vibeAlert.error('Error', 'Failed to block user. Please try again.');
+            }
+          } catch (error) {
+            console.error('[HostProfile] Error blocking user:', error);
+            vibeAlert.error('Error', 'Failed to block user. Please try again.');
+          }
+        }
+      );
+    }
   };
 
   const handleBack = () => {
@@ -605,9 +669,9 @@ const HostProfileScreen = ({ navigation, route }) => {
               ]}
             />
             
-            {/* Block Button */}
+            {/* Block/Unblock Button */}
             <VibeButton
-              label="BLOCK USER"
+              label={blockStatus.isBlocked ? "UNBLOCK USER" : "BLOCK USER"}
               onPress={handleBlock}
               variant="outline"
               style={styles.blockButton}

@@ -25,9 +25,14 @@ export async function saveEventTemplate(userId, template) {
       console.log('[TEMPLATE SAVE] User doc already exists');
     }
     
+    // Clean undefined values from payload to prevent Firestore errors
+    const cleanPayload = template.payload ? JSON.parse(JSON.stringify(template.payload, (key, value) => {
+      return value === undefined ? null : value;
+    })) : {};
+    
     const clean = {
       name: template.name || 'Untitled Template',
-      payload: template.payload,        // full form snapshot
+      payload: cleanPayload,        // full form snapshot with undefined values converted to null
       createdAt: serverTimestamp(),
       version: 1,
     };

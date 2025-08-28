@@ -174,6 +174,10 @@ This document outlines the Firebase Firestore database structure for the Big Vib
     timeRated: Timestamp[],               // Array of rating timestamps (last 50)
   },
 
+  // === USER BLOCKING SYSTEM ===
+  blockedUsers?: string[],               // Array of user IDs this user has blocked
+  blockedBy?: string[],                  // Array of user IDs who have blocked this user
+
   // === MODERATION SYSTEM ===
   moderation?: {
     strikes: Array<{

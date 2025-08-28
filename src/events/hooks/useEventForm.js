@@ -163,14 +163,38 @@ Hope to see you there! 🎉`;
       // Create phone invitation records for tracking
       const invitationPromises = selectedContacts.map(async (contact) => {
         try {
-          return await sendPhoneInvitation({
+          console.log('[sendTextInvites] Processing contact:', {
+            contactId: contact.id,
+            contactPhone: contact.phone,
+            contactName: contact.name,
+            eventId: eventData.id,
+            hostId: currentUserId,
+            studioId: userStudio
+          });
+          
+          // Validate required fields before sending
+          const inviteParams = {
             eventId: eventData.id,
             hostId: currentUserId,
             guestPhone: contact.phone,
             message: `You're invited to ${eventData.title}!`,
             studioId: userStudio,
             inviteCode: inviteCode,
-          });
+          };
+          
+          console.log('[sendTextInvites] Sending invitation with params:', inviteParams);
+          
+          if (!inviteParams.eventId || !inviteParams.hostId || !inviteParams.guestPhone || !inviteParams.studioId) {
+            console.error('[sendTextInvites] Missing required fields:', {
+              hasEventId: !!inviteParams.eventId,
+              hasHostId: !!inviteParams.hostId,
+              hasGuestPhone: !!inviteParams.guestPhone,
+              hasStudioId: !!inviteParams.studioId,
+            });
+            return null;
+          }
+          
+          return await sendPhoneInvitation(inviteParams);
         } catch (error) {
           console.warn(`Failed to create invitation record for ${contact.phone}:`, error);
           return null;
@@ -304,6 +328,19 @@ Hope to see you there! 🎉`;
         });
       }
       
+      // Add selected co-host contacts (email invitations)
+      if (selectedInvitations.cohostContacts) {
+        selectedInvitations.cohostContacts.forEach(contact => {
+          if (contact.email) {
+            cohostInvitations.push({
+              type: 'email',
+              guestEmail: contact.email,
+              message: contact.message || selectedInvitations.defaultMessage || ''
+            });
+          }
+        });
+      }
+      
       // Send batch invitations
       if (guestInvitations.length > 0 || cohostInvitations.length > 0) {
         console.log(`[useEventForm] Sending invitations:`, {
@@ -355,7 +392,10 @@ Hope to see you there! 🎉`;
     
     // Send text invites after successful event creation
     if (selectedInvitations.textContacts && selectedInvitations.textContacts.length > 0) {
-      await sendTextInvites(selectedInvitations.textContacts, eventDataWithStudio, vibeAlert, currentUserId, userData);
+      console.log(`[useEventForm] Sending text invites to ${selectedInvitations.textContacts.length} contacts:`, selectedInvitations.textContacts.map(c => c.phone));
+      // Add the eventRef.id to eventData for sendTextInvites
+      const eventDataForSMS = { ...eventDataWithStudio, id: eventRef.id };
+      await sendTextInvites(selectedInvitations.textContacts, eventDataForSMS, vibeAlert, currentUserId, userData);
     }
     
     return eventRef;

@@ -102,6 +102,55 @@ const LOCATION_DATABASE = {
 };
 
 /**
+ * Default suggestion databases for when user has no events yet
+ */
+const DEFAULT_TITLE_SUGGESTIONS = [
+  'Birthday Party',
+  'Game Night', 
+  'Movie Night',
+  'BBQ & Chill',
+  'House Party',
+  'Dinner Party',
+  'Wine Tasting',
+  'Book Club',
+  'Coffee Meetup',
+  'Potluck Dinner',
+  'Karaoke Night',
+  'Trivia Night',
+  'Happy Hour',
+  'Brunch',
+  'Pool Party',
+  'Beach Day',
+  'Hiking Trip',
+  'Art & Craft Night',
+  'Cooking Class',
+  'Study Group'
+];
+
+const DEFAULT_DETAIL_PHRASES = [
+  'BYOB',
+  'Bring a friend!',
+  'Casual dress code',
+  'Food will be provided',
+  'Please RSVP',
+  'Rain or shine',
+  'Free parking available',
+  'All ages welcome',
+  'Pet friendly',
+  'Bring your own drinks',
+  'Light refreshments provided',
+  'Come hungry!',
+  'Comfortable shoes recommended',
+  'Indoor/outdoor event',
+  'Music and dancing',
+  'Games provided',
+  'Bring a dish to share',
+  'Cash bar available',
+  'Photography welcome',
+  'Questions? Just ask!'
+];
+
+/**
  * Smart auto-complete hook with location-to-address mapping
  * @param {Object} config - Configuration for each field
  * @param {Function} onLocationSelect - Callback when a location with address is selected
@@ -217,6 +266,61 @@ const useSmartAutoComplete = (config = {}, onLocationSelect = () => {}) => {
 
       suggestions.push(...filteredExternal);
 
+      // Add contextual suggestions (same logic as VibeAutoComplete)
+      if (currentValue && currentValue.length >= 1 && fieldId === 'title') {
+        const { getContextualSuggestions } = require('../../lib/emojiUtils');
+        const contextualSuggestions = getContextualSuggestions(currentValue, 'event');
+        
+        contextualSuggestions.forEach((contextSuggestion) => {
+          const contextText = typeof contextSuggestion === 'string' ? contextSuggestion : contextSuggestion.text;
+          // Avoid duplicates
+          const notDuplicate = !suggestions.find(
+            (s) => s.text.toLowerCase() === contextText.toLowerCase()
+          );
+          
+          if (notDuplicate) {
+            suggestions.push({
+              text: contextText,
+              type: 'contextual',
+              icon: '🎯',
+            });
+          }
+        });
+      }
+
+      // If we have very few suggestions, add defaults
+      if (suggestions.length < 3) {
+        let defaultSuggestions = [];
+        
+        if (fieldId === 'title') {
+          defaultSuggestions = DEFAULT_TITLE_SUGGESTIONS;
+        } else if (fieldId === 'details') {
+          defaultSuggestions = DEFAULT_DETAIL_PHRASES;
+        }
+
+        const filteredDefaults = defaultSuggestions
+          .filter((defaultSugg) => {
+            // Filter based on current value if provided
+            const matchesInput = !currentValue || 
+              defaultSugg.toLowerCase().includes(currentValue.toLowerCase());
+            
+            // Avoid duplicates
+            const notDuplicate = !suggestions.find(
+              (s) => s.text.toLowerCase() === defaultSugg.toLowerCase()
+            );
+            
+            return matchesInput && notDuplicate;
+          })
+          .slice(0, 6 - suggestions.length) // Fill up to 6 total suggestions
+          .map((defaultSugg) => ({
+            text: defaultSugg,
+            type: 'default',
+            icon: '✨',
+          }));
+
+        suggestions.push(...filteredDefaults);
+      }
+
       return suggestions.slice(0, 8); // Max 8 total suggestions
     },
     [config, externalSuggestions, searchLocations]
@@ -242,18 +346,11 @@ const useSmartAutoComplete = (config = {}, onLocationSelect = () => {}) => {
   // Handle suggestion selection
   const handleSuggestionSelect = useCallback(
     (fieldId, suggestion, currentValue, onFieldUpdate) => {
-      console.log('🎯 Smart suggestion select:', {
-        fieldId,
-        suggestion,
-        currentValue,
-      });
-
       // Safely extract suggestion text
       const suggestionText =
         typeof suggestion === 'string' ? suggestion : suggestion?.text || '';
 
       if (!suggestionText) {
-        console.warn('No valid suggestion text found:', suggestion);
         return;
       }
 
@@ -328,7 +425,9 @@ const useSmartAutoComplete = (config = {}, onLocationSelect = () => {}) => {
   const handleFieldFocus = useCallback(
     (fieldId, currentValue) => {
       const fieldConfig = config[fieldId];
-      if (!fieldConfig) return;
+      if (!fieldConfig) {
+        return;
+      }
 
       if (fieldConfig.showSuggestionsOnFocus) {
         if (fieldConfig.minCharsForSuggestions) {
@@ -361,8 +460,10 @@ const useSmartAutoComplete = (config = {}, onLocationSelect = () => {}) => {
     (fieldId, currentValue) => {
       const fieldConfig = config[fieldId];
       const suggestions = getFilteredSuggestions(fieldId, currentValue);
-      const isVisible = suggestionVisibility[fieldId] === true && suggestions.length > 0;
+      const visibilityState = suggestionVisibility[fieldId];
+      const isVisible = visibilityState === true && suggestions.length > 0;
       const isLoading = loadingStates[fieldId] || false;
+      
 
       return {
         fieldConfig,

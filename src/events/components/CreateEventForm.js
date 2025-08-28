@@ -269,6 +269,7 @@ export default function CreateEventForm({
           onCohostInvitationChange({
             users: users,
             contacts: contacts,
+            phoneContacts: phoneContacts,
           });
         }
 

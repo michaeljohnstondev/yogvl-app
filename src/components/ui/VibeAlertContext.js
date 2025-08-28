@@ -86,12 +86,14 @@ export const VibeAlertProvider = ({ children }) => {
     }
   };
 
-  const handleButtonPress = (onPress) => {
+  const handleButtonPress = (onPress, shouldHide = true) => {
     console.log('🔘 Context button pressed');
     if (onPress) {
       onPress();
     }
-    hideAlert();
+    if (shouldHide) {
+      hideAlert();
+    }
   };
 
   return (

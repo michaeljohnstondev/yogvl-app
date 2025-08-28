@@ -8,12 +8,13 @@ import {
   Switch,
   Alert,
 } from 'react-native';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 import VibeButton from '../components/ui/VibeButton';
 import CloseButton from '../components/ui/CloseButton';
 import { useAuth } from '../auth/AuthContext';
 import { useVibeAlert } from '../components/ui/VibeAlertContext';
+import { blockingService } from '../services/blockingService';
 import theme from '../theme/themes';
 
 const VISIBILITY_OPTIONS = {
@@ -51,6 +52,9 @@ function PrivacySettings({ navigation }) {
 
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [blockedUsers, setBlockedUsers] = useState([]);
+  const [blockedUsersData, setBlockedUsersData] = useState([]);
+  const [loadingBlocked, setLoadingBlocked] = useState(true);
 
   const toggleSetting = (key) => {
     setSettings(prev => {
@@ -72,6 +76,70 @@ function PrivacySettings({ navigation }) {
       setHasChanges(true);
       return newSettings;
     });
+  };
+
+  // Load blocked users
+  useEffect(() => {
+    const loadBlockedUsers = async () => {
+      if (!currentUserId) return;
+
+      try {
+        const result = await blockingService.getBlockedUsers(currentUserId);
+        if (result.blockedUsers) {
+          setBlockedUsers(result.blockedUsers);
+          
+          // Load user data for blocked users
+          const usersData = [];
+          for (const userId of result.blockedUsers) {
+            try {
+              const userDoc = await getDoc(doc(db, 'users', userId));
+              if (userDoc.exists()) {
+                const userData = userDoc.data();
+                const contactInfo = userData.userdata?.contactInfo || {};
+                usersData.push({
+                  id: userId,
+                  name: contactInfo.firstName && contactInfo.lastName 
+                    ? `${contactInfo.firstName} ${contactInfo.lastName}`
+                    : contactInfo.firstName || contactInfo.email || userData.email || 'User',
+                  email: contactInfo.email || userData.email
+                });
+              }
+            } catch (error) {
+              console.error('Error loading blocked user data:', error);
+            }
+          }
+          setBlockedUsersData(usersData);
+        }
+      } catch (error) {
+        console.error('Error loading blocked users:', error);
+      } finally {
+        setLoadingBlocked(false);
+      }
+    };
+
+    loadBlockedUsers();
+  }, [currentUserId]);
+
+  const handleUnblockUser = async (userId, userName) => {
+    vibeAlert.confirm(
+      'Unblock User',
+      `Unblock ${userName}? They will be able to see your profile again.`,
+      async () => {
+        try {
+          const result = await blockingService.unblockUser(currentUserId, userId);
+          if (result.success) {
+            setBlockedUsers(prev => prev.filter(id => id !== userId));
+            setBlockedUsersData(prev => prev.filter(user => user.id !== userId));
+            vibeAlert.success('Unblocked', `You have unblocked ${userName}.`);
+          } else {
+            vibeAlert.error('Error', 'Failed to unblock user. Please try again.');
+          }
+        } catch (error) {
+          console.error('Error unblocking user:', error);
+          vibeAlert.error('Error', 'Failed to unblock user. Please try again.');
+        }
+      }
+    );
   };
 
   const saveSettings = async () => {
@@ -255,6 +323,43 @@ function PrivacySettings({ navigation }) {
         </View>
       </View>
 
+      {/* Blocked Users Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>BLOCKED USERS</Text>
+        <View style={styles.settingsGroup}>
+          {loadingBlocked ? (
+            <View style={styles.blockedUserItem}>
+              <Text style={styles.blockedUserText}>Loading blocked users...</Text>
+            </View>
+          ) : blockedUsersData.length === 0 ? (
+            <View style={styles.blockedUserItem}>
+              <Text style={styles.blockedUserText}>No blocked users</Text>
+            </View>
+          ) : (
+            blockedUsersData.map((user, index) => (
+              <View 
+                key={user.id} 
+                style={[
+                  styles.blockedUserItem, 
+                  index < blockedUsersData.length - 1 && styles.settingBorder
+                ]}
+              >
+                <View style={styles.blockedUserInfo}>
+                  <Text style={styles.blockedUserName}>{user.name}</Text>
+                  <Text style={styles.blockedUserEmail}>{user.email}</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => handleUnblockUser(user.id, user.name)}
+                  style={styles.unblockButton}
+                >
+                  <Text style={styles.unblockButtonText}>Unblock</Text>
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
+        </View>
+      </View>
+
       {/* Action Buttons */}
       <View style={styles.buttonContainer}>
         <VibeButton
@@ -415,6 +520,43 @@ const styles = StyleSheet.create({
   resetButtonText: {
     color: theme.colors.textSecondary,
     fontSize: 16,
+    fontWeight: '600',
+  },
+  
+  // Blocked Users Section
+  blockedUserItem: {
+    padding: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  blockedUserInfo: {
+    flex: 1,
+  },
+  blockedUserName: {
+    color: theme.colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  blockedUserEmail: {
+    color: theme.colors.textSecondary,
+    fontSize: 14,
+  },
+  blockedUserText: {
+    color: theme.colors.textSecondary,
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  unblockButton: {
+    backgroundColor: theme.colors.vibeBlue,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+  },
+  unblockButtonText: {
+    color: theme.colors.white,
+    fontSize: 12,
     fontWeight: '600',
   },
   

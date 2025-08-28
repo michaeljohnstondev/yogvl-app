@@ -19,21 +19,29 @@ import { db } from '../auth/services/firebase';
  * @returns {string} Normalized phone number
  */
 export const normalizePhoneNumber = (phoneNumber) => {
-  if (!phoneNumber || typeof phoneNumber !== 'string') return '';
-  
-  // Remove all non-digit characters except +
-  let normalized = phoneNumber.replace(/[^\d+]/g, '');
-  
-  // If it doesn't start with +, assume it's US and add +1
-  if (!normalized.startsWith('+')) {
-    if (normalized.length === 10) {
-      normalized = '+1' + normalized;
-    } else if (normalized.length === 11 && normalized.startsWith('1')) {
-      normalized = '+' + normalized;
-    }
+  if (!phoneNumber || typeof phoneNumber !== 'string') {
+    console.warn('[normalizePhoneNumber] Invalid phone number provided:', phoneNumber);
+    return '';
   }
   
-  return normalized;
+  try {
+    // Remove all non-digit characters except +
+    let normalized = phoneNumber.replace(/[^\d+]/g, '');
+    
+    // If it doesn't start with +, assume it's US and add +1
+    if (!normalized.startsWith('+')) {
+      if (normalized.length === 10) {
+        normalized = '+1' + normalized;
+      } else if (normalized.length === 11 && normalized.startsWith('1')) {
+        normalized = '+' + normalized;
+      }
+    }
+    
+    return normalized;
+  } catch (error) {
+    console.error('[normalizePhoneNumber] Error normalizing phone number:', error, 'Input:', phoneNumber);
+    return '';
+  }
 };
 
 /**

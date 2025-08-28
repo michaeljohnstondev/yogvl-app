@@ -2,6 +2,8 @@
 
 /**
  * Fields that should be excluded when saving as template
+ * Note: Invitation fields (selectedGuestUsers, selectedCohostUsers, etc.) are NOT excluded
+ * so they get saved as part of the template for complete restoration
  */
 const EXCLUDED_TEMPLATE_FIELDS = [
   'date',
