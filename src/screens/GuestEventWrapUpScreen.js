@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Image,
 } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import {
   doc,
   getDoc,
@@ -47,6 +48,7 @@ const GuestEventWrapUpScreen = ({ navigation, route }) => {
   const [hostRating, setHostRating] = useState(0);
   const [hasRatedHost, setHasRatedHost] = useState(false);
   const [hostData, setHostData] = useState(null);
+  const [showAttendanceMessage, setShowAttendanceMessage] = useState(true);
 
   // Check if user has already rated host for this event
   useEffect(() => {
@@ -67,6 +69,14 @@ const GuestEventWrapUpScreen = ({ navigation, route }) => {
     
     return firstName || displayName || 'the host';
   };
+
+  const renderRightActions = () => (
+    <View style={styles.swipeArea} />
+  );
+  
+  const renderLeftActions = () => (
+    <View style={styles.swipeArea} />
+  );
 
   const loadEventData = async () => {
     try {
@@ -489,7 +499,7 @@ const GuestEventWrapUpScreen = ({ navigation, route }) => {
 
   if (loading) {
     return (
-      <VibeScreen title="Event Wrap-Up">
+      <VibeScreen title="Event Recap">
         <View style={styles.container}>
           <Text style={styles.loadingText}>Loading event data...</Text>
         </View>
@@ -499,7 +509,7 @@ const GuestEventWrapUpScreen = ({ navigation, route }) => {
 
   if (!eventData) {
     return (
-      <VibeScreen title="Event Wrap-Up">
+      <VibeScreen title="Event Recap">
         <View style={styles.container}>
           <Text style={styles.errorText}>Event not found</Text>
         </View>
@@ -507,35 +517,45 @@ const GuestEventWrapUpScreen = ({ navigation, route }) => {
     );
   }
 
-  // Handle events without attendance tracking or open events
-  if (eventData.attendanceType === 'open' || !eventData.trackAttendance) {
-    const isOpenEvent = eventData.attendanceType === 'open';
-    const title = isOpenEvent ? "Thanks for joining!" : "Event Completed!";
-    const description = isOpenEvent 
-      ? "This was an open event with no individual attendance tracking. Hope you had a great time!"
-      : "This event didn't track individual attendance, so there's nothing to report. Hope you had a great time!";
+  // Handle events without attendance tracking
+  if (!eventData.trackAttendance) {
+    const title = "Event Completed!";
+    const description = "This event didn't track individual attendance, so there's nothing to report. Hope you had a great time!";
 
     return (
-      <VibeScreen title="Event Wrap-Up">
+      <VibeScreen title="Event Recap">
         <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
             {/* Event Header - Green Box with Check Icon */}
-            <View style={[styles.headerCard, { 
-              borderLeftColor: theme.colors.vibeGreen,
-              backgroundColor: theme.colors.vibeBackgroundGreen,
-              borderColor: theme.colors.vibeGreen
-            }]}>
-              <View style={styles.headerContent}>
-                <View style={styles.checkIconContainer}>
-                  <Text style={styles.checkIcon}>✓</Text>
+            {showAttendanceMessage && (
+              <Swipeable
+                renderRightActions={renderRightActions}
+                renderLeftActions={renderLeftActions}
+                onSwipeableOpen={() => setShowAttendanceMessage(false)}
+                friction={2}
+                overshootRight={false}
+                overshootLeft={false}
+                rightThreshold={40}
+                leftThreshold={40}
+              >
+                <View style={[styles.headerCard, { 
+                  borderLeftColor: theme.colors.vibeGreen,
+                  backgroundColor: theme.colors.vibeBackgroundGreen,
+                  borderColor: theme.colors.vibeGreen
+                }]}>
+                  <View style={styles.headerContent}>
+                    <View style={styles.checkIconContainer}>
+                      <Text style={styles.checkIcon}>✓</Text>
+                    </View>
+                    <View style={styles.headerText}>
+                      <Text style={styles.attendanceDescription}>
+                        Attendance was not recorded for this event.
+                      </Text>
+                    </View>
+                  </View>
                 </View>
-                <View style={styles.headerText}>
-                  <Text style={styles.attendanceDescription}>
-                    Attendance was not recorded for this event.
-                  </Text>
-                </View>
-              </View>
-            </View>
+              </Swipeable>
+            )}
 
             {/* Show attendees list if available */}
             <View style={styles.attendeesSection}>
@@ -1045,6 +1065,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     textAlign: 'center',
     marginTop: 50,
+  },
+  
+  // Invisible swipe area for visual feedback
+  swipeArea: {
+    flex: 1,
+    backgroundColor: 'transparent',
   },
 });
 

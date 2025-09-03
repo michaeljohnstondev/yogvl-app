@@ -143,6 +143,7 @@ export default function EditEventScreen({ navigation, route }) {
       hasFee: eventData.hasFee || false,
       entryFee: eventData.entryFee || '',
       isPrivate: eventData.isPrivate || false,
+      allowGuestInvites: eventData.allowGuestInvites || false,
       showHostContact: eventData.showHostContact !== undefined ? eventData.showHostContact : true,
       hasRsvpDeadline: eventData.hasRsvpDeadline || false,
       whatsProvided: eventData.whatsProvided || '',
@@ -268,7 +269,6 @@ export default function EditEventScreen({ navigation, route }) {
     togglePrivacy,
     toggleHostContact,
     toggleRsvpDeadline,
-    toggleAttendanceTracking,
     appendToDetails,
     updateInputHeight,
     validateForm,
@@ -330,6 +330,7 @@ export default function EditEventScreen({ navigation, route }) {
   const { pastEvents, handleCreateTemplateFromPastEvent } =
     usePastEventsManager(
       currentUserId,
+      studioId,
       applyTemplate,
       replaceFormData,
       closeSelectionModal,
@@ -350,6 +351,7 @@ export default function EditEventScreen({ navigation, route }) {
     // Check for configuration changes
     const hasConfigChanges = formData.hasFee !== (eventData.hasFee || false) || 
                             formData.isPrivate !== (eventData.isPrivate || false) || 
+                            formData.allowGuestInvites !== (eventData.allowGuestInvites || false) ||
                             formData.showHostContact !== (eventData.showHostContact !== undefined ? eventData.showHostContact : true) || 
                             formData.hasRsvpDeadline !== (eventData.hasRsvpDeadline || false) ||
                             formData.trackAttendance !== (eventData.trackAttendance || false) ||
@@ -496,6 +498,7 @@ export default function EditEventScreen({ navigation, route }) {
           hasFee: templateFormData.hasFee || false,
           entryFee: templateFormData.entryFee || '',
           isPrivate: templateFormData.isPrivate || false,
+          allowGuestInvites: templateFormData.allowGuestInvites || false,
           showHostContact:
             templateFormData.showHostContact !== undefined
               ? templateFormData.showHostContact
@@ -512,19 +515,30 @@ export default function EditEventScreen({ navigation, route }) {
               : false,
         });
 
-        // Apply date/time if present in template
-        if (templateFormData.date || templateFormData.time) {
-          const templateDateTime =
-            templateFormData.date || templateFormData.time || new Date();
+        // Apply date/time if present in template and valid
+        if ((templateFormData.date && templateFormData.date !== null) || (templateFormData.time && templateFormData.time !== null)) {
+          const templateDateTime = templateFormData.date || templateFormData.time;
+          
+          // Ensure templateDateTime is a valid Date object
+          const validTemplateDate = templateDateTime instanceof Date && !isNaN(templateDateTime) 
+            ? templateDateTime 
+            : new Date(templateDateTime);
+          
+          // If still invalid, skip template date/time
+          if (isNaN(validTemplateDate)) {
+            console.warn('Invalid template date/time, skipping:', templateDateTime);
+            return;
+          }
+          
           const now = new Date();
 
           // If template date is in the past, adjust it to be in the future
-          let eventDateTime = new Date(templateDateTime);
+          let eventDateTime = new Date(validTemplateDate);
           if (eventDateTime <= now) {
             eventDateTime = new Date(now);
             eventDateTime.setDate(eventDateTime.getDate() + 1);
-            eventDateTime.setHours(templateDateTime.getHours());
-            eventDateTime.setMinutes(templateDateTime.getMinutes());
+            eventDateTime.setHours(validTemplateDate.getHours());
+            eventDateTime.setMinutes(validTemplateDate.getMinutes());
             eventDateTime.setSeconds(0);
             eventDateTime.setMilliseconds(0);
           }
@@ -707,7 +721,6 @@ export default function EditEventScreen({ navigation, route }) {
         toggleRsvpDeadline={toggleRsvpDeadline}
         toggleHostContact={toggleHostContact}
         toggleFee={toggleFee}
-        toggleAttendanceTracking={toggleAttendanceTracking}
         // Actions
         onShowTemplateModal={openSelectionModal}
         onShowSaveTemplate={() => openSaveModal(formData.title)}

@@ -67,6 +67,15 @@ export class ReliabilityService {
         // Skip future events
         if (eventDate > now) continue;
 
+        // Check if this is a solo event (host only) - exclude from metrics
+        const isSoloEvent = eventData.subscribers?.length === 1 && 
+                           eventData.subscribers[0] === eventData.createdBy;
+        
+        if (isSoloEvent) {
+          Logger.debug('ReliabilityService', 'Skipping solo event from metrics', { eventId });
+          continue; // Skip solo events entirely
+        }
+
         totalRSVPs++;
         
         // Check if it's a recent event (last 30 days)
@@ -75,25 +84,23 @@ export class ReliabilityService {
           recentEvents++;
         }
 
-        // Get attendance data for this event
-        const attendanceRef = doc(db, 'events', eventId, 'attendance', userId);
-        const attendanceDoc = await getDoc(attendanceRef);
+        // Get attendance data from the event's attendance array
+        const attendance = eventData.attendance || [];
+        const userAttendance = attendance.find(a => a.userId === userId);
         
-        if (attendanceDoc.exists()) {
-          const attendanceData = attendanceDoc.data();
-          
-          if (attendanceData.attended) {
+        if (userAttendance && !userAttendance.isSoloEvent) {
+          if (userAttendance.attended) {
             totalAttended++;
             if (isRecent) recentAttended++;
-          } else if (attendanceData.noShow) {
+          } else {
             totalNoShows++;
           }
           
           events.push({
             eventId,
             eventDate,
-            attended: attendanceData.attended,
-            noShow: attendanceData.noShow,
+            attended: userAttendance.attended,
+            noShow: !userAttendance.attended,
             // Don't store event titles to reduce memory usage
           });
         }

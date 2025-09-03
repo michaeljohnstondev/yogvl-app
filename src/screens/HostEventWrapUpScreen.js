@@ -7,12 +7,13 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Slider,
 } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import {
   doc,
   getDoc,
   updateDoc,
+  deleteDoc,
   Timestamp,
 } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
@@ -21,7 +22,7 @@ import { useVibeAlert } from '../components/ui/VibeAlertContext';
 import VibeScreen from '../components/ui/VibeScreen';
 import VibeButton from '../components/ui/VibeButton';
 import VibeSegmentedControl from '../components/ui/VibeSegmentedControl';
-import { completeEvent, getUserReliabilityStatus } from '../events/lib/userMetrics';
+import { completeEvent, getUserReliabilityStatus, updateHostAverageAttendees } from '../events/lib/userMetrics';
 import theme from '../theme/themes';
 
 const HostEventWrapUpScreen = ({ navigation, route }) => {
@@ -36,9 +37,9 @@ const HostEventWrapUpScreen = ({ navigation, route }) => {
   const [subscribers, setSubscribers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [showAttendanceMessage, setShowAttendanceMessage] = useState(true);
 
-  // Different state management based on attendance type
-  const [headCount, setHeadCount] = useState(1); // For open events
+  // State management for tracked attendance
   const [attendees, setAttendees] = useState(new Set()); // For casual/strict events
   const [noShows, setNoShows] = useState(new Set()); // For strict events only
 
@@ -58,33 +59,27 @@ const HostEventWrapUpScreen = ({ navigation, route }) => {
       const event = { id: eventDoc.id, ...eventDoc.data() };
       setEventData(event);
 
-      // Only load subscribers if we're tracking individual attendance
-      if (event.attendanceType === 'casual' || event.attendanceType === 'strict') {
-        if (event.subscribers && event.subscribers.length > 0) {
-          const subscriberPromises = event.subscribers.map(async (userId) => {
-            const userDoc = await getDoc(doc(db, 'users', userId));
-            if (userDoc.exists()) {
-              return { id: userId, ...userDoc.data() };
-            }
-            return null;
-          });
+      // Load subscribers for attendance tracking
+      if (event.subscribers && event.subscribers.length > 0) {
+        const subscriberPromises = event.subscribers.map(async (userId) => {
+          const userDoc = await getDoc(doc(db, 'users', userId));
+          if (userDoc.exists()) {
+            return { id: userId, ...userDoc.data() };
+          }
+          return null;
+        });
 
-          const subscriberData = await Promise.all(subscriberPromises);
-          setSubscribers(subscriberData.filter((user) => user !== null));
-        }
+        const subscriberData = await Promise.all(subscriberPromises);
+        setSubscribers(subscriberData.filter((user) => user !== null));
       }
 
       // Check if event is already completed
       if (event.status === 'completed') {
-        if (event.attendanceType === 'open' && event.headCount) {
-          setHeadCount(event.headCount);
-        } else {
-          if (event.finalAttendees) {
-            setAttendees(new Set(event.finalAttendees));
-          }
-          if (event.noShows) {
-            setNoShows(new Set(event.noShows));
-          }
+        if (event.finalAttendees) {
+          setAttendees(new Set(event.finalAttendees));
+        }
+        if (event.noShows) {
+          setNoShows(new Set(event.noShows));
         }
       }
     } catch (error) {
@@ -148,89 +143,76 @@ const HostEventWrapUpScreen = ({ navigation, route }) => {
 
   const getAttendanceTypeInfo = () => {
     switch (eventData?.attendanceType) {
-      case 'open':
-        return {
-          title: '🎉 Open Event Wrap-Up',
-          description: 'Just let us know how many people showed up!',
-          icon: '🎉',
-          color: theme.colors.vibeGreen
-        };
       case 'casual':
         return {
-          title: '🌊 Casual Event Wrap-Up',
+          title: '🌊 Casual Event Recap',
           description: 'Mark who attended - no penalties for missing!',
           icon: '🌊',
           color: theme.colors.vibeBlue
         };
       case 'strict':
         return {
-          title: '🎯 Strict Event Wrap-Up',
+          title: '🎯 Strict Event Recap',
           description: 'Track attendance - this affects reliability scores',
           icon: '🎯',
           color: theme.colors.vibeOrange
         };
       default:
         return {
-          title: 'Event Wrap-Up',
-          description: 'Complete your event',
-          icon: '📋',
+          title: '🌊 Casual Event Recap',
+          description: 'Mark who attended - no penalties for missing!',
+          icon: '🌊',
           color: theme.colors.vibeBlue
         };
     }
   };
 
-  const handleCompleteEvent = async () => {
-    if (eventData.attendanceType === 'open') {
-      handleCompleteOpenEvent();
-    } else {
-      handleCompleteTrackedEvent();
-    }
-  };
+  const renderRightActions = () => (
+    <View style={styles.swipeArea} />
+  );
+  
+  const renderLeftActions = () => (
+    <View style={styles.swipeArea} />
+  );
 
-  const handleCompleteOpenEvent = async () => {
-    if (headCount < 1) {
-      vibeAlert.warning('Invalid Count', 'Please enter at least 1 attendee.');
-      return;
-    }
-
-    vibeAlert.confirm(
-      'Complete Open Event',
-      `This will mark the event as completed with ${headCount} attendees.\n\nThis action cannot be undone.`,
-      submitOpenEvent,
-      () => {}
-    );
-  };
-
-  const submitOpenEvent = async () => {
+  const deleteEvent = async () => {
     setSubmitting(true);
     try {
-      // Update event with headcount
-      await updateDoc(doc(db, 'events', eventId), {
-        status: 'completed',
-        completedAt: Timestamp.now(),
-        headCount: headCount,
-        attendanceType: eventData.attendanceType,
-      });
-
-      // Update host metrics (just increase created events completion)
-      // No individual user metrics for open events
-
-      vibeAlert.success('Success!', `Event completed with ${headCount} attendees!`, [
-        { 
-          text: 'Create Similar Event', 
-          onPress: () => navigation.navigate('CreateEvent', { 
-            templateEvent: eventData 
-          })
-        },
-        { text: 'Done', onPress: () => navigation.goBack() },
+      // Delete the event from Firestore
+      await deleteDoc(doc(db, 'studios', studioId, 'events', eventId));
+      
+      vibeAlert.success('Event Deleted', 'The cancelled event has been removed.', [
+        { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (error) {
-      console.error('Error completing open event:', error);
-      vibeAlert.error('Error', 'Failed to complete event. Please try again.');
+      console.error('Error deleting event:', error);
+      vibeAlert.error('Error', 'Failed to delete event. Please try again.');
     } finally {
       setSubmitting(false);
     }
   };
+
+  const handleCompleteEvent = async () => {
+    // Check if only the host is subscribed (event was cancelled)
+    if (eventData.subscribers?.length === 1 && eventData.subscribers[0] === currentUserId) {
+      vibeAlert.confirm(
+        'Event Cancelled?',
+        'Only you were subscribed to this event. Was this event cancelled?\n\nIf yes, the event will be deleted.',
+        async () => {
+          // Delete the event
+          await deleteEvent();
+        },
+        () => {
+          // Proceed with normal wrap-up
+          handleCompleteTrackedEvent();
+        }
+      );
+      return;
+    }
+
+    handleCompleteTrackedEvent();
+  };
+
 
   const handleCompleteTrackedEvent = async () => {
     if (attendees.size === 0 && (eventData.attendanceType === 'casual' || noShows.size === 0)) {
@@ -259,20 +241,22 @@ const HostEventWrapUpScreen = ({ navigation, route }) => {
       const attendeeList = Array.from(attendees);
       const noShowList = eventData.attendanceType === 'strict' ? Array.from(noShows) : [];
 
-      const result = await completeEvent(eventId, attendeeList, noShowList, eventData.attendanceType);
+      // Conditionally add host to attendees if there are other attendees
+      const finalAttendeeList = attendeeList.length > 0 
+        ? [...attendeeList, currentUserId] // Add host if others attended
+        : attendeeList; // Don't add host if no one else attended
+
+      const result = await completeEvent(eventId, finalAttendeeList, noShowList, eventData.attendanceType);
       
       if (result.success) {
+        // Update host's average attendees metric
+        await updateHostAverageAttendees(currentUserId, finalAttendeeList.length);
+
         const successMessage = eventData.attendanceType === 'strict'
-          ? `Event completed! ${attendeeList.length} attended, ${noShowList.length} no-shows recorded.`
-          : `Event completed! ${attendeeList.length} people attended this casual event.`;
+          ? `Event completed! ${finalAttendeeList.length} attended, ${noShowList.length} no-shows recorded.`
+          : `Event completed! ${finalAttendeeList.length} people attended this casual event.`;
 
         vibeAlert.success('Success!', successMessage, [
-          { 
-            text: 'Create Similar Event', 
-            onPress: () => navigation.navigate('CreateEvent', { 
-              templateEvent: eventData 
-            })
-          },
           { text: 'Done', onPress: () => navigation.goBack() },
         ]);
       } else {
@@ -288,7 +272,7 @@ const HostEventWrapUpScreen = ({ navigation, route }) => {
 
   if (loading) {
     return (
-      <VibeScreen title="Event Wrap-Up">
+      <VibeScreen title="Event Recap">
         <View style={styles.container}>
           <Text style={styles.loadingText}>Loading event data...</Text>
         </View>
@@ -298,7 +282,7 @@ const HostEventWrapUpScreen = ({ navigation, route }) => {
 
   if (!eventData) {
     return (
-      <VibeScreen title="Event Wrap-Up">
+      <VibeScreen title="Event Recap">
         <View style={styles.container}>
           <Text style={styles.errorText}>Event not found</Text>
         </View>
@@ -309,26 +293,39 @@ const HostEventWrapUpScreen = ({ navigation, route }) => {
   // Handle events without attendance tracking
   if (!eventData.trackAttendance) {
     return (
-      <VibeScreen title="Event Wrap-Up">
+      <VibeScreen title="Event Recap">
         <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
             {/* Event Header - Green Box */}
-            <View style={[styles.headerCard, { 
-              borderLeftColor: theme.colors.vibeGreen,
-              backgroundColor: theme.colors.vibeBackgroundGreen,
-              borderColor: theme.colors.vibeGreen
-            }]}>
-              <View style={styles.headerContent}>
-                <View style={styles.checkIconContainer}>
-                  <Text style={styles.checkIcon}>✓</Text>
+            {showAttendanceMessage && (
+              <Swipeable
+                renderRightActions={renderRightActions}
+                renderLeftActions={renderLeftActions}
+                onSwipeableOpen={() => setShowAttendanceMessage(false)}
+                friction={2}
+                overshootRight={false}
+                overshootLeft={false}
+                rightThreshold={40}
+                leftThreshold={40}
+              >
+                <View style={[styles.headerCard, { 
+                  borderLeftColor: theme.colors.vibeGreen,
+                  backgroundColor: theme.colors.vibeBackgroundGreen,
+                  borderColor: theme.colors.vibeGreen
+                }]}>
+                  <View style={styles.headerContent}>
+                    <View style={styles.checkIconContainer}>
+                      <Text style={styles.checkIcon}>✓</Text>
+                    </View>
+                    <View style={styles.headerText}>
+                      <Text style={styles.attendanceDescription}>
+                        Attendance was not recorded for this event.
+                      </Text>
+                    </View>
+                  </View>
                 </View>
-                <View style={styles.headerText}>
-                  <Text style={styles.attendanceDescription}>
-                    Attendance was not recorded for this event.
-                  </Text>
-                </View>
-              </View>
-            </View>
+              </Swipeable>
+            )}
 
             {/* Simple completion message */}
             <View style={styles.simpleWrapUpSection}>
@@ -349,18 +346,23 @@ const HostEventWrapUpScreen = ({ navigation, route }) => {
             </View>
 
             {/* Actions */}
-            <VibeButton
-              label="CREATE SIMILAR EVENT"
-              onPress={() => navigation.navigate('CreateEvent', { 
-                templateFromEvent: {
-                  ...eventData,
-                  title: `${eventData.title} (Copy)`,
-                  trackAttendance: true, // Suggest enabling tracking
-                  attendanceType: 'casual' // Default to casual
-                }
-              })}
-              style={styles.actionButton}
-            />
+            {/* Show cancellation option if only host is subscribed */}
+            {eventData.subscribers?.length === 1 && eventData.subscribers[0] === currentUserId && (
+              <VibeButton
+                label="EVENT WAS CANCELLED - DELETE EVENT"
+                onPress={() => {
+                  vibeAlert.confirm(
+                    'Delete Cancelled Event?',
+                    'Since only you were subscribed to this event, it was effectively cancelled. Would you like to delete it?',
+                    deleteEvent,
+                    () => {}
+                  );
+                }}
+                variant="outline"
+                style={[styles.actionButton, { borderColor: theme.colors.vibeRed, backgroundColor: theme.colors.vibeBackgroundRed }]}
+              />
+            )}
+            
 
             <VibeButton
               label="BACK TO EVENT"
@@ -402,34 +404,8 @@ const HostEventWrapUpScreen = ({ navigation, route }) => {
             </View>
           )}
 
-          {/* Open Event - Simple Headcount */}
-          {eventData.attendanceType === 'open' && (
-            <View style={styles.openEventSection}>
-              <Text style={styles.sectionTitle}>How many people came?</Text>
-              <View style={styles.headCountContainer}>
-                <Text style={styles.headCountNumber}>{headCount}</Text>
-                <Text style={styles.headCountLabel}>attendees</Text>
-              </View>
-              <Slider
-                style={styles.headCountSlider}
-                minimumValue={1}
-                maximumValue={100}
-                value={headCount}
-                onValueChange={(value) => setHeadCount(Math.round(value))}
-                minimumTrackTintColor={theme.colors.vibeGreen}
-                maximumTrackTintColor={theme.colors.darkGray}
-                thumbStyle={{ backgroundColor: theme.colors.vibeGreen }}
-                disabled={isCompleted}
-              />
-              <View style={styles.sliderLabels}>
-                <Text style={styles.sliderLabel}>1</Text>
-                <Text style={styles.sliderLabel}>100+</Text>
-              </View>
-            </View>
-          )}
-
-          {/* Casual/Strict Event - Individual Tracking */}
-          {(eventData.attendanceType === 'casual' || eventData.attendanceType === 'strict') && (
+          {/* Individual Attendance Tracking */}
+          {eventData && (
             <View style={styles.trackedEventSection}>
               <Text style={styles.sectionTitle}>Mark Attendance</Text>
               <Text style={styles.instructions}>
@@ -580,45 +556,8 @@ const styles = StyleSheet.create({
     color: theme.colors.white,
     marginBottom: 16,
   },
-  
-  // Open Event Styles
-  openEventSection: {
-    backgroundColor: theme.colors.vibeBackgroundBlue,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 30,
-    borderWidth: 1,
-    borderColor: theme.colors.vibeBlue,
-  },
-  headCountContainer: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  headCountNumber: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: theme.colors.vibeGreen,
-  },
-  headCountLabel: {
-    fontSize: 16,
-    color: theme.colors.gray,
-    marginTop: -8,
-  },
-  headCountSlider: {
-    width: '100%',
-    height: 40,
-  },
-  sliderLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  sliderLabel: {
-    color: theme.colors.gray,
-    fontSize: 12,
-  },
 
-  // Simple Wrap-Up Styles (no attendance tracking)
+  // Simple Recap Styles (no attendance tracking)
   simpleWrapUpSection: {
     backgroundColor: theme.colors.vibeBackgroundBlue,
     borderRadius: 16,
@@ -749,6 +688,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     textAlign: 'center',
     marginTop: 50,
+  },
+  
+  // Invisible swipe area for visual feedback
+  swipeArea: {
+    flex: 1,
+    backgroundColor: 'transparent',
   },
 });
 

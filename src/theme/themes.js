@@ -18,13 +18,11 @@ const theme = {
     vibeYellow: '#FFFF00',
     vibePink: '#FF10F0',
     vibeRed: '#FF4444',
-
-    // Neon Cyan & Turquoise variants
-    vibeCyan: '#00FFFF', // Pure electric cyan
-    vibeTurquoise: '#40E0D0', // Bright turquoise
-    vibeAqua: '#00FFF7', // Aqua cyan
-    vibeTeal: '#00FFD4', // Neon teal
-    vibeElectricBlue: '#007FFF', // Electric blue
+    vibeCyan: '#00FFFF',
+    vibeTurquoise: '#40E0D0',
+    vibeAqua: '#00FFF7',
+    vibeTeal: '#00FFD4',
+    vibeElectricBlue: '#007FFF',
 
     // Basic colors
     white: '#FFFFFF',
@@ -39,19 +37,17 @@ const theme = {
     vibeBackgroundPurple: 'rgba(139, 0, 255, 0.1)',
     vibeBackgroundYellow: 'rgba(255, 255, 0, 0.1)',
     vibeBackgroundPink: 'rgba(255, 16, 240, 0.1)',
-
-    // Neon Cyan & Turquoise backgrounds
-    vibeBackgroundCyan: 'rgba(0, 255, 255, 0.1)', // Electric cyan bg
-    vibeBackgroundTurquoise: 'rgba(64, 224, 208, 0.1)', // Turquoise bg
-    vibeBackgroundAqua: 'rgba(0, 255, 247, 0.1)', // Aqua bg
-    vibeBackgroundTeal: 'rgba(0, 255, 212, 0.1)', // Neon teal bg
-    vibeBackgroundElectricBlue: 'rgba(0, 127, 255, 0.1)', // Electric blue bg
+    vibeBackgroundCyan: 'rgba(0, 255, 255, 0.1)',
+    vibeBackgroundTurquoise: 'rgba(64, 224, 208, 0.1)',
+    vibeBackgroundAqua: 'rgba(0, 255, 247, 0.1)',
+    vibeBackgroundTeal: 'rgba(0, 255, 212, 0.1)',
+    vibeBackgroundElectricBlue: 'rgba(0, 127, 255, 0.1)',
 
     // Comment role colors
-    commentUser: '#28a745', // Green for current user
-    commentAdmin: '#6f42c1', // Purple for admin
-    commentHost: '#fd7e14', // Golden orange for host
-    commentOther: '#007bff', // Blue for others
+    commentUser: '#28a745',
+    commentAdmin: '#6f42c1',
+    commentHost: '#fd7e14',
+    commentOther: '#007bff',
 
     // Comment background colors (with transparency)
     commentUserBg: 'rgba(40, 167, 69, 0.1)',

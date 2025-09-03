@@ -30,7 +30,9 @@
       "Bash(node:*)",
       "Bash(dir:*)",
       "Bash(firebase init:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(eas build:view:*)",
+      "Bash(eas build:*)"
     ],
     "deny": [],
     "ask": [],

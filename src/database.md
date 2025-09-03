@@ -75,6 +75,7 @@ This document outlines the Firebase Firestore database structure for the Big Vib
         joined: number,                     // Events subscribed to
         attended: number,                   // Events actually attended
         noShows: number,                    // Events missed
+        averageAttendees: number,           // Average attendees per hosted event
         subscribedEvents: string[],         // Array of event IDs
         attendedEvents: string[],           // Array of attended event IDs
         noShowEvents: string[],             // Array of missed event IDs
@@ -268,6 +269,7 @@ This document outlines the Firebase Firestore database structure for the Big Vib
   hasFee: boolean,                      // Whether event has entry fee
   entryFee: number,                     // Entry fee amount (0 if free)
   isPrivate: boolean,                   // Private vs public event
+  allowGuestInvites: boolean,           // Allow guests to share invite codes (private events only)
   trackAttendance: boolean,             // Whether to track attendance
   attendanceType: string,               // "casual" or "strict"
   showHostContact: boolean,             // Show host contact info
@@ -358,6 +360,7 @@ This document outlines the Firebase Firestore database structure for the Big Vib
     hasFee?: boolean,
     entryFee?: string,
     isPrivate?: boolean,
+    allowGuestInvites?: boolean,
     trackAttendance?: boolean,
     attendanceType?: string,
     // ... other event form fields

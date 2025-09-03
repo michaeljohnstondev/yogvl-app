@@ -149,7 +149,6 @@ export default function CreateEventScreen({ navigation, route }) {
     togglePrivacy,
     toggleHostContact,
     toggleRsvpDeadline,
-    toggleAttendanceTracking,
     appendToDetails,
     updateInputHeight,
     validateForm,
@@ -214,6 +213,7 @@ export default function CreateEventScreen({ navigation, route }) {
   const { pastEvents, handleCreateTemplateFromPastEvent } =
     usePastEventsManager(
       currentUserId,
+      userData?.userdata?.studios?.default?.studioId || 'greenville_sc',
       applyTemplate,
       replaceFormData,
       closeSelectionModal,
@@ -335,12 +335,17 @@ export default function CreateEventScreen({ navigation, route }) {
     try {
       const combinedFormData = {
         ...formData,
-        date: dateTimeValues.event.value,
-        dateSelected: dateTimeValues.event.selected,
-        time: dateTimeValues.event.value,
-        timeSelected: dateTimeValues.event.selected,
-        rsvpDeadline: dateTimeValues.rsvpDeadline.value,
-        rsvpDeadlineSelected: dateTimeValues.rsvpDeadline.selected,
+        // Only include date/time in templates if actually selected
+        ...(dateTimeValues.event.selected ? {
+          date: dateTimeValues.event.value,
+          dateSelected: dateTimeValues.event.selected,
+          time: dateTimeValues.event.value,
+          timeSelected: dateTimeValues.event.selected,
+        } : {}),
+        ...(dateTimeValues.rsvpDeadline.selected ? {
+          rsvpDeadline: dateTimeValues.rsvpDeadline.value,
+          rsvpDeadlineSelected: dateTimeValues.rsvpDeadline.selected,
+        } : {}),
         
         // Include all invitation data in the template
         selectedGuestUsers,
@@ -437,21 +442,32 @@ export default function CreateEventScreen({ navigation, route }) {
           setSelectedTextContacts(templateFormData.selectedTextContacts);
         }
 
-        // Apply date/time if present in template
-        if (templateFormData.date || templateFormData.time) {
-          const templateDateTime =
-            templateFormData.date || templateFormData.time || new Date();
+        // Apply date/time if present in template and valid
+        if ((templateFormData.date && templateFormData.date !== null) || (templateFormData.time && templateFormData.time !== null)) {
+          const templateDateTime = templateFormData.date || templateFormData.time;
+          
+          // Ensure templateDateTime is a valid Date object
+          const validTemplateDate = templateDateTime instanceof Date && !isNaN(templateDateTime) 
+            ? templateDateTime 
+            : new Date(templateDateTime);
+          
+          // If still invalid, skip template date/time
+          if (isNaN(validTemplateDate)) {
+            console.warn('Invalid template date/time, skipping:', templateDateTime);
+            return;
+          }
+          
           const now = new Date();
 
           // If template date is in the past, adjust it to be in the future
           // Keep the same time but move to tomorrow (or later if needed)
-          let eventDateTime = new Date(templateDateTime);
+          let eventDateTime = new Date(validTemplateDate);
           if (eventDateTime <= now) {
             // Move to tomorrow at the same time
             eventDateTime = new Date(now);
             eventDateTime.setDate(eventDateTime.getDate() + 1);
-            eventDateTime.setHours(templateDateTime.getHours());
-            eventDateTime.setMinutes(templateDateTime.getMinutes());
+            eventDateTime.setHours(validTemplateDate.getHours());
+            eventDateTime.setMinutes(validTemplateDate.getMinutes());
             eventDateTime.setSeconds(0);
             eventDateTime.setMilliseconds(0);
           }
@@ -620,7 +636,6 @@ export default function CreateEventScreen({ navigation, route }) {
         toggleRsvpDeadline={toggleRsvpDeadline}
         toggleHostContact={toggleHostContact}
         toggleFee={toggleFee}
-        toggleAttendanceTracking={toggleAttendanceTracking}
         // Actions
         onShowTemplateModal={openSelectionModal}
         onShowSaveTemplate={() => openSaveModal(formData.title)}

@@ -18,6 +18,17 @@ import { ReliabilityService } from './ReliabilityService';
 export class AttendanceService {
   
   /**
+   * Check if event is a solo event (host is the only subscriber)
+   * Solo events don't count toward attendance metrics
+   * @param {Object} eventData - Event data object
+   * @returns {boolean} True if host is the only subscriber
+   */
+  static isSoloEvent(eventData) {
+    return eventData.subscribers?.length === 1 && 
+           eventData.subscribers[0] === eventData.createdBy;
+  }
+  
+  /**
    * Mark user as attended an event
    * @param {string} studioId - Studio ID
    * @param {string} eventId - Event ID
@@ -36,29 +47,27 @@ export class AttendanceService {
 
       const eventData = eventDoc.data();
       const attendance = eventData.attendance || [];
-      const isHost = eventData.hostId === userId;
+      const isHost = eventData.createdBy === userId;
+      const isSolo = this.isSoloEvent(eventData);
       
       // Find existing attendance record or create new one
       const existingIndex = attendance.findIndex(a => a.userId === userId);
       
+      const attendanceRecord = {
+        userId: userId,
+        attended: true,
+        isHost: isHost,
+        markedBy: markedBy,
+        markedAt: serverTimestamp(),
+        isSoloEvent: isSolo // Flag for excluding from metrics
+      };
+      
       if (existingIndex >= 0) {
         // Update existing record
-        attendance[existingIndex] = {
-          userId: userId,
-          attended: true,
-          isHost: isHost,
-          markedBy: markedBy,
-          markedAt: serverTimestamp()
-        };
+        attendance[existingIndex] = attendanceRecord;
       } else {
         // Add new record
-        attendance.push({
-          userId: userId,
-          attended: true,
-          isHost: isHost,
-          markedBy: markedBy,
-          markedAt: serverTimestamp()
-        });
+        attendance.push(attendanceRecord);
       }
 
       // Update event with new attendance array
@@ -67,10 +76,13 @@ export class AttendanceService {
         attendanceCount: attendance.filter(a => a.attended).length
       });
 
-      // Update user's reliability score
-      await ReliabilityService.updateUserReliability(userId);
-
-      console.log(`Marked ${userId} as attended for event ${eventId} ${isHost ? '(host)' : '(guest)'}`);
+      // Only update reliability score for non-solo events
+      if (!isSolo) {
+        await ReliabilityService.updateUserReliability(userId);
+        console.log(`Marked ${userId} as attended for event ${eventId} ${isHost ? '(host)' : '(guest)'} (${eventData.attendanceType || 'unknown'} event)`);
+      } else {
+        console.log(`Marked ${userId} as attended for SOLO event ${eventId} - no metrics recorded`);
+      }
       return true;
     } catch (error) {
       throw error;
@@ -96,29 +108,27 @@ export class AttendanceService {
 
       const eventData = eventDoc.data();
       const attendance = eventData.attendance || [];
-      const isHost = eventData.hostId === userId;
+      const isHost = eventData.createdBy === userId;
+      const isSolo = this.isSoloEvent(eventData);
       
       // Find existing attendance record or create new one
       const existingIndex = attendance.findIndex(a => a.userId === userId);
       
+      const attendanceRecord = {
+        userId: userId,
+        attended: false,
+        isHost: isHost,
+        markedBy: markedBy,
+        markedAt: serverTimestamp(),
+        isSoloEvent: isSolo // Flag for excluding from metrics
+      };
+      
       if (existingIndex >= 0) {
         // Update existing record
-        attendance[existingIndex] = {
-          userId: userId,
-          attended: false,
-          isHost: isHost,
-          markedBy: markedBy,
-          markedAt: serverTimestamp()
-        };
+        attendance[existingIndex] = attendanceRecord;
       } else {
         // Add new record
-        attendance.push({
-          userId: userId,
-          attended: false,
-          isHost: isHost,
-          markedBy: markedBy,
-          markedAt: serverTimestamp()
-        });
+        attendance.push(attendanceRecord);
       }
 
       // Update event with new attendance array
@@ -127,8 +137,19 @@ export class AttendanceService {
         attendanceCount: attendance.filter(a => a.attended).length
       });
 
-      // Update user's reliability score
-      await ReliabilityService.updateUserReliability(userId);
+      // Skip reliability updates for solo events
+      if (isSolo) {
+        console.log(`No-show recorded for SOLO event ${eventId} - no metrics recorded`);
+      } else {
+        // Only update user's reliability score for strict events
+        // Casual events track no-shows for host visibility but don't affect reliability
+        if (eventData.attendanceType === 'strict') {
+          await ReliabilityService.updateUserReliability(userId);
+          console.log(`Updated reliability for strict event no-show: ${userId}`);
+        } else {
+          console.log(`No-show recorded for casual event (no reliability impact): ${userId}`);
+        }
+      }
 
       return true;
     } catch (error) {
@@ -260,7 +281,11 @@ export class AttendanceService {
       if (!eventDoc.exists()) return false;
       
       const eventData = eventDoc.data();
-      return eventData.hostId === userId;
+      // Check if user is creator, cohost, or admin
+      const isCreator = eventData.createdBy === userId;
+      const isCohost = eventData.cohosts?.includes(userId) || false;
+      // Note: We don't have admin check here since we don't have userData
+      return isCreator || isCohost;
     } catch (error) {
       return false;
     }
@@ -386,6 +411,92 @@ export class AttendanceService {
       return true;
     } catch (error) {
       console.error('Error clearing event attendance:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Allow users to self-report their attendance for casual events
+   * @param {string} studioId - Studio ID
+   * @param {string} eventId - Event ID
+   * @param {string} userId - User ID (must be same as currentUser)
+   * @param {boolean} attended - Whether user attended
+   * @returns {Promise<boolean>} Success status
+   */
+  static async selfReportAttendance(studioId, eventId, userId, attended) {
+    try {
+      const eventRef = doc(db, 'studios', studioId, 'events', eventId);
+      const eventDoc = await getDoc(eventRef);
+      
+      if (!eventDoc.exists()) {
+        throw new Error(`Event ${eventId} not found`);
+      }
+
+      const eventData = eventDoc.data();
+      const isSolo = this.isSoloEvent(eventData);
+      
+      // Don't allow self-reporting for solo events
+      if (isSolo) {
+        throw new Error('Self-reporting is not available for solo events');
+      }
+      
+      // Only allow self-reporting for casual events
+      if (eventData.attendanceType !== 'casual') {
+        throw new Error('Self-reporting is only allowed for casual events');
+      }
+      
+      // Only allow self-reporting for past events
+      const eventDate = eventData.eventTimestamp?.toDate() || new Date();
+      if (eventDate > new Date()) {
+        throw new Error('Self-reporting is only allowed for past events');
+      }
+      
+      // Check if user was subscribed to this event
+      if (!eventData.subscribers?.includes(userId)) {
+        throw new Error('You can only report attendance for events you were subscribed to');
+      }
+
+      const attendance = eventData.attendance || [];
+      
+      // Check if there's already a host-marked record
+      const existingIndex = attendance.findIndex(a => a.userId === userId);
+      if (existingIndex >= 0 && attendance[existingIndex].markedBy !== userId) {
+        throw new Error('Attendance has already been marked by the event host');
+      }
+      
+      // Add or update self-reported attendance
+      const attendanceRecord = {
+        userId: userId,
+        attended: attended,
+        isHost: eventData.createdBy === userId,
+        markedBy: userId, // Self-reported
+        selfReported: true,
+        isSoloEvent: false, // Already checked - not a solo event
+        markedAt: serverTimestamp()
+      };
+      
+      if (existingIndex >= 0) {
+        attendance[existingIndex] = attendanceRecord;
+      } else {
+        attendance.push(attendanceRecord);
+      }
+
+      // Update event with new attendance array
+      await updateDoc(eventRef, {
+        attendance: attendance,
+        attendanceCount: attendance.filter(a => a.attended).length
+      });
+
+      // Update user's reliability score only for positive attendance
+      // (casual no-shows don't affect reliability)
+      if (attended) {
+        await ReliabilityService.updateUserReliability(userId);
+      }
+
+      console.log(`Self-reported attendance: ${userId} - ${attended ? 'attended' : 'did not attend'} casual event ${eventId}`);
+      return true;
+    } catch (error) {
+      console.error('Error with self-reported attendance:', error);
       throw error;
     }
   }

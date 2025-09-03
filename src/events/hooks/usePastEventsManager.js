@@ -3,19 +3,18 @@ import { collection, query, where, orderBy, limit, getDocs } from 'firebase/fire
 import { db } from '../../auth/services/firebase';
 import { pastEventToTemplate } from '../lib/templateTransforms';
 
-export const usePastEventsManager = (currentUserId, applyTemplate, replaceFormData, closeSelectionModal, vibeAlert) => {
+export const usePastEventsManager = (currentUserId, studioId, applyTemplate, replaceFormData, closeSelectionModal, vibeAlert) => {
   const [pastEvents, setPastEvents] = useState([]);
 
   // Load past events for template creation
   useEffect(() => {
     const loadPastEvents = async () => {
-      if (!currentUserId) return;
+      if (!currentUserId || !studioId) return;
       
       try {
-        // Use a simpler query to avoid composite index requirement
-        // We'll filter and sort on the client side
+        // Query studio-specific events collection
         const q = query(
-          collection(db, 'events'),
+          collection(db, 'studios', studioId, 'events'),
           where('createdBy', '==', currentUserId),
           limit(50) // Get more events and filter client-side
         );
@@ -54,7 +53,7 @@ export const usePastEventsManager = (currentUserId, applyTemplate, replaceFormDa
     };
 
     loadPastEvents();
-  }, [currentUserId]);
+  }, [currentUserId, studioId]);
 
   // Handler for creating template from past event
   const handleCreateTemplateFromPastEvent = useCallback(

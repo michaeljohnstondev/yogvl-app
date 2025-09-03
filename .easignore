@@ -1,0 +1,56 @@
+# .easignore - Files to exclude from EAS Build uploads
+
+# Dependencies
+node_modules/
+
+# Expo
+.expo/
+.expo-shared/
+
+# Build outputs
+dist/
+build/
+*.apk
+*.ipa
+*.aab
+
+# IDE files
+.vscode/
+.idea/
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+docs/
+README.md
+PUSH_NOTIFICATIONS.md
+
+# Test files
+__tests__/
+*.test.js
+*.spec.js
+scripts/testNotification.js
+
+# Temporary files
+*.log
+*.tmp
+temp/
+tmp/
+
+# Large assets (if not needed for build)
+*.mp4
+*.mov
+*.avi
+
+# Backup files
+*.backup
+*.bak
+*~

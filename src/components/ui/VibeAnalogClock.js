@@ -85,39 +85,40 @@ const getMinuteFromPosition = (x, y) => {
 
 // Clock Numbers Component
 const ClockNumbers = React.memo(() => {
-  const numbers = [];
-  for (let i = 1; i <= 12; i++) {
+  const numbers = Array.from({ length: 12 }, (_, i) => {
+    const hour = i === 0 ? 12 : i;
     const angle = (i * 30) - 90; // -90 to start at 12 o'clock
-    const position = polarToCartesian(CLOCK_CENTER, CLOCK_CENTER, CLOCK_RADIUS - 25, angle);
+    const position = polarToCartesian(CLOCK_CENTER, CLOCK_CENTER, 115, angle);
     
-    numbers.push(
+    return (
       <SvgText
-        key={i}
+        key={hour}
         x={position.x}
-        y={position.y + 6} // Offset for text baseline
+        y={position.y + 6}
         textAnchor="middle"
-        fontSize="22"
+        fontSize="18"
         fontWeight="600"
         fill={theme.colors.textPrimary}
-        fontFamily={theme.fonts.main}
       >
-        {i}
+        {hour}
       </SvgText>
     );
-  }
-  return numbers;
+  });
+
+  return <>{numbers}</>;
 });
 
 // Clock Hand Component
 const ClockHand = React.memo(({ angle, length, color, width = 3 }) => {
-  const endPosition = polarToCartesian(CLOCK_CENTER, CLOCK_CENTER, length, angle);
+  const start = { x: CLOCK_CENTER, y: CLOCK_CENTER };
+  const end = polarToCartesian(CLOCK_CENTER, CLOCK_CENTER, length, angle);
   
   return (
     <Line
-      x1={CLOCK_CENTER}
-      y1={CLOCK_CENTER}
-      x2={endPosition.x}
-      y2={endPosition.y}
+      x1={start.x}
+      y1={start.y}
+      x2={end.x}
+      y2={end.y}
       stroke={color}
       strokeWidth={width}
       strokeLinecap="round"
@@ -303,88 +304,89 @@ const VibeAnalogClock = ({
 
           {/* Clock Container */}
           <View style={styles.clockContainer}>
-            <Pressable onPress={handleClockTouch} style={styles.clockWrapper}>
-              <Svg width={CLOCK_SIZE} height={CLOCK_SIZE} style={styles.clockSvg}>
-                {/* Clock Face */}
-                <Circle
-                  cx={CLOCK_CENTER}
-                  cy={CLOCK_CENTER}
-                  r={CLOCK_RADIUS}
-                  fill="transparent"
-                  stroke={theme.colors.vibeBlue}
-                  strokeWidth={3}
-                />
-                
-                {/* Hour Markers */}
-                {Array.from({ length: 12 }, (_, i) => {
-                  const angle = (i * 30) - 90;
-                  const outerPos = polarToCartesian(CLOCK_CENTER, CLOCK_CENTER, CLOCK_RADIUS - 10, angle);
-                  const innerPos = polarToCartesian(CLOCK_CENTER, CLOCK_CENTER, CLOCK_RADIUS - 20, angle);
+            <View style={styles.clockWrapper}>
+              <Pressable onPress={handleClockTouch}>
+                <Svg width={CLOCK_SIZE} height={CLOCK_SIZE} style={styles.clockSvg}>
+                  {/* Clock face circle */}
+                  <Circle
+                    cx={CLOCK_CENTER}
+                    cy={CLOCK_CENTER}
+                    r={CLOCK_RADIUS}
+                    fill="none"
+                    stroke={theme.colors.inputBorder}
+                    strokeWidth="2"
+                  />
                   
-                  return (
-                    <Line
-                      key={i}
-                      x1={outerPos.x}
-                      y1={outerPos.y}
-                      x2={innerPos.x}
-                      y2={innerPos.y}
-                      stroke={theme.colors.textSecondary}
-                      strokeWidth={2}
-                    />
-                  );
-                })}
-
-                {/* Minute Markers (5-minute increments) */}
-                {Array.from({ length: 12 }, (_, i) => {
-                  const angle = (i * 30) - 90;
-                  const outerPos = polarToCartesian(CLOCK_CENTER, CLOCK_CENTER, CLOCK_RADIUS - 5, angle);
-                  const innerPos = polarToCartesian(CLOCK_CENTER, CLOCK_CENTER, CLOCK_RADIUS - 10, angle);
+                  {/* Hour markers */}
+                  {Array.from({ length: 12 }, (_, i) => {
+                    const angle = (i * 30) - 90;
+                    const outerPos = polarToCartesian(CLOCK_CENTER, CLOCK_CENTER, CLOCK_RADIUS - 5, angle);
+                    const innerPos = polarToCartesian(CLOCK_CENTER, CLOCK_CENTER, CLOCK_RADIUS - 20, angle);
+                    
+                    return (
+                      <Line
+                        key={i}
+                        x1={outerPos.x}
+                        y1={outerPos.y}
+                        x2={innerPos.x}
+                        y2={innerPos.y}
+                        stroke={theme.colors.vibeBlue}
+                        strokeWidth="2"
+                      />
+                    );
+                  })}
                   
-                  return (
-                    <Line
-                      key={`min-${i}`}
-                      x1={outerPos.x}
-                      y1={outerPos.y}
-                      x2={innerPos.x}
-                      y2={innerPos.y}
-                      stroke={theme.colors.textSecondary}
-                      strokeWidth={1}
-                      opacity={0.5}
-                    />
-                  );
-                })}
-
-                {/* Clock Numbers */}
-                <ClockNumbers />
-
-                {/* Clock Hands */}
-                {currentStep >= 1 && (
+                  {/* Minute markers */}
+                  {Array.from({ length: 60 }, (_, i) => {
+                    if (i % 5 !== 0) { // Skip hour positions
+                      const angle = (i * 6) - 90;
+                      const outerPos = polarToCartesian(CLOCK_CENTER, CLOCK_CENTER, CLOCK_RADIUS - 5, angle);
+                      const innerPos = polarToCartesian(CLOCK_CENTER, CLOCK_CENTER, CLOCK_RADIUS - 12, angle);
+                      
+                      return (
+                        <Line
+                          key={i}
+                          x1={outerPos.x}
+                          y1={outerPos.y}
+                          x2={innerPos.x}
+                          y2={innerPos.y}
+                          stroke={theme.colors.darkGray}
+                          strokeWidth="1"
+                        />
+                      );
+                    }
+                    return null;
+                  })}
+                  
+                  {/* Numbers */}
+                  <ClockNumbers />
+                  
+                  {/* Hour hand */}
                   <ClockHand
                     angle={hourAngle}
                     length={HOUR_HAND_LENGTH}
-                    color={theme.colors.vibeGreen}
+                    color={theme.colors.vibeBlue}
                     width={4}
                   />
-                )}
-                
-                {currentStep >= 1 && (
+                  
+                  {/* Minute hand */}
                   <ClockHand
                     angle={minuteAngle}
                     length={MINUTE_HAND_LENGTH}
                     color={theme.colors.vibeGreen}
                     width={3}
                   />
-                )}
-
-                {/* Center Dot */}
-                <Circle
-                  cx={CLOCK_CENTER}
-                  cy={CLOCK_CENTER}
-                  r={6}
-                  fill={theme.colors.vibeBlue}
-                />
-              </Svg>
-            </Pressable>
+                  
+                  {/* Center dot */}
+                  <Circle
+                    cx={CLOCK_CENTER}
+                    cy={CLOCK_CENTER}
+                    r="6"
+                    fill={theme.colors.vibePink}
+                  />
+                </Svg>
+              </Pressable>
+            </View>
           </View>
 
           {/* Controls */}

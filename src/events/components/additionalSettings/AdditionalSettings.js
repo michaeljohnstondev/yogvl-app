@@ -4,13 +4,11 @@ import React, { useState, useImperativeHandle, forwardRef } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import VibeInput from '../../../components/ui/VibeInput';
 import VibeSegmentedControl from '../../../components/ui/VibeSegmentedControl';
-import VibeDropdown from '../../../components/ui/VibeDropdown';
 
 export const AdditionalSettings = forwardRef(({
   formData,
   toggleHostContact,
   toggleFee,
-  toggleAttendanceTracking,
   updateField,
   styles,
   onExpansionChange,
@@ -87,43 +85,15 @@ export const AdditionalSettings = forwardRef(({
             </View>
           )}
 
-          <Text style={styles.label}>Attendance Tracking</Text>
+          <Text style={styles.label}>Attendance Mode</Text>
           <VibeSegmentedControl
             options={[
-              { value: false, label: 'No Tracking' },
-              { value: true, label: 'Track Attendance' },
+              { value: 'casual', label: '🌊 Casual' },
+              { value: 'strict', label: '🎯 Strict' },
             ]}
-            selectedValue={formData.trackAttendance}
-            onSelect={(value) => updateField('trackAttendance', value)}
+            selectedValue={formData.attendanceType}
+            onSelect={(value) => updateField('attendanceType', value)}
           />
-
-          {formData.trackAttendance && (
-            <View style={{ marginTop: 16 }}>
-              <Text style={styles.label}>Attendance Type</Text>
-              <VibeDropdown
-                value={formData.attendanceType}
-                onSelect={(value) => updateField('attendanceType', value)}
-                options={[
-                  { 
-                    value: 'open', 
-                    label: '🎉 Open Event',
-                    description: 'Open invite - just count attendees'
-                  },
-                  { 
-                    value: 'casual', 
-                    label: '🌊 Casual Event',
-                    description: 'Track attendance, no penalties for missing'
-                  },
-                  { 
-                    value: 'strict', 
-                    label: '🎯 Strict Event',
-                    description: 'RSVPs matter - affects reliability scores'
-                  }
-                ]}
-                placeholder="Select attendance type..."
-              />
-            </View>
-          )}
 
 
           <Pressable

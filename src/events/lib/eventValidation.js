@@ -108,7 +108,7 @@ export const getUserEventPermissions = (currentUserId, userData, event) => {
 
   return {
     canEdit: (isCreator || isCohost || isAdmin) && !isPast,
-    canManageAttendance: (isCreator || isCohost || isAdmin) && event.trackAttendance === true,
+    canManageAttendance: (isCreator || isCohost || isAdmin),
     canDelete: isCreator || isAdmin, // Keep delete restricted to creator/admin only
     canViewSubscribers: isCreator || isCohost || isAdmin,
     isCreator,

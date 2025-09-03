@@ -1035,15 +1035,15 @@ export const notifyNewFollower = async ({ targetUserId, followerId, followerName
 };
 
 /**
- * Send event wrap-up notification to host
+ * Send event recap notification to host
  */
 export const notifyHostEventWrapUp = async (hostId, eventId, eventTitle) => {
   try {
     return await createNotification({
       userId: hostId,
       type: NOTIFICATION_TYPES.EVENT_WRAPUP_HOST,
-      title: 'Event Wrap-Up Time! 📋',
-      message: `Time to wrap up "${eventTitle}" - mark who attended!`,
+      title: 'Event Recap Time! 📋',
+      message: `Time to recap "${eventTitle}" - mark who attended!`,
       data: {
         eventId,
         eventTitle,
@@ -1051,7 +1051,7 @@ export const notifyHostEventWrapUp = async (hostId, eventId, eventTitle) => {
         actions: [
           {
             id: 'complete_wrapup',
-            label: 'Complete Wrap-Up',
+            label: 'Complete Recap',
             type: 'primary',
             action: 'navigate_to_screen',
             params: { 
@@ -1071,7 +1071,7 @@ export const notifyHostEventWrapUp = async (hostId, eventId, eventTitle) => {
 };
 
 /**
- * Send event wrap-up notification to guest
+ * Send event recap notification to guest
  */
 export const notifyGuestEventWrapUp = async (guestId, eventId, eventTitle, attendanceType) => {
   try {
@@ -1116,7 +1116,7 @@ export const notifyGuestEventWrapUp = async (guestId, eventId, eventTitle, atten
 };
 
 /**
- * Schedule wrap-up notifications for an event
+ * Schedule recap notifications for an event
  */
 export const scheduleEventWrapUpNotifications = async (eventData) => {
   try {
@@ -1124,7 +1124,7 @@ export const scheduleEventWrapUpNotifications = async (eventData) => {
     
     // Skip if no attendance tracking
     if (!trackAttendance) {
-      return { success: true, message: 'No attendance tracking - skipped wrap-up notifications' };
+      return { success: true, message: 'No attendance tracking - skipped recap notifications' };
     }
 
     const notifications = [];
@@ -1134,9 +1134,8 @@ export const scheduleEventWrapUpNotifications = async (eventData) => {
       notifyHostEventWrapUp(createdBy, eventId, title)
     );
 
-    // Send to guests - during or shortly after event (depending on type)
-    // Skip for open events (no individual tracking)
-    if (attendanceType !== 'open' && subscribers.length > 0) {
+    // Send to guests for attendance tracking
+    if (subscribers.length > 0) {
       const guestNotifications = subscribers
         .filter(userId => userId !== createdBy) // Don't notify host as guest
         .map(guestId => 
@@ -1151,11 +1150,11 @@ export const scheduleEventWrapUpNotifications = async (eventData) => {
     return {
       success: true,
       hostNotified: true,
-      guestsNotified: attendanceType !== 'open' ? subscribers.length - 1 : 0
+      guestsNotified: subscribers.length - 1
     };
 
   } catch (error) {
-    console.error('Error scheduling wrap-up notifications:', error);
+    console.error('Error scheduling recap notifications:', error);
     return { success: false, error };
   }
 };

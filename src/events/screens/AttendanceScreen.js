@@ -17,6 +17,7 @@ import { useAuth } from '../../auth/AuthContext';
 import AttendanceStats from '../../components/ui/AttendanceStats';
 import AttendanceCard from '../../components/ui/AttendanceCard';
 import VibeButton from '../../components/ui/VibeButton';
+import CloseButton from '../../components/ui/CloseButton';
 import theme from '../../theme/themes';
 
 export default function AttendanceScreen({ route, navigation }) {
@@ -31,6 +32,7 @@ export default function AttendanceScreen({ route, navigation }) {
   const [rsvpUsers, setRsvpUsers] = useState([]);
   const [canMarkAttendance, setCanMarkAttendance] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showBadgeContext, setShowBadgeContext] = useState(false);
 
   useEffect(() => {
     loadAttendanceData();
@@ -62,12 +64,31 @@ export default function AttendanceScreen({ route, navigation }) {
       const eventData = { id: eventDoc.id, studioId, ...eventDoc.data() };
       setEvent(eventData);
 
+      // Check if this is a solo event
+      const isSoloEvent = eventData.subscribers?.length === 1 && 
+                         eventData.subscribers[0] === eventData.createdBy;
+      
+      if (isSoloEvent) {
+        console.log('Solo event detected - attendance metrics will not be recorded');
+      }
+
       // Load RSVP users
       const subscribers = eventData.subscribers || [];
       const userPromises = subscribers.map(async (userId) => {
         const userDoc = await getDoc(doc(db, 'users', userId));
         if (userDoc.exists()) {
-          return { id: userId, ...userDoc.data() };
+          const userData = userDoc.data();
+          // Extract contact info for easier access in AttendanceCard
+          const contactInfo = userData.userdata?.contactInfo || {};
+          return { 
+            id: userId, 
+            ...userData,
+            // Flatten contact info for AttendanceCard compatibility
+            firstName: contactInfo.firstName,
+            lastName: contactInfo.lastName,
+            email: contactInfo.email,
+            displayName: contactInfo.displayName,
+          };
         }
         return { id: userId, email: 'Unknown User' };
       });
@@ -170,25 +191,57 @@ export default function AttendanceScreen({ route, navigation }) {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.backButtonText}>← Back</Text>
-          </TouchableOpacity>
+          <CloseButton onPress={() => navigation.goBack()} />
           <Text style={styles.title}>Attendance Manager</Text>
         </View>
 
-        {/* Event Info */}
+        {/* Event Type Badge */}
         <View style={styles.eventInfo}>
-          <Text style={styles.eventTitle}>{event?.title}</Text>
-          <Text style={styles.eventDate}>
-            {event?.eventTimestamp?.toDate().toLocaleDateString()} at{' '}
-            {event?.eventTimestamp?.toDate().toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </Text>
+          <View style={styles.eventTypeContainer}>
+            <TouchableOpacity
+              style={[
+                styles.eventTypeBadge,
+                {
+                  backgroundColor: event?.attendanceType === 'strict' 
+                    ? 'rgba(253, 126, 20, 0.1)' 
+                    : 'rgba(0, 198, 255, 0.1)',
+                  borderColor: event?.attendanceType === 'strict'
+                    ? '#fd7e14'
+                    : '#00C6FF'
+                }
+              ]}
+              onPressIn={() => setShowBadgeContext(true)}
+              onPressOut={() => setShowBadgeContext(false)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.eventTypeBadgeText}>
+                {event?.attendanceType === 'strict' ? '🎯 Strict Event' : '🌊 Casual Event'}
+              </Text>
+            </TouchableOpacity>
+            
+            {/* Only show context for casual events when pressed */}
+            {event?.attendanceType === 'casual' && showBadgeContext && (
+              <Text style={styles.eventTypeContext}>
+                No-shows are tracked but won't affect reliability
+              </Text>
+            )}
+            
+            {/* Always show context for strict events */}
+            {event?.attendanceType === 'strict' && (
+              <Text style={styles.eventTypeContext}>
+                No-shows will affect user reliability scores
+              </Text>
+            )}
+            
+            {/* Solo event warning */}
+            {event?.subscribers?.length === 1 && event.subscribers[0] === event.createdBy && (
+              <View style={styles.soloEventWarning}>
+                <Text style={styles.soloEventWarningText}>
+                  📊 Solo Event - No metrics recorded
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
 
         {/* Attendance Stats */}
@@ -254,7 +307,7 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    paddingTop: 60,
+    paddingTop: 20,
   },
   header: {
     flexDirection: 'row',
@@ -263,14 +316,6 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  backButton: {
-    marginRight: 16,
-  },
-  backButtonText: {
-    color: theme.colors.vibeBlue,
-    fontSize: 16,
-    fontWeight: '500',
   },
   title: {
     fontSize: 24,
@@ -282,17 +327,45 @@ const styles = StyleSheet.create({
     padding: 20,
     alignItems: 'center',
   },
-  eventTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: theme.colors.textPrimary,
-    textAlign: 'center',
+  eventTypeContainer: {
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  eventTypeBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
     marginBottom: 8,
   },
-  eventDate: {
-    fontSize: 14,
+  eventTypeBadgeText: {
+    color: theme.colors.textPrimary,
+    fontSize: 12,
+    fontWeight: '600',
+    fontFamily: theme.fonts.main,
+  },
+  eventTypeContext: {
+    fontSize: 11,
     color: theme.colors.textSecondary,
     textAlign: 'center',
+    fontStyle: 'italic',
+    maxWidth: 280,
+  },
+  soloEventWarning: {
+    backgroundColor: 'rgba(255, 165, 0, 0.1)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FFA500',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginTop: 12,
+  },
+  soloEventWarningText: {
+    color: '#FFA500',
+    fontSize: 12,
+    fontWeight: '500',
+    textAlign: 'center',
+    fontFamily: theme.fonts.main,
   },
   bulkActions: {
     paddingHorizontal: 20,

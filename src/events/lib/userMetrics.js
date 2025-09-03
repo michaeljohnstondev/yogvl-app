@@ -1,6 +1,7 @@
 // utils/userMetrics.js
 import {
   doc,
+  getDoc,
   updateDoc,
   increment,
   Timestamp,
@@ -142,14 +143,12 @@ export const updateEventCreationMetrics = async (userId, eventId, studioId) => {
     await updateDoc(userRef, {
       'userdata.metrics.events.subscribedEvents': arrayUnion(eventId),
       'userdata.metrics.events.created': increment(1),
-      'userdata.metrics.events.attended': increment(1), // Auto-increment attended for hosts
-      'userdata.metrics.events.attendedEvents': arrayUnion(eventId), // Add to attended events array
       'userdata.metrics.events.noShows': increment(0),
       'userdata.metrics.events.lastEventCreated': Timestamp.now(),
       'userdata.metrics.events.lastActivity': Timestamp.now(),
     });
 
-    // Host attendance is now automatically added during event creation
+    // Host attendance will be added when event is completed (if other attendees exist)
     console.log(`Updated creation metrics for host ${userId}`);
 
     return { success: true };
@@ -172,8 +171,6 @@ export const updateEventDeletionMetrics = async (userId, eventId) => {
     await updateDoc(userRef, {
       'userdata.metrics.events.subscribedEvents': arrayRemove(eventId),
       'userdata.metrics.events.created': increment(-1),
-      'userdata.metrics.events.attended': increment(-1), // Remove attended count for deleted event
-      'userdata.metrics.events.attendedEvents': arrayRemove(eventId), // Remove from attended events array
       'userdata.metrics.events.lastActivity': Timestamp.now(),
     });
 
@@ -247,6 +244,7 @@ export const getUserEventStats = (userData) => {
     monthsSinceCreation,
     averageEventsPerMonth,
     profileViews: socialMetrics?.profileViews || 0,
+    averageAttendees: eventMetrics?.averageAttendees || 0,
     
     // Calculated highlight-specific stats
     averageCommentsPerEvent: totalEvents > 0 ? (engagementMetrics?.commentsPosted || 0) / totalEvents : 0,
@@ -282,6 +280,44 @@ export const updateNoShow = async (userId, eventId, attendanceType = 'strict') =
     return { success: true };
   } catch (error) {
     console.error('Error updating no-show metrics:', error);
+    return { success: false, error };
+  }
+};
+
+/**
+ * Updates host's average attendees metric
+ * @param {string} hostId - Host's user ID
+ * @param {number} attendeeCount - Number of attendees at this event
+ * @returns {Promise<Object>} Success/error result
+ */
+export const updateHostAverageAttendees = async (hostId, attendeeCount) => {
+  try {
+    const userRef = doc(db, 'users', hostId);
+    const userDoc = await getDoc(userRef);
+    
+    if (!userDoc.exists()) {
+      return { success: false, error: 'User not found' };
+    }
+
+    const userData = userDoc.data();
+    const eventMetrics = userData?.userdata?.metrics?.events || {};
+    
+    const eventsCreated = eventMetrics.created || 0;
+    const currentAverage = eventMetrics.averageAttendees || 0;
+    
+    // Calculate new average using incremental formula: new_avg = (old_avg * old_count + new_value) / new_count
+    const newAverage = eventsCreated > 0 
+      ? ((currentAverage * (eventsCreated - 1)) + attendeeCount) / eventsCreated
+      : attendeeCount;
+
+    await updateDoc(userRef, {
+      'userdata.metrics.events.averageAttendees': Math.round(newAverage * 100) / 100, // Round to 2 decimal places
+    });
+
+    console.log(`Updated average attendees for host ${hostId}: ${newAverage.toFixed(2)}`);
+    return { success: true, newAverage };
+  } catch (error) {
+    console.error('Error updating average attendees:', error);
     return { success: false, error };
   }
 };

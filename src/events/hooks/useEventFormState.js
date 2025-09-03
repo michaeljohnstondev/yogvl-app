@@ -14,10 +14,11 @@ const DEFAULT_FORM_DATA = {
   hasFee: false,
   entryFee: '',
   isPrivate: false,
+  allowGuestInvites: false,
   showHostContact: false,
   hasRsvpDeadline: false,
-  trackAttendance: false,
-  attendanceType: 'casual', // 'strict' | 'casual' | 'open'
+  trackAttendance: true,
+  attendanceType: 'casual', // 'strict' | 'casual'
   notificationSettings: {
     enabled: true,
     reminderTiming: '1hour',
@@ -232,8 +233,14 @@ const useEventFormState = (initialData = {}, options = {}) => {
   }, [formData.hasFee, updateField]);
 
   const togglePrivacy = useCallback(() => {
-    updateField('isPrivate', !formData.isPrivate);
-  }, [formData.isPrivate, updateField]);
+    const newIsPrivate = !formData.isPrivate;
+    const updates = {
+      isPrivate: newIsPrivate,
+      // Reset guest invites to false when making event public
+      ...(newIsPrivate ? {} : { allowGuestInvites: false })
+    };
+    updateFields(updates);
+  }, [formData.isPrivate, updateFields]);
 
   const toggleHostContact = useCallback(() => {
     updateField('showHostContact', !formData.showHostContact);
@@ -243,9 +250,6 @@ const useEventFormState = (initialData = {}, options = {}) => {
     updateField('hasRsvpDeadline', !formData.hasRsvpDeadline);
   }, [formData.hasRsvpDeadline, updateField]);
 
-  const toggleAttendanceTracking = useCallback(() => {
-    updateField('trackAttendance', !formData.trackAttendance);
-  }, [formData.trackAttendance, updateField]);
 
   // Legacy host management functions removed - now handled via invitation system
 
@@ -297,7 +301,6 @@ const useEventFormState = (initialData = {}, options = {}) => {
     togglePrivacy,
     toggleHostContact,
     toggleRsvpDeadline,
-    toggleAttendanceTracking,
     appendToDetails,
     updateInputHeight,
   };

@@ -2,16 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { View, ActivityIndicator, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import * as Linking from 'expo-linking';
 import {
   getAuth,
-  initializeAuth,
   onAuthStateChanged,
-  getReactNativePersistence,
 } from 'firebase/auth';
 import { getFirestore, getDoc, doc, onSnapshot } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import app from './auth/services/firebase';
+import app, { auth as firebaseAuth } from './auth/services/firebase';
 import { UserDataCleanupService } from './services/UserDataCleanupService';
 import { AuthProvider } from './auth/AuthContext';
 import { RealtimeNotificationsProvider } from './contexts/RealtimeNotificationsContext';
@@ -43,19 +42,8 @@ import GuestEventWrapUpScreen from './screens/GuestEventWrapUpScreen';
 
 const Stack = createNativeStackNavigator();
 
-// Initialize Firebase services with persistence
-let auth;
-try {
-  auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage),
-  });
-} catch (error) {
-  if (error.code === 'auth/already-initialized') {
-    auth = getAuth(app);
-  } else {
-    throw error;
-  }
-}
+// Use the already initialized auth from firebase.js
+const auth = firebaseAuth;
 
 const db = getFirestore(app);
 
@@ -67,6 +55,77 @@ export default function Navigation() {
 
   // Navigation reference for deep linking
   const navigationRef = React.useRef();
+
+  // Deep linking configuration
+  const linking = {
+    prefixes: [Linking.createURL('/'), 'bvs-app://', 'https://bigvibestudios.com'],
+    config: {
+      screens: {
+        UserProfile: {
+          path: '/user/:userId',
+          parse: {
+            userId: (userId) => userId,
+          },
+        },
+        EventDetail: {
+          path: '/invite/:inviteCode',
+          parse: {
+            inviteCode: (inviteCode) => inviteCode,
+          },
+        },
+        // New route for app download universal links
+        AppDownload: {
+          path: '/join',
+          parse: {
+            studio: (studio) => studio,
+            event: (event) => event,
+          },
+        },
+      },
+    },
+    subscribe(listener) {
+      // Handle pending deep links after authentication
+      const handleDeepLink = async (url) => {
+        if (!url) return;
+        
+        console.log('[Navigation] Deep link received:', url);
+        
+        // Parse URL to extract studio and event parameters for app download links
+        try {
+          const urlObj = new URL(url);
+          if (urlObj.pathname === '/join') {
+            const studioId = urlObj.searchParams.get('studio');
+            const eventId = urlObj.searchParams.get('event');
+            
+            if (studioId && eventId) {
+              // Store the studio and event for after authentication/onboarding
+              await AsyncStorage.setItem('pendingStudioSelection', JSON.stringify({
+                studioId,
+                eventId,
+                source: 'app-download-qr'
+              }));
+              console.log('[Navigation] Stored pending studio/event selection:', { studioId, eventId });
+            }
+          }
+        } catch (error) {
+          console.log('[Navigation] Error parsing deep link URL:', error);
+        }
+        
+        // Store the deep link for after authentication
+        if (!user) {
+          await AsyncStorage.setItem('pendingDeepLink', url);
+        }
+      };
+
+      // Listen for incoming links while app is running
+      const subscription = Linking.addEventListener('url', handleDeepLink);
+
+      // Check for initial deep link when app is opened
+      Linking.getInitialURL().then(handleDeepLink);
+
+      return () => subscription.remove();
+    },
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -142,6 +201,71 @@ export default function Navigation() {
     };
   }, [user]);
 
+  // Handle pending deep links after user is fully authenticated and has completed onboarding
+  useEffect(() => {
+    const handlePendingDeepLink = async () => {
+      if (!user || !userData || userDataLoading) return;
+      
+      const userStatus = UserDataCleanupService.getUserCompletionStatus(userData);
+      if (!userStatus.hasContactInfo || !userStatus.hasLocation) return;
+      
+      try {
+        const pendingLink = await AsyncStorage.getItem('pendingDeepLink');
+        if (!pendingLink) return;
+        
+        console.log('[Navigation] Processing pending deep link:', pendingLink);
+        
+        // Clear the pending link
+        await AsyncStorage.removeItem('pendingDeepLink');
+        
+        // Parse and navigate to the deep link
+        if (pendingLink.includes('/user/')) {
+          const userId = pendingLink.split('/user/')[1];
+          if (userId && navigationRef.current) {
+            navigationRef.current.navigate('UserProfile', { userId });
+          }
+        } else if (pendingLink.includes('/invite/')) {
+          const inviteCode = pendingLink.split('/invite/')[1];
+          if (inviteCode && navigationRef.current) {
+            // Find event by invite code and navigate
+            const { findEventByInviteCode } = await import('./services/inviteCodeService');
+            const result = await findEventByInviteCode(inviteCode);
+            
+            if (result) {
+              navigationRef.current.navigate('EventDetail', {
+                eventId: result.eventId,
+                studioId: result.studioId,
+                inviteCode: inviteCode
+              });
+            }
+          }
+        } else if (pendingLink.includes('/join')) {
+          // Handle app download universal links
+          try {
+            const urlObj = new URL(pendingLink);
+            const studioId = urlObj.searchParams.get('studio');
+            const eventId = urlObj.searchParams.get('event');
+            
+            if (studioId && eventId && navigationRef.current) {
+              console.log('[Navigation] Navigating to event from app download link:', { studioId, eventId });
+              navigationRef.current.navigate('EventDetail', {
+                eventId: eventId,
+                studioId: studioId,
+                source: 'app-download-qr'
+              });
+            }
+          } catch (error) {
+            console.error('[Navigation] Error parsing app download link:', error);
+          }
+        }
+      } catch (error) {
+        console.error('[Navigation] Error handling pending deep link:', error);
+      }
+    };
+    
+    handlePendingDeepLink();
+  }, [user, userData, userDataLoading]);
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -164,7 +288,7 @@ export default function Navigation() {
   return (
     <AuthProvider user={user} userData={userData}>
       <RealtimeNotificationsProvider>
-        <NavigationContainer ref={navigationRef}>
+        <NavigationContainer ref={navigationRef} linking={linking}>
         {!user ? (
           <Stack.Navigator
             initialRouteName="Landing"

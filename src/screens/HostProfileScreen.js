@@ -431,6 +431,10 @@ const HostProfileScreen = ({ navigation, route }) => {
                 <Text style={styles.statLabel}>Attended</Text>
               </View>
               <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{stats.averageAttendees.toFixed(1)}</Text>
+                <Text style={styles.statLabel}>Avg Attendees</Text>
+              </View>
+              <View style={styles.statItem}>
                 <Text style={styles.statNumber}>{stats.noShows}</Text>
                 <Text style={styles.statLabel}>No Shows</Text>
               </View>

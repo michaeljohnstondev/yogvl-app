@@ -54,10 +54,10 @@ export const validateEventDateTime = (formData) => {
       };
     }
 
-    if (minutesDiff < 30) {
+    if (minutesDiff < 15) {
       return {
         isValid: false,
-        message: 'Event must be at least 30 minutes in the future',
+        message: 'Event must be at least 15 minutes in the future',
       };
     }
   }
@@ -266,6 +266,7 @@ export const formatEventForStorage = (formData, currentUserId, isEditing = false
     hasFee,
     entryFee,
     isPrivate,
+    allowGuestInvites,
     showHostContact,
     address,
     hasRsvpDeadline,
@@ -332,6 +333,7 @@ export const formatEventForStorage = (formData, currentUserId, isEditing = false
 
     // FLAGS
     isPrivate: isPrivate ?? false,
+    allowGuestInvites: allowGuestInvites ?? false,
     trackAttendance: trackAttendance ?? false,
     attendanceType: attendanceType ?? 'casual',
     showHostContact: showHostContact ?? true,

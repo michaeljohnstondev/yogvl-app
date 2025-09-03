@@ -26,6 +26,7 @@ import ProfileAvatar from '../../components/ui/ProfileAvatar';
 import EventCreatorInfo from '../components/hosts/EventCreatorInfo';
 import AttendanceSummary from '../../components/ui/AttendanceSummary';
 import { CommentSection } from '../../components/ui/comments';
+import QRCodeGenerator from '../../components/ui/QRCodeGenerator';
 import { useVibeAlert } from '../../components/ui/VibeAlertContext';
 import { useFocusEffect } from '@react-navigation/native';
 import SubscriptionNotificationSettings from '../components/subscriptionSettings/SubscriptionNotificationSettings';
@@ -61,6 +62,8 @@ export default function EventDetailScreen({ route, navigation }) {
   const [creatorData, setCreatorData] = useState(null);
   const [cohostData, setCohostData] = useState([]);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [showQRCode, setShowQRCode] = useState(false);
+  const [showAppDownloadQR, setShowAppDownloadQR] = useState(false);
 
   // Handler for showing host profile
   const handleShowHostProfile = (hostData) => {
@@ -75,6 +78,7 @@ export default function EventDetailScreen({ route, navigation }) {
   const [friendAttendees, setFriendAttendees] = useState([]);
   const [showFriendsModal, setShowFriendsModal] = useState(false);
   const [showPrivacyFlash, setShowPrivacyFlash] = useState(false);
+  const [selfReportedAttendance, setSelfReportedAttendance] = useState(null);
 
   const vibeAlert = useVibeAlert();
 
@@ -183,6 +187,7 @@ export default function EventDetailScreen({ route, navigation }) {
       vibeAlert.error('Error', 'Could not open maps');
     });
   };
+
 
   useFocusEffect(
     useCallback(() => {
@@ -359,6 +364,20 @@ export default function EventDetailScreen({ route, navigation }) {
       }
     } catch (error) {
       vibeAlert.error('Error', 'Failed to update interest. Please try again.');
+    }
+  };
+
+  // Self-reporting attendance for casual events
+  const handleSelfReportAttendance = async (attended) => {
+    try {
+      await AttendanceService.selfReportAttendance(studioId, eventId, currentUserId, attended);
+      setSelfReportedAttendance(attended);
+      vibeAlert.success(
+        'Attendance Recorded', 
+        `Thanks for reporting that you ${attended ? 'attended' : 'did not attend'} this event.`
+      );
+    } catch (error) {
+      vibeAlert.error('Error', error.message || 'Failed to record attendance. Please try again.');
     }
   };
 
@@ -716,30 +735,6 @@ export default function EventDetailScreen({ route, navigation }) {
               <Text style={styles.statusText}>{eventStatus}</Text>
             </View>
           )}
-          {/* Attendance Type Badge - Only show when tracking is enabled and type is defined */}
-          {event && event.trackAttendance && event.attendanceType && (
-            <View style={[
-              styles.attendanceTypeBadge,
-              {
-                backgroundColor: event.attendanceType === 'strict' 
-                  ? 'rgba(253, 126, 20, 0.1)' // vibeBackgroundOrange
-                  : event.attendanceType === 'casual'
-                  ? 'rgba(0, 198, 255, 0.1)' // vibeBackgroundBlue
-                  : 'rgba(0, 255, 65, 0.1)', // vibeBackgroundGreen for open
-                borderColor: event.attendanceType === 'strict'
-                  ? '#fd7e14' // vibeOrange
-                  : event.attendanceType === 'casual'
-                  ? '#00C6FF' // vibeBlue
-                  : '#00FF41' // vibeGreen for open
-              }
-            ]}>
-              <Text style={styles.attendanceTypeBadgeText}>
-                {event.attendanceType === 'strict' ? '🎯 Strict Event'
-                  : event.attendanceType === 'casual' ? '🌊 Casual Event'
-                  : '🎉 Open Event'}
-              </Text>
-            </View>
-          )}
           </View>
           
           {/* Report Button - Only show when event is fully loaded */}
@@ -881,57 +876,60 @@ export default function EventDetailScreen({ route, navigation }) {
           </View>
         </View>
 
-        <View style={styles.infoCard}>
-          <TouchableOpacity 
-            style={styles.infoRow}
-            onPress={() => {
-              const isHostOrCohost = event?.createdBy === currentUserId || event?.cohosts?.includes(currentUserId);
-              const canViewAttendees = (isHostOrCohost && event?.subscribers?.length > 0) || friendAttendees.length > 0;
-              if (canViewAttendees) setShowFriendsModal(true);
-            }}
-            disabled={(() => {
-              const isHostOrCohost = event?.createdBy === currentUserId || event?.cohosts?.includes(currentUserId);
-              return !(isHostOrCohost && event?.subscribers?.length > 0) && friendAttendees.length === 0;
-            })()}
-            activeOpacity={(() => {
-              const isHostOrCohost = event?.createdBy === currentUserId || event?.cohosts?.includes(currentUserId);
-              return ((isHostOrCohost && event?.subscribers?.length > 0) || friendAttendees.length > 0) ? 0.7 : 1;
-            })()}
-          >
-            <Text style={styles.infoIcon}>👥</Text>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Attendees</Text>
-              <Text style={styles.infoValue}>
-                {event.subscribers?.length || 0} attendees
-                {event.maxGuests && ` / ${event.maxGuests} max`}
-                {(() => {
-                  const isHostOrCohost = event?.createdBy === currentUserId || event?.cohosts?.includes(currentUserId);
-                  return isHostOrCohost && event.subscribers?.length > 0 ? ' (tap to view all)' : '';
-                })()}
-              </Text>
-              <View style={styles.eventBadges}>
-                {event.hasFee && event.entryFee && (
-                  <View style={styles.feeBadge}>
-                    <Text style={styles.badgeText}>💰 ${event.entryFee || 'Paid'}</Text>
-                  </View>
+        {/* Only show attendee card if there are more subscribers than just the host */}
+        {!(event.subscribers?.length === 1 && event.subscribers[0] === event.createdBy) && (
+          <View style={styles.infoCard}>
+            <TouchableOpacity 
+              style={styles.infoRow}
+              onPress={() => {
+                const isHostOrCohost = event?.createdBy === currentUserId || event?.cohosts?.includes(currentUserId);
+                const canViewAttendees = (isHostOrCohost && event?.subscribers?.length > 0) || friendAttendees.length > 0;
+                if (canViewAttendees) setShowFriendsModal(true);
+              }}
+              disabled={(() => {
+                const isHostOrCohost = event?.createdBy === currentUserId || event?.cohosts?.includes(currentUserId);
+                return !(isHostOrCohost && event?.subscribers?.length > 0) && friendAttendees.length === 0;
+              })()}
+              activeOpacity={(() => {
+                const isHostOrCohost = event?.createdBy === currentUserId || event?.cohosts?.includes(currentUserId);
+                return ((isHostOrCohost && event?.subscribers?.length > 0) || friendAttendees.length > 0) ? 0.7 : 1;
+              })()}
+            >
+              <Text style={styles.infoIcon}>👥</Text>
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Attendees</Text>
+                <Text style={styles.infoValue}>
+                  {event.subscribers?.length || 0} attendees
+                  {event.maxGuests && ` / ${event.maxGuests} max`}
+                  {(() => {
+                    const isHostOrCohost = event?.createdBy === currentUserId || event?.cohosts?.includes(currentUserId);
+                    return isHostOrCohost && event.subscribers?.length > 0 ? ' (tap to view all)' : '';
+                  })()}
+                </Text>
+                <View style={styles.eventBadges}>
+                  {event.hasFee && event.entryFee && (
+                    <View style={styles.feeBadge}>
+                      <Text style={styles.badgeText}>💰 ${event.entryFee || 'Paid'}</Text>
+                    </View>
+                  )}
+                </View>
+                {isFullEvent && !isSubscribed && (
+                  <Text style={styles.fullText}>Event is full</Text>
+                )}
+                {joinConstraints.reason && (
+                  <Text
+                    style={[
+                      styles.constraintText,
+                      { color: joinConstraints.canJoin ? '#FF9800' : '#F44336' },
+                    ]}
+                  >
+                    {joinConstraints.reason}
+                  </Text>
                 )}
               </View>
-              {isFullEvent && !isSubscribed && (
-                <Text style={styles.fullText}>Event is full</Text>
-              )}
-              {joinConstraints.reason && (
-                <Text
-                  style={[
-                    styles.constraintText,
-                    { color: joinConstraints.canJoin ? '#FF9800' : '#F44336' },
-                  ]}
-                >
-                  {joinConstraints.reason}
-                </Text>
-              )}
-            </View>
-          </TouchableOpacity>
-        </View>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
       )}
 
@@ -1029,6 +1027,60 @@ export default function EventDetailScreen({ route, navigation }) {
         </View>
       )}
 
+      {/* App Download QR Code Section - For all users */}
+      <View style={styles.section}>
+        <View style={styles.sectionContent}>
+          <View style={styles.qrHeader}>
+            <Text style={styles.qrTitle}>Invite New Users</Text>
+            <TouchableOpacity
+              style={styles.toggleQRButton}
+              onPress={() => setShowAppDownloadQR(!showAppDownloadQR)}
+            >
+              <Text style={styles.toggleQRButtonText}>
+                {showAppDownloadQR ? 'Hide QR' : 'Show QR'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          
+          {showAppDownloadQR && (
+            <QRCodeGenerator
+              type="app-download"
+              data={{ studioId, eventId }}
+              size={180}
+              showShareButton={false}
+            />
+          )}
+        </View>
+      </View>
+
+      {/* QR Code Section - For hosts OR subscribed guests (when allowed) */}
+      {(permissions.canEdit || (event?.allowGuestInvites && isSubscribed)) && event?.inviteCode && (
+        <View style={styles.section}>
+          <View style={styles.sectionContent}>
+            <View style={styles.qrHeader}>
+              <Text style={styles.qrTitle}>Share Event (App Users)</Text>
+              <TouchableOpacity
+                style={styles.toggleQRButton}
+                onPress={() => setShowQRCode(!showQRCode)}
+              >
+                <Text style={styles.toggleQRButtonText}>
+                  {showQRCode ? 'Hide QR' : 'Show QR'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            
+            {showQRCode && (
+              <QRCodeGenerator
+                type="event"
+                data={event.inviteCode}
+                size={180}
+                showShareButton={false}
+              />
+            )}
+          </View>
+        </View>
+      )}
+
       {/* Comments Section */}
       <View style={styles.section}>
         <View style={styles.sectionContent}>
@@ -1039,7 +1091,8 @@ export default function EventDetailScreen({ route, navigation }) {
       {/* Action Buttons */}
       <View style={styles.buttonContainer}>
         {/* For non-hosts: show INVITE GUESTS first, then JOIN/LEAVE EVENT */}
-        {!isEventPast && !permissions.canEdit && (
+        {/* Show invite button for public events OR private events where guest invites are allowed and user is subscribed */}
+        {!isEventPast && !permissions.canEdit && (!event?.isPrivate || (event?.allowGuestInvites && isSubscribed)) && (
           <VibeButton label="INVITE GUESTS" onPress={handleInvite} />
         )}
 
@@ -1149,7 +1202,7 @@ export default function EventDetailScreen({ route, navigation }) {
         {permissions.canManageAttendance && !isEventPast && (
           <VibeButton
             label="MANAGE ATTENDANCE"
-            onPress={() => navigation.navigate('EventAttendance', { eventId })}
+            onPress={() => navigation.navigate('EventAttendance', { eventId, studioId })}
           />
         )}
       </View>
@@ -1158,20 +1211,79 @@ export default function EventDetailScreen({ route, navigation }) {
         <View style={styles.pastEventContainer}>
           {/* Wrap-up buttons for past events */}
             {/* Always show wrap-up buttons for past events */}
-            {permissions.canEdit ? (
-              // Host wrap-up button
-              <VibeButton
-                label={event.status === 'completed' ? 'VIEW WRAP-UP' : 'EVENT WRAP-UP'}
-                onPress={() => navigation.navigate('HostEventWrapUp', { eventId, studioId })}
-                variant="outline"
-              />
+            {(permissions.isCreator || permissions.isCohost || permissions.isAdmin) ? (
+              <>
+                {/* Host wrap-up button */}
+                <VibeButton
+                  label={event.status === 'completed' ? 'VIEW RECAP' : 'EVENT RECAP'}
+                  onPress={() => navigation.navigate('HostEventWrapUp', { eventId, studioId })}
+                  variant="outline"
+                />
+                {/* Recreate event button for hosts */}
+                <VibeButton
+                  label="RECREATE EVENT"
+                  onPress={() => navigation.navigate('CreateEvent', { 
+                    templateFromEvent: {
+                      ...event,
+                      trackAttendance: event.trackAttendance || true,
+                      attendanceType: event.attendanceType || 'casual'
+                    }
+                  })}
+                  variant="primary"
+                  style={{ marginTop: 8 }}
+                />
+              </>
             ) : (
-              // Guest wrap-up button
-              <VibeButton
-                label="EVENT WRAP-UP"
-                onPress={() => navigation.navigate('GuestEventWrapUp', { eventId, studioId })}
-                variant="outline"
-              />
+              <>
+                {/* Solo event message */}
+                {event?.subscribers?.length === 1 && event.subscribers[0] === event.createdBy && (
+                  <View style={styles.soloEventMessage}>
+                    <Text style={styles.soloEventMessageText}>
+                      📊 Solo Event - No attendance metrics recorded
+                    </Text>
+                  </View>
+                )}
+                
+                {/* Self-reporting for casual events (but not solo events) */}
+                {event?.attendanceType === 'casual' && 
+                 isSubscribed && 
+                 selfReportedAttendance === null && 
+                 !(event?.subscribers?.length === 1 && event.subscribers[0] === event.createdBy) && (
+                  <View style={styles.selfReportContainer}>
+                    <Text style={styles.selfReportTitle}>Did you attend this event?</Text>
+                    <Text style={styles.selfReportSubtitle}>Help us track attendance for casual events</Text>
+                    <View style={styles.selfReportButtons}>
+                      <VibeButton
+                        label="✅ I Attended"
+                        onPress={() => handleSelfReportAttendance(true)}
+                        style={[styles.selfReportButton, styles.attendedButton]}
+                      />
+                      <VibeButton
+                        label="❌ I Didn't Attend"
+                        onPress={() => handleSelfReportAttendance(false)}
+                        variant="outline"
+                        style={[styles.selfReportButton, styles.noShowButton]}
+                      />
+                    </View>
+                  </View>
+                )}
+                
+                {/* Show self-reported status */}
+                {selfReportedAttendance !== null && (
+                  <View style={styles.selfReportStatus}>
+                    <Text style={styles.selfReportStatusText}>
+                      ✓ You reported: {selfReportedAttendance ? 'Attended' : 'Did not attend'}
+                    </Text>
+                  </View>
+                )}
+                
+                {/* Guest wrap-up button */}
+                <VibeButton
+                  label="EVENT RECAP"
+                  onPress={() => navigation.navigate('GuestEventWrapUp', { eventId, studioId })}
+                  variant="outline"
+                />
+              </>
             )}
         </View>
       )}
@@ -1522,6 +1634,77 @@ const styles = StyleSheet.create({
     marginBottom: 40,
     paddingHorizontal: 20,
   },
+  
+  // Solo event message
+  soloEventMessage: {
+    backgroundColor: 'rgba(255, 165, 0, 0.1)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FFA500',
+    padding: 16,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  soloEventMessageText: {
+    color: '#FFA500',
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
+    fontFamily: theme.fonts.main,
+  },
+  
+  // Self-reporting styles
+  selfReportContainer: {
+    backgroundColor: theme.colors.inputBackground,
+    borderRadius: theme.sizes.borderRadius,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.inputBorder,
+  },
+  selfReportTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 4,
+    fontFamily: theme.fonts.main,
+  },
+  selfReportSubtitle: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: 16,
+    fontFamily: theme.fonts.main,
+  },
+  selfReportButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  selfReportButton: {
+    flex: 1,
+  },
+  attendedButton: {
+    backgroundColor: theme.colors.vibeGreen || '#00FF96',
+  },
+  noShowButton: {
+    borderColor: theme.colors.textSecondary,
+  },
+  selfReportStatus: {
+    backgroundColor: 'rgba(0, 255, 150, 0.1)',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.vibeGreen || '#00FF96',
+  },
+  selfReportStatusText: {
+    color: theme.colors.vibeGreen || '#00FF96',
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
+    fontFamily: theme.fonts.main,
+  },
   pastEventText: {
     color: theme.colors.textSecondary,
     fontSize: 16,
@@ -1593,5 +1776,28 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border || 'rgba(255, 255, 255, 0.1)',
+  },
+  qrHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  qrTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: 18,
+    fontWeight: '600',
+    fontFamily: theme.fonts.main,
+  },
+  toggleQRButton: {
+    backgroundColor: theme.colors.vibeBlue,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  toggleQRButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

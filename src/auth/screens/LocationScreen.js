@@ -20,6 +20,7 @@ import { auth, db } from '../services/firebase';
 import { StudioService } from '../../services/StudioService';
 import { switchUserStudio } from '../../services/userService';
 import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import theme from '../../theme/themes';
 
 export default function LocationScreen({ navigation }) {
@@ -56,6 +57,34 @@ export default function LocationScreen({ navigation }) {
           }
         }
 
+        // Check for pending studio selection from deep link
+        try {
+          const pendingSelectionData = await AsyncStorage.getItem('pendingStudioSelection');
+          if (pendingSelectionData) {
+            const { studioId, eventId, source } = JSON.parse(pendingSelectionData);
+            console.log('[LocationScreen] Found pending studio selection:', { studioId, eventId, source });
+            
+            // Find the studio by ID
+            const studio = StudioService.getStudioById(studioId);
+            if (studio) {
+              console.log('[LocationScreen] Auto-selecting studio from deep link:', studio.name);
+              console.log('[LocationScreen] Studio object from deep link:', { id: studio.id, name: studio.name });
+              setSelectedStudio(studio);
+              
+              // Auto-confirm the studio selection
+              setTimeout(() => {
+                handleConfirmStudio(studio, { eventId, source });
+              }, 1000); // Give UI time to update
+            } else {
+              console.warn('[LocationScreen] Studio not found:', studioId);
+              // Clear invalid pending selection
+              await AsyncStorage.removeItem('pendingStudioSelection');
+            }
+          }
+        } catch (error) {
+          console.error('[LocationScreen] Error checking pending studio selection:', error);
+        }
+
         // Request location permission
         const { status } = await Location.requestForegroundPermissionsAsync();
         setLocationPermission(status);
@@ -89,15 +118,16 @@ export default function LocationScreen({ navigation }) {
     initializeLocation();
   }, [user]);
 
-  const handleConfirmStudio = async () => {
-    if (!selectedStudio || !user) {
+  const handleConfirmStudio = async (studioOverride = null, pendingData = null) => {
+    const studio = studioOverride || selectedStudio;
+    if (!studio || !user) {
       vibeAlert.error('Error', 'Please select a studio first.');
       return;
     }
 
     if (saving) return;
     setSaving(true);
-    await saveStudioData(selectedStudio);
+    await saveStudioData(studio, pendingData);
   };
 
   const handleSearchTextChange = async (text) => {
@@ -125,7 +155,10 @@ export default function LocationScreen({ navigation }) {
     
     const studio = StudioService.getStudioById(suggestion.studioId);
     if (studio) {
+      console.log('[LocationScreen] Studio selected from suggestion:', { id: studio.id, name: studio.name });
       setSelectedStudio(studio);
+    } else {
+      console.warn('[LocationScreen] No studio found for suggestion:', suggestion.studioId);
     }
   };
 
@@ -147,8 +180,10 @@ export default function LocationScreen({ navigation }) {
 
       const studio = StudioService.getStudioById(studioMatch.studioId);
       if (studio) {
+        console.log('[LocationScreen] Studio found from search:', { id: studio.id, name: studio.name });
         await saveStudioData(studio);
       } else {
+        console.warn('[LocationScreen] No studio found for search result:', studioMatch.studioId);
         vibeAlert.error('Error', 'Studio not found. Please try again.');
         setSaving(false);
       }
@@ -158,12 +193,26 @@ export default function LocationScreen({ navigation }) {
     }
   };
 
-  const saveStudioData = async (studio) => {
+  const saveStudioData = async (studio, pendingData = null) => {
     if (!user) {
       vibeAlert.error('Error', 'No user found. Please try logging in again.');
       setSaving(false);
       return;
     }
+
+    // Validate studio object
+    if (!studio || !studio.id) {
+      console.error('[LocationScreen] Invalid studio object:', studio);
+      vibeAlert.error('Error', 'Invalid studio data. Please try selecting a studio again.');
+      setSaving(false);
+      return;
+    }
+
+    console.log('[LocationScreen] Saving studio data:', { 
+      studioId: studio.id, 
+      studioName: studio.name,
+      userId: user.uid 
+    });
 
     try {
       // Get current studio ID before updating (for switching)
@@ -185,7 +234,7 @@ export default function LocationScreen({ navigation }) {
           userdata: {
             studios: {
               default: {
-                studioId: studio.id,
+                studioId: studio.id, // Validated above to ensure it exists
                 studioName: studio.name,
                 studioCity: studio.city,
                 studioState: studio.state,
@@ -206,8 +255,27 @@ export default function LocationScreen({ navigation }) {
 
       console.log(`User ${user.uid} successfully switched to studio ${studio.id} from ${currentStudioId || 'none'}`);
       
-      // Navigate to Home screen
-      navigation.navigate('Home');
+      // Handle pending event navigation or default to Home
+      if (pendingData && pendingData.eventId) {
+        console.log('[LocationScreen] Navigating to pending event:', pendingData.eventId);
+        // Clear the pending selection since we're handling it
+        await AsyncStorage.removeItem('pendingStudioSelection');
+        
+        // Navigate directly to the event
+        navigation.navigate('EventDetail', {
+          eventId: pendingData.eventId,
+          studioId: studio.id,
+          source: pendingData.source || 'app-download-qr'
+        });
+        
+        // Show success message about joining the event
+        setTimeout(() => {
+          vibeAlert.success('Welcome!', `You've been added to ${studio.name}! Now you can join the event.`);
+        }, 500);
+      } else {
+        // Navigate to Home screen
+        navigation.navigate('Home');
+      }
     } catch (err) {
       console.error('Error joining studio:', err);
       vibeAlert.error('Error', 'Failed to join studio. Please try again.');
@@ -306,7 +374,7 @@ export default function LocationScreen({ navigation }) {
 
                   <TouchableOpacity
                     style={styles.buttonContainer}
-                    onPress={handleConfirmStudio}
+                    onPress={() => handleConfirmStudio()}
                     disabled={saving}
                   >
                     <LinearGradient
@@ -432,7 +500,7 @@ export default function LocationScreen({ navigation }) {
 
                 <TouchableOpacity
                   style={styles.buttonContainer}
-                  onPress={handleSearchStudio}
+                  onPress={() => handleSearchStudio()}
                   disabled={saving || !searchText.trim()}
                 >
                   <LinearGradient

@@ -3,16 +3,16 @@ import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 import theme from '../../theme/themes';
 
 /**
- * Reusable CloseButton component for modals
- * Usage: <CloseButton onPress={handleClose} />
+ * Reusable CloseButton component for modals and back buttons
+ * Usage: <CloseButton onPress={handleClose} /> or <CloseButton onPress={handleBack} children="←" />
  */
-export default function CloseButton({ onPress, style, textStyle }) {
+export default function CloseButton({ onPress, style, textStyle, children = "✕" }) {
   return (
     <TouchableOpacity
       style={[styles.closeButton, style]}
       onPress={onPress}
     >
-      <Text style={[styles.closeText, textStyle]}>✕</Text>
+      <Text style={[styles.closeText, textStyle]}>{children}</Text>
     </TouchableOpacity>
   );
 }

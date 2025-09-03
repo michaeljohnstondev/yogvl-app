@@ -1,7 +1,24 @@
-This file provides rules and guidance for Claude Code when working on Big Vibe Studios (BVS) codebase.
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 Keep code tight, modular, and stylish — graffiti-level clean.
 
-Project Architecture
+## Development Commands
+
+### Core Commands
+- `npm start` - Start Expo development server
+- `npm run android` - Run on Android device/emulator  
+- `npm run ios` - Run on iOS device/simulator
+- `npm run web` - Run in web browser
+- `npm run lint` - Run ESLint code linting
+
+### Build Commands
+- `eas build --platform android --profile development` - Development APK build
+- `eas build --platform android --profile preview` - Preview APK build  
+- `eas build --platform android --profile production` - Production APK build
+
+## Project Architecture
 
 This is a React Native / Expo community + event management app powered by Firebase.
 The core flow:
@@ -12,42 +29,33 @@ Authenticated (no profile) → ContactInfo
 
 Full User → Home → CreateEvent → EventDetail → EditEvent
 
-Tech Stack
+## Tech Stack
 
-Framework: React Native (Expo SDK ~53.0.11)
+- **Framework**: React Native (Expo SDK ~53.0.11)
+- **Navigation**: React Navigation v7 (native stack)  
+- **Backend**: Firebase (Auth + Firestore)
+- **State Management**: React Context API (AuthContext)
+- **Styling**: Punk/cyberpunk neon theme from src/theme/themes.js
+- **Build Tool**: EAS Build for APK generation
+- **Metro Config**: Custom config for Firebase bundling fixes
 
-Navigation: React Navigation v7 (native stack)
+## Core Patterns
 
-Backend: Firebase (Auth + Firestore)
-
-State: React Context API (AuthContext)
-
-Styling: Punk/cyberpunk neon theme from src/themes/themes.js
-
-Core Patterns
-Event Form System
-
-Hook: useEventFormState in src/components/events/hooks/
+### Event Form System
+Hook: `useEventFormState` in `src/events/hooks/`
 
 Handles:
+- Form state + dirty tracking
+- Validation (eventFormValidators)  
+- Reset + template support
 
-form state + dirty tracking
-
-validation (eventFormValidators)
-
-reset + template support
-
-Auth Context
-
-File: src/auth/AuthContext.js
+### Auth Context
+File: `src/auth/AuthContext.js`
 
 Provides:
-
-current user + Firestore profile
-
-onboarding state
-
-persistence via AsyncStorage
+- Current user + Firestore profile
+- Onboarding state (contact info, location selection)
+- Authentication status
 
 Component Design
 
@@ -253,4 +261,14 @@ dont change flagged items til i give permission
 
 10
 
-ALWAYS LOOK AT DATABASE.MD TO UNDERSTAND MY DATASTRUCTURE. AS ME BEFORE YOU CHANGE HOW THINGS ARE STRUCTURED OR ADD SOMETHING TOO IT. IF WE CHANGE OR ADD TO IT, UPDATE DATABASE.MD
+**ALWAYS LOOK AT DATABASE.MD TO UNDERSTAND MY DATASTRUCTURE.** Ask before changing how things are structured or adding to it. If we change or add to it, update DATABASE.md
+
+## Key Event Form Hooks
+Available in `src/events/hooks/`:
+- `useEventFormState` - Core form state management
+- `useEventForm` - Event form logic  
+- `useDateTimePickers` - Date/time picker management
+- `useSuggestions` - Autocomplete suggestions
+- `useSmartAutoComplete` - Enhanced autocomplete  
+- `useSuggestionsManager` - Suggestion state management
+- `usePastEventsManager` - Past event data handling

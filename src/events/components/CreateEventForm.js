@@ -64,7 +64,6 @@ export default function CreateEventForm({
   toggleRsvpDeadline,
   toggleHostContact,
   toggleFee,
-  toggleAttendanceTracking,
 
   // Actions
   onShowTemplateModal,
@@ -791,7 +790,6 @@ export default function CreateEventForm({
               formData={formData}
               toggleHostContact={toggleHostContact}
               toggleFee={toggleFee}
-              toggleAttendanceTracking={toggleAttendanceTracking}
               updateField={updateField}
               styles={styles}
               onExpansionChange={(isExpanded) =>

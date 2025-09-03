@@ -14,6 +14,7 @@ export const What = ({
   hideSuggestions,
   getFieldData,
   togglePrivacy,
+  updateField,
   styles,
   setFieldRef,
 }) => (
@@ -56,5 +57,21 @@ export const What = ({
         style={{ gap: 8 }}
       />
     </View>
+
+    {/* Guest invite option - only show for private events */}
+    {formData.isPrivate && (
+      <View>
+        <Text style={styles.label}>Allow guest invites?</Text>
+        <VibeSegmentedControl
+          options={[
+            { value: true, label: 'Yes' },
+            { value: false, label: 'No' },
+          ]}
+          selectedValue={formData.allowGuestInvites}
+          onSelect={(value) => updateField('allowGuestInvites', value)}
+          style={{ gap: 8 }}
+        />
+      </View>
+    )}
   </View>
 );

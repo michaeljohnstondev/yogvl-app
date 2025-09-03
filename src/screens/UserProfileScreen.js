@@ -17,6 +17,7 @@ import CloseButton from '../components/ui/CloseButton';
 import AttendanceStats from '../components/ui/AttendanceStats';
 import ReliabilityBadge from '../components/ui/ReliabilityBadge';
 import ProfileAvatar from '../components/ui/ProfileAvatar';
+import QRCodeGenerator from '../components/ui/QRCodeGenerator';
 import { useAuth } from '../auth/AuthContext';
 import { getFollowStats } from '../services/followService';
 import { deleteUserAccount, getUserDeletionPreview } from '../services/userDeletionService';
@@ -46,6 +47,7 @@ function UserProfile({ navigation, route }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showQRCode, setShowQRCode] = useState(false);
   
   const contactInfo = userData?.userdata?.contactInfo || {};
   
@@ -244,6 +246,7 @@ function UserProfile({ navigation, route }) {
       routes: [{ name: 'Landing' }],
     });
   };
+
 
   const handleDeleteAccount = async () => {
     if (isDeleting) return;
@@ -654,6 +657,34 @@ function UserProfile({ navigation, route }) {
           </View>
         </View>
       </View>
+
+      {/* QR Code Section - Only for own profile */}
+      {isOwnProfile && (
+        <View style={styles.qrSection}>
+          <View style={styles.qrContainer}>
+            <View style={styles.qrHeader}>
+              <Text style={styles.qrTitle}>Share Profile</Text>
+              <TouchableOpacity
+                style={styles.toggleQRButton}
+                onPress={() => setShowQRCode(!showQRCode)}
+              >
+                <Text style={styles.toggleQRButtonText}>
+                  {showQRCode ? 'Hide QR' : 'Show QR'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            
+            {showQRCode && (
+              <QRCodeGenerator
+                type="user"
+                data={currentUserId}
+                size={180}
+                showShareButton={false}
+              />
+            )}
+          </View>
+        </View>
+      )}
 
       {/* Attendance Details */}
       {userData?.attendanceStats && (
@@ -1076,5 +1107,38 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: theme.fonts.main,
     textTransform: 'uppercase',
+  },
+  qrSection: {
+    marginBottom: 20,
+    marginHorizontal: 20,
+  },
+  qrContainer: {
+    backgroundColor: theme.colors.vibeBackgroundBlue,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.vibeBlue,
+  },
+  qrHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  qrTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  toggleQRButton: {
+    backgroundColor: theme.colors.vibeBlue,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  toggleQRButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
