@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, ActivityIndicator, Text } from 'react-native';
+import VibeLoadingScreen from './components/ui/VibeLoadingScreen';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as Linking from 'expo-linking';
@@ -143,11 +144,22 @@ export default function Navigation() {
           }
 
           // Initialize FCM service and register token for authenticated user
-          if (!fcmService.isReady()) {
-            await fcmService.initialize();
+          try {
+            if (!fcmService.isReady()) {
+              console.log('[Navigation] Initializing FCM service...');
+              await fcmService.initialize();
+            }
+            fcmService.setNavigationRef(navigationRef.current);
+            console.log('[Navigation] Registering push token for user:', user.uid);
+            const tokenRegistered = await fcmService.registerTokenForUser(user.uid);
+            if (tokenRegistered) {
+              console.log('[Navigation] Push token registered successfully');
+            } else {
+              console.warn('[Navigation] Failed to register push token');
+            }
+          } catch (fcmError) {
+            console.error('[Navigation] FCM setup failed:', fcmError);
           }
-          fcmService.setNavigationRef(navigationRef.current);
-          await fcmService.registerTokenForUser(user.uid);
 
         } catch (error) {
           console.error('Error fetching user data:', error);
@@ -268,10 +280,10 @@ export default function Navigation() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#fff" />
-        <Text style={styles.loadingText}>Loading...</Text>
-      </View>
+      <VibeLoadingScreen 
+        loadingText="Initializing app..."
+        showBranding={true}
+      />
     );
   }
 
@@ -311,10 +323,10 @@ export default function Navigation() {
             />
           </Stack.Navigator>
         ) : userDataLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#fff" />
-            <Text style={styles.loadingText}>Loading profile...</Text>
-          </View>
+          <VibeLoadingScreen 
+            loadingText="Loading your profile..."
+            showBranding={false}
+          />
         ) : userData === null || !userStatus.hasContactInfo ? (
           <Stack.Navigator
             initialRouteName="ContactInfo"
@@ -442,16 +454,4 @@ export default function Navigation() {
 
 export { auth, db };
 
-const styles = {
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#000',
-  },
-  loadingText: {
-    color: '#fff',
-    marginTop: 16,
-    fontSize: 16,
-  },
-};
+const styles = {};

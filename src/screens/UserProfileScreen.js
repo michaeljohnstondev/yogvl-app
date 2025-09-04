@@ -24,7 +24,7 @@ import { deleteUserAccount, getUserDeletionPreview } from '../services/userDelet
 import { uploadProfilePicture, removeProfilePicture, hasProfilePicture } from '../services/profilePictureService';
 import { blockingService } from '../services/blockingService';
 import { auth } from '../auth/services/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 import { useVibeAlert } from '../components/ui/VibeAlertContext';
 import theme from '../theme/themes';
@@ -48,16 +48,20 @@ function UserProfile({ navigation, route }) {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showQRCode, setShowQRCode] = useState(false);
+  const [targetUserData, setTargetUserData] = useState(null);
+  const [loadingUserData, setLoadingUserData] = useState(false);
   
-  const contactInfo = userData?.userdata?.contactInfo || {};
+  // Use target user's data if viewing someone else, otherwise use current user's data
+  const displayUserData = isOwnProfile ? userData : targetUserData;
+  const contactInfo = displayUserData?.userdata?.contactInfo || {};
   
   const [editedData, setEditedData] = useState({
     firstName: contactInfo.firstName || '',
     lastName: contactInfo.lastName || '',
-    email: contactInfo.email || userData?.email || '',
-    phone: contactInfo.phone || contactInfo.phoneNumber || userData?.phone || userData?.phoneNumber || '',
-    bio: userData?.bio || '',
-    location: userData?.location || '',
+    email: contactInfo.email || displayUserData?.email || '',
+    phone: contactInfo.phone || contactInfo.phoneNumber || displayUserData?.phone || displayUserData?.phoneNumber || '',
+    bio: displayUserData?.bio || '',
+    location: displayUserData?.location || '',
   });
 
   const handleSave = async () => {
@@ -363,6 +367,51 @@ function UserProfile({ navigation, route }) {
     }
   };
 
+  // Fetch target user's data if viewing someone else's profile
+  useEffect(() => {
+    const fetchTargetUserData = async () => {
+      if (isOwnProfile || !targetUserId) {
+        setTargetUserData(null);
+        return;
+      }
+
+      setLoadingUserData(true);
+      try {
+        const userRef = doc(db, 'users', targetUserId);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          setTargetUserData({ id: userSnap.id, ...userSnap.data() });
+        } else {
+          vibeAlert.error('User Not Found', 'This user does not exist.');
+          navigation.goBack();
+        }
+      } catch (error) {
+        console.error('[UserProfile] Error fetching target user data:', error);
+        vibeAlert.error('Error', 'Failed to load user profile.');
+        navigation.goBack();
+      } finally {
+        setLoadingUserData(false);
+      }
+    };
+
+    fetchTargetUserData();
+  }, [targetUserId, isOwnProfile, navigation, vibeAlert]);
+
+  // Update editedData when displayUserData changes
+  useEffect(() => {
+    if (displayUserData) {
+      const contactInfo = displayUserData?.userdata?.contactInfo || {};
+      setEditedData({
+        firstName: contactInfo.firstName || '',
+        lastName: contactInfo.lastName || '',
+        email: contactInfo.email || displayUserData?.email || '',
+        phone: contactInfo.phone || contactInfo.phoneNumber || displayUserData?.phone || displayUserData?.phoneNumber || '',
+        bio: displayUserData?.bio || '',
+        location: displayUserData?.location || '',
+      });
+    }
+  }, [displayUserData]);
+
   useEffect(() => {
     loadFollowStats();
   }, [currentUserId]);
@@ -432,6 +481,18 @@ function UserProfile({ navigation, route }) {
     </View>
   );
 
+  // Show loading while fetching target user data
+  if (!isOwnProfile && loadingUserData) {
+    return (
+      <View style={styles.container}>
+        <CloseButton onPress={() => navigation.goBack()} style={styles.closeButton} />
+        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+          <Text style={styles.loadingText}>Loading profile...</Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       
@@ -442,36 +503,38 @@ function UserProfile({ navigation, route }) {
       <View style={styles.profileSection}>
         <CloseButton onPress={() => navigation.goBack()} style={styles.closeButton} />
         
-        <TouchableOpacity onPress={handleProfilePicturePress}>
+        <TouchableOpacity onPress={isOwnProfile ? handleProfilePicturePress : undefined}>
           <ProfileAvatar 
-            userData={userData} 
+            userData={displayUserData} 
             size={120}
             isLoading={uploadingPhoto}
             showBorder={true}
           />
         </TouchableOpacity>
         
-        <TouchableOpacity
-          onPress={() => setIsEditing(!isEditing)}
-          style={styles.editButton}
-        >
-          <Text style={styles.editButtonText}>
-            {isEditing ? 'Cancel' : 'Edit'}
-          </Text>
-        </TouchableOpacity>
+        {isOwnProfile && (
+          <TouchableOpacity
+            onPress={() => setIsEditing(!isEditing)}
+            style={styles.editButton}
+          >
+            <Text style={styles.editButtonText}>
+              {isEditing ? 'Cancel' : 'Edit'}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Profile Info Section */}
       <View style={styles.profileInfoSection}>
         <Text style={styles.joinDate}>
-          {formatJoinDate(userData?.userdata?.metadata?.createdAt)}
+          {formatJoinDate(displayUserData?.userdata?.metadata?.createdAt)}
         </Text>
         
         {/* Only show reliability badge if user has been rated */}
-        {(userData?.ratings?.stars?.length > 0 || userData?.userdata?.metrics?.engagement?.totalRatings > 0) && (
+        {(displayUserData?.ratings?.stars?.length > 0 || displayUserData?.userdata?.metrics?.engagement?.totalRatings > 0) && (
           <View style={styles.reliabilityContainer}>
             <ReliabilityBadge 
-              userData={userData} 
+              userData={displayUserData} 
               size="large"
             />
           </View>
@@ -479,7 +542,7 @@ function UserProfile({ navigation, route }) {
       </View>
 
       {/* Bio Section - Only show if has content OR in edit mode */}
-      {(userData?.bio || isEditing) && (
+      {(displayUserData?.bio || isEditing) && (
         <View style={styles.aboutSection}>
           <View style={styles.aboutContainer}>
             <Text style={styles.aboutTitle}>About Me</Text>
@@ -495,7 +558,7 @@ function UserProfile({ navigation, route }) {
               />
             ) : (
               <Text style={styles.aboutText}>
-                {userData?.bio}
+                {displayUserData?.bio}
               </Text>
             )}
           </View>
@@ -527,14 +590,14 @@ function UserProfile({ navigation, route }) {
               <Text style={styles.contactText}>
                 {contactInfo?.firstName && contactInfo?.lastName 
                   ? `${contactInfo.firstName} ${contactInfo.lastName}`
-                  : contactInfo?.firstName || contactInfo?.lastName || contactInfo?.email?.split('@')[0] || userData?.email?.split('@')[0] || 'User'}
+                  : contactInfo?.firstName || contactInfo?.lastName || contactInfo?.email?.split('@')[0] || displayUserData?.email?.split('@')[0] || 'User'}
               </Text>
             )}
           </View>
           <View style={styles.contactItem}>
             <Text style={styles.contactIcon}>📍</Text>
             <Text style={styles.contactText}>
-              {userData?.location || userData?.userdata?.studios?.default?.studioName || 'Not set'}
+              {displayUserData?.location || displayUserData?.userdata?.studios?.default?.studioName || 'Not set'}
             </Text>
           </View>
           <View style={styles.contactItem}>
@@ -548,8 +611,8 @@ function UserProfile({ navigation, route }) {
                 keyboardType="phone-pad"
               />
             ) : (
-              <Text style={[styles.contactText, !(contactInfo?.phone || contactInfo?.phoneNumber || userData?.phone || userData?.phoneNumber) && styles.requiredMissing]}>
-                {formatPhoneNumber(contactInfo?.phone || contactInfo?.phoneNumber || userData?.phone || userData?.phoneNumber) || 'Required - Please add phone number'}
+              <Text style={[styles.contactText, !(contactInfo?.phone || contactInfo?.phoneNumber || displayUserData?.phone || displayUserData?.phoneNumber) && styles.requiredMissing]}>
+                {formatPhoneNumber(contactInfo?.phone || contactInfo?.phoneNumber || displayUserData?.phone || displayUserData?.phoneNumber) || 'Required - Please add phone number'}
               </Text>
             )}
           </View>
@@ -566,7 +629,7 @@ function UserProfile({ navigation, route }) {
               />
             ) : (
               <Text style={styles.contactText}>
-                {contactInfo?.email || userData?.email || 'Not set'}
+                {contactInfo?.email || displayUserData?.email || 'Not set'}
               </Text>
             )}
           </View>
@@ -580,15 +643,15 @@ function UserProfile({ navigation, route }) {
           <Text style={styles.activityTitle}>Events</Text>
           <View style={styles.quickStats}>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{userData?.userdata?.metrics?.events?.created || 0}</Text>
+              <Text style={styles.statNumber}>{displayUserData?.userdata?.metrics?.events?.created || 0}</Text>
               <Text style={styles.statLabel}>Hosted</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{userData?.userdata?.metrics?.events?.attended || 0}</Text>
+              <Text style={styles.statNumber}>{displayUserData?.userdata?.metrics?.events?.attended || 0}</Text>
               <Text style={styles.statLabel}>Attended</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{userData?.userdata?.metrics?.events?.noShows || 0}</Text>
+              <Text style={styles.statNumber}>{displayUserData?.userdata?.metrics?.events?.noShows || 0}</Text>
               <Text style={styles.statLabel}>No Shows</Text>
             </View>
           </View>
@@ -687,7 +750,7 @@ function UserProfile({ navigation, route }) {
       )}
 
       {/* Attendance Details */}
-      {userData?.attendanceStats && (
+      {displayUserData?.attendanceStats && (
         <View style={styles.cardSection}>
           <Text style={styles.sectionTitle}>Attendance Breakdown</Text>
           <View style={styles.contactSection}>
@@ -696,52 +759,54 @@ function UserProfile({ navigation, route }) {
         </View>
       )}
 
-      {/* Action Buttons */}
-      <View style={styles.buttonContainer}>
-        {isEditing ? (
-          <VibeButton
-            label={isSaving ? "SAVING..." : "SAVE CHANGES"}
-            onPress={handleSave}
-            style={styles.saveButton}
-            disabled={isSaving}
-          />
-        ) : (
-          <>
-            <TouchableOpacity
-              style={styles.settingsButton}
-              onPress={() => navigation.navigate('Privacy')}
-            >
-              <Text style={styles.settingsButtonText}>Privacy Settings</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={styles.settingsButton}
-              onPress={() => navigation.navigate('Notifications')}
-            >
-              <Text style={styles.settingsButtonText}>Notification Settings</Text>
-            </TouchableOpacity>
+      {/* Action Buttons - Only show for own profile */}
+      {isOwnProfile && (
+        <View style={styles.buttonContainer}>
+          {isEditing ? (
+            <VibeButton
+              label={isSaving ? "SAVING..." : "SAVE CHANGES"}
+              onPress={handleSave}
+              style={styles.saveButton}
+              disabled={isSaving}
+            />
+          ) : (
+            <>
+              <TouchableOpacity
+                style={styles.settingsButton}
+                onPress={() => navigation.navigate('Privacy')}
+              >
+                <Text style={styles.settingsButtonText}>Privacy Settings</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.settingsButton}
+                onPress={() => navigation.navigate('Notifications')}
+              >
+                <Text style={styles.settingsButtonText}>Notification Settings</Text>
+              </TouchableOpacity>
 
-            <View style={styles.buttonSeparator} />
+              <View style={styles.buttonSeparator} />
 
-            <TouchableOpacity
-              style={[styles.deleteButton, isDeleting && styles.deleteButtonDisabled]}
-              onPress={handleDeleteAccount}
-              disabled={isDeleting}
-            >
-              <Text style={styles.deleteButtonText}>
-                {isDeleting ? 'Deleting Account...' : 'Delete Account'}
-              </Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.deleteButton, isDeleting && styles.deleteButtonDisabled]}
+                onPress={handleDeleteAccount}
+                disabled={isDeleting}
+              >
+                <Text style={styles.deleteButtonText}>
+                  {isDeleting ? 'Deleting Account...' : 'Delete Account'}
+                </Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.logoutButton}
-              onPress={handleLogout}
-            >
-              <Text style={styles.logoutButtonText}>Logout</Text>
-            </TouchableOpacity>
-          </>
-        )}
-      </View>
+              <TouchableOpacity
+                style={styles.logoutButton}
+                onPress={handleLogout}
+              >
+                <Text style={styles.logoutButtonText}>Logout</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+      )}
         </ScrollView>
     </View>
   );

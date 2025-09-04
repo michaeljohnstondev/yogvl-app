@@ -647,14 +647,69 @@ const sendNotificationToChannels = async (notification, channels) => {
 };
 
 /**
- * Send push notification (placeholder - integrate with Firebase Cloud Messaging)
+ * Send push notification using Expo Push Notifications
  */
 const sendPushNotification = async (notification) => {
   try {
-    // TODO: Integrate with Firebase Cloud Messaging
-    console.log('Push notification sent:', notification.title);
-    return { success: true };
+    console.log(`[sendPushNotification] ⏩ Starting push notification to user ${notification.userId}:`, {
+      type: notification.type,
+      title: notification.title,
+      message: notification.message
+    });
+
+    // Get user's push token
+    const userDoc = await getDoc(doc(db, 'users', notification.userId));
+    if (!userDoc.exists()) {
+      console.error(`[sendPushNotification] User ${notification.userId} not found in database`);
+      throw new Error('User not found');
+    }
+    
+    const userData = userDoc.data();
+    const expoPushToken = userData.deviceInfo?.expoPushToken;
+    
+    if (!expoPushToken) {
+      console.warn(`[sendPushNotification] No push token found for user ${notification.userId}. User may not have set up notifications yet.`);
+      return { success: false, error: 'No push token found - user needs to enable notifications' };
+    }
+
+    console.log(`[sendPushNotification] Found push token for user ${notification.userId}:`, expoPushToken?.substring(0, 20) + '...');
+
+    // Send push notification via Expo Push API
+    const message = {
+      to: expoPushToken,
+      sound: 'default',
+      title: notification.title,
+      body: notification.message,
+      data: notification.data,
+    };
+
+    console.log(`[sendPushNotification] 📤 Sending to Expo API:`, message);
+
+    const response = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Accept-encoding': 'gzip, deflate',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(message),
+    });
+
+    const result = await response.json();
+    console.log(`[sendPushNotification] 📨 Expo API response:`, result);
+    
+    // Handle both single notification and batch notification responses
+    const isSuccess = result.data?.status === 'ok' || (result.data?.[0]?.status === 'ok');
+    
+    if (isSuccess) {
+      console.log(`[sendPushNotification] ✅ Push notification sent successfully to user ${notification.userId}:`, notification.title);
+      return { success: true };
+    } else {
+      console.error(`[sendPushNotification] ❌ Push notification failed for user ${notification.userId}:`, result);
+      return { success: false, error: result.data?.message || result.data?.[0]?.message || 'Failed to send' };
+    }
   } catch (error) {
+    console.error(`[sendPushNotification] ❌ Push notification error for user ${notification.userId}:`, error);
     return { success: false, error: error.message };
   }
 };

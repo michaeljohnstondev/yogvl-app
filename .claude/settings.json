@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(rm:*)",
+      "Bash(mv:*)",
+      "Bash(del:*)",
+      "Bash(powershell:*)",
+      "Bash(node:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(sed:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npm install:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm update:*)",
+      "Bash(npm start:*)",
+      "Bash(npm run android:*)",
+      "Bash(npx expo:*)",
+      "Bash(npx eslint:*)",
+      "Bash(eas build:*)",
+      "Bash(eas build:view:*)",
+      "Bash(firebase --version)",
+      "Bash(firebase login:*)",
+      "Bash(firebase projects:list:*)",
+      "Bash(firebase deploy:*)",
+      "Bash(firebase functions:list:*)",
+      "Bash(firebase init:*)",
+      "WebSearch",
+      "Read(/C:\\dev\\bvs-app\\**)",
+      "Write(/C:\\dev\\bvs-app\\**)",
+      "Read(/C:\\dev\\bvs-app\\*)",
+      "Write(/C:\\dev\\bvs-app\\*)",
+      "Bash(npx eas credentials:*)",
+      "Bash(eas:*)"
+    ],
+    "deny": [],
+    "ask": [],
+    "defaultMode": "acceptEdits"
+  }
+}

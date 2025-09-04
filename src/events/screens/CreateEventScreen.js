@@ -239,12 +239,12 @@ export default function CreateEventScreen({ navigation, route }) {
                           formData.details.trim() || 
                           formData.maxGuests.toString().trim();
     
-    // Check for any configuration changes from defaults
-    const hasConfigChanges = formData.hasFee || 
-                            formData.isPrivate || 
-                            formData.showHostContact || 
-                            formData.hasRsvpDeadline || 
-                            formData.trackAttendance ||
+    // Check for any configuration changes from defaults (compare against DEFAULT values)
+    const hasConfigChanges = formData.hasFee !== false || 
+                            formData.isPrivate !== false || 
+                            formData.showHostContact !== false || 
+                            formData.hasRsvpDeadline !== false || 
+                            formData.trackAttendance !== true ||
                             (formData.entryFee && formData.entryFee.trim());
     
     // Check for any invitations/guests
@@ -301,7 +301,9 @@ export default function CreateEventScreen({ navigation, route }) {
   useFocusEffect(
     useCallback(() => {
       const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-        return handleBackNavigation(() => navigation.goBack());
+        // Always handle the back press ourselves and prevent default behavior
+        handleBackNavigation(() => navigation.goBack());
+        return true; // Always prevent default back behavior
       });
       return () => backHandler.remove();
     }, [handleBackNavigation, navigation])

@@ -4,7 +4,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import theme from '../../theme/themes';
 
-export default function NotificationBadge({ count, style, textStyle, maxCount = 99 }) {
+const NotificationBadge = React.memo(function NotificationBadge({ count, style, textStyle, maxCount = 99 }) {
   if (!count || count <= 0) {
     return null;
   }
@@ -18,7 +18,9 @@ export default function NotificationBadge({ count, style, textStyle, maxCount = 
       </Text>
     </View>
   );
-}
+});
+
+export default NotificationBadge;
 
 const styles = StyleSheet.create({
   badge: {

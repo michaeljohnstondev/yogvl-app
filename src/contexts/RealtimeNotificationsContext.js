@@ -1,6 +1,6 @@
 // FILE: contexts/RealtimeNotificationsContext.js
 
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useMemo } from 'react';
 import { useRealtimeNotifications } from '../hooks/useRealtimeNotifications';
 import { useAuth } from '../auth/AuthContext';
 
@@ -14,8 +14,23 @@ export const RealtimeNotificationsProvider = ({ children }) => {
     unreadOnly: false,
   });
 
+  // Memoize the context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    notifications: notificationData.notifications,
+    unreadCount: notificationData.unreadCount,
+    isLoading: notificationData.isLoading,
+    error: notificationData.error,
+    refreshNotifications: notificationData.refreshNotifications,
+  }), [
+    notificationData.notifications,
+    notificationData.unreadCount,
+    notificationData.isLoading,
+    notificationData.error,
+    notificationData.refreshNotifications,
+  ]);
+
   return (
-    <RealtimeNotificationsContext.Provider value={notificationData}>
+    <RealtimeNotificationsContext.Provider value={contextValue}>
       {children}
     </RealtimeNotificationsContext.Provider>
   );

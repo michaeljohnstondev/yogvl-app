@@ -6,13 +6,13 @@ import { useRealtimeNotificationsContext } from '../../contexts/RealtimeNotifica
 import NotificationBadge from './NotificationBadge';
 import theme from '../../theme/themes';
 
-export default function NotificationButton({ onPress, style, iconComponent }) {
+const NotificationButton = React.memo(function NotificationButton({ onPress, style, iconComponent }) {
   // Use shared real-time notifications context
   const { unreadCount } = useRealtimeNotificationsContext();
 
-  const handlePress = () => {
+  const handlePress = React.useCallback(() => {
     onPress && onPress();
-  };
+  }, [onPress]);
 
   return (
     <TouchableOpacity
@@ -24,7 +24,9 @@ export default function NotificationButton({ onPress, style, iconComponent }) {
       <NotificationBadge count={unreadCount} />
     </TouchableOpacity>
   );
-}
+});
+
+export default NotificationButton;
 
 const styles = StyleSheet.create({
   button: {

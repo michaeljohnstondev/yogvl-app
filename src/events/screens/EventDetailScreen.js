@@ -24,7 +24,6 @@ import {
 import VibeButton from '../../components/ui/VibeButton';
 import ProfileAvatar from '../../components/ui/ProfileAvatar';
 import EventCreatorInfo from '../components/hosts/EventCreatorInfo';
-import AttendanceSummary from '../../components/ui/AttendanceSummary';
 import { CommentSection } from '../../components/ui/comments';
 import QRCodeGenerator from '../../components/ui/QRCodeGenerator';
 import { useVibeAlert } from '../../components/ui/VibeAlertContext';
@@ -486,9 +485,19 @@ export default function EventDetailScreen({ route, navigation }) {
       const hostId = event.createdBy;
       if (hostId && hostId !== currentUserId) {
         try {
-          await notifyHostOfEventJoin(hostId, currentUserId, event);
+          const joinedUserName = userData?.userdata?.contactInfo?.displayName || 
+                                userData?.userdata?.contactInfo?.firstName || 
+                                'Someone';
+          await notifyHostOfEventJoin({
+            eventId,
+            eventTitle: event.title,
+            hostId,
+            joinedUserId: currentUserId,
+            joinedUserName
+          });
         } catch (notifyError) {
           // Failed to notify host, but subscription was successful
+          console.error('Failed to notify host of event join:', notifyError);
         }
       }
 
@@ -1109,15 +1118,6 @@ export default function EventDetailScreen({ route, navigation }) {
           />
         )}
 
-        {/* Attendance Summary for Hosts */}
-        {permissions.canManageAttendance && (
-          <AttendanceSummary
-            eventId={eventId}
-            studioId={studioId}
-            isHost={true}
-            onPress={() => navigation.navigate('EventAttendance', { eventId, studioId })}
-          />
-        )}
 
         {/* Hide invite/edit/delete buttons for past events */}
         {!isEventPast && (
@@ -1317,7 +1317,15 @@ export default function EventDetailScreen({ route, navigation }) {
                 : 'Friends Attending'}
             </Text>
             {friendAttendees.map((friend, index) => (
-              <View key={friend.id || index} style={styles.friendsModalItem}>
+              <TouchableOpacity 
+                key={friend.id || index} 
+                style={styles.friendsModalItem}
+                onPress={() => {
+                  setShowFriendsModal(false);
+                  navigation.navigate('UserProfile', { userId: friend.id });
+                }}
+                activeOpacity={0.7}
+              >
                 <ProfileAvatar 
                   userData={friend.userData} 
                   size={32}
@@ -1326,7 +1334,7 @@ export default function EventDetailScreen({ route, navigation }) {
                 <Text style={styles.friendName}>
                   {friend.displayName}
                 </Text>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         </TouchableOpacity>
@@ -1541,6 +1549,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
     gap: 12,
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 198, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 198, 255, 0.2)',
   },
   friendName: {
     fontSize: 16,

@@ -17,6 +17,7 @@ import {
   increment,
 } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
+import { blockingService } from './blockingService';
 
 /**
  * DATABASE STRUCTURE:
@@ -71,6 +72,13 @@ export const followUser = async (followerId, targetUserId, followerData) => {
     const isFollowing = await checkIfFollowing(followerId, targetUserId);
     if (isFollowing) {
       throw new Error('Already following this user');
+    }
+
+    // Check if users are blocked and unblock if necessary
+    const blockStatus = await blockingService.isBlocked(followerId, targetUserId);
+    if (blockStatus.isBlocked) {
+      console.log(`[followService] Unblocking user ${targetUserId} before following`);
+      await blockingService.unblockUser(followerId, targetUserId);
     }
 
     // Get target user data
@@ -130,14 +138,16 @@ export const followUser = async (followerId, targetUserId, followerData) => {
 
     // Send notification (import dynamically to avoid circular deps)
     try {
+      console.log(`[followUser] Sending follow notification from ${followerId} to ${targetUserId}`);
       const { notifyNewFollower } = await import('./notifications');
-      await notifyNewFollower({
+      const notificationResult = await notifyNewFollower({
         targetUserId,
         followerId,
         followerName: `${followerData?.userdata?.contactInfo?.firstName || ''} ${followerData?.userdata?.contactInfo?.lastName || ''}`.trim() || followerData?.userdata?.contactInfo?.displayName || 'Someone'
       });
+      console.log(`[followUser] Notification result:`, notificationResult);
     } catch (notificationError) {
-      console.warn('Follow successful but notification failed:', notificationError);
+      console.warn(`[followUser] Follow successful but notification failed:`, notificationError);
     }
 
     return { success: true };

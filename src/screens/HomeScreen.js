@@ -6,16 +6,20 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  BackHandler,
 } from 'react-native';
 import VibeButton from '../components/ui/VibeButton';
 import ProfileAvatar from '../components/ui/ProfileAvatar';
+import VibeLoadingScreen from '../components/ui/VibeLoadingScreen';
+import NotificationTester from '../components/ui/NotificationTester';
 import { useVibeAlert } from '../components/ui/VibeAlertContext';
 import VibeCarousel from '../components/ui/VibeCarousel';
 import EventCard from '../events/components/EventCard';
 import EmptyStateView from '../components/ui/EmptyStateView';
 import { NotificationButton } from '../components/notifications';
 import AccountSettingsDropdown from '../components/ui/AccountSettingsModal';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 import { useAuth } from '../auth/AuthContext';
@@ -49,6 +53,10 @@ export default function HomeScreen({ navigation }) {
   // Get auth and alert context
   const { currentUserId, userData, isAuthenticated } = useAuth();
   const vibeAlert = useVibeAlert();
+
+  // Memoize static components to prevent unnecessary re-renders
+  const bellIcon = useMemo(() => <Text style={styles.bellIcon}>🔔</Text>, []);
+  const handleNotificationsPress = useCallback(() => navigation.navigate('Notifications'), [navigation]);
 
   useEffect(() => {
     const defaultStudio = userData?.userdata?.studios?.default;
@@ -186,26 +194,107 @@ export default function HomeScreen({ navigation }) {
     
     initializeHomeScreen();
     
-    // Optionally, set up a real-time subscription for my events only
-    const q = query(
-      collection(db, 'studios', userStudio, 'events'),
-      orderBy('eventTimestamp')
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      // Only update if we detect changes to user's subscribed events
-      const hasSubscribedEventChanges = snapshot.docChanges().some(change => {
-        const eventData = change.doc.data();
-        return eventData.subscribers?.includes(currentUserId) || eventData.createdBy === currentUserId;
-      });
-
-      if (hasSubscribedEventChanges) {
-        loadEventFeed();
-      }
-    });
-
-    return unsubscribe;
+    // Real-time updates will be handled by useFocusEffect instead
+    // to avoid unnecessary reloads from notification-related changes
+    return () => {}; // No-op cleanup
   }, [currentUserId, userData, vibeAlert]); // Re-run when user data changes
+
+  // Handle hardware back button to confirm app exit
+  useFocusEffect(
+    useCallback(() => {
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        vibeAlert.confirm(
+          'Leave App?',
+          'Are you sure you want to exit Big Vibe Studios?',
+          () => {
+            BackHandler.exitApp();
+          },
+          () => {
+            // Do nothing - stay in app
+          }
+        );
+        return true; // Always prevent default back behavior
+      });
+      return () => backHandler.remove();
+    }, [vibeAlert])
+  );
+
+  // Reload events when screen comes into focus (but not on first load)
+  useFocusEffect(
+    useCallback(() => {
+      // Only reload if we're not in initial loading state and user is authenticated
+      if (!isLoading && !checkingBanStatus && currentUserId && userData?.userdata?.studios?.default) {
+        const loadEventFeed = async () => {
+          const userStudio = userData.userdata.studios.default.studioId;
+          try {
+            const feedData = await getEventFeed(currentUserId, userStudio, {
+              followedLimit: 20,
+              suggestedLimit: 15,
+              includeSubscribed: true
+            });
+
+            // Separate events by category
+            const now = new Date();
+            const myUpcoming = [];
+            const followed = [];
+            const suggested = [];
+            const myPast = [];
+
+            feedData.subscribedEvents.forEach(event => {
+              const eventDate = event.eventTimestamp?.toDate() || new Date(event.utcDateTime);
+              const enrichedEvent = {
+                ...event,
+                isHostedByUser: event.createdBy === currentUserId
+              };
+              
+              if (eventDate >= now) {
+                myUpcoming.push(enrichedEvent);
+              } else {
+                myPast.push(enrichedEvent);
+              }
+            });
+
+            // Add followed users' events (exclude events user has already subscribed to)
+            const subscribedEventIds = new Set(feedData.subscribedEvents.map(event => event.id));
+            
+            feedData.followedEvents.forEach(event => {
+              const eventDate = event.eventTimestamp?.toDate() || new Date(event.utcDateTime);
+              if (eventDate >= now && !subscribedEventIds.has(event.id)) {
+                followed.push({
+                  ...event,
+                  isHostedByUser: event.createdBy === currentUserId
+                });
+              }
+            });
+
+            // Add suggested events
+            feedData.suggestedEvents.forEach(event => {
+              const eventDate = event.eventTimestamp?.toDate() || new Date(event.utcDateTime);
+              if (eventDate >= now) {
+                suggested.push({
+                  ...event,
+                  isHostedByUser: event.createdBy === currentUserId
+                });
+              }
+            });
+
+            setMyEvents(myUpcoming);
+            setFollowedEvents(followed);
+            setSuggestedEvents(suggested);
+            setPastEvents(myPast.reverse());
+            setFeedStats(feedData.stats);
+            
+          } catch (error) {
+            console.error('[HomeScreen] Failed to refresh event feed:', error);
+          }
+        };
+
+        // Small delay to avoid excessive calls
+        const timeoutId = setTimeout(loadEventFeed, 100);
+        return () => clearTimeout(timeoutId);
+      }
+    }, [isLoading, checkingBanStatus, currentUserId, userData])
+  );
 
   // Check if user has no events at all
   const hasNoEvents =
@@ -254,11 +343,10 @@ export default function HomeScreen({ navigation }) {
   // Don't show empty state while loading or checking ban status
   if (isLoading || checkingBanStatus) {
     return (
-      <View style={[styles.screen, styles.centerContent]}>
-        <Text style={styles.loadingText}>
-          {checkingBanStatus ? 'Checking account status...' : 'Loading events...'}
-        </Text>
-      </View>
+      <VibeLoadingScreen 
+        loadingText={checkingBanStatus ? 'Checking account status...' : 'Loading events...'}
+        showBranding={false}
+      />
     );
   }
 
@@ -298,8 +386,8 @@ export default function HomeScreen({ navigation }) {
         <Text style={styles.headerTitle}>Big Vibe Studios</Text>
         <View style={styles.headerIcons}>
           <NotificationButton
-            onPress={() => navigation.navigate('Notifications')}
-            iconComponent={<Text style={styles.bellIcon}>🔔</Text>}
+            onPress={handleNotificationsPress}
+            iconComponent={bellIcon}
           />
           <TouchableOpacity
             style={styles.profileButton}
@@ -319,6 +407,9 @@ export default function HomeScreen({ navigation }) {
         <EmptyStateView navigation={navigation} />
       ) : (
         <ScrollView contentContainerStyle={styles.container}>
+        {/* Notification Tester - Remove this after testing */}
+        <NotificationTester />
+        
         {myEvents.length > 0 && (
           <>
             <Text style={styles.sectionHeader}>My Events</Text>
@@ -470,7 +561,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: theme.colors.black,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.darkGray,
   },

@@ -31,8 +31,7 @@
       "Bash(dir:*)",
       "Bash(firebase init:*)",
       "Bash(sed:*)",
-      "Bash(eas build:view:*)",
-      "Bash(eas build:*)"
+      "Bash(claude init)"
     ],
     "deny": [],
     "ask": [],
