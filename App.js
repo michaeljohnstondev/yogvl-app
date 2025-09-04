@@ -1,13 +1,44 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import Navigation from './src/Navigation';
 import { VibeAlertProvider } from './src/components/ui/VibeAlertContext';
 import VibeScreen from './src/components/ui/VibeScreen';
 import { useEventEndNotifications } from './src/hooks/useEventEndNotifications';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import fcmService from './src/services/fcmService';
+import { initializeNotificationServices } from './src/services/notificationInit';
 
 function AppWithNotifications() {
   // Initialize event end notification service
   useEventEndNotifications();
+  
+  // Initialize push notifications
+  useEffect(() => {
+    const initializePushNotifications = async () => {
+      console.log('[App] Initializing push notifications...');
+      const success = await fcmService.initialize();
+      if (success) {
+        console.log('[App] ✅ Push notifications initialized');
+      } else {
+        console.warn('[App] ❌ Push notifications initialization failed');
+      }
+    };
+
+    initializePushNotifications();
+
+    // Initialize scheduled notification services
+    console.log('[App] Initializing scheduled notification services...');
+    const scheduledServicesStarted = initializeNotificationServices();
+    if (scheduledServicesStarted) {
+      console.log('[App] ✅ Scheduled notification services started');
+    } else {
+      console.warn('[App] ❌ Scheduled notification services failed to start');
+    }
+
+    // Cleanup on unmount
+    return () => {
+      fcmService.cleanup();
+    };
+  }, []);
   
   return <Navigation />;
 }

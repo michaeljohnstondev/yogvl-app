@@ -23,6 +23,7 @@ import {
 import { moderationService } from '../services/moderationService';
 import ModerationActionModal from '../components/ui/ModerationActionModal';
 import AdminNotificationTool from '../components/ui/AdminNotificationTool';
+import NotificationTester from '../components/ui/NotificationTester';
 
 export default function AdminScreen({ navigation }) {
   const { userData, currentUserId } = useAuth();
@@ -391,6 +392,14 @@ export default function AdminScreen({ navigation }) {
             Reports
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'testing' && styles.activeTab]}
+          onPress={() => setActiveTab('testing')}
+        >
+          <Text style={[styles.tabText, activeTab === 'testing' && styles.activeTabText]}>
+            Testing
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Tab Content */}
@@ -398,7 +407,7 @@ export default function AdminScreen({ navigation }) {
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
           {renderMessagesTab()}
         </ScrollView>
-      ) : (
+      ) : activeTab === 'reports' ? (
         <FlatList
           data={filterReportsByStudio(reports, selectedStudioFilter)}
           renderItem={renderReportItem}
@@ -409,6 +418,10 @@ export default function AdminScreen({ navigation }) {
           contentContainerStyle={styles.contentContainer}
           showsVerticalScrollIndicator={false}
         />
+      ) : (
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
+          <NotificationTester />
+        </ScrollView>
       )}
 
       {/* Moderation Action Modal */}

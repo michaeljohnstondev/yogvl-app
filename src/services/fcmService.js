@@ -35,6 +35,7 @@ class FCMService {
     this.navigationRef = null;
     this.notificationListener = null;
     this.responseListener = null;
+    this.lastNavigationTime = 0;
   }
 
   /**
@@ -237,7 +238,8 @@ class FCMService {
     });
 
     // The notification is automatically displayed by expo-notifications
-    // You can customize the display here if needed
+    // DO NOT navigate or trigger any state changes here to avoid screen resets
+    // Navigation only happens when user taps the notification (handleNotificationResponse)
   }
 
   /**
@@ -266,6 +268,14 @@ class FCMService {
       return;
     }
 
+    // Prevent rapid navigation calls that can cause screen resets
+    const now = Date.now();
+    if (now - this.lastNavigationTime < 1000) { // 1 second cooldown
+      console.log('[FCMService] Skipping navigation due to recent navigation');
+      return;
+    }
+    this.lastNavigationTime = now;
+
     try {
       const { type, eventId, screen, userId } = data;
 
@@ -278,8 +288,8 @@ class FCMService {
           }
           break;
         
-        case 'friend_request':
         case 'follow_notification':
+        case 'mutual_follow':
           if (userId) {
             this.navigationRef.navigate('UserProfile', { userId });
           } else {

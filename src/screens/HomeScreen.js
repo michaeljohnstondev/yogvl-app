@@ -45,6 +45,7 @@ export default function HomeScreen({ navigation }) {
   const [isLoading, setIsLoading] = useState(true);
   const [showAccountSettings, setShowAccountSettings] = useState(false);
   const [feedStats, setFeedStats] = useState(null);
+  const [lastFocusReload, setLastFocusReload] = useState(0);
   
   // Admin notifications state
   const [currentNotification, setCurrentNotification] = useState(null);
@@ -222,8 +223,16 @@ export default function HomeScreen({ navigation }) {
   // Reload events when screen comes into focus (but not on first load)
   useFocusEffect(
     useCallback(() => {
+      // Prevent frequent reloads from notification-triggered focus events
+      const now = Date.now();
+      if (now - lastFocusReload < 3000) { // 3 second cooldown
+        console.log('[HomeScreen] Skipping focus reload due to recent reload');
+        return;
+      }
+      
       // Only reload if we're not in initial loading state and user is authenticated
       if (!isLoading && !checkingBanStatus && currentUserId && userData?.userdata?.studios?.default) {
+        setLastFocusReload(now);
         const loadEventFeed = async () => {
           const userStudio = userData.userdata.studios.default.studioId;
           try {
@@ -293,7 +302,7 @@ export default function HomeScreen({ navigation }) {
         const timeoutId = setTimeout(loadEventFeed, 100);
         return () => clearTimeout(timeoutId);
       }
-    }, [isLoading, checkingBanStatus, currentUserId, userData])
+    }, [isLoading, checkingBanStatus, currentUserId, userData, lastFocusReload])
   );
 
   // Check if user has no events at all

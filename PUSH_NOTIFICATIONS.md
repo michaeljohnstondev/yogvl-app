@@ -66,7 +66,7 @@ node scripts/testNotification.js ExponentPushToken[YOUR_TOKEN_HERE]
 
 ### **Social Updates**  
 - New followers
-- Friend requests
+- Mutual follows (now friends)
 - Importance: DEFAULT
 - Sound: ❌ (Silent)
 
@@ -79,8 +79,8 @@ Notifications automatically navigate to appropriate screens:
 | `event_reminder` | EventDetail screen |
 | `event_updated` | EventDetail screen |
 | `event_comment` | EventDetail screen |
-| `friend_request` | UserProfile screen |
-| `follow_notification` | SocialListScreen |
+| `follow_notification` | UserProfile screen |
+| `mutual_follow` | UserProfile screen |
 | `invitation_received` | InvitationsScreen |
 
 ## 🎯 QR Code Integration
