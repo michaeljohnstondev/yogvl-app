@@ -11,7 +11,6 @@ import {
 import VibeButton from '../components/ui/VibeButton';
 import ProfileAvatar from '../components/ui/ProfileAvatar';
 import VibeLoadingScreen from '../components/ui/VibeLoadingScreen';
-import NotificationTester from '../components/ui/NotificationTester';
 import { useVibeAlert } from '../components/ui/VibeAlertContext';
 import VibeCarousel from '../components/ui/VibeCarousel';
 import EventCard from '../events/components/EventCard';
@@ -416,8 +415,6 @@ export default function HomeScreen({ navigation }) {
         <EmptyStateView navigation={navigation} />
       ) : (
         <ScrollView contentContainerStyle={styles.container}>
-        {/* Notification Tester - Remove this after testing */}
-        <NotificationTester />
         
         {myEvents.length > 0 && (
           <>

@@ -1,4 +1,5 @@
 // Firebase Cloud Functions for Big Vibe Studios Notification System
+/* eslint-env node */
 
 const functions = require('firebase-functions/v2');
 const admin = require('firebase-admin');
@@ -750,5 +751,175 @@ exports.onCohostInvitation = functions.firestore
 
     } catch (error) {
       console.error('Error processing cohost invitation notification:', error);
+    }
+  });
+
+/**
+ * Handle admin notification triggers
+ * This sends push notifications for admin messages, warnings, strikes, etc.
+ */
+exports.onAdminNotificationTrigger = functions.firestore
+  .onDocumentCreated('notificationTriggers/{triggerId}', async (event) => {
+    const triggerData = event.data.data();
+    const { triggerId } = event.params;
+
+    if (triggerData.type !== 'admin_notification' || triggerData.processed) {
+      return;
+    }
+
+    try {
+      // Mark as processed immediately to prevent duplicate processing
+      await admin.firestore().doc(`notificationTriggers/${triggerId}`).update({
+        processed: true,
+        processedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      const { userId, title, message, priority, subType, data } = triggerData;
+
+      // Get user's FCM token
+      const userDoc = await admin.firestore().doc(`users/${userId}`).get();
+      if (!userDoc.exists) {
+        console.log('User document not found');
+        return;
+      }
+
+      const userData = userDoc.data();
+      const userToken = userData?.deviceInfo?.expoPushToken;
+      if (!userToken) {
+        console.log('User has no push token');
+        return;
+      }
+
+      // Determine notification sound and behavior based on type and priority
+      const isHighPriority = priority === 'high' || ['warning', 'strike'].includes(subType);
+      const sound = isHighPriority ? 'default' : false;
+
+      const pushMessage = {
+        to: userToken,
+        sound: sound,
+        title: title,
+        body: message,
+        data: {
+          ...data,
+          adminNotificationType: subType,
+          priority: priority,
+        },
+        priority: isHighPriority ? 'high' : 'normal',
+        channelId: isHighPriority ? 'admin-urgent' : 'admin-general',
+      };
+
+      // Send via Expo Push Service
+      const response = await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Accept-Encoding': 'gzip, deflate',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(pushMessage),
+      });
+
+      const result = await response.json();
+      
+      if (result.data && result.data.status === 'ok') {
+        console.log(`Admin notification sent to user ${userId}: ${subType}`);
+      } else {
+        console.error('Failed to send admin notification:', result);
+      }
+
+      // Clean up processed trigger after a delay
+      setTimeout(async () => {
+        try {
+          await admin.firestore().doc(`notificationTriggers/${triggerId}`).delete();
+        } catch (error) {
+          console.error('Error cleaning up admin trigger document:', error);
+        }
+      }, 60000); // Delete after 1 minute
+
+    } catch (error) {
+      console.error('Error processing admin notification trigger:', error);
+    }
+  });
+
+/**
+ * Handle ban notification triggers
+ * This sends push notifications when users are banned
+ */
+exports.onBanNotificationTrigger = functions.firestore
+  .onDocumentCreated('notificationTriggers/{triggerId}', async (event) => {
+    const triggerData = event.data.data();
+    const { triggerId } = event.params;
+
+    if (triggerData.type !== 'ban_notification' || triggerData.processed) {
+      return;
+    }
+
+    try {
+      // Mark as processed immediately to prevent duplicate processing
+      await admin.firestore().doc(`notificationTriggers/${triggerId}`).update({
+        processed: true,
+        processedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      const { userId, title, message, banType, reason, data } = triggerData;
+
+      // Get user's FCM token
+      const userDoc = await admin.firestore().doc(`users/${userId}`).get();
+      if (!userDoc.exists) {
+        console.log('User document not found');
+        return;
+      }
+
+      const userData = userDoc.data();
+      const userToken = userData?.deviceInfo?.expoPushToken;
+      if (!userToken) {
+        console.log('User has no push token');
+        return;
+      }
+
+      const pushMessage = {
+        to: userToken,
+        sound: 'default', // Ban notifications should always have sound
+        title: title,
+        body: message,
+        data: {
+          ...data,
+          banType: banType,
+          reason: reason,
+        },
+        priority: 'high', // Ban notifications are always high priority
+        channelId: 'admin-urgent',
+      };
+
+      // Send via Expo Push Service
+      const response = await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Accept-Encoding': 'gzip, deflate',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(pushMessage),
+      });
+
+      const result = await response.json();
+      
+      if (result.data && result.data.status === 'ok') {
+        console.log(`Ban notification sent to user ${userId}: ${banType} ban`);
+      } else {
+        console.error('Failed to send ban notification:', result);
+      }
+
+      // Clean up processed trigger after a delay
+      setTimeout(async () => {
+        try {
+          await admin.firestore().doc(`notificationTriggers/${triggerId}`).delete();
+        } catch (error) {
+          console.error('Error cleaning up ban trigger document:', error);
+        }
+      }, 60000); // Delete after 1 minute
+
+    } catch (error) {
+      console.error('Error processing ban notification trigger:', error);
     }
   });

@@ -304,6 +304,16 @@ class FCMService {
             this.navigationRef.navigate('InvitationsScreen');
           }
           break;
+
+        case 'admin_notification':
+          // Navigate to notifications screen for admin messages
+          this.navigationRef.navigate('Notifications');
+          break;
+
+        case 'ban_notification':
+          // Navigate to home where banned modal will show
+          this.navigationRef.navigate('Home');
+          break;
         
         default:
           if (screen) {

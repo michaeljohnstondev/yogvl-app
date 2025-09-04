@@ -1,6 +1,8 @@
 // FILE: services/banEnforcementService.js - Ban Enforcement System
 
 import { moderationService } from './moderationService';
+import { doc, setDoc, Timestamp } from 'firebase/firestore';
+import { db } from '../auth/services/firebase';
 
 /**
  * Service to enforce user bans throughout the application
@@ -86,6 +88,53 @@ class BanEnforcementService {
   async withBanCheck(userId, actionName, actionFunction) {
     await this.enforceUserNotBanned(userId, actionName);
     return await actionFunction();
+  }
+
+  /**
+   * Send push notification for ban enforcement
+   * @param {string} userId - Banned user ID
+   * @param {Object} banStatus - Ban status data
+   * @param {string} adminUserId - Admin who issued the ban
+   */
+  async sendBanNotification(userId, banStatus, adminUserId) {
+    try {
+      // Create notification trigger for push notification
+      const triggerId = `ban_${banStatus.type}_${userId}_${Date.now()}`;
+      const notificationTriggerRef = doc(db, 'notificationTriggers', triggerId);
+      
+      const title = banStatus.type === 'permanent' 
+        ? '🚫 Account Permanently Banned'
+        : `⏳ Account Temporarily Banned (${banStatus.daysRemaining} days)`;
+      
+      const message = banStatus.reason || 'Your account has been restricted due to community violations.';
+      
+      await setDoc(notificationTriggerRef, {
+        type: 'ban_notification',
+        subType: banStatus.type, // permanent, temporary
+        userId: userId,
+        priority: 'high',
+        title: title,
+        message: message.substring(0, 100),
+        banType: banStatus.type,
+        reason: banStatus.reason,
+        issuedBy: adminUserId || 'system_admin',
+        expiresAt: banStatus.expiresAt,
+        daysRemaining: banStatus.daysRemaining,
+        createdAt: Timestamp.now(),
+        processed: false,
+        data: {
+          type: 'ban_notification',
+          banType: banStatus.type,
+          priority: 'high',
+          screen: 'Home', // Navigate to home where banned modal will show
+        }
+      });
+
+      console.log(`[banEnforcementService] Ban notification trigger created: ${triggerId}`);
+    } catch (error) {
+      console.error('[banEnforcementService] Error sending ban notification:', error);
+      // Don't throw - ban should still be enforced even if notification fails
+    }
   }
 
   /**

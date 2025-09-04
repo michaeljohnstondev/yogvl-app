@@ -6,6 +6,7 @@ import {
   updateDoc,
   arrayUnion,
   Timestamp,
+  setDoc,
 } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 
@@ -104,6 +105,9 @@ class AdminNotificationService {
         adminNotifications: updatedNotifications
       });
 
+      // Trigger push notification
+      await this.triggerPushNotification(userId, notification);
+      
       console.log(`[adminNotificationService] Notification sent to user ${userId}: ${type}`);
       return { success: true, notificationId: notification.id };
 
@@ -283,6 +287,68 @@ class AdminNotificationService {
     } catch (error) {
       console.error('[adminNotificationService] Error with bulk notification:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Trigger push notification for admin message
+   * @param {string} userId - Target user ID
+   * @param {Object} notification - Notification data
+   */
+  async triggerPushNotification(userId, notification) {
+    try {
+      // Create a notification trigger document that Cloud Functions will pick up
+      const triggerId = `admin_${notification.type}_${userId}_${Date.now()}`;
+      const notificationTriggerRef = doc(db, 'notificationTriggers', triggerId);
+      
+      await setDoc(notificationTriggerRef, {
+        type: 'admin_notification',
+        subType: notification.type, // warning, strike, announcement, etc.
+        userId: userId,
+        priority: notification.priority,
+        title: this.getNotificationTitle(notification.type),
+        message: notification.message.substring(0, 100), // Truncate for push notification
+        additionalInfo: notification.additionalInfo,
+        issuedBy: notification.issuedBy,
+        relatedReport: notification.relatedReport,
+        createdAt: Timestamp.now(),
+        processed: false,
+        data: {
+          type: 'admin_notification',
+          notificationId: notification.id,
+          priority: notification.priority,
+          screen: 'Notifications', // Navigate to notifications screen
+        }
+      });
+
+      console.log(`[adminNotificationService] Push notification trigger created: ${triggerId}`);
+    } catch (error) {
+      console.error('[adminNotificationService] Error triggering push notification:', error);
+      // Don't throw - admin notification should still be saved even if push fails
+    }
+  }
+
+  /**
+   * Get appropriate title for notification type
+   * @param {string} type - Notification type
+   * @returns {string} Notification title
+   */
+  getNotificationTitle(type) {
+    switch (type) {
+      case 'warning':
+        return '⚠️ Community Warning';
+      case 'strike':
+        return '🚨 Community Strike';
+      case 'announcement':
+        return '📢 Important Message';
+      case 'system':
+        return '⚙️ System Notice';
+      case 'policy':
+        return '📋 Policy Update';
+      case 'custom':
+        return '💬 Message from Admin';
+      default:
+        return '📬 Admin Notification';
     }
   }
 }

@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 import { adminNotificationService } from './adminNotificationService';
+import { banEnforcementService } from './banEnforcementService';
 
 /**
  * DATABASE STRUCTURE FOR MODERATION:
@@ -339,6 +340,17 @@ class ModerationService {
         }
       });
       
+      // Send ban notification
+      const banStatus = {
+        type: 'temporary',
+        reason,
+        issuedAt: tempBan.issuedAt,
+        expiresAt,
+        daysRemaining: days,
+        isBanned: true
+      };
+      await banEnforcementService.sendBanNotification(targetUserId, banStatus, this.getAdminUserId(adminUserId));
+      
       console.log(`[moderationService] Temp ban (${days} days) issued directly to user ${targetUserId}`);
       return { success: true, days, expiresAt };
       
@@ -404,6 +416,15 @@ class ModerationService {
           lastBanDate: Timestamp.now()
         }
       });
+      
+      // Send ban notification
+      const banStatus = {
+        type: 'permanent',
+        reason,
+        issuedAt: permBan.issuedAt,
+        isBanned: true
+      };
+      await banEnforcementService.sendBanNotification(targetUserId, banStatus, this.getAdminUserId(adminUserId));
       
       console.log(`[moderationService] Permanent ban issued directly to user ${targetUserId}`);
       return { success: true };
