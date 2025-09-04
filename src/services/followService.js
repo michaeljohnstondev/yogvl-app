@@ -59,16 +59,28 @@ import { blockingService } from './blockingService';
  * }
  */
 
+// Track pending operations to prevent race conditions
+const pendingOperations = new Map();
+
 /**
  * Follow a user
  */
 export const followUser = async (followerId, targetUserId, followerData) => {
+  const operationKey = `${followerId}-${targetUserId}`;
+  
+  // Check if operation is already in progress
+  if (pendingOperations.has(operationKey)) {
+    throw new Error('Follow operation already in progress');
+  }
+  
   try {
+    pendingOperations.set(operationKey, 'following');
+    
     if (followerId === targetUserId) {
       throw new Error('Cannot follow yourself');
     }
 
-    // Check if already following
+    // Check if already following (within the pending operation)
     const isFollowing = await checkIfFollowing(followerId, targetUserId);
     if (isFollowing) {
       throw new Error('Already following this user');
@@ -154,6 +166,9 @@ export const followUser = async (followerId, targetUserId, followerData) => {
   } catch (error) {
     console.error('Error following user:', error);
     throw error;
+  } finally {
+    // Always clear the pending operation
+    pendingOperations.delete(operationKey);
   }
 };
 
@@ -161,8 +176,17 @@ export const followUser = async (followerId, targetUserId, followerData) => {
  * Unfollow a user
  */
 export const unfollowUser = async (followerId, targetUserId) => {
+  const operationKey = `${followerId}-${targetUserId}`;
+  
+  // Check if operation is already in progress
+  if (pendingOperations.has(operationKey)) {
+    throw new Error('Unfollow operation already in progress');
+  }
+  
   try {
-    // Check if following
+    pendingOperations.set(operationKey, 'unfollowing');
+    
+    // Check if following (within the pending operation)
     const isFollowing = await checkIfFollowing(followerId, targetUserId);
     if (!isFollowing) {
       throw new Error('Not following this user');
@@ -197,6 +221,9 @@ export const unfollowUser = async (followerId, targetUserId) => {
   } catch (error) {
     console.error('Error unfollowing user:', error);
     throw error;
+  } finally {
+    // Always clear the pending operation
+    pendingOperations.delete(operationKey);
   }
 };
 

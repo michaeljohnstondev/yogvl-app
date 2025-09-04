@@ -36,7 +36,10 @@
       "Bash(claude init)",
       "Read(/C:\\dev\\bvs-app/**)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Read(/C:\\dev\\bvs-app\\src\\services/**)",
+      "Bash(eas build:*)"
     ],
     "deny": [],
     "ask": [],
