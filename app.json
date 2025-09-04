@@ -18,7 +18,10 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.bigvibestudios.bvs"
+      "bundleIdentifier": "com.bigvibestudios.bvs",
+      "runtimeVersion": {
+        "policy": "appVersion"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -34,8 +37,17 @@
         "android.permission.READ_CONTACTS",
         "android.permission.WAKE_LOCK",
         "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.READ_CONTACTS",
+        "android.permission.WAKE_LOCK",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE"
-      ]
+      ],
+      "runtimeVersion": "1.0.0"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -75,6 +87,9 @@
       "eas": {
         "projectId": "c108b708-c480-4bd9-80ea-ee79dd8cf7b7"
       }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/c108b708-c480-4bd9-80ea-ee79dd8cf7b7"
     }
   }
 }

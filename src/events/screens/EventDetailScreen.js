@@ -795,7 +795,10 @@ export default function EventDetailScreen({ route, navigation }) {
                       onPress={() => handleInterestToggle(interest)}
                       style={styles.starButton}
                     >
-                      <Text style={styles.starIcon}>
+                      <Text style={[
+                        styles.starIcon,
+                        { color: isInterested ? '#FFD700' : '#888888' }
+                      ]}>
                         {isInterested ? '⭐' : '☆'}
                       </Text>
                     </TouchableOpacity>
@@ -817,7 +820,12 @@ export default function EventDetailScreen({ route, navigation }) {
                   }}
                   style={styles.starButton}
                 >
-                  <Text style={styles.starIcon}>
+                  <Text style={[
+                    styles.starIcon,
+                    { color: userInterests.some(
+                      userInterest => userInterest.toLowerCase() === event.title.toLowerCase().trim()
+                    ) ? '#FFD700' : '#888888' }
+                  ]}>
                     {userInterests.some(
                       userInterest => userInterest.toLowerCase() === event.title.toLowerCase().trim()
                     ) ? '⭐' : '☆'}

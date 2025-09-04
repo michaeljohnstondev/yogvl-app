@@ -83,13 +83,16 @@ const GuestListViewer = forwardRef(({
       ? invitedGuests.map((guest, index) => ({
           id: guest.id || `guest_${index}`,
           name:
+            guest.userdata?.contactInfo?.displayName ||
             guest.displayName ||
+            guest.userdata?.contactInfo?.firstName ||
             guest.firstName ||
             guest.name ||
+            guest.userdata?.contactInfo?.email ||
             guest.email ||
             'Unknown Guest',
-          email: guest.email,
-          phone: guest.phone,
+          email: guest.userdata?.contactInfo?.email || guest.email,
+          phone: guest.userdata?.contactInfo?.phone || guest.phone,
           role: 'guest',
           isYou: false,
         }))
