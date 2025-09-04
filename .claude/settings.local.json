@@ -1,6 +1,8 @@
 {
   "permissions": {
     "allow": [
+      "**",
+      "*",
       "Bash(mkdir:*)",
       "Bash(npm run lint)",
       "Bash(npm install:*)",
@@ -31,7 +33,10 @@
       "Bash(dir:*)",
       "Bash(firebase init:*)",
       "Bash(sed:*)",
-      "Bash(claude init)"
+      "Bash(claude init)",
+      "Read(/C:\\dev\\bvs-app/**)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": [],
