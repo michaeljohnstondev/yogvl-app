@@ -157,6 +157,8 @@ export default function LocationScreen({ navigation }) {
     if (studio) {
       console.log('[LocationScreen] Studio selected from suggestion:', { id: studio.id, name: studio.name });
       setSelectedStudio(studio);
+      // Switch to browse tab to show the selected studio clearly
+      setSelectedTab('browse');
     } else {
       console.warn('[LocationScreen] No studio found for suggestion:', suggestion.studioId);
     }
@@ -455,68 +457,113 @@ export default function LocationScreen({ navigation }) {
           {/* Search Tab Content */}
           {selectedTab === 'search' && (
             <View style={styles.tabContent}>
-              <View style={styles.searchCard}>
-                <Text style={styles.searchTitle}>
-                  🔍 Search by Location
-                </Text>
-                <Text style={styles.searchText}>
-                  Enter your city to find the nearest studio.
-                </Text>
-
-                <TextInput
-                  style={styles.searchInput}
-                  value={searchText}
-                  onChangeText={handleSearchTextChange}
-                  placeholder="e.g., Greenville, Mauldin, Charleston..."
-                  placeholderTextColor={theme.colors.textSecondary}
-                  autoCapitalize="words"
-                  autoCorrect={false}
-                  onFocus={() => {
-                    if (searchText.trim().length >= 2) {
-                      setShowSuggestions(true);
-                    }
-                  }}
-                />
-
-                {/* Suggestions Dropdown */}
-                {showSuggestions && suggestions.length > 0 && (
-                  <View style={styles.suggestionsContainer}>
-                    {suggestions.map((suggestion, index) => (
-                      <TouchableOpacity
-                        key={index}
-                        style={styles.suggestionItem}
-                        onPress={() => handleSuggestionSelect(suggestion)}
-                      >
-                        <Text style={styles.suggestionText}>
-                          {suggestion.displayName}
-                        </Text>
-                        <Text style={[styles.suggestionStatus, styles.activeStatus]}>
-                          Active
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-
-                <TouchableOpacity
-                  style={styles.buttonContainer}
-                  onPress={() => handleSearchStudio()}
-                  disabled={saving || !searchText.trim()}
-                >
-                  <LinearGradient
-                    colors={theme.colors.buttonGradient}
-                    style={[
-                      styles.button,
-                      (saving || !searchText.trim()) &&
-                        styles.buttonDisabled,
-                    ]}
-                  >
-                    <Text style={styles.buttonText}>
-                      {saving ? 'Searching...' : 'Find My Studio'}
+              {selectedStudio ? (
+                <>
+                  <View style={styles.centerCard}>
+                    <Text style={styles.centerLabel}>Found Studio:</Text>
+                    <Text style={styles.centerName}>
+                      {selectedStudio.name}
                     </Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
+                    <Text style={styles.centerLocation}>
+                      {selectedStudio.city}, {selectedStudio.state}
+                    </Text>
+                    <Text style={[styles.centerStatus, styles.activeStatus]}>
+                      🟢 Active
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.buttonContainer}
+                    onPress={() => handleConfirmStudio()}
+                    disabled={saving}
+                  >
+                    <LinearGradient
+                      colors={theme.colors.buttonGradient}
+                      style={[styles.button, saving && styles.buttonDisabled]}
+                    >
+                      <Text style={styles.buttonText}>
+                        {saving ? 'Joining...' : 'Join Studio'}
+                      </Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.secondaryButton}
+                    onPress={() => {
+                      setSelectedStudio(null);
+                      setSearchText('');
+                    }}
+                    disabled={saving}
+                  >
+                    <Text style={styles.secondaryButtonText}>
+                      Search Different Location
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <View style={styles.searchCard}>
+                  <Text style={styles.searchTitle}>
+                    🔍 Search by Location
+                  </Text>
+                  <Text style={styles.searchText}>
+                    Enter your city to find the nearest studio.
+                  </Text>
+
+                  <TextInput
+                    style={styles.searchInput}
+                    value={searchText}
+                    onChangeText={handleSearchTextChange}
+                    placeholder=""
+                    placeholderTextColor={theme.colors.textSecondary}
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                    onFocus={() => {
+                      if (searchText.trim().length >= 2) {
+                        setShowSuggestions(true);
+                      }
+                    }}
+                  />
+
+                  {/* Suggestions Dropdown */}
+                  {showSuggestions && suggestions.length > 0 && (
+                    <View style={styles.suggestionsContainer}>
+                      {suggestions.map((suggestion, index) => (
+                        <TouchableOpacity
+                          key={index}
+                          style={styles.suggestionItem}
+                          onPress={() => handleSuggestionSelect(suggestion)}
+                        >
+                          <Text style={styles.suggestionText}>
+                            {suggestion.displayName}
+                          </Text>
+                          <Text style={[styles.suggestionStatus, styles.activeStatus]}>
+                            Active
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+
+                  <TouchableOpacity
+                    style={styles.buttonContainer}
+                    onPress={() => handleSearchStudio()}
+                    disabled={saving || !searchText.trim()}
+                  >
+                    <LinearGradient
+                      colors={theme.colors.buttonGradient}
+                      style={[
+                        styles.button,
+                        (saving || !searchText.trim()) &&
+                          styles.buttonDisabled,
+                      ]}
+                    >
+                      <Text style={styles.buttonText}>
+                        {saving ? 'Searching...' : 'Find My Studio'}
+                      </Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           )}
 

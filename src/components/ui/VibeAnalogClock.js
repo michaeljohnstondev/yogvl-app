@@ -317,24 +317,6 @@ const VibeAnalogClock = ({
                     strokeWidth="2"
                   />
                   
-                  {/* Hour markers */}
-                  {Array.from({ length: 12 }, (_, i) => {
-                    const angle = (i * 30) - 90;
-                    const outerPos = polarToCartesian(CLOCK_CENTER, CLOCK_CENTER, CLOCK_RADIUS - 5, angle);
-                    const innerPos = polarToCartesian(CLOCK_CENTER, CLOCK_CENTER, CLOCK_RADIUS - 20, angle);
-                    
-                    return (
-                      <Line
-                        key={i}
-                        x1={outerPos.x}
-                        y1={outerPos.y}
-                        x2={innerPos.x}
-                        y2={innerPos.y}
-                        stroke={theme.colors.vibeBlue}
-                        strokeWidth="2"
-                      />
-                    );
-                  })}
                   
                   {/* Minute markers */}
                   {Array.from({ length: 60 }, (_, i) => {
@@ -361,29 +343,34 @@ const VibeAnalogClock = ({
                   {/* Numbers */}
                   <ClockNumbers />
                   
-                  {/* Hour hand */}
-                  <ClockHand
-                    angle={hourAngle}
-                    length={HOUR_HAND_LENGTH}
-                    color={theme.colors.vibeBlue}
-                    width={4}
-                  />
-                  
-                  {/* Minute hand */}
-                  <ClockHand
-                    angle={minuteAngle}
-                    length={MINUTE_HAND_LENGTH}
-                    color={theme.colors.vibeGreen}
-                    width={3}
-                  />
-                  
-                  {/* Center dot */}
-                  <Circle
-                    cx={CLOCK_CENTER}
-                    cy={CLOCK_CENTER}
-                    r="6"
-                    fill={theme.colors.vibePink}
-                  />
+                  {/* Clock hands - only show after user has started selecting */}
+                  {currentStep > 0 && (
+                    <>
+                      {/* Hour hand */}
+                      <ClockHand
+                        angle={hourAngle}
+                        length={HOUR_HAND_LENGTH}
+                        color={theme.colors.vibeGreen}
+                        width={4}
+                      />
+                      
+                      {/* Minute hand */}
+                      <ClockHand
+                        angle={minuteAngle}
+                        length={MINUTE_HAND_LENGTH}
+                        color={theme.colors.vibeGreen}
+                        width={3}
+                      />
+                      
+                      {/* Center dot */}
+                      <Circle
+                        cx={CLOCK_CENTER}
+                        cy={CLOCK_CENTER}
+                        r="6"
+                        fill={theme.colors.vibeBlue}
+                      />
+                    </>
+                  )}
                 </Svg>
               </Pressable>
             </View>

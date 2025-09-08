@@ -40,6 +40,7 @@ import EditEventScreen from './events/screens/EditEventScreen';
 import HostProfileScreen from './screens/HostProfileScreen';
 import HostEventWrapUpScreen from './screens/HostEventWrapUpScreen';
 import GuestEventWrapUpScreen from './screens/GuestEventWrapUpScreen';
+import MessageBoardScreen from './screens/MessageBoardScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -443,6 +444,10 @@ export default function Navigation() {
             <Stack.Screen
               name="GuestEventWrapUp"
               component={GuestEventWrapUpScreen}
+            />
+            <Stack.Screen
+              name="MessageBoard"
+              component={MessageBoardScreen}
             />
           </Stack.Navigator>
         )}

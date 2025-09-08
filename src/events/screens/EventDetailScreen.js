@@ -24,7 +24,7 @@ import {
 import VibeButton from '../../components/ui/VibeButton';
 import ProfileAvatar from '../../components/ui/ProfileAvatar';
 import EventCreatorInfo from '../components/hosts/EventCreatorInfo';
-import { CommentSection } from '../../components/ui/comments';
+import MessageBoardButton from '../../components/ui/MessageBoardButton';
 import QRCodeGenerator from '../../components/ui/QRCodeGenerator';
 import { useVibeAlert } from '../../components/ui/VibeAlertContext';
 import { useFocusEffect } from '@react-navigation/native';
@@ -1101,7 +1101,11 @@ export default function EventDetailScreen({ route, navigation }) {
       {/* Comments Section */}
       <View style={styles.section}>
         <View style={styles.sectionContent}>
-          <CommentSection eventId={eventId} />
+          <MessageBoardButton 
+            eventId={eventId} 
+            eventTitle={event?.title}
+            navigation={navigation}
+          />
         </View>
       </View>
 

@@ -840,6 +840,7 @@ export default function CreateEventForm({
           onUpdateSettings={handleUpdateNotificationSettings}
           userDefaults={userData?.userdata?.settings?.notifications}
           currentUserId={userData?.uid}
+          eventDateTime={dateTimeValues?.event?.value}
         />
       </View>
     </KeyboardAvoidingView>

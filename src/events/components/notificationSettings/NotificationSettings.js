@@ -23,19 +23,22 @@ export default function NotificationSettings({
   onUpdateSettings,
   userDefaults = {},
   currentUserId,
+  eventDateTime,
 }) {
   const defaultSettings = {
     enabled: true,
-    reminderTiming: '1hour',
     notifyOnJoin: true,
     notifyOnLeave: true,
-    sendReminders: true,
-    sendDayBefore: true,
     newComments: true,
-    customMessage: ''
+    customReminders: [],
+    quickReminders: []
   };
   
   const [localSettings, setLocalSettings] = useState(notificationSettings || defaultSettings);
+  const [showAddCustomForm, setShowAddCustomForm] = useState(false);
+  const [customAmount, setCustomAmount] = useState('');
+  const [customUnit, setCustomUnit] = useState('hours');
+  const [customLabel, setCustomLabel] = useState('');
 
   // Update local settings when prop changes
   useEffect(() => {
@@ -44,10 +47,18 @@ export default function NotificationSettings({
     }
   }, [notificationSettings]);
 
-  const reminderOptions = [
-    { label: '15 min', value: '15min' },
-    { label: '1 hour', value: '1hour' },
-    { label: '1 day', value: '1day' },
+  const quickReminderOptions = [
+    { label: '15 min', value: { amount: 15, unit: 'minutes' } },
+    { label: '1 hour', value: { amount: 1, unit: 'hours' } },
+    { label: '1 day', value: { amount: 1, unit: 'days' } },
+  ];
+
+  const customUnitOptions = [
+    { label: 'Min', value: 'minutes' },
+    { label: 'Hours', value: 'hours' },
+    { label: 'Days', value: 'days' },
+    { label: 'Weeks', value: 'weeks' },
+    { label: 'Months', value: 'months' },
   ];
 
   const toggleSetting = (key) => {
@@ -58,20 +69,74 @@ export default function NotificationSettings({
     }));
   };
 
-  const updateReminderTiming = (value) => {
+  const toggleQuickReminder = (reminderOption) => {
+    setLocalSettings(prev => {
+      const currentQuick = prev.quickReminders || [];
+      const isSelected = currentQuick.some(r => 
+        r.amount === reminderOption.amount && r.unit === reminderOption.unit
+      );
+      
+      let newQuickReminders;
+      if (isSelected) {
+        // Remove it
+        newQuickReminders = currentQuick.filter(r => 
+          !(r.amount === reminderOption.amount && r.unit === reminderOption.unit)
+        );
+      } else {
+        // Add it
+        newQuickReminders = [...currentQuick, {
+          id: Date.now().toString(),
+          amount: reminderOption.amount,
+          unit: reminderOption.unit,
+          type: 'quick'
+        }];
+      }
+      
+      return {
+        ...defaultSettings,
+        ...prev,
+        quickReminders: newQuickReminders
+      };
+    });
+  };
+
+  const addCustomReminder = () => {
+    const amount = parseInt(customAmount);
+    if (!amount || amount <= 0) return;
+
+    const newReminder = {
+      id: Date.now().toString(),
+      amount,
+      unit: customUnit,
+      label: customLabel.trim() || null,
+      type: 'custom'
+    };
+
     setLocalSettings(prev => ({
       ...defaultSettings,
       ...prev,
-      reminderTiming: value
+      customReminders: [...(prev.customReminders || []), newReminder]
+    }));
+
+    // Reset form
+    setCustomAmount('');
+    setCustomLabel('');
+    setShowAddCustomForm(false);
+  };
+
+  const removeCustomReminder = (reminderId) => {
+    setLocalSettings(prev => ({
+      ...defaultSettings,
+      ...prev,
+      customReminders: prev.customReminders.filter(r => r.id !== reminderId)
     }));
   };
 
-  const updateCustomMessage = (text) => {
-    setLocalSettings(prev => ({
-      ...defaultSettings,
-      ...prev,
-      customMessage: text
-    }));
+  const formatReminderText = (reminder) => {
+    const { amount, unit, label } = reminder;
+    const unitText = amount === 1 ? unit.slice(0, -1) : unit; // Remove 's' if amount is 1
+    const reminderText = `${amount} ${unitText} before`;
+    return label ? `${reminderText} - "${label}"` : reminderText;
   };
 
   const saveAsDefaults = async () => {
@@ -89,11 +154,11 @@ export default function NotificationSettings({
       await updateDoc(userRef, {
         'userdata.settings.notifications.hosting': {
           enabled: localSettings?.enabled ?? true,
-          reminderTiming: localSettings?.reminderTiming ?? '1hour',
           notifyOnJoin: localSettings?.notifyOnJoin ?? true,
           notifyOnLeave: localSettings?.notifyOnLeave ?? true,
-          sendDayBefore: localSettings?.sendDayBefore ?? true,
           newComments: localSettings?.newComments ?? true,
+          quickReminders: localSettings?.quickReminders ?? [],
+          customReminders: localSettings?.customReminders ?? [],
         }
       });
 
@@ -192,50 +257,116 @@ export default function NotificationSettings({
                 </View>
               </View>
 
-              {/* Reminders */}
+              {/* My Reminders */}
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>REMINDERS</Text>
-                <View style={styles.settingsGroup}>
-                  <SettingItem
-                    title="Event Reminders"
-                    description="Send reminders to attendees before the event"
-                    value={localSettings.sendReminders}
-                    onToggle={() => toggleSetting('sendReminders')}
-                  />
-                  <SettingItem
-                    title="Day Before Reminder"
-                    description="Send a reminder 24 hours before the event"
-                    value={localSettings.sendDayBefore}
-                    onToggle={() => toggleSetting('sendDayBefore')}
-                    isLast
-                  />
+                <Text style={styles.sectionTitle}>MY REMINDERS</Text>
+                <Text style={styles.sectionSubtitle}>Get personal notifications before this event</Text>
+                
+                {/* Quick Reminders */}
+                <View style={styles.quickRemindersContainer}>
+                  <Text style={styles.quickRemindersLabel}>Quick Reminders:</Text>
+                  <View style={styles.quickRemindersButtons}>
+                    {quickReminderOptions.map((option, index) => {
+                      const isSelected = localSettings.quickReminders?.some(r => 
+                        r.amount === option.value.amount && r.unit === option.value.unit
+                      );
+                      return (
+                        <TouchableOpacity
+                          key={index}
+                          style={[
+                            styles.quickReminderButton,
+                            isSelected && styles.quickReminderButtonSelected
+                          ]}
+                          onPress={() => toggleQuickReminder(option.value)}
+                        >
+                          <Text style={[
+                            styles.quickReminderButtonText,
+                            isSelected && styles.quickReminderButtonTextSelected
+                          ]}>
+                            {option.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
                 </View>
-              </View>
 
-              {/* Reminder Timing */}
-              {localSettings.sendReminders && (
-                <View style={styles.section}>
-                  <Text style={styles.reminderLabel}>Send event reminders:</Text>
-                  <VibeSegmentedControl
-                    options={reminderOptions}
-                    selectedValue={localSettings.reminderTiming}
-                    onValueChange={updateReminderTiming}
-                    style={styles.segmentedControl}
-                  />
-                </View>
-              )}
+                {/* Custom Reminders List */}
+                {localSettings.customReminders && localSettings.customReminders.length > 0 && (
+                  <View style={styles.customRemindersList}>
+                    <Text style={styles.customRemindersLabel}>Custom Reminders:</Text>
+                    {localSettings.customReminders.map((reminder) => (
+                      <View key={reminder.id} style={styles.customReminderItem}>
+                        <Text style={styles.customReminderText}>
+                          • {formatReminderText(reminder)}
+                        </Text>
+                        <TouchableOpacity 
+                          onPress={() => removeCustomReminder(reminder.id)}
+                          style={styles.removeReminderButton}
+                        >
+                          <Text style={styles.removeReminderButtonText}>×</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                )}
 
-              {/* Custom Message */}
-              <View style={styles.section}>
-                <Text style={styles.label}>Custom Reminder Message (Optional)</Text>
-                <VibeInput
-                  value={localSettings.customMessage}
-                  onChangeText={updateCustomMessage}
-                  placeholder="Add a personal message to reminders..."
-                  multiline
-                  numberOfLines={3}
-                  style={styles.messageInput}
-                />
+                {/* Add Custom Reminder */}
+                {!showAddCustomForm ? (
+                  <TouchableOpacity
+                    style={styles.addCustomButton}
+                    onPress={() => setShowAddCustomForm(true)}
+                  >
+                    <Text style={styles.addCustomButtonText}>+ Add Custom Reminder</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.addCustomForm}>
+                    <Text style={styles.addCustomFormTitle}>Add Custom Reminder</Text>
+                    <View style={styles.customFormRow}>
+                      <VibeInput
+                        value={customAmount}
+                        onChangeText={setCustomAmount}
+                        placeholder="1"
+                        keyboardType="numeric"
+                        style={styles.customAmountInput}
+                      />
+                      <VibeSegmentedControl
+                        options={customUnitOptions}
+                        selectedValue={customUnit}
+                        onValueChange={setCustomUnit}
+                        style={styles.customUnitSelector}
+                      />
+                    </View>
+                    <VibeInput
+                      value={customLabel}
+                      onChangeText={setCustomLabel}
+                      placeholder="Label (optional) - e.g., Time to leave"
+                      style={styles.customLabelInput}
+                    />
+                    <View style={styles.customFormButtons}>
+                      <TouchableOpacity
+                        style={styles.cancelButton}
+                        onPress={() => {
+                          setShowAddCustomForm(false);
+                          setCustomAmount('');
+                          setCustomLabel('');
+                        }}
+                      >
+                        <Text style={styles.cancelButtonText}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          styles.addReminderButton,
+                          (!customAmount || parseInt(customAmount) <= 0) && styles.addReminderButtonDisabled
+                        ]}
+                        onPress={addCustomReminder}
+                        disabled={!customAmount || parseInt(customAmount) <= 0}
+                      >
+                        <Text style={styles.addReminderButtonText}>Add</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
               </View>
 
               {/* Save as Defaults Button */}
@@ -368,6 +499,161 @@ const styles = StyleSheet.create({
   defaultsButtonText: {
     color: theme.colors.vibeGreen,
     fontSize: 16,
+    fontWeight: '600',
+  },
+  sectionSubtitle: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    marginTop: -4,
+    marginBottom: 16,
+    lineHeight: 16,
+  },
+  quickRemindersContainer: {
+    marginBottom: 16,
+  },
+  quickRemindersLabel: {
+    color: theme.colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  quickRemindersButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  quickReminderButton: {
+    backgroundColor: theme.colors.inputBackground,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: theme.colors.inputBorder,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  quickReminderButtonSelected: {
+    backgroundColor: theme.colors.vibeBackgroundBlue,
+    borderColor: theme.colors.vibeBlue,
+  },
+  quickReminderButtonText: {
+    color: theme.colors.textPrimary,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  quickReminderButtonTextSelected: {
+    color: theme.colors.vibeBlue,
+    fontWeight: '600',
+  },
+  customRemindersList: {
+    marginBottom: 16,
+  },
+  customRemindersLabel: {
+    color: theme.colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  customReminderItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.colors.inputBackground,
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 4,
+  },
+  customReminderText: {
+    color: theme.colors.textPrimary,
+    fontSize: 13,
+    flex: 1,
+  },
+  removeReminderButton: {
+    backgroundColor: theme.colors.red || '#FF4444',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  removeReminderButtonText: {
+    color: theme.colors.white,
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  addCustomButton: {
+    backgroundColor: theme.colors.vibeBlue,
+    borderRadius: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  addCustomButtonText: {
+    color: theme.colors.white,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  addCustomForm: {
+    backgroundColor: theme.colors.inputBackground,
+    borderRadius: 8,
+    padding: 16,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.inputBorder,
+  },
+  addCustomFormTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  customFormRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  customAmountInput: {
+    width: 60,
+    textAlign: 'center',
+  },
+  customUnitSelector: {
+    flex: 1,
+  },
+  customLabelInput: {
+    marginBottom: 12,
+  },
+  customFormButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: theme.colors.darkGray,
+    borderRadius: 6,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: theme.colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  addReminderButton: {
+    flex: 1,
+    backgroundColor: theme.colors.vibeBlue,
+    borderRadius: 6,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  addReminderButtonDisabled: {
+    opacity: 0.5,
+  },
+  addReminderButtonText: {
+    color: theme.colors.white,
+    fontSize: 14,
     fontWeight: '600',
   },
 });
