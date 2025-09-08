@@ -18,6 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 import { StudioService } from '../../services/StudioService';
+import RequestStudioModal from '../../components/RequestStudioModal';
 import { switchUserStudio } from '../../services/userService';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -35,6 +36,7 @@ export default function LocationScreen({ navigation }) {
   const [userLocation, setUserLocation] = useState(null);
   const [locationPermission, setLocationPermission] = useState(null);
   const [nearbyStudios, setNearbyStudios] = useState([]);
+  const [showRequestModal, setShowRequestModal] = useState(false);
   const vibeAlert = useVibeAlert();
   
   const user = auth.currentUser;
@@ -65,7 +67,7 @@ export default function LocationScreen({ navigation }) {
             console.log('[LocationScreen] Found pending studio selection:', { studioId, eventId, source });
             
             // Find the studio by ID
-            const studio = StudioService.getStudioById(studioId);
+            const studio = await StudioService.getStudioById(studioId);
             if (studio) {
               console.log('[LocationScreen] Auto-selecting studio from deep link:', studio.name);
               console.log('[LocationScreen] Studio object from deep link:', { id: studio.id, name: studio.name });
@@ -97,7 +99,7 @@ export default function LocationScreen({ navigation }) {
           setUserLocation(location.coords);
 
           // Get nearby studios
-          const closest = StudioService.getClosestStudios(
+          const closest = await StudioService.getClosestStudios(
             location.coords.latitude,
             location.coords.longitude,
             5
@@ -135,7 +137,7 @@ export default function LocationScreen({ navigation }) {
 
     if (text.trim().length >= 2) {
       try {
-        const studioSuggestions = StudioService.getSuggestions(text);
+        const studioSuggestions = await StudioService.getSuggestions(text);
         setSuggestions(studioSuggestions);
         setShowSuggestions(studioSuggestions.length > 0);
       } catch (error) {
@@ -153,7 +155,7 @@ export default function LocationScreen({ navigation }) {
     setShowSuggestions(false);
     setSuggestions([]);
     
-    const studio = StudioService.getStudioById(suggestion.studioId);
+    const studio = await StudioService.getStudioById(suggestion.studioId);
     if (studio) {
       console.log('[LocationScreen] Studio selected from suggestion:', { id: studio.id, name: studio.name });
       setSelectedStudio(studio);
@@ -172,15 +174,35 @@ export default function LocationScreen({ navigation }) {
 
     setSaving(true);
     try {
-      const studioMatch = StudioService.generateStudioFromText(searchText.trim());
+      const studioMatch = await StudioService.generateStudioFromText(searchText.trim());
       
       if (studioMatch.studioId === 'unknown_location') {
-        vibeAlert.warning('No Studio Found', 'No studio found for that location. Try a different city or browse our available studios.');
+        // Show option to request new studio
+        vibeAlert.custom(
+          'No Studio Found',
+          `No studio found for "${searchText.trim()}". Would you like to request a new studio for this location?`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Request Studio', 
+              onPress: () => {
+                // Parse city/state from search text
+                const parts = searchText.trim().split(',').map(p => p.trim());
+                const cityName = parts[0] || '';
+                const stateName = parts[1] || '';
+                
+                // Open request modal with pre-filled data
+                setShowRequestModal(true);
+                // You might want to pass cityName and stateName to the modal
+              }
+            }
+          ]
+        );
         setSaving(false);
         return;
       }
 
-      const studio = StudioService.getStudioById(studioMatch.studioId);
+      const studio = await StudioService.getStudioById(studioMatch.studioId);
       if (studio) {
         console.log('[LocationScreen] Studio found from search:', { id: studio.id, name: studio.name });
         await saveStudioData(studio);
@@ -422,26 +444,9 @@ export default function LocationScreen({ navigation }) {
                     <View style={styles.centersSection}>
                       <Text style={styles.sectionTitle}>🌍 All Studios</Text>
                       <Text style={styles.sectionSubtitle}>Enable location for personalized results</Text>
-                      {['Southeast', 'Northeast', 'Southwest', 'Midwest', 'West Coast'].map(region => {
-                        const regionalStudios = StudioService.getStudiosByRegion(region);
-                        if (regionalStudios.length === 0) return null;
-                        
-                        return (
-                          <View key={region} style={styles.regionSection}>
-                            <Text style={styles.regionTitle}>🎵 {region}</Text>
-                            {regionalStudios.slice(0, 3).map((studio) => (
-                              <TouchableOpacity
-                                key={studio.id}
-                                style={styles.centerItem}
-                                onPress={() => setSelectedStudio(studio)}
-                              >
-                                <Text style={styles.centerItemName}>{studio.name}</Text>
-                                <Text style={styles.centerItemLocation}>{studio.city}, {studio.state}</Text>
-                              </TouchableOpacity>
-                            ))}
-                          </View>
-                        );
-                      })}
+                      {/* Note: Regional studios will be loaded asynchronously now */}
+                      <Text style={styles.sectionSubtitle}>Loading studios...</Text>
+                      <ActivityIndicator size="small" color={theme.colors.vibeBlue} />
                     </View>
                   ) : (
                     <View style={styles.centersSection}>
@@ -569,6 +574,15 @@ export default function LocationScreen({ navigation }) {
 
         </ScrollView>
       </KeyboardAvoidingView>
+      
+      <RequestStudioModal
+        visible={showRequestModal}
+        onClose={() => setShowRequestModal(false)}
+        onRequestSubmitted={(result) => {
+          console.log('[LocationScreen] Studio request submitted:', result);
+          // Optionally refresh suggestions or show success message
+        }}
+      />
     </VibeScreen>
   );
 }

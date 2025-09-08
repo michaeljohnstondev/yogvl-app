@@ -23,6 +23,8 @@ import { getFollowStats } from '../services/followService';
 import { deleteUserAccount, getUserDeletionPreview } from '../services/userDeletionService';
 import { uploadProfilePicture, removeProfilePicture, hasProfilePicture } from '../services/profilePictureService';
 import { blockingService } from '../services/blockingService';
+import { getVisibleContactInfo } from '../services/privacyService';
+import { reportUser } from '../services/reportingService';
 import { auth } from '../auth/services/firebase';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
@@ -50,10 +52,11 @@ function UserProfile({ navigation, route }) {
   const [showQRCode, setShowQRCode] = useState(false);
   const [targetUserData, setTargetUserData] = useState(null);
   const [loadingUserData, setLoadingUserData] = useState(false);
+  const [visibleContactInfo, setVisibleContactInfo] = useState({});
   
   // Use target user's data if viewing someone else, otherwise use current user's data
   const displayUserData = isOwnProfile ? userData : targetUserData;
-  const contactInfo = displayUserData?.userdata?.contactInfo || {};
+  const contactInfo = isOwnProfile ? (displayUserData?.userdata?.contactInfo || {}) : visibleContactInfo;
   
   const [editedData, setEditedData] = useState({
     firstName: contactInfo.firstName || '',
@@ -252,6 +255,58 @@ function UserProfile({ navigation, route }) {
   };
 
 
+  // Report user functionality
+  const handleReportUser = () => {
+    if (!targetUserData || !currentUserId) {
+      vibeAlert.error('Error', 'Unable to report user at this time.');
+      return;
+    }
+
+    // Show report categories directly
+    vibeAlert.redmenu(
+      'Report User',
+      'Select the reason for reporting this user:',
+      [
+        { 
+          text: 'Inappropriate Content',
+          onPress: () => submitUserReport('inappropriate_content')
+        },
+        { 
+          text: 'Spam/Fake Profile',
+          onPress: () => submitUserReport('spam')
+        },
+        { 
+          text: 'Harassment/Bullying',
+          onPress: () => submitUserReport('harassment')
+        },
+        { 
+          text: 'Other Violation',
+          onPress: () => submitUserReport('other')
+        },
+        { 
+          text: 'Cancel', 
+          style: 'cancel',
+          onPress: () => {}
+        }
+      ]
+    );
+  };
+
+  const submitUserReport = async (reason) => {
+    try {
+      const result = await reportUser(currentUserId, targetUserId, reason);
+      
+      if (result.success) {
+        vibeAlert.success('Report Submitted', result.message);
+      } else {
+        vibeAlert.error('Error', 'Failed to submit report. Please try again.');
+      }
+    } catch (error) {
+      console.error('[UserProfile] Error reporting user:', error);
+      vibeAlert.error('Error', error.message || 'Failed to submit report. Please try again.');
+    }
+  };
+
   const handleDeleteAccount = async () => {
     if (isDeleting) return;
 
@@ -354,11 +409,12 @@ function UserProfile({ navigation, route }) {
 
   // Load follow statistics
   const loadFollowStats = async () => {
-    if (!currentUserId) return;
+    const profileUserId = isOwnProfile ? currentUserId : targetUserId;
+    if (!profileUserId) return;
     
     setLoadingStats(true);
     try {
-      const stats = await getFollowStats(currentUserId);
+      const stats = await getFollowStats(profileUserId);
       setFollowStats(stats);
     } catch (error) {
       console.error('[UserProfile] Failed to load follow stats:', error);
@@ -370,8 +426,9 @@ function UserProfile({ navigation, route }) {
   // Fetch target user's data if viewing someone else's profile
   useEffect(() => {
     const fetchTargetUserData = async () => {
-      if (isOwnProfile || !targetUserId) {
+      if (isOwnProfile || !targetUserId || !currentUserId) {
         setTargetUserData(null);
+        setVisibleContactInfo({});
         return;
       }
 
@@ -380,7 +437,12 @@ function UserProfile({ navigation, route }) {
         const userRef = doc(db, 'users', targetUserId);
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
-          setTargetUserData({ id: userSnap.id, ...userSnap.data() });
+          const userData = { id: userSnap.id, ...userSnap.data() };
+          setTargetUserData(userData);
+          
+          // Get visible contact info based on privacy settings
+          const visibleInfo = await getVisibleContactInfo(currentUserId, userData);
+          setVisibleContactInfo(visibleInfo);
         } else {
           vibeAlert.error('User Not Found', 'This user does not exist.');
           navigation.goBack();
@@ -395,7 +457,7 @@ function UserProfile({ navigation, route }) {
     };
 
     fetchTargetUserData();
-  }, [targetUserId, isOwnProfile, navigation, vibeAlert]);
+  }, [targetUserId, isOwnProfile, currentUserId, navigation, vibeAlert]);
 
   // Update editedData when displayUserData changes
   useEffect(() => {
@@ -414,7 +476,7 @@ function UserProfile({ navigation, route }) {
 
   useEffect(() => {
     loadFollowStats();
-  }, [currentUserId]);
+  }, [currentUserId, targetUserId, isOwnProfile]);
 
   // Check for blocking restrictions when viewing other profiles
   useEffect(() => {
@@ -499,10 +561,35 @@ function UserProfile({ navigation, route }) {
       {/* Main Profile Content */}
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
 
-      {/* Profile Picture with buttons */}
-      <View style={styles.profileSection}>
+      {/* Top buttons row */}
+      <View style={styles.topButtonsRow}>
         <CloseButton onPress={() => navigation.goBack()} style={styles.closeButton} />
         
+        <View style={styles.topButtonsRightSide}>
+          {!isOwnProfile && (
+            <TouchableOpacity
+              style={styles.reportButton}
+              onPress={handleReportUser}
+            >
+              <Text style={styles.reportButtonText}>⚠️</Text>
+            </TouchableOpacity>
+          )}
+          
+          {isOwnProfile && (
+            <TouchableOpacity
+              onPress={() => setIsEditing(!isEditing)}
+              style={styles.editButton}
+            >
+              <Text style={styles.editButtonText}>
+                {isEditing ? 'Cancel' : 'Edit'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      {/* Centered Profile Picture */}
+      <View style={styles.profilePictureSection}>
         <TouchableOpacity onPress={isOwnProfile ? handleProfilePicturePress : undefined}>
           <ProfileAvatar 
             userData={displayUserData} 
@@ -511,17 +598,6 @@ function UserProfile({ navigation, route }) {
             showBorder={true}
           />
         </TouchableOpacity>
-        
-        {isOwnProfile && (
-          <TouchableOpacity
-            onPress={() => setIsEditing(!isEditing)}
-            style={styles.editButton}
-          >
-            <Text style={styles.editButtonText}>
-              {isEditing ? 'Cancel' : 'Edit'}
-            </Text>
-          </TouchableOpacity>
-        )}
       </View>
 
       {/* Profile Info Section */}
@@ -597,7 +673,9 @@ function UserProfile({ navigation, route }) {
           <View style={styles.contactItem}>
             <Text style={styles.contactIcon}>📍</Text>
             <Text style={styles.contactText}>
-              {displayUserData?.location || displayUserData?.userdata?.studios?.default?.studioName || 'Not set'}
+              {isOwnProfile 
+                ? (displayUserData?.location || displayUserData?.userdata?.studios?.default?.studioName || 'Not set')
+                : (contactInfo?.location || 'Not shared')}
             </Text>
           </View>
           <View style={styles.contactItem}>
@@ -611,8 +689,10 @@ function UserProfile({ navigation, route }) {
                 keyboardType="phone-pad"
               />
             ) : (
-              <Text style={[styles.contactText, !(contactInfo?.phone || contactInfo?.phoneNumber || displayUserData?.phone || displayUserData?.phoneNumber) && styles.requiredMissing]}>
-                {formatPhoneNumber(contactInfo?.phone || contactInfo?.phoneNumber || displayUserData?.phone || displayUserData?.phoneNumber) || 'Required - Please add phone number'}
+              <Text style={[styles.contactText, !contactInfo?.phone && isOwnProfile && styles.requiredMissing]}>
+                {isOwnProfile 
+                  ? (formatPhoneNumber(contactInfo?.phone || contactInfo?.phoneNumber || displayUserData?.phone || displayUserData?.phoneNumber) || 'Required - Please add phone number')
+                  : (contactInfo?.phone ? formatPhoneNumber(contactInfo.phone) : 'Not shared')}
               </Text>
             )}
           </View>
@@ -629,7 +709,9 @@ function UserProfile({ navigation, route }) {
               />
             ) : (
               <Text style={styles.contactText}>
-                {contactInfo?.email || displayUserData?.email || 'Not set'}
+                {isOwnProfile 
+                  ? (contactInfo?.email || displayUserData?.email || 'Not set')
+                  : (contactInfo?.email || 'Not shared')}
               </Text>
             )}
           </View>
@@ -844,12 +926,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  profileSection: {
+  topButtonsRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    paddingVertical: 20,
+    paddingTop: 20,
     paddingHorizontal: 24,
+    paddingBottom: 8,
+  },
+  topButtonsRightSide: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  reportButton: {
+    padding: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reportButtonText: {
+    fontSize: 18,
+  },
+  profilePictureSection: {
+    alignItems: 'center',
+    paddingVertical: 12,
   },
   profileInfoSection: {
     alignItems: 'center',

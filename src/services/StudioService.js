@@ -1,13 +1,52 @@
-import { doc, setDoc, deleteDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { 
+  doc, 
+  setDoc, 
+  deleteDoc, 
+  collection, 
+  query, 
+  where, 
+  getDocs, 
+  limit,
+  getDoc,
+  onSnapshot 
+} from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 
 export class StudioService {
   
   /**
-   * Get all available studios
+   * Get all available studios from Firebase
+   * @returns {Promise<Array>} Array of studio objects
+   */
+  static async getAllStudios() {
+    try {
+      const studiosRef = collection(db, 'studios');
+      const q = query(studiosRef, where('status', '==', 'active'));
+      const snapshot = await getDocs(q);
+      
+      const studios = [];
+      snapshot.forEach((doc) => {
+        studios.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+      
+      console.log(`[StudioService] Loaded ${studios.length} active studios from Firebase`);
+      return studios;
+    } catch (error) {
+      console.error('[StudioService] Error loading studios from Firebase:', error);
+      // Fallback to hardcoded data if Firebase fails
+      console.log('[StudioService] Falling back to hardcoded studio data');
+      return this.getHardcodedStudios();
+    }
+  }
+
+  /**
+   * Get hardcoded studios (fallback)
    * @returns {Array} Array of studio objects
    */
-  static getAllStudios() {
+  static getHardcodedStudios() {
     return [
       // South Carolina Studios
       {
@@ -345,55 +384,70 @@ export class StudioService {
 
   /**
    * Get active studios only
-   * @returns {Array} Array of active studio objects
+   * @returns {Promise<Array>} Array of active studio objects
    */
-  static getActiveStudios() {
-    // All studios are active now
-    return this.getAllStudios();
+  static async getActiveStudios() {
+    return await this.getAllStudios(); // Already filters for active studios
   }
 
   /**
    * Get centers by region
    * @param {string} region - Region name
-   * @returns {Array} Array of studio objects in the region
+   * @returns {Promise<Array>} Array of studio objects in the region
    */
-  static getStudiosByRegion(region) {
-    return this.getAllStudios().filter(studio => studio.region === region);
+  static async getStudiosByRegion(region) {
+    const allStudios = await this.getAllStudios();
+    return allStudios.filter(studio => studio.region === region);
   }
 
   /**
-   * Find studio by ID
-   * @param {string} centerId - Studio ID
-   * @returns {Object|null} Studio object or null
+   * Find studio by ID from Firebase or cache
+   * @param {string} studioId - Studio ID
+   * @returns {Promise<Object|null>} Studio object or null
    */
-  static getStudioById(studioId) {
-    return this.getAllStudios().find(studio => studio.id === studioId) || null;
+  static async getStudioById(studioId) {
+    try {
+      const studioDoc = await getDoc(doc(db, 'studios', studioId));
+      if (studioDoc.exists()) {
+        return {
+          id: studioDoc.id,
+          ...studioDoc.data()
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error(`[StudioService] Error getting studio ${studioId}:`, error);
+      // Fallback to hardcoded data
+      return this.getHardcodedStudios().find(studio => studio.id === studioId) || null;
+    }
   }
 
   /**
    * Find studios by city name match
    * @param {string} cityName - Name of city
-   * @returns {Array} Array of studios that match this city
+   * @returns {Promise<Array>} Array of studios that match this city
    */
-  static getStudiosForTown(cityName) {
+  static async getStudiosForTown(cityName) {
     const normalizedCity = cityName.toLowerCase().trim();
-    return this.getAllStudios().filter(studio => 
-      studio.city.toLowerCase().includes(normalizedCity) || 
-      normalizedCity.includes(studio.city.toLowerCase())
+    const allStudios = await this.getAllStudios();
+    return allStudios.filter(studio => 
+      studio.city?.toLowerCase().includes(normalizedCity) || 
+      normalizedCity.includes(studio.city?.toLowerCase())
     );
   }
 
   /**
    * Get nearby centers based on a user's location
-   * @param {string} homeCenterId - User's home center ID
-   * @returns {Array} Array of nearby studio objects
+   * @param {string} homeStudioId - User's home center ID
+   * @returns {Promise<Array>} Array of nearby studio objects
    */
-  static getNearbyStudios(homeStudioId) {
-    const homeStudio = this.getStudioById(homeStudioId);
+  static async getNearbyStudios(homeStudioId) {
+    const homeStudio = await this.getStudioById(homeStudioId);
     if (!homeStudio) return [];
 
     // Return studios in the same region, excluding home studio
-    return this.getStudiosByRegion(homeStudio.region).filter(
+    const regionStudios = await this.getStudiosByRegion(homeStudio.region);
+    return regionStudios.filter(
       studio => studio.id !== homeStudioId
     );
   }
@@ -407,7 +461,7 @@ export class StudioService {
     try {
       console.log('[StudioService] Updating user studio:', { userId, studioId });
 
-      const studio = this.getStudioById(studioId);
+      const studio = await this.getStudioById(studioId);
       if (!studio) {
         throw new Error(`Studio ${studioId} not found`);
       }
@@ -441,24 +495,25 @@ export class StudioService {
   /**
    * Get suggestions for autocomplete based on user input
    * @param {string} searchText - Search text from user
-   * @returns {Array} Array of suggestion objects
+   * @returns {Promise<Array>} Array of suggestion objects
    */
-  static getSuggestions(searchText) {
+  static async getSuggestions(searchText) {
     if (!searchText || searchText.trim().length < 2) return [];
     
     const normalizedSearch = searchText.toLowerCase().trim();
     const suggestions = [];
 
     // Search through all studios
-    this.getAllStudios().forEach(studio => {
+    const allStudios = await this.getAllStudios();
+    allStudios.forEach(studio => {
       // Check studio name and city
-      if (studio.name.toLowerCase().includes(normalizedSearch) ||
-          studio.city.toLowerCase().includes(normalizedSearch)) {
+      if (studio.name?.toLowerCase().includes(normalizedSearch) ||
+          studio.city?.toLowerCase().includes(normalizedSearch)) {
         suggestions.push({
           displayName: `${studio.city}, ${studio.state}`,
           studioId: studio.id,
           studioName: studio.name,
-          isActive: true, // All studios are active
+          isActive: studio.isActive !== false, // Default to true if not specified
         });
       }
     });
@@ -484,10 +539,10 @@ export class StudioService {
   /**
    * Generate center selection from text input (like current generateZoneFromText)
    * @param {string} locationText - User-entered location text
-   * @returns {Object} Center selection object
+   * @returns {Promise<Object>} Center selection object
    */
-  static generateStudioFromText(locationText) {
-    const suggestions = this.getSuggestions(locationText);
+  static async generateStudioFromText(locationText) {
+    const suggestions = await this.getSuggestions(locationText);
     
     if (suggestions.length > 0) {
       const bestMatch = suggestions[0];
@@ -510,12 +565,12 @@ export class StudioService {
 
   /**
    * Check if a center can host events
-   * @param {string} centerId - Studio ID
-   * @returns {boolean} Whether the center can host events
+   * @param {string} studioId - Studio ID
+   * @returns {Promise<boolean>} Whether the center can host events
    */
-  static canHostEvents(studioId) {
-    const studio = this.getStudioById(studioId);
-    return studio ? true : false; // All studios can host events
+  static async canHostEvents(studioId) {
+    const studio = await this.getStudioById(studioId);
+    return studio && studio.isActive !== false; // Check if studio exists and is active
   }
 
   /**
@@ -543,10 +598,11 @@ export class StudioService {
    * @param {number} userLat - User's latitude
    * @param {number} userLng - User's longitude
    * @param {number} limit - Number of studios to return (default 5)
-   * @returns {Array} Array of closest studios with distance
+   * @returns {Promise<Array>} Array of closest studios with distance
    */
-  static getClosestStudios(userLat, userLng, limit = 5) {
-    const studiosWithDistance = this.getAllStudios()
+  static async getClosestStudios(userLat, userLng, limit = 5) {
+    const allStudios = await this.getAllStudios();
+    const studiosWithDistance = allStudios
       .filter(studio => studio.coordinates) // Only studios with coordinates
       .map(studio => ({
         ...studio,

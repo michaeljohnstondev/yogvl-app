@@ -324,18 +324,18 @@ export const getMutualFollows = async (userId, limitCount = 50) => {
 };
 
 /**
- * Get follow statistics for a user
+ * Get follow statistics for a user by counting actual subcollections
  */
 export const getFollowStats = async (userId) => {
   try {
-    const userDoc = await getDoc(doc(db, 'users', userId));
-    if (!userDoc.exists()) {
-      return { followingCount: 0, followerCount: 0, mutualCount: 0 };
-    }
+    // Get actual counts from subcollections for accuracy
+    const [followingSnapshot, followersSnapshot] = await Promise.all([
+      getDocs(collection(db, 'users', userId, 'following')),
+      getDocs(collection(db, 'users', userId, 'followers'))
+    ]);
 
-    const userData = userDoc.data();
-    const followingCount = userData?.userdata?.followingCount || 0;
-    const followerCount = userData?.userdata?.followerCount || 0;
+    const followingCount = followingSnapshot.size;
+    const followerCount = followersSnapshot.size;
 
     // Calculate mutual follows count
     const mutualFollows = await getMutualFollows(userId);

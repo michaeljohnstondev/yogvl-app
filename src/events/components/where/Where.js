@@ -1,9 +1,10 @@
 // FILE: ../where/Where.js
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import { View, Text } from 'react-native';
 import VibeInput from '../../../components/ui/VibeInput';
 import VibeAutoComplete from '../../../components/ui/VibeAutoComplete';
+import { VenueService } from '../../../services/VenueService';
 
 export const Where = ({
   formData,
@@ -15,6 +16,36 @@ export const Where = ({
   styles,
   setFieldRef,
 }) => {
+  // Handle location input changes with address auto-population
+  const handleLocationInputChange = useCallback(async (text) => {
+    // Always update the location field immediately
+    onInputChange('location', text);
+    
+    // Check if it's a personal/private location (skip address lookup)
+    if (VenueService.isPersonalLocation(text)) {
+      console.log('[Where] Personal location detected, skipping address lookup');
+      return;
+    }
+    
+    // Skip if text is too short or if address is already filled
+    if (!text || text.trim().length < 3 || formData.address?.trim()) {
+      return;
+    }
+    
+    try {
+      // Check our venue database for known addresses
+      const venueData = await VenueService.getVenueAddress(text);
+      
+      if (venueData?.address) {
+        console.log('[Where] Auto-populating address for venue:', venueData.name);
+        updateField('address', venueData.address);
+      }
+    } catch (error) {
+      console.error('[Where] Error auto-populating address:', error);
+      // Don't block user if there's an error - just continue without auto-population
+    }
+  }, [onInputChange, formData.address, updateField]);
+
   const handleLocationSelect = (suggestionText) => {
     if (!suggestionText) return;
 
@@ -32,6 +63,9 @@ export const Where = ({
     } else {
       const cleanText = suggestionText.replace(/^📍\s*/, '');
       updateField('location', cleanText);
+      
+      // Try to auto-populate address for selected suggestion
+      handleLocationInputChange(cleanText);
     }
 
     hideSuggestions('location');
@@ -45,7 +79,7 @@ export const Where = ({
       <View style={styles.inputContainer} ref={setFieldRef && setFieldRef('location')}>
         <VibeInput
           value={formData.location}
-          onChangeText={(text) => onInputChange('location', text)}
+          onChangeText={handleLocationInputChange}
           onFocus={() => onInputFocus('location')}
           onBlur={() => hideSuggestions('location')}
           placeholder="Enter location"

@@ -24,6 +24,9 @@ import { moderationService } from '../services/moderationService';
 import ModerationActionModal from '../components/ui/ModerationActionModal';
 import AdminNotificationTool from '../components/ui/AdminNotificationTool';
 import NotificationTester from '../components/ui/NotificationTester';
+import { VenueService } from '../services/VenueService';
+import { StudioRequestService } from '../services/StudioRequestService';
+import { migrateStudiosToFirebase } from '../scripts/migrateStudios';
 
 export default function AdminScreen({ navigation }) {
   const { userData, currentUserId } = useAuth();
@@ -42,9 +45,63 @@ export default function AdminScreen({ navigation }) {
   
   // Tab state
   const [activeTab, setActiveTab] = useState('messages');
+  
+  // Venue seeding state
+  const [seedingVenues, setSeedingVenues] = useState(false);
+  
+  // Studio migration state
+  const [migratingStudios, setMigratingStudios] = useState(false);
+  
+  // Studio requests state
+  const [studioRequests, setStudioRequests] = useState([]);
+  const [loadingStudioRequests, setLoadingStudioRequests] = useState(false);
 
   const handleGoBack = () => {
     navigation.goBack();
+  };
+  
+  // Handle venue seeding
+  const handleSeedVenues = async () => {
+    setSeedingVenues(true);
+    try {
+      await VenueService.seedGreenvilleVenues();
+      Alert.alert(
+        'Success',
+        'Venues have been seeded successfully! The database now contains popular Greenville venues for address auto-population.',
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('Error seeding venues:', error);
+      Alert.alert(
+        'Error',
+        'Failed to seed venues. Check console for details.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setSeedingVenues(false);
+    }
+  };
+
+  // Handle studio migration
+  const handleMigrateStudios = async () => {
+    setMigratingStudios(true);
+    try {
+      const summary = await migrateStudiosToFirebase();
+      Alert.alert(
+        'Migration Complete',
+        `Successfully migrated ${summary.migrated} out of ${summary.total} studios to Firebase. ${summary.skipped > 0 ? `${summary.skipped} studios were skipped due to errors.` : ''}`,
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('Error migrating studios:', error);
+      Alert.alert(
+        'Migration Error',
+        'Failed to migrate studios to Firebase. Check console for details.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setMigratingStudios(false);
+    }
   };
 
   // Reports Management Functions
@@ -272,11 +329,75 @@ export default function AdminScreen({ navigation }) {
     }
   };
 
+  // Load studio requests
+  const loadStudioRequests = async () => {
+    setLoadingStudioRequests(true);
+    try {
+      const requests = await StudioRequestService.getPendingRequests();
+      setStudioRequests(requests);
+      console.log(`[AdminScreen] Loaded ${requests.length} studio requests`);
+    } catch (error) {
+      console.error('[AdminScreen] Error loading studio requests:', error);
+      Alert.alert('Error', 'Failed to load studio requests: ' + error.message);
+    } finally {
+      setLoadingStudioRequests(false);
+    }
+  };
+
+  // Handle studio request approval
+  const handleApproveStudio = async (requestId) => {
+    try {
+      const result = await StudioRequestService.approveStudioRequest(requestId, currentUserId);
+      if (result.success) {
+        Alert.alert('Success', result.message);
+        await loadStudioRequests();
+      } else {
+        Alert.alert('Error', result.message);
+      }
+    } catch (error) {
+      console.error('[AdminScreen] Error approving studio:', error);
+      Alert.alert('Error', 'Failed to approve studio request');
+    }
+  };
+
+  // Handle studio request rejection
+  const handleRejectStudio = async (requestId, reason = '') => {
+    try {
+      const result = await StudioRequestService.rejectStudioRequest(requestId, currentUserId, reason);
+      if (result.success) {
+        Alert.alert('Success', result.message);
+        await loadStudioRequests();
+      } else {
+        Alert.alert('Error', result.message);
+      }
+    } catch (error) {
+      console.error('[AdminScreen] Error rejecting studio:', error);
+      Alert.alert('Error', 'Failed to reject studio request');
+    }
+  };
+
+  const promptRejectReason = (requestId) => {
+    Alert.prompt(
+      'Reject Studio Request',
+      'Please provide a reason for rejection (optional):',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Reject', 
+          style: 'destructive',
+          onPress: (reason) => handleRejectStudio(requestId, reason || '')
+        }
+      ],
+      'plain-text'
+    );
+  };
+
   // Load reports when component mounts if user is global admin
   useEffect(() => {
     if (isGlobalAdmin(userData)) {
       setShowReportsSection(true);
       loadReports();
+      loadStudioRequests();
     }
   }, [userData]);
 
@@ -393,6 +514,14 @@ export default function AdminScreen({ navigation }) {
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
+          style={[styles.tab, activeTab === 'studios' && styles.activeTab]}
+          onPress={() => setActiveTab('studios')}
+        >
+          <Text style={[styles.tabText, activeTab === 'studios' && styles.activeTabText]}>
+            Studio Requests
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
           style={[styles.tab, activeTab === 'testing' && styles.activeTab]}
           onPress={() => setActiveTab('testing')}
         >
@@ -418,9 +547,121 @@ export default function AdminScreen({ navigation }) {
           contentContainerStyle={styles.contentContainer}
           showsVerticalScrollIndicator={false}
         />
+      ) : activeTab === 'studios' ? (
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
+          <View style={styles.tabContent}>
+            <Text style={styles.sectionTitle}>Studio Requests</Text>
+            
+            <View style={styles.reportsSummary}>
+              <Text style={styles.summaryText}>
+                {studioRequests.length} pending studio requests
+              </Text>
+              <VibeButton
+                label={loadingStudioRequests ? "Loading..." : "Refresh"}
+                onPress={loadStudioRequests}
+                variant="toggle"
+                color="blue"
+                disabled={loadingStudioRequests}
+                style={styles.refreshButton}
+              />
+            </View>
+
+            {loadingStudioRequests ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={theme.colors.vibeBlue} />
+                <Text style={styles.loadingText}>Loading studio requests...</Text>
+              </View>
+            ) : studioRequests.length === 0 ? (
+              <Text style={styles.noReportsText}>No pending studio requests</Text>
+            ) : (
+              studioRequests.map((request) => (
+                <View key={request.id} style={styles.studioRequestItem}>
+                  <View style={styles.requestHeader}>
+                    <Text style={styles.requestLocation}>
+                      {request.cityName}, {request.stateName}
+                    </Text>
+                    <Text style={styles.requestCount}>
+                      {request.requestCount} request{request.requestCount !== 1 ? 's' : ''}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.requestDetails}>
+                    <Text style={styles.requestDate}>
+                      Requested: {formatReportDate(request.requestedAt)}
+                    </Text>
+                    {request.reason && (
+                      <Text style={styles.requestReason}>
+                        Reason: {request.reason}
+                      </Text>
+                    )}
+                  </View>
+
+                  <View style={styles.requestActions}>
+                    <TouchableOpacity
+                      style={[styles.requestButton, { backgroundColor: theme.colors.vibeGreen }]}
+                      onPress={() => handleApproveStudio(request.id)}
+                    >
+                      <Text style={styles.requestButtonText}>Approve</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.requestButton, { backgroundColor: theme.colors.vibeRed }]}
+                      onPress={() => promptRejectReason(request.id)}
+                    >
+                      <Text style={styles.requestButtonText}>Reject</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+        </ScrollView>
       ) : (
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
           <NotificationTester />
+          
+          {/* Venue Management Section */}
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Venue Management</Text>
+            <Text style={styles.sectionDescription}>
+              Seed the database with popular Greenville venues for address auto-population.
+            </Text>
+            
+            <VibeButton
+              label={seedingVenues ? "Seeding Venues..." : "Seed Greenville Venues"}
+              onPress={handleSeedVenues}
+              variant="outline"
+              color="green"
+              disabled={seedingVenues}
+              style={styles.seedButton}
+            />
+            
+            <Text style={styles.noteText}>
+              Note: This adds ~25 popular Greenville venues to the database. 
+              When users type these venue names in CreateEvent, the address will auto-populate.
+            </Text>
+          </View>
+          
+          {/* Studio Migration Section */}
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Studio Migration</Text>
+            <Text style={styles.sectionDescription}>
+              Migrate hardcoded studios to Firebase database for dynamic management.
+            </Text>
+            
+            <VibeButton
+              label={migratingStudios ? "Migrating Studios..." : "Migrate Studios to Firebase"}
+              onPress={handleMigrateStudios}
+              variant="outline"
+              color="blue"
+              disabled={migratingStudios}
+              style={styles.seedButton}
+            />
+            
+            <Text style={styles.noteText}>
+              Note: This is a one-time migration that moves all hardcoded studio data to Firebase. 
+              After migration, studios will be managed dynamically through the Studio Requests system.
+            </Text>
+          </View>
         </ScrollView>
       )}
 
@@ -723,6 +964,88 @@ const styles = StyleSheet.create({
   reportButtonText: {
     color: theme.colors.white,
     fontSize: 10,
+    fontWeight: 'bold',
+    fontFamily: theme.fonts.main,
+  },
+  sectionContainer: {
+    backgroundColor: theme.colors.vibeBackgroundBlue,
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.vibeBlue,
+  },
+  sectionDescription: {
+    color: theme.colors.textSecondary,
+    fontSize: 14,
+    fontFamily: theme.fonts.main,
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  seedButton: {
+    marginBottom: 12,
+  },
+  noteText: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    fontFamily: theme.fonts.main,
+    fontStyle: 'italic',
+    lineHeight: 16,
+  },
+  // Studio requests styles
+  studioRequestItem: {
+    backgroundColor: theme.colors.vibeBackgroundBlue,
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.vibeBlue,
+  },
+  requestHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  requestLocation: {
+    color: theme.colors.white,
+    fontSize: 18,
+    fontWeight: 'bold',
+    fontFamily: theme.fonts.main,
+  },
+  requestCount: {
+    color: theme.colors.vibeBlue,
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: theme.fonts.main,
+  },
+  requestDetails: {
+    marginBottom: 12,
+  },
+  requestDate: {
+    color: theme.colors.gray,
+    fontSize: 12,
+    fontFamily: theme.fonts.main,
+    marginBottom: 4,
+  },
+  requestReason: {
+    color: theme.colors.white,
+    fontSize: 14,
+    fontFamily: theme.fonts.main,
+  },
+  requestActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  requestButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  requestButtonText: {
+    color: theme.colors.white,
+    fontSize: 14,
     fontWeight: 'bold',
     fontFamily: theme.fonts.main,
   },
