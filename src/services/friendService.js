@@ -24,61 +24,7 @@ import {
   notifyGuestAccepted 
 } from './notifications';
 
-/**
- * Send a friend request
- */
-export const sendFriendRequest = async (senderId, recipientId, senderData) => {
-  try {
-    // Check if they're already friends or have pending request
-    const existingRequest = await getFriendRequestStatus(senderId, recipientId);
-    if (existingRequest) {
-      throw new Error('Friend request already exists or users are already friends');
-    }
-
-    // Get recipient data for notification
-    const recipientDoc = await getDoc(doc(db, 'users', recipientId));
-    if (!recipientDoc.exists()) {
-      throw new Error('Recipient user not found');
-    }
-
-    const recipientData = recipientDoc.data();
-    const firstName = senderData?.userdata?.contactInfo?.firstName || '';
-    const lastName = senderData?.userdata?.contactInfo?.lastName || '';
-    const senderName = `${firstName} ${lastName}`.trim() || senderData?.userdata?.contactInfo?.displayName || 'Someone';
-
-    // Create friend request document
-    const requestId = `${senderId}_${recipientId}_${Date.now()}`;
-    const friendRequestRef = doc(db, 'users', recipientId, 'friendRequests', requestId);
-    
-    const friendRequest = {
-      id: requestId,
-      senderId,
-      recipientId,
-      status: 'pending',
-      createdAt: Timestamp.now(),
-      senderData: {
-        firstName: senderData?.userdata?.contactInfo?.firstName || 'Unknown',
-        displayName: senderData?.userdata?.contactInfo?.displayName || 
-          `${senderData?.userdata?.contactInfo?.firstName || ''} ${senderData?.userdata?.contactInfo?.lastName || ''}`.trim() || 'Unknown',
-        email: senderData?.userdata?.contactInfo?.email || null,
-      }
-    };
-
-    await setDoc(friendRequestRef, friendRequest);
-
-    // Send in-app notification
-    await notifyFriendRequest({
-      recipientId,
-      senderId,
-      senderName,
-    });
-
-    return { success: true, requestId };
-  } catch (error) {
-    console.error('Error sending friend request:', error);
-    throw error;
-  }
-};
+// Legacy friend request function removed - using follow system now
 
 /**
  * Accept a friend request

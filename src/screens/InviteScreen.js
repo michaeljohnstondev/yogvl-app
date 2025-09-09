@@ -203,14 +203,18 @@ export default function InviteScreen() {
     if (isExistingEvent) {
       // Send invitations immediately for existing events
       await handleSendInvitations(selectedData);
-      // Navigate back to EventDetail when we came from existing event
-      navigation.navigate('EventDetail', { eventId });
+      // Navigate back to EventDetail and clear navigation stack
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'EventDetail', params: { eventId } }],
+      });
     } else {
       // Batch for later (CreateEventScreen) - just call the onSave callback
       if (onSave) {
         onSave(selectedData, { reopenGuestList: false }); // Don't reopen guest list, stay on CreateEventScreen
       }
-      navigation.goBack();
+      // Remove this screen from navigation stack
+      navigation.pop();
     }
   };
 

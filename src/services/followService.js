@@ -578,6 +578,3 @@ export const getMutualFriendsList = async (userId) => {
 
 // Export for backward compatibility (temporary)
 export const getFriends = getMutualFollows;
-export const sendFriendRequest = followUser;
-export const acceptFriendRequest = () => { throw new Error('Use followUser instead'); };
-export const declineFriendRequest = () => { throw new Error('Friend requests no longer exist'); };

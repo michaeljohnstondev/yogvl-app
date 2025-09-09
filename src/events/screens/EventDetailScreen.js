@@ -128,6 +128,36 @@ export default function EventDetailScreen({ route, navigation }) {
             studioId,
           }, { merge: true });
           setUserNotificationSettings(newSettings);
+
+          // Update reminders for the user based on their new notification settings
+          try {
+            // First, delete existing reminders for this user on this event
+            await reminderService.deleteRemindersForUser(eventId, currentUserId);
+
+            // Then create new reminders if notifications are enabled and templates exist
+            const reminderTemplates = newSettings?.reminderTemplates || [];
+            if (newSettings?.enabled && reminderTemplates.length > 0) {
+              // Check if user is host
+              const isHost = event?.createdBy === currentUserId;
+              
+              const eventWithId = {
+                ...event,
+                eventId: eventId,
+                studioId: studioId,
+                eventTimestamp: event.datetime || event.eventTimestamp
+              };
+              
+              await reminderService.createRemindersForEvent(
+                eventWithId,
+                currentUserId,
+                reminderTemplates,
+                isHost
+              );
+            }
+          } catch (reminderError) {
+            console.warn('[EventDetailScreen] Failed to update reminders:', reminderError);
+            // Don't fail the settings update if reminder update fails
+          }
         } catch (error) {
           console.error('[EventDetailScreen] Error updating notification settings:', error);
           vibeAlert.error('Error', 'Failed to save notification settings. Please try again.');
