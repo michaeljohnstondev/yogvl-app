@@ -7,8 +7,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "eslint . --ext .js,.jsx",
-    "update": "git add . && git commit -m \"$npm_config_message\" && git push && eas update --branch preview --message \"$npm_config_message\""
+    "lint": "eslint . --ext .js,.jsx"
   },
   "dependencies": {
     "@babel/runtime": "^7.28.3",
