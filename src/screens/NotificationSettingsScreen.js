@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,11 +6,14 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
+  Alert,
 } from 'react-native';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 import VibeButton from '../components/ui/VibeButton';
 import VibeSegmentedControl from '../components/ui/VibeSegmentedControl';
+import CloseButton from '../components/ui/CloseButton';
+import NotificationSettingsForm from '../components/notifications/NotificationSettingsForm';
 import { useAuth } from '../auth/AuthContext';
 import theme from '../theme/themes';
 
@@ -19,6 +22,7 @@ function NotificationSettings({ navigation }) {
   
   // Current selected tab
   const [activeTab, setActiveTab] = useState('app');
+  const scrollViewRef = useRef(null);
   
   // App-level notification settings
   const [appSettings, setAppSettings] = useState({
@@ -40,6 +44,7 @@ function NotificationSettings({ navigation }) {
     notifyOnLeave: userData?.userdata?.settings?.notifications?.hosting?.notifyOnLeave ?? true,
     sendDayBefore: userData?.userdata?.settings?.notifications?.hosting?.sendDayBefore ?? true,
     newComments: userData?.userdata?.settings?.notifications?.hosting?.newComments ?? true,
+    reminderTemplates: userData?.userdata?.settings?.notifications?.hosting?.reminderTemplates ?? [],
   });
 
   // Attending default notification settings (for events user joins)
@@ -57,6 +62,7 @@ function NotificationSettings({ navigation }) {
     { label: '1 hour', value: '1hour' },
     { label: '1 day', value: '1day' },
   ];
+
 
   // Toggle functions for each section
   const toggleAppSetting = (key) => {
@@ -93,6 +99,7 @@ function NotificationSettings({ navigation }) {
       reminderTiming: value
     }));
   };
+
 
   const saveSettings = async () => {
     if (!currentUserId) return;
@@ -138,14 +145,11 @@ function NotificationSettings({ navigation }) {
   ];
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView ref={scrollViewRef} style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity
+        <CloseButton 
           onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
+        />
         <Text style={styles.headerTitle}>Notification Settings</Text>
       </View>
 
@@ -243,73 +247,15 @@ function NotificationSettings({ navigation }) {
       {/* Hosting Defaults */}
       {activeTab === 'hosting' && (
         <>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>NOTIFICATIONS</Text>
-            <View style={styles.settingsGroup}>
-              <SettingItem
-                title="Enable Notifications"
-                description="Turn on notifications for events you host"
-                value={hostingSettings.enabled}
-                onToggle={() => toggleHostingSetting('enabled')}
-                isLast
-              />
-            </View>
-          </View>
-
-          {hostingSettings.enabled && (
-            <>
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>EVENT ACTIVITY</Text>
-                <View style={styles.settingsGroup}>
-                  <SettingItem
-                    title="Guest Joins Event"
-                    description="Notify when someone joins your event"
-                    value={hostingSettings.notifyOnJoin}
-                    onToggle={() => toggleHostingSetting('notifyOnJoin')}
-                  />
-                  <SettingItem
-                    title="Guest Leaves Event"
-                    description="Notify when someone leaves your event"
-                    value={hostingSettings.notifyOnLeave}
-                    onToggle={() => toggleHostingSetting('notifyOnLeave')}
-                  />
-                  <SettingItem
-                    title="New Comments"
-                    description="Notifications for comments on your events"
-                    value={hostingSettings.newComments}
-                    onToggle={() => toggleHostingSetting('newComments')}
-                    isLast
-                  />
-                </View>
-              </View>
-
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>REMINDERS</Text>
-                <View style={styles.settingsGroup}>
-                  <SettingItem
-                    title="Day Before Reminder"
-                    description="Send yourself a reminder the day before your events"
-                    value={hostingSettings.sendDayBefore}
-                    onToggle={() => toggleHostingSetting('sendDayBefore')}
-                    isLast
-                  />
-                </View>
-              </View>
-
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>REMINDER TIMING</Text>
-                <View style={styles.reminderSection}>
-                  <Text style={styles.reminderLabel}>Send event reminders:</Text>
-                  <VibeSegmentedControl
-                    options={reminderOptions}
-                    selectedValue={hostingSettings.reminderTiming}
-                    onSelect={updateHostingReminderTiming}
-                    style={styles.segmentedControl}
-                  />
-                </View>
-              </View>
-            </>
-          )}
+          <NotificationSettingsForm
+            settings={hostingSettings}
+            onUpdateSettings={setHostingSettings}
+            showMasterToggle={true}
+            showEventActivity={true}
+            showSaveAsDefaults={false}
+            sectionStyle={styles.section}
+            scrollViewRef={scrollViewRef}
+          />
         </>
       )}
 
@@ -402,44 +348,39 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.darkGray,
   },
-  backButton: {
-    marginBottom: 10,
-  },
-  backButtonText: {
-    color: theme.colors.vibeGreen,
-    fontSize: 16,
-    fontWeight: '600',
-  },
   headerTitle: {
     color: theme.colors.textPrimary,
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: 'bold',
-    marginBottom: 5,
+    marginLeft: 16,
+    flex: 1,
   },
   tabSection: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
   tabSelector: {
     width: '100%',
   },
   section: {
-    marginTop: 30,
-    paddingHorizontal: 20,
+    marginTop: 20,
+    paddingHorizontal: 16,
   },
   sectionTitle: {
     color: theme.colors.vibeGreen,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 'bold',
     letterSpacing: 1,
-    marginBottom: 15,
+    marginBottom: 10,
   },
   settingsGroup: {
     backgroundColor: theme.colors.inputBackground,
@@ -450,7 +391,7 @@ const styles = StyleSheet.create({
   settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
+    padding: 16,
   },
   settingBorder: {
     borderBottomWidth: 1,

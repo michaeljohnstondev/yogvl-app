@@ -15,11 +15,11 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useComments } from '../components/ui/comments/hooks/useComments';
-import ProfileAvatar from '../components/ui/ProfileAvatar';
+import UserAvatar from '../components/ui/UserAvatar';
 import VibeScreen from '../components/ui/VibeScreen';
 import CloseButton from '../components/ui/CloseButton';
 import { useAuth } from '../auth/AuthContext';
-import { FormatDate } from '../lib/formatDate';
+import { FormatDate, getRelativeTimeString } from '../lib/formatDate';
 import theme from '../theme/themes';
 
 export default function MessageBoardScreen({ route, navigation }) {
@@ -37,6 +37,8 @@ export default function MessageBoardScreen({ route, navigation }) {
     addComment: sendMessage,
     deleteComment: deleteMessage,
     clearError,
+    eventData,
+    getCurrentUserRole,
   } = useComments(eventId);
 
   // Auto-scroll to bottom when new messages arrive
@@ -83,12 +85,22 @@ export default function MessageBoardScreen({ route, navigation }) {
 
   // Format message timestamp
   const formatMessageTime = (timestamp) => {
-    return FormatDate.getRelativeTimeString(timestamp);
+    return getRelativeTimeString(timestamp);
   };
 
   // Check if user can delete message
   const canDeleteMessage = (message) => {
-    return currentUserId === message.userId;
+    // User can delete their own message
+    if (currentUserId === message.userId) return true;
+    
+    // Host can delete any message
+    const userRole = getCurrentUserRole();
+    if (userRole === 'host') return true;
+    
+    // Admin can delete any message (if we add admin role later)
+    if (userRole === 'admin') return true;
+    
+    return false;
   };
 
   // Message item component
@@ -99,7 +111,7 @@ export default function MessageBoardScreen({ route, navigation }) {
     ]}>
       {!isCurrentUser && (
         <View style={styles.messageAvatar}>
-          <ProfileAvatar 
+          <UserAvatar 
             userId={message.userId}
             size={32}
             style={styles.avatar}
@@ -129,7 +141,7 @@ export default function MessageBoardScreen({ route, navigation }) {
             styles.messageTime,
             isCurrentUser ? styles.currentUserTime : styles.otherUserTime
           ]}>
-            {formatMessageTime(message.createdAt)}
+            {formatMessageTime(message.timestamp)}
           </Text>
           
           {canDeleteMessage(message) && (
@@ -137,7 +149,7 @@ export default function MessageBoardScreen({ route, navigation }) {
               onPress={() => handleDeleteMessage(message.id, message.userId)}
               style={styles.deleteButton}
             >
-              <Text style={styles.deleteButtonText}>Delete</Text>
+              <Text style={styles.deleteButtonText}>✕</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -145,7 +157,7 @@ export default function MessageBoardScreen({ route, navigation }) {
       
       {isCurrentUser && (
         <View style={styles.messageAvatar}>
-          <ProfileAvatar 
+          <UserAvatar 
             userId={message.userId}
             size={32}
             style={styles.avatar}
@@ -348,14 +360,17 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 10,
     paddingHorizontal: 14,
+    borderWidth: 1,
   },
   currentUserContent: {
     backgroundColor: theme.colors.vibeBlue,
     borderBottomRightRadius: 4,
+    borderColor: theme.colors.vibeBlue,
   },
   otherUserContent: {
     backgroundColor: theme.colors.inputBackground,
     borderBottomLeftRadius: 4,
+    borderColor: theme.colors.gray,
   },
   senderName: {
     fontSize: 12,
@@ -392,13 +407,18 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   deleteButton: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 68, 68, 0.1)',
+    minWidth: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   deleteButtonText: {
-    fontSize: 11,
-    color: theme.colors.red || '#FF4444',
-    fontWeight: '500',
+    fontSize: 14,
+    color: theme.colors.vibeRed || '#FF4444',
+    fontWeight: 'bold',
   },
   emptyState: {
     alignItems: 'center',

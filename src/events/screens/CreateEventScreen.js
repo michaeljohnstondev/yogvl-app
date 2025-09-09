@@ -49,22 +49,31 @@ export default function CreateEventScreen({ navigation, route }) {
     hasInitialized.current = true;
 
     // Merge user default notification settings with preserved form state or template
-    const userNotificationDefaults =
-      userData?.userdata?.preferences?.notifications || {};
+    const hostingDefaults =
+      userData?.userdata?.settings?.notifications?.hosting || {};
     const baseFormData = preservedFormState?.formData || templateFromEvent || {};
 
-    // Merge notification settings with user defaults
+    // Merge notification settings with user hosting defaults (using template structure)
     stableFormRef.current = {
       ...baseFormData,
       notificationSettings: {
-        enabled: userNotificationDefaults.eventReminders ?? true,
-        reminderTiming: userNotificationDefaults.reminderTiming ?? '1hour',
-        notifyOnJoin: userNotificationDefaults.notifyOnJoin ?? true,
-        notifyOnLeave: userNotificationDefaults.notifyOnLeave ?? true,
-        sendReminders: userNotificationDefaults.eventReminders ?? true,
-        sendDayBefore: userNotificationDefaults.sendDayBefore ?? true,
-        newComments: userNotificationDefaults.newComments ?? true,
+        enabled: hostingDefaults.enabled ?? true,
+        reminderTiming: hostingDefaults.reminderTiming ?? '1hour',
+        notifyOnJoin: hostingDefaults.notifyOnJoin ?? true,
+        notifyOnLeave: hostingDefaults.notifyOnLeave ?? true,
+        sendReminders: hostingDefaults.enabled ?? true,
+        sendDayBefore: hostingDefaults.sendDayBefore ?? true,
+        newComments: hostingDefaults.newComments ?? true,
         customMessage: '',
+        reminderTemplates: hostingDefaults.reminderTemplates ? 
+          // Copy templates from user defaults and preserve enabled state
+          JSON.parse(JSON.stringify(hostingDefaults.reminderTemplates)) :
+          // Fallback to default templates if user has none
+          [
+            { id: '15min', amount: 15, unit: 'minutes', enabled: true, label: '15 min' },
+            { id: '1hour', amount: 1, unit: 'hours', enabled: true, label: '1 hour' },
+            { id: '1day', amount: 1, unit: 'days', enabled: false, label: '1 day' },
+          ],
         ...baseFormData.notificationSettings, // Preserve any existing notification settings
       },
     };
@@ -623,6 +632,7 @@ export default function CreateEventScreen({ navigation, route }) {
         templatesLoading={templatesLoading}
         isCreating={isSubmitting}
         templates={templates}
+        vibeAlert={vibeAlert}
         // Input handlers
         onInputChange={handleInputChange}
         onInputFocus={(field) => handleInputFocus(field, formData)}

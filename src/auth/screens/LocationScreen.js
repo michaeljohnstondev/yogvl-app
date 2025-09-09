@@ -53,11 +53,24 @@ export default function LocationScreen({ navigation }) {
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         if (userDoc.exists()) {
           const userData = userDoc.data();
+          console.log('[LocationScreen] User document data:', JSON.stringify(userData, null, 2));
           const defaultStudio = userData?.userdata?.studios?.default;
+          console.log('[LocationScreen] Default studio:', defaultStudio);
           if (defaultStudio?.studioId) {
+            console.log('[LocationScreen] User already has studio, skipping location setup');
             setHasExistingStudio(true);
+            // Skip location requests if user already has a studio
+            setLoading(false);
+            return;
           }
+        } else {
+          console.log('[LocationScreen] User document does not exist');
         }
+
+        console.log('[LocationScreen] No existing studio found, proceeding with location setup');
+
+        // Ensure default studio exists
+        await StudioService.ensureDefaultStudio();
 
         // Check for pending studio selection from deep link
         try {
@@ -92,20 +105,32 @@ export default function LocationScreen({ navigation }) {
         setLocationPermission(status);
 
         if (status === 'granted') {
-          // Get user location
-          const location = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.Balanced,
-          });
-          setUserLocation(location.coords);
+          try {
+            // Get user location with timeout
+            const location = await Promise.race([
+              Location.getCurrentPositionAsync({
+                accuracy: Location.Accuracy.Balanced,
+              }),
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Location timeout')), 10000)
+              )
+            ]);
+            setUserLocation(location.coords);
 
-          // Get nearby studios
-          const closest = await StudioService.getClosestStudios(
-            location.coords.latitude,
-            location.coords.longitude,
-            5
-          );
-          setNearbyStudios(closest);
+            // Get nearby studios
+            const closest = await StudioService.getClosestStudios(
+              location.coords.latitude,
+              location.coords.longitude,
+              5
+            );
+            setNearbyStudios(closest);
+          } catch (locationError) {
+            console.log('Location error:', locationError);
+            // Fallback to showing all studios if location fails
+            setNearbyStudios([]);
+          }
         } else {
+          console.log('[LocationScreen] Location permission denied, loading fallback studios');
           // Fallback to showing all studios by region
           setNearbyStudios([]);
         }
@@ -150,7 +175,7 @@ export default function LocationScreen({ navigation }) {
     }
   };
 
-  const handleSuggestionSelect = (suggestion) => {
+  const handleSuggestionSelect = async (suggestion) => {
     setSearchText(suggestion.displayName);
     setShowSuggestions(false);
     setSuggestions([]);

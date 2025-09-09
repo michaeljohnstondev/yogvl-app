@@ -10,10 +10,16 @@ export default function VibeDropdown({
   style,
   onFocus,
   isCompleted = false,
+  hideSelectedFromList = false,
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
   const selectedOption = options.find((o) => o.value === selectedValue);
+  
+  // Filter options to optionally hide selected value from list
+  const filteredOptions = hideSelectedFromList && selectedValue
+    ? options.filter((option) => option.value !== selectedValue)
+    : options;
 
   const handleSelect = (option) => {
     onSelect(option.value);
@@ -23,7 +29,7 @@ export default function VibeDropdown({
   return (
     <View style={[styles.container, style]}>
       <Pressable
-        style={[styles.selector, isCompleted && styles.completedSelector]}
+        style={[styles.selector, isCompleted && styles.completedSelector, isOpen && styles.selectorOpen]}
         onPress={() => {
           onFocus?.();
           setIsOpen((v) => !v);
@@ -55,13 +61,13 @@ export default function VibeDropdown({
           <View style={styles.menu} pointerEvents="box-none">
             <View style={styles.panel}>
               <ScrollView style={styles.optionsList} bounces={false}>
-                {options.map((option, i) => (
+                {filteredOptions.map((option, i) => (
                   <Pressable
                     key={option.value}
                     style={[
                       styles.option,
                       selectedValue === option.value && styles.selectedOption,
-                      i === options.length - 1 && styles.lastOption,
+                      i === filteredOptions.length - 1 && styles.lastOption,
                     ]}
                     onPress={() => handleSelect(option)}
                   >
@@ -103,6 +109,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     minHeight: 48,
   },
+  selectorOpen: {
+    borderBottomWidth: 0,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    borderColor: theme.colors.vibeBlue || '#00C6FF',
+  },
   selectorText: {
     fontSize: 16,
     fontFamily: theme.fonts.main,
@@ -125,12 +137,15 @@ const styles = StyleSheet.create({
     top: '100%',
     left: 0,
     right: 0,
-    marginTop: 0,
+    marginTop: -1,
   },
   panel: {
     backgroundColor: theme.colors.background,
     borderRadius: theme.sizes.borderRadius,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
     borderWidth: 1,
+    borderTopWidth: 0,
     borderColor: theme.colors.vibeBlue || '#00C6FF',
     maxHeight: 300,
     overflow: 'hidden',

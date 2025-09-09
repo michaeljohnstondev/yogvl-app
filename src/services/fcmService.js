@@ -213,6 +213,7 @@ class FCMService {
       const userRef = doc(db, 'users', userId);
       await updateDoc(userRef, {
         'deviceInfo.expoPushToken': token,
+        'deviceInfo.fcmToken': token, // Keep compatibility with existing code
         'deviceInfo.platform': Platform.OS,
         'deviceInfo.lastTokenUpdate': new Date(),
         'deviceInfo.notificationsEnabled': true,

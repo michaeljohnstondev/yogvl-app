@@ -205,7 +205,7 @@ export const useComments = (eventId) => {
     }
 
     try {
-      const commentRef = doc(db, `events/${eventId}/comments`, commentId);
+      const commentRef = doc(db, `studios/${studioId}/events/${eventId}/comments`, commentId);
       await deleteDoc(commentRef);
       return true;
     } catch (err) {

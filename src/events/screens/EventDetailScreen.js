@@ -46,6 +46,7 @@ import { notifyHostOfEventJoin, notifyHostOfEventLeave } from '../../services/no
 import { getUserInterests, addUserInterest, removeUserInterest, extractInterestsFromEventTitle } from '../../services/interestService';
 import { reportEvent } from '../../services/reportingService';
 import theme from '../../theme/themes';
+import reminderService from '../../services/reminderService';
 
 export default function EventDetailScreen({ route, navigation }) {
   const { eventId, studioId: routeStudioId } = route.params;
@@ -63,6 +64,7 @@ export default function EventDetailScreen({ route, navigation }) {
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [showQRCode, setShowQRCode] = useState(false);
   const [showAppDownloadQR, setShowAppDownloadQR] = useState(false);
+  const [userNotificationSettings, setUserNotificationSettings] = useState(null);
 
   // Handler for showing host profile
   const handleShowHostProfile = (hostData) => {
@@ -81,6 +83,7 @@ export default function EventDetailScreen({ route, navigation }) {
 
   const vibeAlert = useVibeAlert();
 
+
   // Privacy flash functionality
   const handlePrivacyIconPress = () => {
     setShowPrivacyFlash(true);
@@ -88,6 +91,49 @@ export default function EventDetailScreen({ route, navigation }) {
     setTimeout(() => {
       setShowPrivacyFlash(false);
     }, 1500);
+  };
+
+  // Notification settings functionality
+  const handleNotificationSettings = () => {
+    if (!event || !currentUserId) {
+      vibeAlert.error('Error', 'Event information is not available.');
+      return;
+    }
+
+    // Only allow notification settings if user is subscribed to the event
+    if (!isSubscribed) {
+      vibeAlert.warning('Not Subscribed', 'You need to join this event to manage notifications.');
+      return;
+    }
+
+    navigation.navigate('EventNotificationSettings', {
+      notificationSettings: userNotificationSettings || {
+        enabled: true,
+        notifyOnJoin: true,
+        notifyOnLeave: true,
+        newComments: true,
+        reminderTemplates: []
+      },
+      currentUserId,
+      eventId,
+      eventDateTime: event.datetime,
+      onUpdateSettings: async (key, newSettings) => {
+        // Update the user's notification settings in Firestore
+        try {
+          const userEventRef = doc(db, 'users', currentUserId, 'eventSubscriptions', eventId);
+          await setDoc(userEventRef, {
+            eventId,
+            notificationSettings: newSettings,
+            subscribedAt: new Date(),
+            studioId,
+          }, { merge: true });
+          setUserNotificationSettings(newSettings);
+        } catch (error) {
+          console.error('[EventDetailScreen] Error updating notification settings:', error);
+          vibeAlert.error('Error', 'Failed to save notification settings. Please try again.');
+        }
+      }
+    });
   };
 
   // Report event functionality
@@ -203,9 +249,42 @@ export default function EventDetailScreen({ route, navigation }) {
             const eventData = { id: snap.id, ...snap.data() };
             setEvent(eventData);
 
-            // Check if user is subscribed
+            // Check if user is subscribed or is the host/cohost
             const subscribers = eventData.subscribers || [];
-            setIsSubscribed(subscribers.includes(currentUserId));
+            const userIsSubscribed = subscribers.includes(currentUserId);
+            const isHostOrCohost = eventData.createdBy === currentUserId || 
+                                  (eventData.cohosts?.includes(currentUserId) || false);
+            setIsSubscribed(userIsSubscribed || isHostOrCohost);
+            
+            // Fetch user's notification settings if subscribed or host
+            if ((userIsSubscribed || isHostOrCohost) && currentUserId) {
+              try {
+                const userEventRef = doc(db, 'users', currentUserId, 'eventSubscriptions', eventId);
+                const userEventSnap = await getDoc(userEventRef);
+                
+                if (userEventSnap.exists()) {
+                  const data = userEventSnap.data();
+                  setUserNotificationSettings(data.notificationSettings || {
+                    enabled: true,
+                    notifyOnJoin: true,
+                    notifyOnLeave: true,
+                    newComments: true,
+                    reminderTemplates: []
+                  });
+                } else {
+                  // If no eventSubscriptions document exists (common for hosts), use defaults
+                  setUserNotificationSettings({
+                    enabled: true,
+                    notifyOnJoin: true,
+                    notifyOnLeave: true,
+                    newComments: true,
+                    reminderTemplates: []
+                  });
+                }
+              } catch (error) {
+                console.error('[EventDetailScreen] Error fetching user notification settings:', error);
+              }
+            }
 
             // Load visible attendees - depends on if user is host/cohost or not
             if (subscribers.length > 0 && currentUserId) {
@@ -481,6 +560,28 @@ export default function EventDetailScreen({ route, navigation }) {
         studioId,
       });
 
+      // Create reminders for the attendee based on their notification settings
+      try {
+        const attendeeReminderTemplates = notificationSettings?.reminderTemplates || [];
+        if (attendeeReminderTemplates.length > 0) {
+          const eventWithId = {
+            ...event,
+            eventId: eventId,
+            studioId: studioId
+          };
+          
+          await reminderService.createRemindersForEvent(
+            eventWithId,
+            currentUserId,
+            attendeeReminderTemplates,
+            false // isHost = false
+          );
+        }
+      } catch (error) {
+        console.warn('Failed to create attendee reminders:', error);
+        // Don't fail subscription if reminder creation fails
+      }
+
       // Notify host that user joined
       const hostId = event.createdBy;
       if (hostId && hostId !== currentUserId) {
@@ -537,6 +638,14 @@ export default function EventDetailScreen({ route, navigation }) {
       // Remove user's notification settings for this event
       const userEventRef = doc(db, 'users', currentUserId, 'eventSubscriptions', eventId);
       await deleteDoc(userEventRef);
+
+      // Delete user's reminders for this event
+      try {
+        await reminderService.deleteRemindersForUser(eventId, currentUserId);
+      } catch (error) {
+        console.warn('Failed to delete user reminders:', error);
+        // Don't fail unsubscription if reminder deletion fails
+      }
 
       setIsSubscribed(false);
       vibeAlert.warning('Event Left', 'You have been removed from this event. 👋');
@@ -734,9 +843,20 @@ export default function EventDetailScreen({ route, navigation }) {
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      {/* Status Badges Section with Report Button */}
+      {/* Status Badges Section with Notification and Report Buttons */}
       <View style={styles.badgesSection}>
         <View style={styles.badgeRow}>
+          {/* Notification Bell Button - Only show when subscribed to event and event is not past */}
+          {event && isSubscribed && !isPastEvent(event) && (
+            <TouchableOpacity 
+              style={styles.notificationButton}
+              onPress={handleNotificationSettings}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.notificationIcon}>🔔</Text>
+            </TouchableOpacity>
+          )}
+          
           <View style={styles.titleBadges}>
           {/* Event Status Badge - Always show when event is loaded */}
           {event && (
@@ -1368,6 +1488,17 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     width: '100%',
     position: 'relative',
+  },
+  notificationButton: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    padding: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notificationIcon: {
+    fontSize: 18,
   },
   reportButton: {
     position: 'absolute',

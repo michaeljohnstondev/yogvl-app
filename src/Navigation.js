@@ -25,6 +25,7 @@ import LocationScreen from './auth/screens/LocationScreen';
 import HomeScreen from './screens/HomeScreen';
 import CreateEventScreen from './events/screens/CreateEventScreen';
 import EventDetailScreen from './events/screens/EventDetailScreen';
+import EventNotificationSettingsScreen from './screens/EventNotificationSettingsScreen';
 import InviteGuestsScreen from './events/screens/InviteGuestsScreen';
 import InvitationsScreen from './events/screens/InvitationsScreen';
 import AttendanceScreen from './events/screens/AttendanceScreen';
@@ -369,6 +370,10 @@ export default function Navigation() {
             <Stack.Screen
               name="CreateEvent"
               component={CreateEventScreen}
+            />
+            <Stack.Screen
+              name="EventNotificationSettings"
+              component={EventNotificationSettingsScreen}
             />
             <Stack.Screen
               name="EventDetail"

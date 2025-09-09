@@ -35,7 +35,7 @@ import { Details } from './details/Details';
 import { AdditionalSettings } from './additionalSettings/AdditionalSettings';
 import GuestListViewer from './guests/GuestListViewer';
 import NotificationButton from './notificationSettings/NotificationButton';
-import NotificationSettings from './notificationSettings/NotificationSettings';
+// NotificationSettings is now a screen, not a component
 
 // Theme
 import theme from '../../theme/themes';
@@ -51,6 +51,7 @@ export default function CreateEventForm({
   showSaveTemplate,
   templates,
   templateName,
+  vibeAlert,
 
   // Handlers
   onInputChange,
@@ -122,8 +123,7 @@ export default function CreateEventForm({
   const [shouldReopenGuestList, setShouldReopenGuestList] = useState(false);
   const guestListTriggerRef = useRef(null);
 
-  // Notification settings modal state
-  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  // Notification settings - now uses navigation instead of modal
 
   // Handle reopening guest list modal after returning from InviteScreen
   useEffect(() => {
@@ -148,19 +148,14 @@ export default function CreateEventForm({
 
   // Notification settings handlers
   const handleManageNotifications = useCallback(() => {
-    setShowNotificationModal(true);
-  }, []);
-
-  const handleCloseNotificationModal = useCallback(() => {
-    setShowNotificationModal(false);
-  }, []);
-
-  const handleUpdateNotificationSettings = useCallback(
-    (newSettings) => {
-      updateField('notificationSettings', newSettings);
-    },
-    [updateField]
-  );
+    navigation.navigate('EventNotificationSettings', {
+      notificationSettings: formData.notificationSettings,
+      userDefaults: userData?.userdata?.settings?.notifications,
+      currentUserId: userData?.uid,
+      eventDateTime: dateTimeValues?.event?.value,
+      onUpdateSettings: updateField,
+    });
+  }, [navigation, formData.notificationSettings, userData, dateTimeValues, updateField]);
 
   // Navigation handlers for beautiful InviteScreen
   const openGuestInvitations = () => {
@@ -832,16 +827,7 @@ export default function CreateEventForm({
 
         {DateTimePickerModals}
 
-        {/* Notification Settings Modal */}
-        <NotificationSettings
-          visible={showNotificationModal}
-          onClose={handleCloseNotificationModal}
-          notificationSettings={formData.notificationSettings}
-          onUpdateSettings={handleUpdateNotificationSettings}
-          userDefaults={userData?.userdata?.settings?.notifications}
-          currentUserId={userData?.uid}
-          eventDateTime={dateTimeValues?.event?.value}
-        />
+        {/* Notification Settings - now handled via navigation */}
       </View>
     </KeyboardAvoidingView>
   );

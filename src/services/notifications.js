@@ -84,6 +84,7 @@ export const NOTIFICATION_TYPES = {
   COHOST_ACCEPTED: 'cohost_accepted',
   GUEST_INVITATION: 'guest_invitation',
   GUEST_ACCEPTED: 'guest_accepted',
+  EVENT_KICKED: 'event_kicked',
   SYSTEM: 'system',
 };
 

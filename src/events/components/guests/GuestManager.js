@@ -13,6 +13,7 @@ import {
 import { 
   getEventInvitations, 
   cancelInvitation,
+  kickGuestFromEvent,
   INVITATION_STATUS 
 } from '../../services/invitations';
 import VibeButton from '../../../components/ui/VibeButton';
@@ -84,6 +85,33 @@ export default function GuestManager({ eventId, hostId, onInvitePress }) {
     );
   }, [hostId, loadGuestData]);
 
+  // Handle kicking an accepted guest
+  const handleKickGuest = useCallback((invitationId, guestName) => {
+    Alert.alert(
+      'Kick Guest',
+      `Are you sure you want to remove ${guestName} from this event? They will be notified.`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Kick',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await kickGuestFromEvent(invitationId, hostId);
+              Alert.alert('Success', `${guestName} has been removed from the event`);
+              loadGuestData(); // Refresh the list
+            } catch (error) {
+              Alert.alert('Error', error.message || 'Failed to kick guest');
+            }
+          },
+        },
+      ]
+    );
+  }, [hostId, loadGuestData]);
+
   // Filter invitations based on active filter
   const filteredInvitations = invitations.filter(invitation => {
     if (activeFilter === 'all') return true;
@@ -142,6 +170,7 @@ export default function GuestManager({ eventId, hostId, onInvitePress }) {
   const renderInvitationItem = ({ item }) => {
     const guestName = getGuestDisplayName(item);
     const canCancel = item.status === INVITATION_STATUS.PENDING;
+    const canKick = item.status === INVITATION_STATUS.ACCEPTED;
 
     return (
       <View style={styles.invitationItem}>
@@ -174,6 +203,15 @@ export default function GuestManager({ eventId, hostId, onInvitePress }) {
               onPress={() => handleCancelInvitation(item.id, guestName)}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          )}
+          
+          {canKick && (
+            <TouchableOpacity
+              style={styles.kickButton}
+              onPress={() => handleKickGuest(item.id, guestName)}
+            >
+              <Text style={styles.kickButtonText}>Kick</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -389,6 +427,18 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   cancelButtonText: {
+    color: theme.colors.white,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  kickButton: {
+    backgroundColor: theme.colors.vibeOrange,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginLeft: 8,
+  },
+  kickButtonText: {
     color: theme.colors.white,
     fontSize: 11,
     fontWeight: '600',

@@ -84,6 +84,7 @@ export const Who = forwardRef(({
           onSelect={(value) => updateField('rsvpDeadlineType', value)}
           placeholder="Select deadline"
           isCompleted={formData.rsvpDeadlineType && formData.rsvpDeadlineType !== 'none'}
+          hideSelectedFromList={true}
         />
       </View>
 

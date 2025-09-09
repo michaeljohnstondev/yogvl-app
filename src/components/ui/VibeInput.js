@@ -14,6 +14,15 @@ export default function VibeInput({
   isCompleted, // New prop to indicate if field is completed
   onFocus,
   onBlur,
+  autoComplete,
+  textContentType,
+  importantForAutofill,
+  autoCorrect,
+  autoCapitalize,
+  spellCheck,
+  dataDetectorTypes,
+  maxLength,
+  ...otherProps
 }) {
   return (
     <TextInput
@@ -26,12 +35,21 @@ export default function VibeInput({
       onContentSizeChange={onContentSizeChange}
       onFocus={onFocus}
       onBlur={onBlur}
+      autoComplete={autoComplete}
+      textContentType={textContentType}
+      importantForAutofill={importantForAutofill}
+      autoCorrect={autoCorrect}
+      autoCapitalize={autoCapitalize}
+      spellCheck={spellCheck}
+      dataDetectorTypes={dataDetectorTypes}
+      maxLength={maxLength}
       placeholderTextColor="#aaa"
       style={[
         styles.input,
         isCompleted && styles.completedInput, // Apply completed style if isCompleted is true
         style,
       ]}
+      {...otherProps}
     />
   );
 }

@@ -637,4 +637,61 @@ export class StudioService {
     return userData?.userdata?.studios?.additional || [];
   }
 
+  /**
+   * Create a studio in Firebase
+   * @param {Object} studioData - Studio data object
+   * @returns {Promise<boolean>} Success status
+   */
+  static async createStudio(studioData) {
+    try {
+      console.log('[StudioService] Creating studio:', studioData.name);
+      await setDoc(doc(db, 'studios', studioData.id), {
+        ...studioData,
+        status: 'active',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+      console.log('[StudioService] Successfully created studio:', studioData.name);
+      return true;
+    } catch (error) {
+      console.error('[StudioService] Error creating studio:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Ensure a default studio exists, create Greenville if none exist
+   * @returns {Promise<boolean>} Success status
+   */
+  static async ensureDefaultStudio() {
+    try {
+      console.log('[StudioService] Checking if studios exist...');
+      const studios = await this.getAllStudios();
+      
+      if (studios.length === 0) {
+        console.log('[StudioService] No studios found, initializing Greenville studio...');
+        
+        const greenvilleStudio = {
+          id: 'greenville_sc',
+          name: 'Greenville Studio',
+          city: 'Greenville',
+          state: 'SC',
+          region: 'Southeast',
+          coordinates: { lat: 34.8526, lng: -82.3940 },
+          description: 'Auto-initialized default studio for Greenville, SC',
+          coversTowns: ['Greenville', 'Simpsonville', 'Greer', 'Mauldin'],
+          isActive: true
+        };
+        
+        return await this.createStudio(greenvilleStudio);
+      } else {
+        console.log('[StudioService] Studios already exist, skipping auto-initialization');
+        return true;
+      }
+    } catch (error) {
+      console.error('[StudioService] Error in auto-initialization:', error);
+      return false;
+    }
+  }
+
 }

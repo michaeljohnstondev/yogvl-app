@@ -9,7 +9,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
@@ -91,12 +91,7 @@
     "updates": {
       "url": "https://u.expo.dev/c108b708-c480-4bd9-80ea-ee79dd8cf7b7",
       "fallbackToCacheTimeout": 0,
-      "checkAutomatically": "ON_LOAD",
-      "codeSigningCertificate": "./certs/certificate.pem",
-      "codeSigningMetadata": {
-        "keyid": "main",
-        "alg": "rsa-v1_5-sha256"
-      }
+      "checkAutomatically": "ON_LOAD"
     }
   }
 }

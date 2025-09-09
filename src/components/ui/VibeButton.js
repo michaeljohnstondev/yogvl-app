@@ -33,6 +33,7 @@ export default function VibeButton({
       turquoise: theme.colors.vibeTurquoise,
       aqua: theme.colors.vibeAqua,
       teal: theme.colors.vibeTeal,
+      gray: theme.colors.gray,
     };
     return colorMap[colorName] || theme.colors.vibeBlue;
   };

@@ -45,10 +45,10 @@ exports.onCommentNotificationTrigger = functions.firestore
         return;
       }
 
-      // Get host's FCM token
-      const hostToken = hostData?.deviceInfo?.fcmToken;
+      // Get host's Expo push token
+      const hostToken = hostData?.deviceInfo?.expoPushToken;
       if (!hostToken) {
-        console.log('Host has no FCM token');
+        console.log('Host has no Expo push token');
         return;
       }
 
@@ -138,10 +138,10 @@ exports.onEventJoin = functions.firestore
       return;
     }
 
-    // Get host's FCM token
-    const hostToken = hostData?.deviceInfo?.fcmToken;
+    // Get host's Expo push token
+    const hostToken = hostData?.deviceInfo?.expoPushToken;
     if (!hostToken) {
-      console.log('Host has no FCM token');
+      console.log('Host has no Expo push token');
       return;
     }
 
@@ -228,10 +228,10 @@ exports.onEventLeave = functions.firestore
       return;
     }
 
-    // Get host's FCM token
-    const hostToken = hostData?.deviceInfo?.fcmToken;
+    // Get host's Expo push token
+    const hostToken = hostData?.deviceInfo?.expoPushToken;
     if (!hostToken) {
-      console.log('Host has no FCM token');
+      console.log('Host has no Expo push token');
       return;
     }
 
@@ -329,11 +329,11 @@ exports.onEventUpdate = functions.firestore
       // Check if user wants host change notifications
       if (!attendingPrefs.hostChanges) continue;
 
-      const fcmToken = userData?.deviceInfo?.fcmToken;
-      if (!fcmToken) continue;
+      const expoPushToken = userData?.deviceInfo?.expoPushToken;
+      if (!expoPushToken) continue;
 
       notifications.push({
-        token: fcmToken,
+        token: expoPushToken,
         userId: subscriberId,
       });
     }
@@ -387,143 +387,222 @@ exports.onEventUpdate = functions.firestore
   });
 
 /**
- * Scheduled function to send event reminders
- * Runs every 15 minutes to check for upcoming events
+ * Scheduled function to send event reminder notifications
+ * Runs every 5 minutes to check for reminders that need to be sent
  */
 exports.sendEventReminders = functions.scheduler
-  .onSchedule('*/15 * * * *', async (context) => {
-    const now = admin.firestore.Timestamp.now();
-    const fifteenMinutes = 15 * 60 * 1000;
-    const oneHour = 60 * 60 * 1000;
-    const oneDay = 24 * 60 * 60 * 1000;
-
-    // Query all events starting in the next day (to catch all reminder times)
-    const oneDayFromNow = admin.firestore.Timestamp.fromMillis(now.toMillis() + oneDay);
+  .onSchedule('*/5 * * * *', async (context) => {
+    console.log('Checking for reminders that need to be sent...');
     
-    const eventsQuery = await admin.firestore()
-      .collectionGroup('events')
-      .where('eventTimestamp', '>', now)
-      .where('eventTimestamp', '<=', oneDayFromNow)
-      .get();
+    const now = admin.firestore.Timestamp.now();
+    
+    try {
+      // Query reminders that are due and not yet sent
+      const remindersQuery = await admin.firestore()
+        .collection('reminders')
+        .where('reminderTime', '<=', now)
+        .where('sent', '==', false)
+        .limit(100) // Process in batches to avoid timeouts
+        .get();
 
-    const remindersToSend = [];
+      console.log(`Found ${remindersQuery.docs.length} reminders to send`);
 
-    eventsQuery.docs.forEach((eventDoc) => {
-      const eventData = eventDoc.data();
-      const eventTime = eventData.eventTimestamp;
-      const timeDiff = eventTime.toMillis() - now.toMillis();
-      
-      const subscribers = eventData.subscribers || [];
-      if (subscribers.length === 0) return;
-
-      // Check if this is a reminder time
-      let isReminderTime = false;
-      let reminderType = '';
-
-      if (Math.abs(timeDiff - fifteenMinutes) < 2 * 60 * 1000) { // Within 2 minutes of 15min mark
-        isReminderTime = true;
-        reminderType = '15min';
-      } else if (Math.abs(timeDiff - oneHour) < 2 * 60 * 1000) { // Within 2 minutes of 1 hour mark
-        isReminderTime = true;
-        reminderType = '1hour';
-      } else if (Math.abs(timeDiff - oneDay) < 2 * 60 * 1000) { // Within 2 minutes of 1 day mark
-        isReminderTime = true;
-        reminderType = '1day';
+      if (remindersQuery.docs.length === 0) {
+        return;
       }
 
-      if (!isReminderTime) return;
+      // Group reminders by user to batch fetch user data
+      const userIds = [...new Set(remindersQuery.docs.map(doc => doc.data().userId))];
+      const userDataMap = new Map();
+      
+      // Batch fetch user data (max 10 at a time for whereIn)
+      for (let i = 0; i < userIds.length; i += 10) {
+        const batchUserIds = userIds.slice(i, i + 10);
+        const userQuery = await admin.firestore()
+          .collection('users')
+          .where(admin.firestore.FieldPath.documentId(), 'in', batchUserIds)
+          .get();
+        
+        userQuery.docs.forEach(userDoc => {
+          userDataMap.set(userDoc.id, userDoc.data());
+        });
+      }
 
-      // Add to reminders to send
-      remindersToSend.push({
-        eventId: eventDoc.id,
-        eventData,
-        reminderType,
-        subscribers,
+      // Process reminders
+      const notifications = [];
+      const remindersToMarkSent = [];
+
+      for (const reminderDoc of remindersQuery.docs) {
+        const reminderData = reminderDoc.data();
+        const { userId, eventTitle, eventDateTime, isHost, reminderType, customAmount, customUnit } = reminderData;
+        
+        const userData = userDataMap.get(userId);
+        if (!userData) {
+          // Mark as sent even if user not found to avoid retry
+          remindersToMarkSent.push(reminderDoc.ref);
+          continue;
+        }
+
+        const expoPushToken = userData?.deviceInfo?.expoPushToken;
+        if (!expoPushToken) {
+          // Mark as sent if no token available
+          remindersToMarkSent.push(reminderDoc.ref);
+          continue;
+        }
+
+        // Create notification message
+        let timeText = '';
+        if (reminderType === 'custom') {
+          const unitText = customAmount === 1 ? customUnit.slice(0, -1) : customUnit;
+          timeText = `in ${customAmount} ${unitText}`;
+        } else {
+          switch (reminderType) {
+            case '15min':
+              timeText = 'in 15 minutes';
+              break;
+            case '1hour':
+              timeText = 'in 1 hour';
+              break;
+            case '1day':
+              timeText = 'tomorrow';
+              break;
+            default:
+              timeText = 'soon';
+          }
+        }
+
+        notifications.push({
+          token: expoPushToken,
+          notification: {
+            title: isHost ? `Your event starts ${timeText}!` : `Event starting ${timeText}!`,
+            body: isHost ? `"${eventTitle}" starts ${timeText}` : `"${eventTitle}" is starting ${timeText}`,
+          },
+          data: {
+            type: 'event_reminder',
+            eventId: reminderData.eventId,
+            screen: 'EventDetail',
+            reminderType,
+          },
+          apns: {
+            payload: {
+              aps: {
+                badge: 1,
+                sound: 'default',
+              },
+            },
+          },
+        });
+
+        remindersToMarkSent.push(reminderDoc.ref);
+      }
+
+      // Send all notifications
+      if (notifications.length > 0) {
+        try {
+          const results = await admin.messaging().sendAll(notifications);
+          console.log(`Reminder notifications sent: ${results.successCount}/${notifications.length}`);
+        } catch (error) {
+          console.error('Error sending reminder notifications:', error);
+        }
+      }
+
+      // Mark all reminders as sent
+      const batch = admin.firestore().batch();
+      remindersToMarkSent.forEach(reminderRef => {
+        batch.update(reminderRef, { 
+          sent: true, 
+          sentAt: admin.firestore.Timestamp.now() 
+        });
       });
-    });
+      
+      if (remindersToMarkSent.length > 0) {
+        await batch.commit();
+        console.log(`Marked ${remindersToMarkSent.length} reminders as sent`);
+      }
 
-    console.log(`Found ${remindersToSend.length} events needing reminders`);
-
-    // Send reminders
-    for (const reminder of remindersToSend) {
-      await sendReminderNotifications(reminder);
+    } catch (error) {
+      console.error('Error in sendEventReminders:', error);
     }
   });
 
 /**
- * Helper function to send reminder notifications
+ * Scheduled function to cleanup old reminders
+ * Runs daily to remove old sent reminders and orphaned reminders
  */
-async function sendReminderNotifications({ eventId, eventData, reminderType, subscribers }) {
-  const notifications = [];
-
-  for (const subscriberId of subscribers) {
-    const userDoc = await admin.firestore().doc(`users/${subscriberId}`).get();
-    if (!userDoc.exists) continue;
-
-    const userData = userDoc.data();
-    const attendingPrefs = userData?.userdata?.settings?.notifications?.attending || {};
+exports.cleanupReminders = functions.scheduler
+  .onSchedule('0 2 * * *', async (context) => { // Runs daily at 2 AM UTC
+    console.log('Starting reminder cleanup...');
     
-    // Check if user wants event reminders and if this matches their timing preference
-    if (!attendingPrefs.eventReminders || attendingPrefs.reminderTiming !== reminderType) {
-      continue;
+    const now = admin.firestore.Timestamp.now();
+    const sevenDaysAgo = admin.firestore.Timestamp.fromMillis(now.toMillis() - (7 * 24 * 60 * 60 * 1000));
+    const oneDayAgo = admin.firestore.Timestamp.fromMillis(now.toMillis() - (24 * 60 * 60 * 1000));
+    
+    try {
+      let totalDeleted = 0;
+
+      // 1. Delete old sent reminders (older than 7 days)
+      console.log('Cleaning up old sent reminders...');
+      const oldSentQuery = await admin.firestore()
+        .collection('reminders')
+        .where('sent', '==', true)
+        .where('sentAt', '<', sevenDaysAgo)
+        .limit(500)
+        .get();
+
+      if (oldSentQuery.docs.length > 0) {
+        const batch1 = admin.firestore().batch();
+        oldSentQuery.docs.forEach(doc => {
+          batch1.delete(doc.ref);
+        });
+        await batch1.commit();
+        totalDeleted += oldSentQuery.docs.length;
+        console.log(`Deleted ${oldSentQuery.docs.length} old sent reminders`);
+      }
+
+      // 2. Delete reminders for past events (events that happened more than 1 day ago)
+      console.log('Cleaning up reminders for past events...');
+      const pastEventRemindersQuery = await admin.firestore()
+        .collection('reminders')
+        .where('eventDateTime', '<', oneDayAgo)
+        .limit(500)
+        .get();
+
+      if (pastEventRemindersQuery.docs.length > 0) {
+        const batch2 = admin.firestore().batch();
+        pastEventRemindersQuery.docs.forEach(doc => {
+          batch2.delete(doc.ref);
+        });
+        await batch2.commit();
+        totalDeleted += pastEventRemindersQuery.docs.length;
+        console.log(`Deleted ${pastEventRemindersQuery.docs.length} reminders for past events`);
+      }
+
+      // 3. Delete unsent reminders that are more than 1 hour past their reminder time
+      console.log('Cleaning up missed reminders...');
+      const oneHourAgo = admin.firestore.Timestamp.fromMillis(now.toMillis() - (60 * 60 * 1000));
+      const missedRemindersQuery = await admin.firestore()
+        .collection('reminders')
+        .where('sent', '==', false)
+        .where('reminderTime', '<', oneHourAgo)
+        .limit(500)
+        .get();
+
+      if (missedRemindersQuery.docs.length > 0) {
+        const batch3 = admin.firestore().batch();
+        missedRemindersQuery.docs.forEach(doc => {
+          batch3.delete(doc.ref);
+        });
+        await batch3.commit();
+        totalDeleted += missedRemindersQuery.docs.length;
+        console.log(`Deleted ${missedRemindersQuery.docs.length} missed reminders`);
+      }
+
+      console.log(`Reminder cleanup completed. Total deleted: ${totalDeleted}`);
+      
+    } catch (error) {
+      console.error('Error in cleanupReminders:', error);
     }
-
-    const fcmToken = userData?.deviceInfo?.fcmToken;
-    if (!fcmToken) continue;
-
-    notifications.push({
-      token: fcmToken,
-      userId: subscriberId,
-    });
-  }
-
-  if (notifications.length === 0) return;
-
-  // Create reminder message
-  let timeText = '';
-  switch (reminderType) {
-    case '15min':
-      timeText = 'in 15 minutes';
-      break;
-    case '1hour':
-      timeText = 'in 1 hour';
-      break;
-    case '1day':
-      timeText = 'tomorrow';
-      break;
-    default:
-      timeText = 'soon';
-  }
-
-  const messages = notifications.map(({ token, userId }) => ({
-    token,
-    notification: {
-      title: `Event starting ${timeText}!`,
-      body: `"${eventData.title}" is starting ${timeText}`,
-    },
-    data: {
-      type: 'event_reminder',
-      eventId: eventId,
-      screen: 'EventDetail',
-      reminderType,
-    },
-    apns: {
-      payload: {
-        aps: {
-          badge: 1,
-          sound: 'default',
-        },
-      },
-    },
-  }));
-
-  try {
-    const results = await admin.messaging().sendAll(messages);
-    console.log(`Event reminder notifications sent for ${eventId}: ${results.successCount}/${messages.length}`);
-  } catch (error) {
-    console.error(`Error sending reminder notifications for ${eventId}:`, error);
-  }
-}
+  });
 
 /**
  * Send notification when someone sends a friend request
@@ -550,10 +629,10 @@ exports.onFriendRequest = functions.firestore
         return;
       }
 
-      // Get recipient's FCM token
-      const recipientToken = recipientData?.deviceInfo?.fcmToken;
+      // Get recipient's Expo push token
+      const recipientToken = recipientData?.deviceInfo?.expoPushToken;
       if (!recipientToken) {
-        console.log('Recipient has no FCM token');
+        console.log('Recipient has no Expo push token');
         return;
       }
 
@@ -625,10 +704,10 @@ exports.onFriendAccepted = functions.firestore
           return;
         }
 
-        // Get sender's FCM token
-        const senderToken = senderData?.deviceInfo?.fcmToken;
+        // Get sender's Expo push token
+        const senderToken = senderData?.deviceInfo?.expoPushToken;
         if (!senderToken) {
-          console.log('Sender has no FCM token');
+          console.log('Sender has no Expo push token');
           return;
         }
 
@@ -698,10 +777,10 @@ exports.onCohostInvitation = functions.firestore
         return;
       }
 
-      // Get recipient's FCM token
-      const recipientToken = recipientData?.deviceInfo?.fcmToken;
+      // Get recipient's Expo push token
+      const recipientToken = recipientData?.deviceInfo?.expoPushToken;
       if (!recipientToken) {
-        console.log('Recipient has no FCM token');
+        console.log('Recipient has no Expo push token');
         return;
       }
 
@@ -776,7 +855,7 @@ exports.onAdminNotificationTrigger = functions.firestore
 
       const { userId, title, message, priority, subType, data } = triggerData;
 
-      // Get user's FCM token
+      // Get user's Expo push token
       const userDoc = await admin.firestore().doc(`users/${userId}`).get();
       if (!userDoc.exists) {
         console.log('User document not found');
@@ -863,7 +942,7 @@ exports.onBanNotificationTrigger = functions.firestore
 
       const { userId, title, message, banType, reason, data } = triggerData;
 
-      // Get user's FCM token
+      // Get user's Expo push token
       const userDoc = await admin.firestore().doc(`users/${userId}`).get();
       if (!userDoc.exists) {
         console.log('User document not found');

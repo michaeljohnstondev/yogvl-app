@@ -14,7 +14,7 @@ const theme = {
     vibeBlue: '#00C6FF',
     vibeGreen: '#00FF41',
     vibeOrange: '#fd7e14',
-    vibePurple: '#8B00FF',
+    vibePurple: '#6B00CC',
     vibeYellow: '#FFFF00',
     vibePink: '#FF10F0',
     vibeRed: '#FF4444',

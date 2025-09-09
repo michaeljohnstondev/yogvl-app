@@ -59,6 +59,7 @@ export const INVITATION_STATUS = {
   ACCEPTED: 'accepted',
   DECLINED: 'declined',
   EXPIRED: 'expired',
+  KICKED: 'kicked',
 };
 
 export const INVITATION_TYPE = {
@@ -1170,6 +1171,92 @@ export const linkPhoneInvitationsToUser = async (phoneNumber, userId) => {
     };
   } catch (error) {
     console.error('Error linking phone invitations to user:', error);
+    throw error;
+  }
+};
+
+/**
+ * Kick an accepted attendee from an event (host only)
+ * This changes their invitation status from 'accepted' to 'kicked'
+ */
+export const kickGuestFromEvent = async (invitationId, hostId) => {
+  try {
+    console.log('[Invitations] Kicking guest from event:', { invitationId, hostId });
+
+    // Get the invitation
+    const invitationRef = doc(db, 'invitations', invitationId);
+    const invitationDoc = await getDoc(invitationRef);
+
+    if (!invitationDoc.exists()) {
+      throw new Error('Invitation not found');
+    }
+
+    const invitation = invitationDoc.data();
+
+    // Verify the request is from the host
+    if (invitation.hostId !== hostId) {
+      throw new Error('Only the event host can kick guests');
+    }
+
+    // Only kick accepted attendees
+    if (invitation.status !== INVITATION_STATUS.ACCEPTED) {
+      throw new Error('Can only kick accepted attendees');
+    }
+
+    const batch = writeBatch(db);
+
+    // Update invitation status to 'kicked'
+    batch.update(invitationRef, {
+      status: 'kicked',
+      kickedAt: Timestamp.now(),
+      kickedBy: hostId,
+    });
+
+    // Update event attendee count
+    const studioId = invitation.studioId;
+    const eventRef = doc(db, 'studios', studioId, 'events', invitation.eventId);
+    
+    batch.update(eventRef, {
+      attendeeCount: increment(-1),
+    });
+
+    // Remove from user's attending events
+    if (invitation.guestId) {
+      const userRef = doc(db, 'users', invitation.guestId);
+      batch.update(userRef, {
+        'userdata.events.attending': arrayRemove(invitation.eventId),
+      });
+    }
+
+    await batch.commit();
+
+    // Send notification to kicked user
+    if (invitation.guestId) {
+      try {
+        await createNotification({
+          recipientId: invitation.guestId,
+          type: NOTIFICATION_TYPES.EVENT_KICKED,
+          priority: NOTIFICATION_PRIORITY.HIGH,
+          title: 'Removed from Event',
+          body: `You have been removed from an event.`,
+          data: {
+            eventId: invitation.eventId,
+            hostId: hostId,
+            invitationId: invitationId,
+          },
+          deliveryChannels: [DELIVERY_CHANNELS.PUSH],
+        });
+      } catch (notificationError) {
+        console.warn('[Invitations] Failed to send kick notification:', notificationError);
+        // Don't throw - the kick was successful even if notification failed
+      }
+    }
+
+    console.log('[Invitations] Successfully kicked guest from event');
+    return { success: true };
+
+  } catch (error) {
+    console.error('[Invitations] Error kicking guest from event:', error);
     throw error;
   }
 };

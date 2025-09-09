@@ -21,6 +21,11 @@ export const getDefaultNotificationSettings = () => ({
     notifyOnLeave: true,
     sendDayBefore: true,
     newComments: true,
+    reminderTemplates: [
+      { id: '15min', amount: 15, unit: 'minutes', enabled: true, label: '15 min' },
+      { id: '1hour', amount: 1, unit: 'hours', enabled: true, label: '1 hour' },
+      { id: '1day', amount: 1, unit: 'days', enabled: false, label: '1 day' },
+    ],
   },
   attending: {
     hostChanges: true,

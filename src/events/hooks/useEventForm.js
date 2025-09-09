@@ -13,6 +13,7 @@ import { validateUserCanCreateEvent } from '../lib/eventValidation';
 import { updateEventCreationMetrics } from '../lib/userMetrics';
 import { eventFormValidators } from './useEventFormState';
 import { StudioStatsService } from '../../services/studioStatsService';
+import reminderService from '../../services/reminderService';
 
 export const useEventForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -281,6 +282,28 @@ Hope to see you there! 🎉`;
     } catch (error) {
       console.warn('Failed to update studio event count:', error);
       // Don't fail event creation if stats update fails
+    }
+
+    // Create reminders for the host based on notification settings
+    try {
+      const hostReminderTemplates = eventData.notificationSettings?.reminderTemplates || [];
+      if (hostReminderTemplates.length > 0) {
+        const eventWithId = {
+          ...eventDataWithStudio,
+          eventId: eventRef.id,
+          studioId: userStudio
+        };
+        
+        await reminderService.createRemindersForEvent(
+          eventWithId,
+          currentUserId,
+          hostReminderTemplates,
+          true // isHost = true
+        );
+      }
+    } catch (error) {
+      console.warn('Failed to create host reminders:', error);
+      // Don't fail event creation if reminder creation fails
     }
     
     // Send all invitations using batch service
