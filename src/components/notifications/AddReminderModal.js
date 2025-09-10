@@ -42,9 +42,9 @@ export default function AddReminderModal({
   }, [visible]);
 
   const presetOptions = [
-    { label: '5 minutes', value: { amount: 5, unit: 'minutes' } },
-    { label: '15 minutes', value: { amount: 15, unit: 'minutes' } },
-    { label: '30 minutes', value: { amount: 30, unit: 'minutes' } },
+    { label: '5 min', value: { amount: 5, unit: 'minutes' } },
+    { label: '15 min', value: { amount: 15, unit: 'minutes' } },
+    { label: '30 min', value: { amount: 30, unit: 'minutes' } },
     { label: '1 hour', value: { amount: 1, unit: 'hours' } },
     { label: '2 hours', value: { amount: 2, unit: 'hours' } },
     { label: '1 day', value: { amount: 1, unit: 'days' } },

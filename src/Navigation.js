@@ -16,7 +16,7 @@ import { UserDataCleanupService } from './services/UserDataCleanupService';
 import { AuthProvider } from './auth/AuthContext';
 import { RealtimeNotificationsProvider } from './contexts/RealtimeNotificationsContext';
 import { useEventEndNotifications } from './hooks/useEventEndNotifications';
-import fcmService from './services/fcmService';
+import fcmService from './services/fcmServiceWrapper';
 import LandingScreen from './screens/LandingScreen';
 import LoginScreen from './auth/screens/LoginScreen';
 import SignUpScreen from './auth/screens/SignUpScreen';
@@ -152,10 +152,8 @@ export default function Navigation() {
               await fcmService.initialize();
             }
             fcmService.setNavigationRef(navigationRef.current);
-            console.log('[Navigation] Registering push token for user:', user.uid);
             const tokenRegistered = await fcmService.registerTokenForUser(user.uid);
             if (tokenRegistered) {
-              console.log('[Navigation] Push token registered successfully');
             } else {
               console.warn('[Navigation] Failed to register push token');
             }

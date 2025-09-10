@@ -16,15 +16,20 @@ export const getDefaultNotificationSettings = () => ({
   },
   hosting: {
     enabled: true,
+    hostChanges: true,
+    eventReminders: true,
     reminderTiming: '1hour',
+    dayBeforeReminder: true,
+    hostComments: true,
+    newComments: true,
     notifyOnJoin: true,
     notifyOnLeave: true,
-    sendDayBefore: true,
-    newComments: true,
     reminderTemplates: [
       { id: '15min', amount: 15, unit: 'minutes', enabled: true, label: '15 min' },
       { id: '1hour', amount: 1, unit: 'hours', enabled: true, label: '1 hour' },
       { id: '1day', amount: 1, unit: 'days', enabled: false, label: '1 day' },
+      { id: '2hours', amount: 2, unit: 'hours', enabled: false, label: '2 hours' },
+      { id: '30min', amount: 30, unit: 'minutes', enabled: false, label: '30 min' },
     ],
   },
   attending: {
@@ -32,9 +37,15 @@ export const getDefaultNotificationSettings = () => ({
     eventReminders: true,
     reminderTiming: '1hour',
     dayBeforeReminder: true,
-    newComments: true,
-    eventCanceled: true,
-    wrapUpReminders: true,
+    hostComments: true,
+    newComments: false,
+    reminderTemplates: [
+      { id: '15min', amount: 15, unit: 'minutes', enabled: true, label: '15 min' },
+      { id: '1hour', amount: 1, unit: 'hours', enabled: true, label: '1 hour' },
+      { id: '1day', amount: 1, unit: 'days', enabled: false, label: '1 day' },
+      { id: '2hours', amount: 2, unit: 'hours', enabled: false, label: '2 hours' },
+      { id: '30min', amount: 30, unit: 'minutes', enabled: false, label: '30 min' },
+    ],
   },
 });
 

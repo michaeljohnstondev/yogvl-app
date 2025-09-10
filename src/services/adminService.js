@@ -40,7 +40,7 @@ export const hasAdminAccess = (userData) => {
  */
 export const getAllReportsForGlobalAdmin = async (limit = 50) => {
   try {
-    const studios = StudioService.getAllStudios();
+    const studios = await StudioService.getAllStudios();
     const allReports = [];
     
     console.log(`[adminService] Fetching reports from ${studios.length} studios`);

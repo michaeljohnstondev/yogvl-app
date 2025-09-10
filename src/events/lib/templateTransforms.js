@@ -10,7 +10,7 @@ const EXCLUDED_TEMPLATE_FIELDS = [
   'time',
   'dateSelected',
   'timeSelected',
-  'rsvpDeadline',
+  'rsvpDeadline', // Exclude the calculated timestamp, but keep rsvpDeadlineType
   'rsvpDeadlineSelected',
   'createdAt',
   'updatedAt',

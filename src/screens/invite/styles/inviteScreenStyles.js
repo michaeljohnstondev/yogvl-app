@@ -282,26 +282,44 @@ export default StyleSheet.create({
     fontWeight: 'bold',
   },
 
-  // Manual form
-  manualForm: {
-    gap: 12,
+  // QR Code Tab
+  qrContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
   },
-  input: {
-    marginBottom: 0,
+  qrTitle: {
+    color: theme.colors.white,
+    fontSize: 18,
+    fontWeight: 'bold',
+    fontFamily: theme.fonts.main,
+    marginBottom: 24,
+    textAlign: 'center',
   },
-  messageInput: {
-    marginBottom: 0,
+  qrSection: {
+    alignItems: 'center',
+    marginBottom: 30,
+    backgroundColor: theme.colors.inputBackground,
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.vibeBlue,
+    width: '100%',
   },
-  addButton: {
-    marginTop: 8,
-    marginVertical: 0,
+  qrSubtitle: {
+    color: theme.colors.vibeBlue,
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: theme.fonts.main,
+    marginBottom: 16,
+    textAlign: 'center',
   },
-  limitReachedText: {
-    color: theme.colors.vibeRed,
-    fontSize: 12,
+  qrDescription: {
+    color: theme.colors.gray,
+    fontSize: 14,
     fontFamily: theme.fonts.main,
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: 12,
+    lineHeight: 20,
   },
 
   // Selected section

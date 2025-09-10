@@ -154,6 +154,7 @@ const VibeAnalogClock = ({
   onClose,
   onConfirm,
   initialTime = null,
+  isFromTemplate = false,
   cancelText = 'Cancel',
   confirmText = 'Done',
 }) => {
@@ -166,12 +167,18 @@ const VibeAnalogClock = ({
     return 15;
   };
 
-  // If no initial time provided, use current time or 12:00 PM
+  // Get default time - only use initialTime if it's from template
   const getDefaultTime = () => {
-    return new Date();
+    if (isFromTemplate && initialTime) {
+      return initialTime;
+    }
+    // Default to 12:00 PM for clean slate
+    const defaultTime = new Date();
+    defaultTime.setHours(12, 0, 0, 0);
+    return defaultTime;
   };
 
-  const timeToUse = initialTime || getDefaultTime();
+  const timeToUse = getDefaultTime();
   const initialSelection = parseTimeToSelection(timeToUse);
 
   const [selectedHour, setSelectedHour] = useState(initialSelection.hour);
@@ -203,7 +210,11 @@ const VibeAnalogClock = ({
       // Minute selection
       const minute = getMinuteFromPosition(locationX, locationY);
       setSelectedMinute(minute);
-      // Stay at step 1 - user can continue adjusting or click Done
+      setCurrentStep(2); // Show both hands
+    } else {
+      // Continue adjusting minutes after both hands are visible
+      const minute = getMinuteFromPosition(locationX, locationY);
+      setSelectedMinute(minute);
     }
   }, [currentStep]);
 
@@ -253,14 +264,14 @@ const VibeAnalogClock = ({
   // Reset when modal opens
   React.useEffect(() => {
     if (visible) {
-      const timeToUse = initialTime || getDefaultTime();
+      const timeToUse = getDefaultTime();
       const selection = parseTimeToSelection(timeToUse);
       setSelectedHour(selection.hour);
       setSelectedMinute(selection.minute);
       setSelectedPeriod(selection.period);
       setCurrentStep(0);
     }
-  }, [visible, initialTime]);
+  }, [visible, initialTime, isFromTemplate]);
 
   if (!visible) return null;
 
@@ -343,23 +354,15 @@ const VibeAnalogClock = ({
                   {/* Numbers */}
                   <ClockNumbers />
                   
-                  {/* Clock hands - only show after user has started selecting */}
-                  {currentStep > 0 && (
+                  {/* Clock hands - show progressively */}
+                  {currentStep >= 1 && (
                     <>
-                      {/* Hour hand */}
+                      {/* Hour hand - always shown after first click */}
                       <ClockHand
                         angle={hourAngle}
                         length={HOUR_HAND_LENGTH}
                         color={theme.colors.vibeGreen}
                         width={4}
-                      />
-                      
-                      {/* Minute hand */}
-                      <ClockHand
-                        angle={minuteAngle}
-                        length={MINUTE_HAND_LENGTH}
-                        color={theme.colors.vibeGreen}
-                        width={3}
                       />
                       
                       {/* Center dot */}
@@ -370,6 +373,16 @@ const VibeAnalogClock = ({
                         fill={theme.colors.vibeBlue}
                       />
                     </>
+                  )}
+                  
+                  {/* Minute hand - only show after second click/interaction */}
+                  {currentStep > 1 && (
+                    <ClockHand
+                      angle={minuteAngle}
+                      length={MINUTE_HAND_LENGTH}
+                      color={theme.colors.vibeGreen}
+                      width={3}
+                    />
                   )}
                 </Svg>
               </Pressable>

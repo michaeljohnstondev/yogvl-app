@@ -13,7 +13,7 @@ import { validateUserCanCreateEvent } from '../lib/eventValidation';
 import { updateEventCreationMetrics } from '../lib/userMetrics';
 import { eventFormValidators } from './useEventFormState';
 import { StudioStatsService } from '../../services/studioStatsService';
-import reminderService from '../../services/reminderService';
+import EventNotificationScheduler from '../../services/eventNotificationScheduler';
 
 export const useEventForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -284,27 +284,31 @@ Hope to see you there! 🎉`;
       // Don't fail event creation if stats update fails
     }
 
-    // Create reminders for the host based on notification settings
+    // Schedule server-side FCM notifications for the event
     try {
-      const hostReminderTemplates = eventData.notificationSettings?.reminderTemplates || [];
-      if (hostReminderTemplates.length > 0) {
-        const eventWithId = {
-          ...eventDataWithStudio,
-          eventId: eventRef.id,
-          studioId: userStudio
-        };
-        
-        await reminderService.createRemindersForEvent(
-          eventWithId,
-          currentUserId,
-          hostReminderTemplates,
-          true // isHost = true
-        );
-      }
-    } catch (error) {
-      console.warn('Failed to create host reminders:', error);
-      // Don't fail event creation if reminder creation fails
+      const customReminderTemplates = eventData.notificationSettings?.reminderTemplates || [];
+      await EventNotificationScheduler.scheduleEventReminders(
+        eventRef.id,
+        {
+          title: eventDataWithStudio.title,
+          startTime: eventDataWithStudio.eventTimestamp,
+          eventTimestamp: eventDataWithStudio.eventTimestamp, // Also include as eventTimestamp for compatibility
+          location: eventDataWithStudio.location,
+          studioId: userStudio,
+          subscribers: [currentUserId], // Initially just the creator
+          createdBy: currentUserId
+        },
+        currentUserId,
+        customReminderTemplates
+      );
+      console.log('[EventForm] Scheduled server-side FCM notifications for event:', eventRef.id, 
+                  `(${customReminderTemplates.length} custom templates)`);
+    } catch (notificationError) {
+      console.warn('[EventForm] Failed to schedule server-side notifications:', notificationError);
+      // Don't fail event creation if notification scheduling fails
     }
+
+    // Legacy reminder system replaced with server-side FCM scheduling above
     
     // Send all invitations using batch service
     try {
@@ -528,6 +532,30 @@ Hope to see you there! 🎉`;
       
       // Update only the event metadata, not the attendee/cohost arrays
       await updateDoc(eventRef, eventDataWithoutArrays);
+
+      // Reschedule server-side FCM notifications for the updated event
+      try {
+        const customReminderTemplates = eventData.notificationSettings?.reminderTemplates || [];
+        await EventNotificationScheduler.rescheduleEventReminders(
+          eventId,
+          {
+            title: eventData.title,
+            startTime: eventData.eventTimestamp,
+            eventTimestamp: eventData.eventTimestamp, // Also include as eventTimestamp for compatibility
+            location: eventData.location,
+            studioId: userStudio,
+            subscribers: existingEvent.subscribers || [currentUserId],
+            createdBy: existingEvent.createdBy || currentUserId
+          },
+          currentUserId,
+          customReminderTemplates
+        );
+        console.log('[EventForm] Rescheduled server-side FCM notifications for event:', eventId,
+                    `(${customReminderTemplates.length} custom templates)`);
+      } catch (notificationError) {
+        console.warn('[EventForm] Failed to reschedule server-side notifications:', notificationError);
+        // Don't fail event update if notification scheduling fails
+      }
       
       // Send invitations for new cohosts/guests if any were selected
       if (selectedInvitations && (

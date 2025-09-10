@@ -15,6 +15,7 @@ import {
   increment,
 } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
+// Location import moved to function level to avoid module loading issues
 
 export class StudioRequestService {
   /**
@@ -88,7 +89,7 @@ export class StudioRequestService {
         mergedInto: null,
       };
 
-      await setDoc(doc(db, 'studioRequests', requestId), requestData);
+      await setDoc(doc(db, 'admin/studioRequests/requests', requestId), requestData);
 
       console.log('[StudioRequestService] Studio request created successfully:', requestId);
       
@@ -157,7 +158,7 @@ export class StudioRequestService {
       const normalizedCity = cityName.trim().toLowerCase();
       const normalizedState = stateName.trim().toUpperCase();
 
-      const requestsRef = collection(db, 'studioRequests');
+      const requestsRef = collection(db, 'admin/studioRequests/requests');
       const q = query(
         requestsRef,
         where('normalizedCity', '==', normalizedCity),
@@ -186,7 +187,7 @@ export class StudioRequestService {
    */
   static async incrementRequestCount(requestId) {
     try {
-      const requestRef = doc(db, 'studioRequests', requestId);
+      const requestRef = doc(db, 'admin/studioRequests/requests', requestId);
       await updateDoc(requestRef, {
         requestCount: increment(1),
         lastRequestedAt: serverTimestamp(),
@@ -202,12 +203,10 @@ export class StudioRequestService {
    */
   static async getPendingRequests() {
     try {
-      const requestsRef = collection(db, 'studioRequests');
+      const requestsRef = collection(db, 'admin/studioRequests/requests');
       const q = query(
         requestsRef,
-        where('status', '==', 'pending'),
-        orderBy('requestCount', 'desc'), // Most requested first
-        orderBy('requestedAt', 'desc')
+        where('status', '==', 'pending')
       );
 
       const snapshot = await getDocs(q);
@@ -234,7 +233,7 @@ export class StudioRequestService {
    */
   static async getAllRequests() {
     try {
-      const requestsRef = collection(db, 'studioRequests');
+      const requestsRef = collection(db, 'admin/studioRequests/requests');
       const q = query(
         requestsRef,
         orderBy('requestedAt', 'desc'),
@@ -259,51 +258,115 @@ export class StudioRequestService {
   }
 
   /**
+   * Get coordinates for a city/state using geocoding
+   * @param {string} city - City name
+   * @param {string} state - State name
+   * @param {string} country - Country name
+   * @returns {Promise<Object|null>} Coordinates object or null
+   */
+  static async getCoordinatesForCity(city, state, country = 'USA') {
+    console.log('[StudioRequestService] Starting getCoordinatesForCity');
+    
+    const query = `${city}, ${state}, ${country}`;
+    console.log('[StudioRequestService] Geocoding address:', query);
+    
+    try {
+      // Try to import expo-location the same way LocationScreen does
+      const Location = require('expo-location');
+      console.log('[StudioRequestService] Location imported successfully');
+      
+      // Request permissions
+      console.log('[StudioRequestService] Requesting location permissions...');
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      console.log('[StudioRequestService] Permission status:', status);
+      
+      if (status !== 'granted') {
+        console.warn('[StudioRequestService] Location permission denied');
+        return null;
+      }
+      
+      // Try geocoding
+      console.log('[StudioRequestService] Calling geocodeAsync...');
+      const results = await Location.geocodeAsync(query);
+      console.log('[StudioRequestService] Geocoding results:', results);
+      
+      if (results && results.length > 0) {
+        const result = results[0];
+        const coordinates = {
+          lat: result.latitude,
+          lng: result.longitude
+        };
+        console.log('[StudioRequestService] Geocoding successful:', coordinates);
+        return coordinates;
+      } else {
+        console.log('[StudioRequestService] No geocoding results found');
+        return null;
+      }
+      
+    } catch (error) {
+      console.error('[StudioRequestService] Geocoding error:', error.message);
+      return null;
+    }
+  }
+
+  /**
    * Approve a studio request (admin only)
    * @param {string} requestId - Request ID
    * @param {string} adminId - Admin user ID
-   * @param {Object} studioData - Additional studio data
+   * @param {Object} customStudioData - Custom/edited studio data to override defaults
    * @returns {Promise<Object>} Result object
    */
-  static async approveStudioRequest(requestId, adminId, studioData = {}) {
+  static async approveStudioRequest(requestId, adminId, customStudioData = {}) {
     try {
       console.log('[StudioRequestService] Approving studio request:', requestId);
 
       // Get the request data
-      const requestDoc = await getDoc(doc(db, 'studioRequests', requestId));
+      const requestDoc = await getDoc(doc(db, 'admin/studioRequests/requests', requestId));
       if (!requestDoc.exists()) {
         throw new Error('Request not found');
       }
 
       const requestData = requestDoc.data();
       
-      // Generate unique studio ID
-      const studioId = `${requestData.normalizedCity}_${requestData.normalizedState}`;
+      // Use custom data or fallback to request data
+      const finalCityName = customStudioData.city || requestData.cityName;
+      const finalStateName = customStudioData.state || requestData.stateName;
+      const finalCountry = customStudioData.country || requestData.country;
       
+      // Generate unique studio ID (use custom or normalized from final data)
+      const studioId = customStudioData.id || `${finalCityName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${finalStateName.toUpperCase()}`;
+      
+      // Get coordinates for the city (use custom coordinates or geocode)
+      let coordinates = customStudioData.coordinates;
+      if (!coordinates) {
+        coordinates = await this.getCoordinatesForCity(finalCityName, finalStateName, finalCountry);
+      }
+
       // Create the studio in the studios collection
       const newStudio = {
         id: studioId,
-        name: `${requestData.cityName} Studio`,
-        city: requestData.cityName,
-        state: requestData.stateName,
-        country: requestData.country,
-        region: this.getRegionFromState(requestData.stateName),
-        status: 'active',
-        isActive: true,
-        createdBy: adminId,
+        name: customStudioData.name || `${finalCityName} Studio`,
+        city: finalCityName,
+        state: finalStateName,
+        country: finalCountry,
+        region: customStudioData.region || this.getRegionFromState(finalStateName),
+        status: customStudioData.status || 'active',
+        isActive: customStudioData.isActive !== undefined ? customStudioData.isActive : true,
         createdAt: serverTimestamp(),
-        approvedBy: adminId,
-        approvedAt: serverTimestamp(),
-        requestCount: requestData.requestCount,
-        originalRequestId: requestId,
-        // Merge any additional studio data
-        ...studioData,
+        // Add coordinates if available
+        ...(coordinates && { coordinates }),
+        // Merge any other custom studio data
+        ...Object.fromEntries(
+          Object.entries(customStudioData).filter(([key]) => 
+            !['id', 'name', 'city', 'state', 'country', 'region', 'status', 'isActive', 'coordinates'].includes(key)
+          )
+        ),
       };
 
       await setDoc(doc(db, 'studios', studioId), newStudio);
 
-      // Update the request status
-      await updateDoc(doc(db, 'studioRequests', requestId), {
+      // Update the request status to approved
+      await updateDoc(doc(db, 'admin/studioRequests/requests', requestId), {
         status: 'approved',
         processedBy: adminId,
         processedAt: serverTimestamp(),
@@ -340,7 +403,7 @@ export class StudioRequestService {
     try {
       console.log('[StudioRequestService] Rejecting studio request:', requestId);
 
-      await updateDoc(doc(db, 'studioRequests', requestId), {
+      await updateDoc(doc(db, 'admin/studioRequests/requests', requestId), {
         status: 'rejected',
         processedBy: adminId,
         processedAt: serverTimestamp(),
@@ -398,5 +461,116 @@ export class StudioRequestService {
     };
 
     return stateToRegion[state.toUpperCase()] || 'Other';
+  }
+
+  /**
+   * Update an existing studio (admin only)
+   * @param {string} studioId - Studio ID to update
+   * @param {Object} updateData - Data to update
+   * @returns {Promise<Object>} Result object
+   */
+  static async updateStudio(studioId, updateData) {
+    try {
+      console.log('[StudioRequestService] Updating studio:', studioId);
+
+      // Get current studio data
+      const studioDoc = await getDoc(doc(db, 'studios', studioId));
+      if (!studioDoc.exists()) {
+        throw new Error('Studio not found');
+      }
+
+      const currentData = studioDoc.data();
+      
+      // If coordinates are being updated manually, don't geocode
+      let coordinates = updateData.coordinates || currentData.coordinates;
+      
+      // If location changed but no manual coordinates provided, geocode
+      if ((updateData.city || updateData.state || updateData.country) && !updateData.coordinates) {
+        const city = updateData.city || currentData.city;
+        const state = updateData.state || currentData.state;
+        const country = updateData.country || currentData.country;
+        
+        const geoCoordinates = await this.getCoordinatesForCity(city, state, country);
+        if (geoCoordinates) {
+          coordinates = geoCoordinates;
+        }
+      }
+
+      // Prepare update data
+      const finalUpdateData = {
+        ...updateData,
+        ...(coordinates && { coordinates }),
+        updatedAt: serverTimestamp(),
+      };
+
+      // Update the studio
+      await updateDoc(doc(db, 'studios', studioId), finalUpdateData);
+
+      console.log('[StudioRequestService] Studio updated successfully:', studioId);
+
+      return {
+        success: true,
+        studioId,
+        message: 'Studio updated successfully'
+      };
+
+    } catch (error) {
+      console.error('[StudioRequestService] Error updating studio:', error);
+      return {
+        success: false,
+        error: error.message,
+        message: 'Failed to update studio'
+      };
+    }
+  }
+
+  /**
+   * Get studio data for editing (admin only)
+   * @param {string} studioId - Studio ID
+   * @returns {Promise<Object>} Studio data or null
+   */
+  static async getStudioForEdit(studioId) {
+    try {
+      const studioDoc = await getDoc(doc(db, 'studios', studioId));
+      if (!studioDoc.exists()) {
+        return null;
+      }
+      
+      return {
+        id: studioDoc.id,
+        ...studioDoc.data()
+      };
+    } catch (error) {
+      console.error('[StudioRequestService] Error getting studio for edit:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Toggle studio active status (admin only)
+   * @param {string} studioId - Studio ID
+   * @param {boolean} isActive - New active status
+   * @returns {Promise<Object>} Result object
+   */
+  static async toggleStudioStatus(studioId, isActive) {
+    try {
+      await updateDoc(doc(db, 'studios', studioId), {
+        isActive,
+        status: isActive ? 'active' : 'inactive',
+        updatedAt: serverTimestamp(),
+      });
+
+      return {
+        success: true,
+        message: `Studio ${isActive ? 'activated' : 'deactivated'} successfully`
+      };
+    } catch (error) {
+      console.error('[StudioRequestService] Error toggling studio status:', error);
+      return {
+        success: false,
+        error: error.message,
+        message: 'Failed to update studio status'
+      };
+    }
   }
 }

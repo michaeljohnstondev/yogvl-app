@@ -145,7 +145,7 @@ export default function EditEventScreen({ navigation, route }) {
       isPrivate: eventData.isPrivate || false,
       allowGuestInvites: eventData.allowGuestInvites || false,
       showHostContact: eventData.showHostContact !== undefined ? eventData.showHostContact : true,
-      hasRsvpDeadline: eventData.hasRsvpDeadline || false,
+      hasRsvpDeadline: !!eventData.rsvpDeadline,
       whatsProvided: eventData.whatsProvided || '',
       whatToBring: eventData.whatToBring || '',
       parkingInstructions: eventData.parkingInstructions || '',
@@ -353,9 +353,9 @@ export default function EditEventScreen({ navigation, route }) {
                             formData.isPrivate !== (eventData.isPrivate || false) || 
                             formData.allowGuestInvites !== (eventData.allowGuestInvites || false) ||
                             formData.showHostContact !== (eventData.showHostContact !== undefined ? eventData.showHostContact : true) || 
-                            formData.hasRsvpDeadline !== (eventData.hasRsvpDeadline || false) ||
+                            formData.hasRsvpDeadline !== !!eventData.rsvpDeadline ||
                             formData.trackAttendance !== (eventData.trackAttendance || false) ||
-                            (formData.entryFee || '').trim() !== (eventData.entryFee || '').trim();
+                            String(formData.entryFee || '').trim() !== String(eventData.entryFee || '').trim();
     
     // Check for invitation changes - only NEW invitations count as changes
     // (current attendees/cohosts are already saved, we only care about new invites)
@@ -503,7 +503,7 @@ export default function EditEventScreen({ navigation, route }) {
             templateFormData.showHostContact !== undefined
               ? templateFormData.showHostContact
               : true,
-          hasRsvpDeadline: templateFormData.hasRsvpDeadline || false,
+          hasRsvpDeadline: !!templateFormData.rsvpDeadline,
           whatsProvided: templateFormData.whatsProvided || '',
           whatToBring: templateFormData.whatToBring || '',
           parkingInstructions: templateFormData.parkingInstructions || '',
@@ -543,8 +543,7 @@ export default function EditEventScreen({ navigation, route }) {
             eventDateTime.setMilliseconds(0);
           }
 
-          const hasRsvpDeadline =
-            templateFormData.hasRsvpDeadline && templateFormData.rsvpDeadline;
+          const hasRsvpDeadline = !!templateFormData.rsvpDeadline;
 
           updateDateTimeFromTemplate({
             event: {

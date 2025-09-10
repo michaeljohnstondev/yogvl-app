@@ -19,7 +19,7 @@ import InviteScreenHeader from './invite/components/InviteScreenHeader';
 import TabSelector from './invite/components/TabSelector';
 import AppUsersTab from './invite/components/tabs/AppUsersTab';
 import PhoneContactsTab from './invite/components/tabs/PhoneContactsTab';
-import ManualEntryTab from './invite/components/tabs/ManualEntryTab';
+import QRCodeTab from './invite/components/tabs/QRCodeTab';
 import SelectedItemsList from './invite/components/lists/SelectedItemsList';
 import GroupManagementModal from './invite/components/groups/GroupManagementModal';
 import CreateGroupModal from './invite/components/groups/CreateGroupModal';
@@ -45,6 +45,8 @@ export default function InviteScreen() {
     maxLimit = null,
     eventTitle = null,
     eventId = null, // If eventId exists, we're coming from an existing event
+    inviteCode = null,
+    studioId: routeStudioId = null,
     source = 'unknown',
     onSave
   } = route.params || {};
@@ -384,48 +386,41 @@ export default function InviteScreen() {
             />
           )}
 
-          {state.activeTab === TABS.MANUAL && (
-            <ManualEntryTab
-              contactName={state.contactName}
-              setContactName={state.setContactName}
-              contactEmail={state.contactEmail}
-              setContactEmail={state.setContactEmail}
-              contactPhone={state.contactPhone}
-              setContactPhone={state.setContactPhone}
-              personalMessage={state.personalMessage}
-              setPersonalMessage={state.setPersonalMessage}
-              handleAddContact={selectionHandlers.handleAddContact}
-              clearManualForm={state.clearManualForm}
+          {state.activeTab === TABS.QR && (
+            <QRCodeTab
+              eventId={eventId}
+              inviteCode={inviteCode}
+              studioId={routeStudioId || studioId}
               isHostMode={isHostMode}
-              type={type}
-              maxLimit={maxLimit}
-              localSelectedUsers={state.localSelectedUsers}
-              localSelectedContacts={state.localSelectedContacts}
-              localSelectedPhoneContacts={state.localSelectedPhoneContacts}
             />
           )}
         </View>
 
-        <SelectedItemsList
-          localSelectedUsers={state.localSelectedUsers}
-          localSelectedPhoneContacts={state.localSelectedPhoneContacts}
-          localSelectedContacts={state.localSelectedContacts}
-          removeUser={selectionHandlers.removeUser}
-          removePhoneContact={selectionHandlers.removePhoneContact}
-          removeContact={selectionHandlers.removeContact}
-          isHostMode={isHostMode}
-          themeColor={themeColor}
-        />
+        {/* Hide selected items list when QR tab is active */}
+        {state.activeTab !== TABS.QR && (
+          <SelectedItemsList
+            localSelectedUsers={state.localSelectedUsers}
+            localSelectedPhoneContacts={state.localSelectedPhoneContacts}
+            localSelectedContacts={state.localSelectedContacts}
+            removeUser={selectionHandlers.removeUser}
+            removePhoneContact={selectionHandlers.removePhoneContact}
+            removeContact={selectionHandlers.removeContact}
+            isHostMode={isHostMode}
+            themeColor={themeColor}
+          />
+        )}
       </ScrollView>
 
-      {/* Fixed bottom invite button */}
-      <View style={[styles.bottomButtonContainer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-        <VibeButton
-          label={isHostMode ? 'Add Co-Hosts' : 'Invite Guests'}
-          onPress={handleSave}
-          style={styles.inviteButton}
-        />
-      </View>
+      {/* Hide invite button when QR tab is active - QR codes handle invitations */}
+      {state.activeTab !== TABS.QR && (
+        <View style={[styles.bottomButtonContainer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+          <VibeButton
+            label={isHostMode ? 'Add Co-Hosts' : 'Invite Guests'}
+            onPress={handleSave}
+            style={styles.inviteButton}
+          />
+        </View>
+      )}
 
       <GroupManagementModal
         visible={state.showGroupModal}

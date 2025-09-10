@@ -13,6 +13,19 @@ import { db } from '../auth/services/firebase';
 import { getFollowing } from './followService';
 
 /**
+ * Helper function to check if an event should be hidden due to past RSVP deadline
+ * Events with rsvpDeadline that has passed should not appear in discovery feeds
+ */
+const shouldHideEventDueToRSVPDeadline = (eventData) => {
+  if (!eventData.rsvpDeadline) return false;
+  
+  const now = new Date();
+  const deadline = eventData.rsvpDeadline.toDate ? eventData.rsvpDeadline.toDate() : new Date(eventData.rsvpDeadline);
+  
+  return deadline < now;
+};
+
+/**
  * Get events from users that the current user is following
  * This replaces the old invitation-based event discovery
  */
@@ -55,7 +68,11 @@ export const getFollowedUsersEvents = async (currentUserId, userStudio, limitCou
         isFromFollowedUser: true,
         category: 'followed_events'
       };
-      events.push(eventData);
+      
+      // Skip events with past RSVP deadlines
+      if (!shouldHideEventDueToRSVPDeadline(eventData)) {
+        events.push(eventData);
+      }
     });
 
     // If we have more than 10 followed users, need to make additional queries
@@ -83,7 +100,11 @@ export const getFollowedUsersEvents = async (currentUserId, userStudio, limitCou
             isFromFollowedUser: true,
             category: 'followed_events'
           };
-          events.push(eventData);
+          
+          // Skip events with past RSVP deadlines
+          if (!shouldHideEventDueToRSVPDeadline(eventData)) {
+            events.push(eventData);
+          }
         });
       });
     }
@@ -141,11 +162,14 @@ export const getSuggestedEvents = async (currentUserId, userStudio, limitCount =
       
       // Skip events from followed users or current user
       if (!followedUserIds.has(eventData.createdBy)) {
-        suggestedEvents.push({
-          ...eventData,
-          isSuggested: true,
-          category: 'suggested_events'
-        });
+        // Skip events with past RSVP deadlines
+        if (!shouldHideEventDueToRSVPDeadline(eventData)) {
+          suggestedEvents.push({
+            ...eventData,
+            isSuggested: true,
+            category: 'suggested_events'
+          });
+        }
       }
     });
 
@@ -275,7 +299,7 @@ export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
 /**
  * Get events created by a specific user (for their profile)
  */
-export const getUserEvents = async (userId, userStudio, includePrivate = false, limitCount = 50) => {
+export const getUserEvents = async (userId, userStudio, includePrivate = false, limitCount = 50, currentUserId = null) => {
   try {
     if (!userId || !userStudio) {
       return [];
@@ -305,11 +329,23 @@ export const getUserEvents = async (userId, userStudio, includePrivate = false, 
     }
 
     const snapshot = await getDocs(q);
-    const events = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      category: 'user_events'
-    }));
+    const events = [];
+
+    snapshot.docs.forEach(doc => {
+      const eventData = {
+        id: doc.id,
+        ...doc.data(),
+        category: 'user_events'
+      };
+
+      // If viewing someone else's profile (not your own), hide events with past RSVP deadlines
+      const isOwnProfile = currentUserId && currentUserId === userId;
+      if (!isOwnProfile && shouldHideEventDueToRSVPDeadline(eventData)) {
+        return; // Skip this event
+      }
+
+      events.push(eventData);
+    });
 
     return events;
   } catch (error) {

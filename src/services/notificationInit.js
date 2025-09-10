@@ -9,15 +9,13 @@ let processorCleanup = null;
  * Call this when your app starts (e.g., in App.js)
  */
 export const initializeNotificationServices = () => {
-  console.log('[NotificationInit] Initializing scheduled notification services...');
   
   try {
-    // Start the background processor
-    processorCleanup = ScheduledNotificationService.startBackgroundProcessor();
+    // DISABLED: Removed inefficient 2-minute polling background processor
+    // TODO: Replace with proper event-driven notification scheduling
+    console.log('[NotificationInit] Notification services initialized (background polling disabled)');
     
-    console.log('[NotificationInit] ✅ Scheduled notification processor started');
-    
-    // Run initial cleanup of old notifications
+    // Run one-time cleanup of old notifications
     ScheduledNotificationService.cleanupOldNotifications(30).then(result => {
       if (result.deletedCount > 0) {
         console.log(`[NotificationInit] 🧹 Cleaned up ${result.deletedCount} old scheduled notifications`);

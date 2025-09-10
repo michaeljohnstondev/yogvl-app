@@ -40,7 +40,9 @@
       "Bash(git push:*)",
       "Read(/C:\\dev\\bvs-app\\src\\services/**)",
       "Bash(eas build:*)",
-      "Bash(eas update:*)"
+      "Bash(eas update:*)",
+      "Bash(del test-api.js)",
+      "Bash(npm run start:*)"
     ],
     "deny": [],
     "ask": [],

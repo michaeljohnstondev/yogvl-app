@@ -48,34 +48,14 @@ export default function CreateEventScreen({ navigation, route }) {
   if (!hasInitialized.current) {
     hasInitialized.current = true;
 
-    // Merge user default notification settings with preserved form state or template
-    const hostingDefaults =
-      userData?.userdata?.settings?.notifications?.hosting || {};
+    // Get user hosting defaults - they always exist because defaultUserSettings initializes them
+    const hostingDefaults = userData?.userdata?.settings?.notifications?.hosting;
     const baseFormData = preservedFormState?.formData || templateFromEvent || {};
 
-    // Merge notification settings with user hosting defaults (using template structure)
+    // Use user's hosting defaults directly (deep copy)
     stableFormRef.current = {
       ...baseFormData,
-      notificationSettings: {
-        enabled: hostingDefaults.enabled ?? true,
-        reminderTiming: hostingDefaults.reminderTiming ?? '1hour',
-        notifyOnJoin: hostingDefaults.notifyOnJoin ?? true,
-        notifyOnLeave: hostingDefaults.notifyOnLeave ?? true,
-        sendReminders: hostingDefaults.enabled ?? true,
-        sendDayBefore: hostingDefaults.sendDayBefore ?? true,
-        newComments: hostingDefaults.newComments ?? true,
-        customMessage: '',
-        reminderTemplates: hostingDefaults.reminderTemplates ? 
-          // Copy templates from user defaults and preserve enabled state
-          JSON.parse(JSON.stringify(hostingDefaults.reminderTemplates)) :
-          // Fallback to default templates if user has none
-          [
-            { id: '15min', amount: 15, unit: 'minutes', enabled: true, label: '15 min' },
-            { id: '1hour', amount: 1, unit: 'hours', enabled: true, label: '1 hour' },
-            { id: '1day', amount: 1, unit: 'days', enabled: false, label: '1 day' },
-          ],
-        ...baseFormData.notificationSettings, // Preserve any existing notification settings
-      },
+      notificationSettings: JSON.parse(JSON.stringify(hostingDefaults)),
     };
   }
 
@@ -254,7 +234,7 @@ export default function CreateEventScreen({ navigation, route }) {
                             formData.showHostContact !== false || 
                             formData.hasRsvpDeadline !== false || 
                             formData.trackAttendance !== true ||
-                            (formData.entryFee && formData.entryFee.trim());
+                            (formData.entryFee && String(formData.entryFee).trim());
     
     // Check for any invitations/guests
     const hasInvitations = selectedGuestUsers.length > 0 || 
@@ -418,7 +398,8 @@ export default function CreateEventScreen({ navigation, route }) {
             templateFormData.showHostContact !== undefined
               ? templateFormData.showHostContact
               : true,
-          hasRsvpDeadline: templateFormData.hasRsvpDeadline || false,
+          hasRsvpDeadline: !!templateFormData.rsvpDeadline,
+          rsvpDeadlineType: templateFormData.rsvpDeadlineType || 'none',
           whatsProvided: templateFormData.whatsProvided || '',
           whatToBring: templateFormData.whatToBring || '',
           parkingInstructions: templateFormData.parkingInstructions || '',

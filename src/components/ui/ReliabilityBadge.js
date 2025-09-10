@@ -16,7 +16,7 @@ export default function ReliabilityBadge({
   style 
 }) {
   const reliabilityData = ReliabilityService.getUserReliabilityDisplay(userData);
-  const { score, tier, displayText, shortDisplayText } = reliabilityData;
+  const { score, tier, displayText, shortDisplayText, isNewUser } = reliabilityData;
 
   const sizes = {
     small: {

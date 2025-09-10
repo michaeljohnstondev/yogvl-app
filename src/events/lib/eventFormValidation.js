@@ -132,7 +132,7 @@ export const validateEventForm = (formData) => {
   } = formData;
 
   // Check required fields
-  if (!title || title.trim().length === 0) {
+  if (!title || (typeof title !== 'string') || title.trim().length === 0) {
     console.log('🚨 Validation failed: Event name is required');
     return {
       isValid: false,
@@ -140,21 +140,21 @@ export const validateEventForm = (formData) => {
     };
   }
 
-  if (title.trim().length > 30) {
+  if (typeof title === 'string' && title.trim().length > 30) {
     return {
       isValid: false,
       message: 'Event name must be 30 characters or less',
     };
   }
 
-  if (!location || location.trim().length === 0) {
+  if (!location || (typeof location !== 'string') || location.trim().length === 0) {
     return {
       isValid: false,
       message: 'Location is required',
     };
   }
 
-  if (location.trim().length > 40) {
+  if (typeof location === 'string' && location.trim().length > 40) {
     return {
       isValid: false,
       message: 'Location must be 40 characters or less',
@@ -162,7 +162,7 @@ export const validateEventForm = (formData) => {
   }
 
   // Validate address if provided
-  if (address && address.trim().length > 300) {
+  if (address && typeof address === 'string' && address.trim().length > 300) {
     return {
       isValid: false,
       message: 'Address must be 300 characters or less',
@@ -170,7 +170,7 @@ export const validateEventForm = (formData) => {
   }
 
   // Validate details field (consolidated from old separate fields)
-  if (formData.details && formData.details.trim().length > 1500) {
+  if (formData.details && typeof formData.details === 'string' && formData.details.trim().length > 1500) {
     return {
       isValid: false,
       message: 'Event details must be 1500 characters or less',
@@ -199,7 +199,7 @@ export const validateEventForm = (formData) => {
   }
 
   // Validate max guests if provided
-  if (maxGuests && maxGuests.trim().length > 0) {
+  if (maxGuests && typeof maxGuests === 'string' && maxGuests.trim().length > 0) {
     const maxGuestsNum = parseInt(maxGuests);
     if (isNaN(maxGuestsNum) || maxGuestsNum < 1) {
       return {
@@ -217,7 +217,7 @@ export const validateEventForm = (formData) => {
 
   // Validate entry fee if paid event
   if (hasFee) {
-    if (!entryFee || entryFee.trim().length === 0) {
+    if (!entryFee || (typeof entryFee !== 'string') || entryFee.trim().length === 0) {
       return {
         isValid: false,
         message: 'Entry fee amount is required for paid events',
@@ -272,9 +272,11 @@ export const formatEventForStorage = (formData, currentUserId, isEditing = false
     hasRsvpDeadline,
     rsvpDeadline,
     rsvpDeadlineSelected,
+    rsvpDeadlineType,
     trackAttendance,
     attendanceType,
   } = formData;
+  
 
   // Format main event date/time
   const combined = DateTime.fromObject(
@@ -287,21 +289,65 @@ export const formatEventForStorage = (formData, currentUserId, isEditing = false
     },
     { zone: Intl.DateTimeFormat().resolvedOptions().timeZone }
   );
+  
+  const eventTimestamp = new Date(combined.toUTC().toISO());
 
-  // Format RSVP deadline if enabled
+  // Format RSVP deadline based on rsvpDeadlineType
   let rsvpDeadline_timestamp = null;
-  if (hasRsvpDeadline && rsvpDeadlineSelected) {
-    const rsvpCombined = DateTime.fromObject(
-      {
-        year: rsvpDeadline.getFullYear(),
-        month: rsvpDeadline.getMonth() + 1,
-        day: rsvpDeadline.getDate(),
-        hour: rsvpDeadline.getHours(),
-        minute: rsvpDeadline.getMinutes(),
-      },
-      { zone: Intl.DateTimeFormat().resolvedOptions().timeZone }
-    );
-    rsvpDeadline_timestamp = new Date(rsvpCombined.toUTC().toISO());
+
+  // Handle rsvpDeadlineType from form data
+  if (formData.rsvpDeadlineType && formData.rsvpDeadlineType !== 'none') {
+    if (formData.rsvpDeadlineType === 'custom') {
+      // Use custom date/time from date picker
+      if (hasRsvpDeadline && rsvpDeadlineSelected && rsvpDeadline) {
+        const rsvpCombined = DateTime.fromObject(
+          {
+            year: rsvpDeadline.getFullYear(),
+            month: rsvpDeadline.getMonth() + 1,
+            day: rsvpDeadline.getDate(),
+            hour: rsvpDeadline.getHours(),
+            minute: rsvpDeadline.getMinutes(),
+          },
+          { zone: Intl.DateTimeFormat().resolvedOptions().timeZone }
+        );
+        rsvpDeadline_timestamp = new Date(rsvpCombined.toUTC().toISO());
+      }
+    } else {
+      // Calculate deadline based on preset option (1hour, 1day, etc.)
+      const eventDateTime = DateTime.fromJSDate(eventTimestamp);
+      let deadlineDateTime;
+
+      switch (formData.rsvpDeadlineType) {
+        case '1hour':
+          deadlineDateTime = eventDateTime.minus({ hours: 1 });
+          break;
+        case '2hours':
+          deadlineDateTime = eventDateTime.minus({ hours: 2 });
+          break;
+        case '6hours':
+          deadlineDateTime = eventDateTime.minus({ hours: 6 });
+          break;
+        case '1day':
+          deadlineDateTime = eventDateTime.minus({ days: 1 });
+          break;
+        case '2days':
+          deadlineDateTime = eventDateTime.minus({ days: 2 });
+          break;
+        case '1week':
+          deadlineDateTime = eventDateTime.minus({ weeks: 1 });
+          break;
+        case '2weeks':
+          deadlineDateTime = eventDateTime.minus({ weeks: 2 });
+          break;
+        case '1month':
+          deadlineDateTime = eventDateTime.minus({ months: 1 });
+          break;
+      }
+
+      if (deadlineDateTime) {
+        rsvpDeadline_timestamp = deadlineDateTime.toJSDate();
+      }
+    }
   }
 
   // Only the creator for initial event creation (cohosts are added via invitations)
@@ -375,14 +421,14 @@ export const isPrimaryHost = (eventData, userId) => {
  * @returns {boolean} True if RSVP deadline has passed
  */
 export const isRsvpDeadlinePassed = (eventData) => {
-  if (!eventData?.hasRsvpDeadline || !eventData?.rsvpDeadlineTimestamp) {
+  if (!eventData?.rsvpDeadline) {
     return false;
   }
 
   const now = new Date();
-  const deadline = eventData.rsvpDeadlineTimestamp.toDate
-    ? eventData.rsvpDeadlineTimestamp.toDate()
-    : new Date(eventData.rsvpDeadlineTimestamp);
+  const deadline = eventData.rsvpDeadline.toDate
+    ? eventData.rsvpDeadline.toDate()
+    : new Date(eventData.rsvpDeadline);
 
   return now > deadline;
 };
@@ -393,13 +439,13 @@ export const isRsvpDeadlinePassed = (eventData) => {
  * @returns {string|null} Formatted deadline string or null
  */
 export const getFormattedRsvpDeadline = (eventData) => {
-  if (!eventData?.hasRsvpDeadline || !eventData?.rsvpDeadlineTimestamp) {
+  if (!eventData?.rsvpDeadline) {
     return null;
   }
 
-  const deadline = eventData.rsvpDeadlineTimestamp.toDate
-    ? eventData.rsvpDeadlineTimestamp.toDate()
-    : new Date(eventData.rsvpDeadlineTimestamp);
+  const deadline = eventData.rsvpDeadline.toDate
+    ? eventData.rsvpDeadline.toDate()
+    : new Date(eventData.rsvpDeadline);
 
   return deadline.toLocaleDateString([], {
     weekday: 'short',

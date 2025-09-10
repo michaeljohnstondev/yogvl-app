@@ -1,20 +1,18 @@
 // Subscription Notification Settings Modal for Event Attendees
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Modal,
-  TouchableOpacity,
-  Switch,
   ScrollView,
 } from 'react-native';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../auth/services/firebase';
 import { useAuth } from '../../../auth/AuthContext';
 import VibeButton from '../../../components/ui/VibeButton';
-import VibeSegmentedControl from '../../../components/ui/VibeSegmentedControl';
 import CloseButton from '../../../components/ui/CloseButton';
+import GuestNotificationSettingsForm from '../../../components/notifications/GuestNotificationSettingsForm';
 import theme from '../../../theme/themes';
 
 export default function SubscriptionNotificationSettings({
@@ -25,6 +23,7 @@ export default function SubscriptionNotificationSettings({
   userDefaults = {},
 }) {
   const { currentUserId } = useAuth();
+  const scrollViewRef = useRef(null);
   // Get user's attending defaults from the consistent path
   const attendingDefaults = userDefaults.attending || userDefaults; // Support both old and new structure for now
   
@@ -42,27 +41,11 @@ export default function SubscriptionNotificationSettings({
     // Social activity 
     hostComments: attendingDefaults.hostComments ?? true, // Host comments in social feed (batched after first) - default ON
     newComments: attendingDefaults.newComments ?? false, // All other comments (batched after first)
+    
+    // Custom reminder templates
+    reminderTemplates: attendingDefaults.reminderTemplates || [],
   });
 
-  const reminderOptions = [
-    { label: '15 min', value: '15min' },
-    { label: '1 hour', value: '1hour' },
-    { label: '1 day', value: '1day' },
-  ];
-
-  const toggleSetting = (key) => {
-    setSubscriptionSettings(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
-  };
-
-  const updateReminderTiming = (value) => {
-    setSubscriptionSettings(prev => ({
-      ...prev,
-      reminderTiming: value
-    }));
-  };
 
   const handleSubscribe = () => {
     onSubscribe(subscriptionSettings);
@@ -82,6 +65,7 @@ export default function SubscriptionNotificationSettings({
           dayBeforeReminder: subscriptionSettings.dayBeforeReminder,
           hostComments: subscriptionSettings.hostComments,
           newComments: subscriptionSettings.newComments,
+          reminderTemplates: subscriptionSettings.reminderTemplates,
         }
       });
       
@@ -93,26 +77,6 @@ export default function SubscriptionNotificationSettings({
     }
   };
 
-  const SettingItem = ({ title, description, value, onToggle, disabled = false, isLast = false }) => (
-    <View style={[styles.settingItem, !isLast && styles.settingBorder]}>
-      <View style={styles.settingContent}>
-        <Text style={[styles.settingTitle, disabled && styles.disabledText]}>{title}</Text>
-        <Text style={[styles.settingDescription, disabled && styles.disabledText]}>
-          {description}
-        </Text>
-      </View>
-      <Switch
-        value={value}
-        onValueChange={onToggle}
-        disabled={disabled}
-        trackColor={{
-          false: theme.colors.darkGray,
-          true: theme.colors.vibeGreen,
-        }}
-        thumbColor={value ? theme.colors.white : theme.colors.gray}
-      />
-    </View>
-  );
 
   return (
     <Modal
@@ -131,104 +95,21 @@ export default function SubscriptionNotificationSettings({
           <View style={styles.headerRight} />
         </View>
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Event Info */}
-          <View style={styles.eventInfo}>
-            <Text style={styles.eventTitle}>{eventData?.title}</Text>
-            <Text style={styles.eventSubtitle}>Choose your notification preferences for this event</Text>
-          </View>
+        <ScrollView ref={scrollViewRef} style={styles.content} showsVerticalScrollIndicator={false}>
 
-          {/* Critical Updates - Always On */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>CRITICAL UPDATES</Text>
-            <View style={styles.settingsGroup}>
-              <SettingItem
-                title="Event Cancellation"
-                description="Important: Always receive cancellation notices"
-                value={subscriptionSettings.eventCancellation}
-                onToggle={() => {}} // No-op
-                disabled={true}
-                isLast
-              />
-            </View>
-          </View>
-
-          {/* Event Updates */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>EVENT UPDATES</Text>
-            <View style={styles.settingsGroup}>
-              <SettingItem
-                title="Host Changes"
-                description="Time, location, details, fees, and other event changes"
-                value={subscriptionSettings.hostChanges}
-                onToggle={() => toggleSetting('hostChanges')}
-                isLast
-              />
-            </View>
-          </View>
-
-          {/* Reminders */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>REMINDERS</Text>
-            <View style={styles.settingsGroup}>
-              <SettingItem
-                title="Event Reminders"
-                description="Remind me before the event starts"
-                value={subscriptionSettings.eventReminders}
-                onToggle={() => toggleSetting('eventReminders')}
-              />
-              <SettingItem
-                title="Day Before Reminder"
-                description="Send a reminder 24 hours before"
-                value={subscriptionSettings.dayBeforeReminder}
-                onToggle={() => toggleSetting('dayBeforeReminder')}
-                isLast
-              />
-            </View>
-          </View>
-
-          {/* Reminder Timing */}
-          {subscriptionSettings.eventReminders && (
-            <View style={styles.section}>
-              <Text style={styles.reminderLabel}>Send event reminders:</Text>
-              <VibeSegmentedControl
-                options={reminderOptions}
-                selectedValue={subscriptionSettings.reminderTiming}
-                onSelect={updateReminderTiming}
-                style={styles.segmentedControl}
-              />
-            </View>
-          )}
-
-          {/* Social Activity */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>SOCIAL ACTIVITY</Text>
-            <View style={styles.settingsGroup}>
-              <SettingItem
-                title="Host Comments"
-                description="Comments from the event host (batched after first)"
-                value={subscriptionSettings.hostComments}
-                onToggle={() => toggleSetting('hostComments')}
-              />
-              <SettingItem
-                title="Other Comments"
-                description="Comments from attendees (batched after first)"
-                value={subscriptionSettings.newComments}
-                onToggle={() => toggleSetting('newComments')}
-                isLast
-              />
-            </View>
-          </View>
-
-          {/* Use Defaults Button */}
-          <View style={styles.section}>
-            <TouchableOpacity
-              style={styles.defaultsButton}
-              onPress={saveAsDefaults}
-            >
-              <Text style={styles.defaultsButtonText}>Save as Default Settings</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Use the new reusable guest notification settings form */}
+          <GuestNotificationSettingsForm
+            settings={subscriptionSettings}
+            onUpdateSettings={setSubscriptionSettings}
+            showCriticalUpdates={true}
+            showEventUpdates={true}
+            showReminders={true}
+            showSocialActivity={true}
+            showSaveAsDefaults={true}
+            onSaveAsDefaults={saveAsDefaults}
+            sectionStyle={styles.section}
+            scrollViewRef={scrollViewRef}
+          />
         </ScrollView>
 
         {/* Subscribe Button */}
@@ -275,91 +156,9 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
   },
-  eventInfo: {
-    paddingVertical: 20,
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
-    marginBottom: 20,
-  },
-  eventTitle: {
-    color: theme.colors.textPrimary,
-    fontSize: 20,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  eventSubtitle: {
-    color: theme.colors.textSecondary,
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
   section: {
     marginBottom: 20,
-  },
-  sectionTitle: {
-    color: theme.colors.vibeGreen,
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    letterSpacing: 1,
-  },
-  settingsGroup: {
-    backgroundColor: theme.colors.inputBackground,
-    borderRadius: theme.sizes.borderRadius,
-    borderWidth: 1,
-    borderColor: theme.colors.inputBorder,
-    overflow: 'hidden',
-  },
-  settingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
-  },
-  settingBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.inputBorder,
-  },
-  settingContent: {
-    flex: 1,
-    marginRight: 15,
-  },
-  settingTitle: {
-    color: theme.colors.textPrimary,
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 5,
-  },
-  settingDescription: {
-    color: theme.colors.textSecondary,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  disabledText: {
-    opacity: 0.6,
-  },
-  reminderLabel: {
-    color: theme.colors.textPrimary,
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 12,
-  },
-  segmentedControl: {
-    marginBottom: 8,
-  },
-  defaultsButton: {
-    backgroundColor: theme.colors.inputBackground,
-    borderRadius: theme.sizes.borderRadius,
-    borderWidth: 1,
-    borderColor: theme.colors.inputBorder,
-    padding: 20,
-    alignItems: 'center',
-  },
-  defaultsButtonText: {
-    color: theme.colors.vibeGreen,
-    fontSize: 16,
-    fontWeight: '600',
+    paddingHorizontal: 0, // Remove padding since it's handled by the form component
   },
   footer: {
     padding: 16,

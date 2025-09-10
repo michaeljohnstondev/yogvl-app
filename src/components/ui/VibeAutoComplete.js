@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import theme from '../../theme/themes';
 import {
   getEmojiForText,
@@ -132,7 +132,12 @@ const VibeAutoComplete = React.memo(
 
     return (
       <View style={styles.autocompleteContainer}>
-        {displaySuggestions.map((item, index) => {
+        <ScrollView 
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={true}
+          keyboardShouldPersistTaps="handled"
+        >
+          {displaySuggestions.map((item, index) => {
           // Handle both string and object suggestions
           const text = typeof item === 'string' ? item : item.text;
           const count = typeof item === 'object' ? item.count : null;
@@ -159,6 +164,7 @@ const VibeAutoComplete = React.memo(
             </Pressable>
           );
         })}
+        </ScrollView>
       </View>
     );
   }
@@ -175,7 +181,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.sizes.borderRadius,
     borderWidth: 1,
     borderColor: theme.colors.inputBorder,
-    maxHeight: 240,
+    maxHeight: 300,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.8,
@@ -203,6 +209,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: theme.fonts.main,
     marginLeft: 8,
+  },
+  scrollView: {
+    flexGrow: 1,
   },
 });
 

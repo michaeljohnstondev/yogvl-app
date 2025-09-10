@@ -25,7 +25,6 @@ import VibeButton from '../../components/ui/VibeButton';
 import ProfileAvatar from '../../components/ui/ProfileAvatar';
 import EventCreatorInfo from '../components/hosts/EventCreatorInfo';
 import MessageBoardButton from '../../components/ui/MessageBoardButton';
-import QRCodeGenerator from '../../components/ui/QRCodeGenerator';
 import { useVibeAlert } from '../../components/ui/VibeAlertContext';
 import { useFocusEffect } from '@react-navigation/native';
 import SubscriptionNotificationSettings from '../components/subscriptionSettings/SubscriptionNotificationSettings';
@@ -45,8 +44,8 @@ import {
 import { notifyHostOfEventJoin, notifyHostOfEventLeave } from '../../services/notifications';
 import { getUserInterests, addUserInterest, removeUserInterest, extractInterestsFromEventTitle } from '../../services/interestService';
 import { reportEvent } from '../../services/reportingService';
+import { createNotification, NOTIFICATION_TYPES, NOTIFICATION_PRIORITY, DELIVERY_CHANNELS } from '../../services/notifications';
 import theme from '../../theme/themes';
-import reminderService from '../../services/reminderService';
 
 export default function EventDetailScreen({ route, navigation }) {
   const { eventId, studioId: routeStudioId } = route.params;
@@ -62,8 +61,6 @@ export default function EventDetailScreen({ route, navigation }) {
   const [creatorData, setCreatorData] = useState(null);
   const [cohostData, setCohostData] = useState([]);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
-  const [showQRCode, setShowQRCode] = useState(false);
-  const [showAppDownloadQR, setShowAppDownloadQR] = useState(false);
   const [userNotificationSettings, setUserNotificationSettings] = useState(null);
 
   // Handler for showing host profile
@@ -131,29 +128,17 @@ export default function EventDetailScreen({ route, navigation }) {
 
           // Update reminders for the user based on their new notification settings
           try {
-            // First, delete existing reminders for this user on this event
-            await reminderService.deleteRemindersForUser(eventId, currentUserId);
-
-            // Then create new reminders if notifications are enabled and templates exist
-            const reminderTemplates = newSettings?.reminderTemplates || [];
-            if (newSettings?.enabled && reminderTemplates.length > 0) {
-              // Check if user is host
-              const isHost = event?.createdBy === currentUserId;
-              
-              const eventWithId = {
-                ...event,
-                eventId: eventId,
-                studioId: studioId,
-                eventTimestamp: event.datetime || event.eventTimestamp
-              };
-              
-              await reminderService.createRemindersForEvent(
-                eventWithId,
-                currentUserId,
-                reminderTemplates,
-                isHost
-              );
-            }
+            // Cancel existing scheduled notifications for this user on this event
+            const { ScheduledNotificationService } = await import('../../services/scheduledNotifications');
+            
+            // Note: We currently don't have a method to cancel notifications for a specific user
+            // This would need to be implemented if per-user notification changes are required
+            console.log('[EventDetailScreen] User notification settings updated - server-side scheduling');
+            console.log('[EventDetailScreen] New templates count:', newSettings?.reminderTemplates?.length || 0);
+            
+            // For now, we don't reschedule individual user notifications
+            // The notifications were set when they subscribed to the event
+            // To change notification preferences, user would need to unsubscribe and resubscribe
           } catch (reminderError) {
             console.warn('[EventDetailScreen] Failed to update reminders:', reminderError);
             // Don't fail the settings update if reminder update fails
@@ -324,11 +309,14 @@ export default function EventDetailScreen({ route, navigation }) {
                                      (eventData.cohosts?.includes(currentUserId) || false);
                 const attendeesList = [];
                 
+                // Filter out the current user and host from subscribers list
+                const otherSubscribers = subscribers.filter(subscriberId => 
+                  subscriberId !== currentUserId && subscriberId !== eventData.createdBy
+                );
+                
                 if (isHostOrCohost) {
-                  // Host/Cohost: Load ALL attendees
-                  for (const subscriberId of subscribers) {
-                    if (subscriberId === currentUserId) continue; // Skip self
-                    
+                  // Host/Cohost: Load ALL attendees (excluding self and duplicates)
+                  for (const subscriberId of otherSubscribers) {
                     const userDoc = await getDoc(doc(db, 'users', subscriberId));
                     if (userDoc.exists()) {
                       const userData = userDoc.data();
@@ -343,9 +331,7 @@ export default function EventDetailScreen({ route, navigation }) {
                   }
                 } else {
                   // Non-host/cohost: Only load friends (mutual follows)
-                  for (const subscriberId of subscribers) {
-                    if (subscriberId === currentUserId) continue; // Skip self
-                    
+                  for (const subscriberId of otherSubscribers) {
                     // Check if they're a friend (mutual follow)
                     const followingDoc = await getDoc(doc(db, 'users', currentUserId, 'following', subscriberId));
                     const followerDoc = await getDoc(doc(db, 'users', currentUserId, 'followers', subscriberId));
@@ -527,6 +513,8 @@ export default function EventDetailScreen({ route, navigation }) {
       dayBeforeReminder: userNotificationDefaults.dayBeforeReminder ?? true,
       hostComments: userNotificationDefaults.hostComments ?? true, // Default ON - batched after first
       newComments: userNotificationDefaults.newComments ?? false,
+      // Include user's custom reminder templates
+      reminderTemplates: userNotificationDefaults.reminderTemplates || [],
     };
 
     await handleSubscribeWithSettings(defaultSettings);
@@ -590,27 +578,8 @@ export default function EventDetailScreen({ route, navigation }) {
         studioId,
       });
 
-      // Create reminders for the attendee based on their notification settings
-      try {
-        const attendeeReminderTemplates = notificationSettings?.reminderTemplates || [];
-        if (attendeeReminderTemplates.length > 0) {
-          const eventWithId = {
-            ...event,
-            eventId: eventId,
-            studioId: studioId
-          };
-          
-          await reminderService.createRemindersForEvent(
-            eventWithId,
-            currentUserId,
-            attendeeReminderTemplates,
-            false // isHost = false
-          );
-        }
-      } catch (error) {
-        console.warn('Failed to create attendee reminders:', error);
-        // Don't fail subscription if reminder creation fails
-      }
+      // Attendee reminders are now handled by server-side FCM scheduling
+      // When users subscribe, they're automatically included in event notification scheduling
 
       // Notify host that user joined
       const hostId = event.createdBy;
@@ -669,13 +638,8 @@ export default function EventDetailScreen({ route, navigation }) {
       const userEventRef = doc(db, 'users', currentUserId, 'eventSubscriptions', eventId);
       await deleteDoc(userEventRef);
 
-      // Delete user's reminders for this event
-      try {
-        await reminderService.deleteRemindersForUser(eventId, currentUserId);
-      } catch (error) {
-        console.warn('Failed to delete user reminders:', error);
-        // Don't fail unsubscription if reminder deletion fails
-      }
+      // User's reminders are handled by server-side FCM scheduling
+      // Individual user notification cancellation would need to be implemented separately
 
       setIsSubscribed(false);
       vibeAlert.warning('Event Left', 'You have been removed from this event. 👋');
@@ -705,6 +669,104 @@ export default function EventDetailScreen({ route, navigation }) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Handle kicking an attendee from the event
+  const handleKickAttendee = async (attendeeId, attendeeName) => {
+    if (!event || !currentUserId || !studioId) {
+      vibeAlert.error('Error', 'Unable to remove attendee at this time.');
+      return;
+    }
+
+    // Check if user has permission to kick
+    const isHostOrCohost = event.createdBy === currentUserId || (event.cohosts?.includes(currentUserId) || false);
+    if (!isHostOrCohost) {
+      vibeAlert.error('Error', 'Only hosts and co-hosts can remove attendees.');
+      return;
+    }
+
+    // Prevent kicking hosts/cohosts
+    if (attendeeId === event.createdBy || (event.cohosts?.includes(attendeeId) || false)) {
+      vibeAlert.error('Error', 'Cannot remove hosts or co-hosts from the event.');
+      return;
+    }
+
+    vibeAlert.error(
+      'Remove Attendee',
+      `Are you sure you want to remove "${attendeeName}" from this event? They will be notified.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsLoading(true);
+              
+              // Update event document to remove subscriber
+              const eventRef = doc(db, 'studios', studioId, 'events', eventId);
+              await updateDoc(eventRef, {
+                subscribers: arrayRemove(attendeeId),
+                subscriberCount: increment(-1),
+              });
+
+              // Update user's subscribed events
+              const userRef = doc(db, 'users', attendeeId);
+              await updateDoc(userRef, {
+                subscribedEvents: arrayRemove(eventId),
+                'userdata.metrics.events.subscribedEvents': arrayRemove(eventId),
+                'userdata.metrics.events.lastActivity': new Date(),
+              });
+
+              // Remove user's notification settings for this event
+              const userEventRef = doc(db, 'users', attendeeId, 'eventSubscriptions', eventId);
+              await deleteDoc(userEventRef);
+
+              // User's reminders are handled by server-side FCM scheduling
+              // Individual user notification cancellation would need to be implemented separately
+
+              // Send notification to kicked user
+              try {
+                await createNotification({
+                  userId: attendeeId,
+                  type: NOTIFICATION_TYPES.EVENT_KICKED || 'event_kicked',
+                  title: 'Removed from Event',
+                  message: `You have been removed from "${event.title}"`,
+                  data: {
+                    eventId: eventId,
+                    eventTitle: event.title,
+                    hostId: currentUserId,
+                    studioId: studioId,
+                  },
+                  priority: NOTIFICATION_PRIORITY.HIGH,
+                  channels: [DELIVERY_CHANNELS.PUSH],
+                });
+              } catch (notificationError) {
+                console.warn('Failed to send removal notification:', notificationError);
+              }
+
+              // Update local state
+              setEvent((prev) => ({
+                ...prev,
+                subscribers: (prev.subscribers || []).filter(id => id !== attendeeId),
+                subscriberCount: Math.max(0, (prev.subscriberCount || 0) - 1),
+              }));
+
+              // Remove from friendAttendees display list
+              setFriendAttendees(prev => prev.filter(attendee => attendee.id !== attendeeId));
+
+              vibeAlert.success('Removed', `${attendeeName} has been removed from the event.`);
+
+            } catch (error) {
+              console.error('Error kicking attendee:', error);
+              vibeAlert.error('Error', 'Failed to remove attendee. Please try again.');
+            } finally {
+              setIsLoading(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleInvite = () => {
@@ -1043,8 +1105,8 @@ export default function EventDetailScreen({ route, navigation }) {
           </View>
         </View>
 
-        {/* Only show attendee card if there are more subscribers than just the host */}
-        {!(event.subscribers?.length === 1 && event.subscribers[0] === event.createdBy) && (
+        {/* Only show attendee card if there are attendees beyond the host */}
+        {(event.subscribers?.length || 0) > 1 && (
           <View style={styles.infoCard}>
             <TouchableOpacity 
               style={styles.infoRow}
@@ -1066,11 +1128,16 @@ export default function EventDetailScreen({ route, navigation }) {
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Attendees</Text>
                 <Text style={styles.infoValue}>
-                  {event.subscribers?.length || 0} attendees
+                  {(() => {
+                    const totalSubscribers = event.subscribers?.length || 0;
+                    const attendeeCount = Math.max(0, totalSubscribers - 1); // Subtract 1 for the host
+                    return attendeeCount;
+                  })()} attendees
                   {event.maxGuests && ` / ${event.maxGuests} max`}
                   {(() => {
                     const isHostOrCohost = event?.createdBy === currentUserId || event?.cohosts?.includes(currentUserId);
-                    return isHostOrCohost && event.subscribers?.length > 0 ? ' (tap to view all)' : '';
+                    const attendeeCount = Math.max(0, (event.subscribers?.length || 0) - 1);
+                    return isHostOrCohost && attendeeCount > 0 ? ' (tap to view all)' : '';
                   })()}
                 </Text>
                 <View style={styles.eventBadges}>
@@ -1194,59 +1261,7 @@ export default function EventDetailScreen({ route, navigation }) {
         </View>
       )}
 
-      {/* App Download QR Code Section - For all users */}
-      <View style={styles.section}>
-        <View style={styles.sectionContent}>
-          <View style={styles.qrHeader}>
-            <Text style={styles.qrTitle}>Invite New Users</Text>
-            <TouchableOpacity
-              style={styles.toggleQRButton}
-              onPress={() => setShowAppDownloadQR(!showAppDownloadQR)}
-            >
-              <Text style={styles.toggleQRButtonText}>
-                {showAppDownloadQR ? 'Hide QR' : 'Show QR'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-          
-          {showAppDownloadQR && (
-            <QRCodeGenerator
-              type="app-download"
-              data={{ studioId, eventId }}
-              size={180}
-              showShareButton={false}
-            />
-          )}
-        </View>
-      </View>
 
-      {/* QR Code Section - For hosts OR subscribed guests (when allowed) */}
-      {(permissions.canEdit || (event?.allowGuestInvites && isSubscribed)) && event?.inviteCode && (
-        <View style={styles.section}>
-          <View style={styles.sectionContent}>
-            <View style={styles.qrHeader}>
-              <Text style={styles.qrTitle}>Share Event (App Users)</Text>
-              <TouchableOpacity
-                style={styles.toggleQRButton}
-                onPress={() => setShowQRCode(!showQRCode)}
-              >
-                <Text style={styles.toggleQRButtonText}>
-                  {showQRCode ? 'Hide QR' : 'Show QR'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            
-            {showQRCode && (
-              <QRCodeGenerator
-                type="event"
-                data={event.inviteCode}
-                size={180}
-                showShareButton={false}
-              />
-            )}
-          </View>
-        </View>
-      )}
 
       {/* Comments Section */}
       <View style={styles.section}>
@@ -1284,6 +1299,14 @@ export default function EventDetailScreen({ route, navigation }) {
         {/* Hide invite/edit/delete buttons for past events */}
         {!isEventPast && (
           <>
+            {/* Manage Attendance button for hosts - moved above invite */}
+            {permissions.canManageAttendance && (
+              <VibeButton
+                label="MANAGE ATTENDANCE"
+                onPress={() => navigation.navigate('EventAttendance', { eventId, studioId })}
+              />
+            )}
+            
             {/* Invite button for hosts */}
             {permissions.canEdit && (
               <VibeButton 
@@ -1360,13 +1383,7 @@ export default function EventDetailScreen({ route, navigation }) {
           />
         )}
 
-        {/* Only show attendance management for upcoming events */}
-        {permissions.canManageAttendance && !isEventPast && (
-          <VibeButton
-            label="MANAGE ATTENDANCE"
-            onPress={() => navigation.navigate('EventAttendance', { eventId, studioId })}
-          />
-        )}
+        {/* Manage Attendance button moved above invite section */}
       </View>
 
       {isEventPast && (
@@ -1478,26 +1495,49 @@ export default function EventDetailScreen({ route, navigation }) {
                 ? 'All Attendees' 
                 : 'Friends Attending'}
             </Text>
-            {friendAttendees.map((friend, index) => (
-              <TouchableOpacity 
-                key={friend.id || index} 
-                style={styles.friendsModalItem}
-                onPress={() => {
-                  setShowFriendsModal(false);
-                  navigation.navigate('UserProfile', { userId: friend.id });
-                }}
-                activeOpacity={0.7}
-              >
-                <ProfileAvatar 
-                  userData={friend.userData} 
-                  size={32}
-                  showBorder={true}
-                />
-                <Text style={styles.friendName}>
-                  {friend.displayName}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {friendAttendees.map((friend, index) => {
+              const isHostOrCohost = event?.createdBy === currentUserId || event?.cohosts?.includes(currentUserId);
+              const canKickThisUser = isHostOrCohost && 
+                                     friend.id !== event?.createdBy && 
+                                     !event?.cohosts?.includes(friend.id) &&
+                                     friend.id !== currentUserId;
+              
+              return (
+                <View key={friend.id || index} style={styles.friendsModalItem}>
+                  <TouchableOpacity 
+                    style={styles.friendsModalContent}
+                    onPress={() => {
+                      setShowFriendsModal(false);
+                      navigation.navigate('UserProfile', { userId: friend.id });
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <ProfileAvatar 
+                      userData={friend.userData} 
+                      size={32}
+                      showBorder={true}
+                    />
+                    <Text style={styles.friendName}>
+                      {friend.displayName}
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  {canKickThisUser && (
+                    <TouchableOpacity 
+                      style={styles.kickButton}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        setShowFriendsModal(false);
+                        handleKickAttendee(friend.id, friend.displayName);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.kickButtonText}>❌</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              );
+            })}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -1720,19 +1760,37 @@ const styles = StyleSheet.create({
   friendsModalItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 12,
-    gap: 12,
     padding: 8,
     borderRadius: 8,
     backgroundColor: 'rgba(0, 198, 255, 0.1)',
     borderWidth: 1,
     borderColor: 'rgba(0, 198, 255, 0.2)',
   },
+  friendsModalContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
   friendName: {
     fontSize: 16,
     color: theme.colors.white,
     flex: 1,
     fontFamily: theme.fonts.main,
+  },
+  kickButton: {
+    padding: 8,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 77, 77, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 77, 77, 0.4)',
+    marginLeft: 8,
+  },
+  kickButtonText: {
+    fontSize: 16,
+    color: '#FF4D4D',
   },
   tapToOpenMaps: {
     fontSize: 20,

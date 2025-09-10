@@ -26,7 +26,6 @@ import AdminNotificationTool from '../components/ui/AdminNotificationTool';
 import NotificationTester from '../components/ui/NotificationTester';
 import { VenueService } from '../services/VenueService';
 import { StudioRequestService } from '../services/StudioRequestService';
-import { migrateStudiosToFirebase } from '../scripts/migrateStudios';
 
 export default function AdminScreen({ navigation }) {
   const { userData, currentUserId } = useAuth();
@@ -49,8 +48,6 @@ export default function AdminScreen({ navigation }) {
   // Venue seeding state
   const [seedingVenues, setSeedingVenues] = useState(false);
   
-  // Studio migration state
-  const [migratingStudios, setMigratingStudios] = useState(false);
   
   // Studio requests state
   const [studioRequests, setStudioRequests] = useState([]);
@@ -82,27 +79,6 @@ export default function AdminScreen({ navigation }) {
     }
   };
 
-  // Handle studio migration
-  const handleMigrateStudios = async () => {
-    setMigratingStudios(true);
-    try {
-      const summary = await migrateStudiosToFirebase();
-      Alert.alert(
-        'Migration Complete',
-        `Successfully migrated ${summary.migrated} out of ${summary.total} studios to Firebase. ${summary.skipped > 0 ? `${summary.skipped} studios were skipped due to errors.` : ''}`,
-        [{ text: 'OK' }]
-      );
-    } catch (error) {
-      console.error('Error migrating studios:', error);
-      Alert.alert(
-        'Migration Error',
-        'Failed to migrate studios to Firebase. Check console for details.',
-        [{ text: 'OK' }]
-      );
-    } finally {
-      setMigratingStudios(false);
-    }
-  };
 
   // Reports Management Functions
   const loadReports = async () => {
@@ -638,28 +614,6 @@ export default function AdminScreen({ navigation }) {
             <Text style={styles.noteText}>
               Note: This adds ~25 popular Greenville venues to the database. 
               When users type these venue names in CreateEvent, the address will auto-populate.
-            </Text>
-          </View>
-          
-          {/* Studio Migration Section */}
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Studio Migration</Text>
-            <Text style={styles.sectionDescription}>
-              Migrate hardcoded studios to Firebase database for dynamic management.
-            </Text>
-            
-            <VibeButton
-              label={migratingStudios ? "Migrating Studios..." : "Migrate Studios to Firebase"}
-              onPress={handleMigrateStudios}
-              variant="outline"
-              color="blue"
-              disabled={migratingStudios}
-              style={styles.seedButton}
-            />
-            
-            <Text style={styles.noteText}>
-              Note: This is a one-time migration that moves all hardcoded studio data to Firebase. 
-              After migration, studios will be managed dynamically through the Studio Requests system.
             </Text>
           </View>
         </ScrollView>

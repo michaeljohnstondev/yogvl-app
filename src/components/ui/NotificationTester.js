@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Alert, ScrollView } from 'react-native';
 import VibeButton from './VibeButton';
-import fcmService from '../../services/fcmService';
-import { notifyNewFollower } from '../../services/notifications';
+import fcmService from '../../services/fcmServiceWrapper';
+import { 
+  notifyNewFollower, 
+  notifyGuestInvitation,
+  notifyCohostInvitation,
+  notifyHostOfEventJoin
+} from '../../services/notifications';
 import { useAuth } from '../../auth/AuthContext';
 import theme from '../../theme/themes';
 import { useScheduledNotifications } from '../../hooks/useScheduledNotifications';
@@ -249,6 +254,66 @@ export default function NotificationTester() {
     }
   };
 
+  const testRealNotifications = async () => {
+    setTestingType('real_notifications');
+    try {
+      if (!currentUserId) {
+        Alert.alert('Error', 'You must be logged in to test real notifications.');
+        return;
+      }
+
+      console.log('\n🧪 === TESTING REAL NOTIFICATION FUNCTIONS ===\n');
+
+      // Test follower notification
+      console.log('🧪 Testing follower notification...');
+      const followerResult = await notifyNewFollower({
+        targetUserId: currentUserId,
+        followerId: 'test_follower_123',
+        followerName: 'Test Friend'
+      });
+      console.log('✅ Follower notification result:', followerResult);
+
+      // Test guest invitation notification
+      console.log('🧪 Testing guest invitation notification...');
+      const guestResult = await notifyGuestInvitation({
+        recipientId: currentUserId,
+        inviterId: 'test_inviter_456',
+        inviterName: 'Test Host',
+        eventId: 'test_event_789',
+        eventTitle: 'Test Party Event',
+        invitationId: 'test_invitation_101'
+      });
+      console.log('✅ Guest invitation result:', guestResult);
+
+      // Test cohost invitation notification
+      console.log('🧪 Testing cohost invitation notification...');
+      const cohostResult = await notifyCohostInvitation({
+        recipientId: currentUserId,
+        inviterId: 'test_inviter_456',
+        inviterName: 'Test Host',
+        eventId: 'test_event_789',
+        eventTitle: 'Test Party Event',
+        invitationId: 'test_cohost_102'
+      });
+      console.log('✅ Cohost invitation result:', cohostResult);
+
+      const successCount = [followerResult, guestResult, cohostResult]
+        .filter(r => r.success).length;
+
+      Alert.alert(
+        'Real Notification Test Complete!',
+        `Sent ${successCount}/3 notifications successfully. Check your notifications and console for details.`,
+        [{ text: 'Great!' }]
+      );
+
+    } catch (error) {
+      console.error('[NotificationTester] Real notification test failed:', error);
+      Alert.alert('Test Failed', `Error: ${error.message}`);
+    } finally {
+      setTestingType(null);
+    }
+  };
+
   const notificationTypes = [
     { key: 'default', label: '🎊 General', color: theme.colors.vibeBlue },
     { key: 'event_reminder', label: '⏰ Event Reminder', color: '#FF6B35' },
@@ -341,6 +406,13 @@ export default function NotificationTester() {
           onPress={testProcessPending}
           disabled={testingType === 'process_pending'}
           style={[styles.typeButton, { backgroundColor: theme.colors.vibeGreen }]}
+        />
+
+        <VibeButton
+          label={testingType === 'real_notifications' ? 'Testing...' : '🧪 Test Real Notification Functions'}
+          onPress={testRealNotifications}
+          disabled={testingType === 'real_notifications'}
+          style={[styles.typeButton, { backgroundColor: theme.colors.vibePink }]}
         />
       </View>
 

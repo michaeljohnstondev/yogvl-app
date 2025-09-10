@@ -4,7 +4,9 @@ import React, { useCallback } from 'react';
 import { View, Text } from 'react-native';
 import VibeInput from '../../../components/ui/VibeInput';
 import VibeAutoComplete from '../../../components/ui/VibeAutoComplete';
+import { GooglePlacesService } from '../../../services/GooglePlacesService';
 import { VenueService } from '../../../services/VenueService';
+import { isPersonalLocation } from '../../../lib/locationUtils';
 
 export const Where = ({
   formData,
@@ -15,6 +17,7 @@ export const Where = ({
   updateField,
   styles,
   setFieldRef,
+  onLocationSelect, // Callback from useSmartAutoComplete for Google Places
 }) => {
   // Handle location input changes with address auto-population
   const handleLocationInputChange = useCallback(async (text) => {
@@ -22,7 +25,7 @@ export const Where = ({
     onInputChange('location', text);
     
     // Check if it's a personal/private location (skip address lookup)
-    if (VenueService.isPersonalLocation(text)) {
+    if (isPersonalLocation(text)) {
       console.log('[Where] Personal location detected, skipping address lookup');
       return;
     }
@@ -46,26 +49,72 @@ export const Where = ({
     }
   }, [onInputChange, formData.address, updateField]);
 
-  const handleLocationSelect = (suggestionText) => {
+  // Handle Google Places selection callback
+  const handleGooglePlaceSelection = useCallback((placeData) => {
+    console.log('[Where] Google Places selection callback:', placeData);
+    
+    if (placeData && placeData.address) {
+      // Update the address field with Google Places result
+      updateField('address', placeData.address);
+      
+      // If we have coordinates, we could save them for later use
+      if (placeData.coordinates) {
+        console.log('[Where] Place coordinates:', placeData.coordinates);
+        // Could save coordinates in form data for future use (e.g., map display)
+      }
+    }
+  }, [updateField]);
+
+  const handleLocationSelect = async (suggestionText) => {
     if (!suggestionText) return;
 
-    // Find the full object that matches this text
+    // Find the full suggestion object that matches this text
     const fullSuggestion = window.locationSuggestionObjects?.find((s) => {
       if (!s || !s.text) return false;
-      const displayText =
-        s.type === 'location' ? `${s.icon || '📍'} ${s.text}` : s.text;
-      return displayText === suggestionText;
+      const displayText = s.icon ? `${s.icon} ${s.text}` : s.text;
+      // Match either the full display text or just the text without icon
+      return displayText === suggestionText || s.text === suggestionText;
     });
 
-    if (fullSuggestion && fullSuggestion.type === 'location') {
-      updateField('location', fullSuggestion.text);
-      updateField('address', fullSuggestion.address);
+    if (fullSuggestion) {
+      // Handle Google Places suggestion
+      if (fullSuggestion.isGooglePlace && fullSuggestion.placeId) {
+        console.log('[Where] Google Place selected:', fullSuggestion.text);
+        updateField('location', fullSuggestion.text);
+        
+        // Trigger the address population by calling the Google Places service directly
+        console.log('[Where] Getting place details for address population...');
+        try {
+          const placeDetails = await GooglePlacesService.getPlaceDetails(fullSuggestion.placeId);
+          if (placeDetails && placeDetails.address) {
+            console.log('[Where] Auto-populating address:', placeDetails.address);
+            updateField('address', placeDetails.address);
+          } else {
+            console.log('[Where] No address found in place details');
+          }
+        } catch (error) {
+          console.error('[Where] Error getting place details:', error);
+        }
+      }
+      // Handle local database suggestion
+      else if (fullSuggestion.type === 'location' && fullSuggestion.address) {
+        console.log('[Where] Local location selected:', fullSuggestion.text);
+        updateField('location', fullSuggestion.text);
+        updateField('address', fullSuggestion.address);
+      }
+      // Handle other suggestion types
+      else {
+        const cleanText = suggestionText.replace(/^[🏢🍽️📍🌳⛪🏥🏪🎭🏟️]\s*/, '');
+        updateField('location', cleanText);
+        
+        // Try to auto-populate address for selected suggestion
+        await handleLocationInputChange(cleanText);
+      }
     } else {
-      const cleanText = suggestionText.replace(/^📍\s*/, '');
+      // Fallback: clean the text and try to auto-populate
+      const cleanText = suggestionText.replace(/^[🏢🍽️📍🌳⛪🏥🏪🎭🏟️]\s*/, '');
       updateField('location', cleanText);
-      
-      // Try to auto-populate address for selected suggestion
-      handleLocationInputChange(cleanText);
+      await handleLocationInputChange(cleanText);
     }
 
     hideSuggestions('location');

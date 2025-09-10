@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import VibeInput from '../../../components/ui/VibeInput';
 import VibeButton from '../../../components/ui/VibeButton';
+import QRCodeGenerator from '../../../components/ui/QRCodeGenerator';
 import theme from '../../../theme/themes';
 import { getDeviceContacts, hasContactPermission } from '../../../lib/contactService';
 
@@ -23,14 +24,13 @@ export default function InviteGuests({
   selectedUsers = [],
   selectedContacts = [],
   selectedPhoneContacts = [],
+  eventId,
+  inviteCode,
+  studioId,
   style 
 }) {
-  const [activeTab, setActiveTab] = useState('friends'); // 'friends', 'contacts', or 'phone'
+  const [activeTab, setActiveTab] = useState('friends'); // 'friends', 'phone', or 'qr'
   const [searchQuery, setSearchQuery] = useState('');
-  const [contactName, setContactName] = useState('');
-  const [contactEmail, setContactEmail] = useState('');
-  const [contactPhone, setContactPhone] = useState('');
-  const [personalMessage, setPersonalMessage] = useState('');
 
   // Mock friends data - replace with actual user search
   const [friends] = useState([
@@ -40,7 +40,6 @@ export default function InviteGuests({
   ]);
 
   const [localSelectedUsers, setLocalSelectedUsers] = useState(selectedUsers);
-  const [localSelectedContacts, setLocalSelectedContacts] = useState(selectedContacts);
   const [localSelectedPhoneContacts, setLocalSelectedPhoneContacts] = useState(selectedPhoneContacts);
 
   // Real device contacts state
@@ -111,45 +110,6 @@ export default function InviteGuests({
     onInvitePhoneContacts && onInvitePhoneContacts(updated);
   };
 
-  // Handle contact invitation
-  const handleAddContact = () => {
-    if (!contactName.trim()) {
-      Alert.alert('Error', 'Please enter a name');
-      return;
-    }
-
-    if (!contactEmail.trim() && !contactPhone.trim()) {
-      Alert.alert('Error', 'Please enter either an email or phone number');
-      return;
-    }
-
-    const contact = {
-      id: `contact_${Date.now()}`,
-      name: contactName.trim(),
-      email: contactEmail.trim() || null,
-      phone: contactPhone.trim() || null,
-      message: personalMessage.trim() || null,
-    };
-
-    const updated = [...localSelectedContacts, contact];
-    setLocalSelectedContacts(updated);
-    onInviteContacts && onInviteContacts(updated);
-
-    // Clear form
-    setContactName('');
-    setContactEmail('');
-    setContactPhone('');
-    setPersonalMessage('');
-
-    Alert.alert('Success', `Invitation added for ${contact.name}`);
-  };
-
-  // Remove contact
-  const removeContact = (contactId) => {
-    const updated = localSelectedContacts.filter(c => c.id !== contactId);
-    setLocalSelectedContacts(updated);
-    onInviteContacts && onInviteContacts(updated);
-  };
 
   // Remove phone contact
   const removePhoneContact = (contactId) => {
@@ -204,22 +164,6 @@ export default function InviteGuests({
     );
   };
 
-  // Render contact item
-  const renderContactItem = ({ item }) => (
-    <View style={styles.contactItem}>
-      <View style={styles.contactInfo}>
-        <Text style={styles.contactName}>{item.name}</Text>
-        {item.email && <Text style={styles.contactDetail}>{item.email}</Text>}
-        {item.phone && <Text style={styles.contactDetail}>{item.phone}</Text>}
-      </View>
-      <TouchableOpacity
-        style={styles.removeButton}
-        onPress={() => removeContact(item.id)}
-      >
-        <Text style={styles.removeButtonText}>✕</Text>
-      </TouchableOpacity>
-    </View>
-  );
 
   // Render selected phone contact item
   const renderSelectedPhoneContactItem = ({ item }) => (
@@ -262,7 +206,7 @@ export default function InviteGuests({
       <View style={styles.tabContainer}>
         {renderTabButton('friends', 'App')}
         {renderTabButton('phone', 'Phone')}
-        {renderTabButton('contacts', 'Manual')}
+        {renderTabButton('qr', 'QR Code')}
       </View>
 
       {/* Friends Tab */}
@@ -340,75 +284,40 @@ export default function InviteGuests({
         </View>
       )}
 
-      {/* Manual Entry Tab */}
-      {activeTab === 'contacts' && (
+      {/* QR Code Tab */}
+      {activeTab === 'qr' && (
         <View style={styles.tabContent}>
-          {/* Add Contact Form */}
-          <View style={styles.addContactForm}>
-            <VibeInput
-              placeholder="Name *"
-              value={contactName}
-              onChangeText={setContactName}
-              style={styles.input}
-            />
-            
-            <VibeInput
-              placeholder="Email address"
-              value={contactEmail}
-              onChangeText={setContactEmail}
-              keyboardType="email-address"
-              style={styles.input}
-            />
-            
-            <VibeInput
-              placeholder="Phone number"
-              value={contactPhone}
-              onChangeText={setContactPhone}
-              keyboardType="phone-pad"
-              style={styles.input}
-            />
-            
-            <VibeInput
-              placeholder="Personal message (optional)"
-              value={personalMessage}
-              onChangeText={setPersonalMessage}
-              multiline
-              numberOfLines={3}
-              style={styles.messageInput}
-            />
-
-            <VibeButton
-              label="Add Invitation"
-              onPress={handleAddContact}
-              style={styles.addButton}
-            />
-          </View>
-
-          {/* Selected Contacts */}
-          {localSelectedContacts.length > 0 && (
-            <View style={styles.selectedContacts}>
-              <Text style={styles.selectedTitle}>Pending Invitations:</Text>
-              <View>
-                {localSelectedContacts.map((item) => (
-                  <View key={item.id}>
-                    {renderContactItem({ item })}
-                  </View>
-                ))}
-              </View>
+          <Text style={styles.qrTitle}>Share with QR Codes</Text>
+          
+          {/* Event QR Code for App Users */}
+          {inviteCode && (
+            <View style={styles.qrSection}>
+              <Text style={styles.qrSubtitle}>For App Users</Text>
+              <QRCodeGenerator
+                type="event"
+                data={inviteCode}
+                size={180}
+                showShareButton={false}
+              />
+              <Text style={styles.qrDescription}>
+                Scan to join event instantly
+              </Text>
             </View>
           )}
-
-          {/* Selected Phone Contacts */}
-          {localSelectedPhoneContacts.length > 0 && (
-            <View style={styles.selectedContacts}>
-              <Text style={styles.selectedTitle}>Selected Phone Contacts:</Text>
-              <View>
-                {localSelectedPhoneContacts.map((item) => (
-                  <View key={item.id}>
-                    {renderSelectedPhoneContactItem({ item })}
-                  </View>
-                ))}
-              </View>
+          
+          {/* App Download QR Code for New Users */}
+          {studioId && eventId && (
+            <View style={styles.qrSection}>
+              <Text style={styles.qrSubtitle}>For New Users</Text>
+              <QRCodeGenerator
+                type="app-download"
+                data={{ studioId, eventId }}
+                size={180}
+                showShareButton={false}
+              />
+              <Text style={styles.qrDescription}>
+                Scan to download app & join event
+              </Text>
             </View>
           )}
         </View>
@@ -618,5 +527,40 @@ const styles = StyleSheet.create({
   loadButton: {
     marginTop: 16,
     marginVertical: 0,
+  },
+
+  // QR Code Tab
+  qrTitle: {
+    color: theme.colors.white,
+    fontSize: 18,
+    fontWeight: 'bold',
+    fontFamily: theme.fonts.main,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  qrSection: {
+    alignItems: 'center',
+    marginBottom: 30,
+    backgroundColor: theme.colors.inputBackground,
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.vibeBlue,
+  },
+  qrSubtitle: {
+    color: theme.colors.vibeBlue,
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: theme.fonts.main,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  qrDescription: {
+    color: theme.colors.gray,
+    fontSize: 14,
+    fontFamily: theme.fonts.main,
+    textAlign: 'center',
+    marginTop: 12,
+    lineHeight: 20,
   },
 });

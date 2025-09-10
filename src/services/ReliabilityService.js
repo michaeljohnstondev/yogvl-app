@@ -429,9 +429,31 @@ export class ReliabilityService {
    */
   static getUserReliabilityDisplay(userData) {
     const reliabilityData = userData?.userdata?.metrics?.reliability || {};
-    const score = reliabilityData.score || 100;
-    const tier = this.getReliabilityTier(score);
     const metrics = reliabilityData.metrics || {};
+    
+    // Don't give perfect score to users with no event history
+    // Show "New Host" for users without sufficient event history
+    const hasEventHistory = (metrics.totalRSVPs || 0) >= 3; // Require at least 3 events
+    const isNewUser = !hasEventHistory;
+    
+    if (isNewUser) {
+      // Special display for new hosts
+      return {
+        score: null, // No numeric score yet
+        stars: null, // No star rating yet
+        tier: { label: 'New Host', color: '#00C6FF', emoji: '🆕' }, // Custom tier for new hosts
+        metrics,
+        streaks,
+        isNewUser: true,
+        warning: null, // No warnings for new users
+        displayText: `🆕 New Host`,
+        shortDisplayText: `New`,
+      };
+    }
+    
+    // Existing users with event history
+    const score = reliabilityData.score || 70; // Default to "Good" if no score calculated yet
+    const tier = this.getReliabilityTier(score);
     const streaks = reliabilityData.streaks || {};
     
     // Convert score to stars and format display
@@ -444,6 +466,7 @@ export class ReliabilityService {
       tier,
       metrics,
       streaks,
+      isNewUser: false,
       warning: this.getReliabilityWarning({ reliabilityScore: score, metrics, streaks }),
       displayText: `${starDisplay} ${stars}/5 ${tier.label}`,
       shortDisplayText: `${stars}/5`,

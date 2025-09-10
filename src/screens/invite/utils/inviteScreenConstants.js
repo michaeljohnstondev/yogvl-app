@@ -1,13 +1,13 @@
 export const TABS = {
   APP: 'app',
   PHONE: 'phone', 
-  MANUAL: 'manual'
+  QR: 'qr'
 };
 
 export const TAB_LABELS = {
   [TABS.APP]: 'App',
   [TABS.PHONE]: 'Phone',
-  [TABS.MANUAL]: 'Manual'
+  [TABS.QR]: 'QR Code'
 };
 
 export const USER_TYPES = {

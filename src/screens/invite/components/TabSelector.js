@@ -32,7 +32,7 @@ const TabSelector = ({ activeTab, setActiveTab }) => {
       <View style={styles.tabContainer}>
         {renderTabButton(TABS.APP, TAB_LABELS[TABS.APP], styles.appTabButton)}
         {renderTabButton(TABS.PHONE, TAB_LABELS[TABS.PHONE], styles.phoneTabButton)}
-        {renderTabButton(TABS.MANUAL, TAB_LABELS[TABS.MANUAL], styles.manualTabButton)}
+        {renderTabButton(TABS.QR, TAB_LABELS[TABS.QR], styles.manualTabButton)}
       </View>
     </View>
   );

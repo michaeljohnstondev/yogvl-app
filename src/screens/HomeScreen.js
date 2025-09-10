@@ -44,7 +44,6 @@ export default function HomeScreen({ navigation }) {
   const [isLoading, setIsLoading] = useState(true);
   const [showAccountSettings, setShowAccountSettings] = useState(false);
   const [feedStats, setFeedStats] = useState(null);
-  const [lastFocusReload, setLastFocusReload] = useState(0);
   
   // Admin notifications state
   const [currentNotification, setCurrentNotification] = useState(null);
@@ -197,7 +196,7 @@ export default function HomeScreen({ navigation }) {
     // Real-time updates will be handled by useFocusEffect instead
     // to avoid unnecessary reloads from notification-related changes
     return () => {}; // No-op cleanup
-  }, [currentUserId, userData, vibeAlert]); // Re-run when user data changes
+  }, [currentUserId, userData]); // Re-run when user data changes (removed vibeAlert to prevent dialog-triggered reloads)
 
   // Handle hardware back button to confirm app exit
   useFocusEffect(
@@ -208,9 +207,6 @@ export default function HomeScreen({ navigation }) {
           'Are you sure you want to exit Big Vibe Studios?',
           () => {
             BackHandler.exitApp();
-          },
-          () => {
-            // Do nothing - stay in app
           }
         );
         return true; // Always prevent default back behavior
@@ -219,90 +215,6 @@ export default function HomeScreen({ navigation }) {
     }, [vibeAlert])
   );
 
-  // Reload events when screen comes into focus (but not on first load)
-  useFocusEffect(
-    useCallback(() => {
-      // Prevent frequent reloads from notification-triggered focus events
-      const now = Date.now();
-      if (now - lastFocusReload < 3000) { // 3 second cooldown
-        console.log('[HomeScreen] Skipping focus reload due to recent reload');
-        return;
-      }
-      
-      // Only reload if we're not in initial loading state and user is authenticated
-      if (!isLoading && !checkingBanStatus && currentUserId && userData?.userdata?.studios?.default) {
-        setLastFocusReload(now);
-        const loadEventFeed = async () => {
-          const userStudio = userData.userdata.studios.default.studioId;
-          try {
-            const feedData = await getEventFeed(currentUserId, userStudio, {
-              followedLimit: 20,
-              suggestedLimit: 15,
-              includeSubscribed: true
-            });
-
-            // Separate events by category
-            const now = new Date();
-            const myUpcoming = [];
-            const followed = [];
-            const suggested = [];
-            const myPast = [];
-
-            feedData.subscribedEvents.forEach(event => {
-              const eventDate = event.eventTimestamp?.toDate() || new Date(event.utcDateTime);
-              const enrichedEvent = {
-                ...event,
-                isHostedByUser: event.createdBy === currentUserId
-              };
-              
-              if (eventDate >= now) {
-                myUpcoming.push(enrichedEvent);
-              } else {
-                myPast.push(enrichedEvent);
-              }
-            });
-
-            // Add followed users' events (exclude events user has already subscribed to)
-            const subscribedEventIds = new Set(feedData.subscribedEvents.map(event => event.id));
-            
-            feedData.followedEvents.forEach(event => {
-              const eventDate = event.eventTimestamp?.toDate() || new Date(event.utcDateTime);
-              if (eventDate >= now && !subscribedEventIds.has(event.id)) {
-                followed.push({
-                  ...event,
-                  isHostedByUser: event.createdBy === currentUserId
-                });
-              }
-            });
-
-            // Add suggested events
-            feedData.suggestedEvents.forEach(event => {
-              const eventDate = event.eventTimestamp?.toDate() || new Date(event.utcDateTime);
-              if (eventDate >= now) {
-                suggested.push({
-                  ...event,
-                  isHostedByUser: event.createdBy === currentUserId
-                });
-              }
-            });
-
-            setMyEvents(myUpcoming);
-            setFollowedEvents(followed);
-            setSuggestedEvents(suggested);
-            setPastEvents(myPast.reverse());
-            setFeedStats(feedData.stats);
-            
-          } catch (error) {
-            console.error('[HomeScreen] Failed to refresh event feed:', error);
-          }
-        };
-
-        // Small delay to avoid excessive calls
-        const timeoutId = setTimeout(loadEventFeed, 100);
-        return () => clearTimeout(timeoutId);
-      }
-    }, [isLoading, checkingBanStatus, currentUserId, userData, lastFocusReload])
-  );
 
   // Check if user has no events at all
   const hasNoEvents =

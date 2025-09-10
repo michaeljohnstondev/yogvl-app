@@ -26,19 +26,65 @@ export class StudioService {
       
       const studios = [];
       snapshot.forEach((doc) => {
+        const studioData = doc.data();
         studios.push({
           id: doc.id,
-          ...doc.data()
+          ...studioData,
         });
       });
       
       console.log(`[StudioService] Loaded ${studios.length} active studios from Firebase`);
-      return studios;
+      // Add member counts to all studios
+      return await this.addMemberCounts(studios);
     } catch (error) {
       console.error('[StudioService] Error loading studios from Firebase:', error);
       // Fallback to hardcoded data if Firebase fails
       console.log('[StudioService] Falling back to hardcoded studio data');
-      return this.getHardcodedStudios();
+      const hardcodedStudios = this.getHardcodedStudios();
+      return await this.addMemberCounts(hardcodedStudios);
+    }
+  }
+
+  /**
+   * Get member count for a specific studio by counting users
+   * @param {string} studioId - Studio ID to count members for
+   * @returns {Promise<number>} Number of members in the studio
+   */
+  static async getStudioMemberCount(studioId) {
+    try {
+      const usersRef = collection(db, 'users');
+      const q = query(
+        usersRef, 
+        where('userdata.studios.default.studioId', '==', studioId)
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.size;
+    } catch (error) {
+      console.error(`[StudioService] Error counting members for studio ${studioId}:`, error);
+      return 0;
+    }
+  }
+
+  /**
+   * Add member counts to an array of studios
+   * @param {Array} studios - Array of studio objects
+   * @returns {Promise<Array>} Studios with memberCount added
+   */
+  static async addMemberCounts(studios) {
+    try {
+      const studiosWithCounts = await Promise.all(
+        studios.map(async (studio) => {
+          const memberCount = await this.getStudioMemberCount(studio.id);
+          return {
+            ...studio,
+            memberCount
+          };
+        })
+      );
+      return studiosWithCounts;
+    } catch (error) {
+      console.error('[StudioService] Error adding member counts:', error);
+      return studios; // Return original studios if counting fails
     }
   }
 
@@ -48,7 +94,7 @@ export class StudioService {
    */
   static getHardcodedStudios() {
     return [
-      // South Carolina Studios
+      // Only Greenville as the default studio for fallback/initialization
       {
         id: 'greenville_sc',
         name: 'Greenville Studio',
@@ -56,328 +102,10 @@ export class StudioService {
         state: 'SC',
         region: 'Southeast',
         coordinates: { lat: 34.8526, lng: -82.3940 },
-      },
-      {
-        id: 'simpsonville_sc', 
-        name: 'Simpsonville Studio',
-        city: 'Simpsonville',
-        state: 'SC',
-        region: 'Southeast',
-        coordinates: { lat: 34.7370, lng: -82.2543 },
-      },
-      {
-        id: 'charleston_sc',
-        name: 'Charleston Studio',
-        city: 'Charleston',
-        state: 'SC',
-        region: 'Southeast',
-        coordinates: { lat: 32.7765, lng: -79.9311 },
-      },
-      {
-        id: 'columbia_sc',
-        name: 'Columbia Studio', 
-        city: 'Columbia',
-        state: 'SC',
-        region: 'Southeast',
-        coordinates: { lat: 34.0007, lng: -81.0348 },
-      },
-      {
-        id: 'clemson_sc',
-        name: 'Clemson Studio',
-        city: 'Clemson', 
-        state: 'SC',
-        region: 'Southeast',
-        coordinates: { lat: 34.6834, lng: -82.8374 },
-      },
-      {
-        id: 'myrtle_beach_sc',
-        name: 'Myrtle Beach Studio',
-        city: 'Myrtle Beach',
-        state: 'SC',
-        region: 'Southeast',
-        coordinates: { lat: 33.6891, lng: -78.8867 },
-      },
-      
-      // North Carolina Centers
-      {
-        id: 'charlotte_nc',
-        name: 'Charlotte Studio',
-        city: 'Charlotte',
-        state: 'NC', 
-        region: 'Southeast',
-        isActive: false,
-        status: 'coming_soon',
-        description: 'Coming soon to the Queen City',
-        coversTowns: ['Charlotte', 'Concord', 'Gastonia', 'Rock Hill'],
-        coordinates: { lat: 35.2271, lng: -80.8431 },
-      },
-      {
-        id: 'asheville_nc',
-        name: 'Asheville Studio',
-        city: 'Asheville',
-        state: 'NC',
-        region: 'Southeast', 
-        isActive: false,
-        status: 'coming_soon',
-        description: 'Coming soon to the mountains',
-        coversTowns: ['Asheville', 'Black Mountain', 'Hendersonville'],
-        coordinates: { lat: 35.5951, lng: -82.5515 },
-      },
-      
-      // Georgia Centers  
-      {
-        id: 'atlanta_ga',
-        name: 'Atlanta Studio',
-        city: 'Atlanta',
-        state: 'GA',
-        region: 'Southeast',
-        isActive: false,
-        status: 'coming_soon', 
-        description: 'Coming soon to the Big Peach',
-        coversTowns: ['Atlanta', 'Decatur', 'Alpharetta', 'Sandy Springs'],
-        coordinates: { lat: 33.7490, lng: -84.3880 },
-      },
-      
-      // Major US Cities (Future)
-      {
-        id: 'manhattan_ny',
-        name: 'Manhattan Studio',
-        city: 'Manhattan',
-        state: 'NY',
-        region: 'Northeast',
-        isActive: false,
-        status: 'waitlist',
-        description: 'Join the waitlist for NYC events',
-        coversTowns: ['Manhattan', 'Lower Manhattan', 'Midtown', 'Upper East Side'],
-      },
-      {
-        id: 'brooklyn_ny',
-        name: 'Brooklyn Studio',
-        city: 'Brooklyn', 
-        state: 'NY',
-        region: 'Northeast',
-        isActive: false,
-        status: 'waitlist',
-        description: 'Join the waitlist for Brooklyn events',
-        coversTowns: ['Brooklyn', 'Park Slope', 'Williamsburg', 'DUMBO'],
-      },
-      {
-        id: 'san_francisco_ca',
-        name: 'San Francisco Studio',
-        city: 'San Francisco',
-        state: 'CA',
-        region: 'West Coast', 
-        isActive: false,
-        status: 'waitlist',
-        description: 'Join the waitlist for SF events',
-        coversTowns: ['San Francisco', 'SOMA', 'Mission', 'Castro'],
-      },
-      {
-        id: 'los_angeles_ca',
-        name: 'Los Angeles Studio',
-        city: 'Los Angeles',
-        state: 'CA',
-        region: 'West Coast',
-        isActive: false,
-        status: 'waitlist', 
-        description: 'Join the waitlist for LA events',
-        coversTowns: ['Los Angeles', 'Hollywood', 'West Hollywood', 'Santa Monica'],
-      },
-      {
-        id: 'chicago_il',
-        name: 'Chicago Studio',
-        city: 'Chicago',
-        state: 'IL',
-        region: 'Midwest',
-        isActive: false,
-        status: 'waitlist',
-        description: 'Join the waitlist for Chicago events', 
-        coversTowns: ['Chicago', 'Lincoln Park', 'Wicker Park', 'River North'],
-      },
-      {
-        id: 'austin_tx',
-        name: 'Austin Studio',
-        city: 'Austin',
-        state: 'TX',
-        region: 'Southwest',
-        isActive: false,
-        status: 'waitlist',
-        description: 'Join the waitlist for Austin events',
-        coversTowns: ['Austin', 'South Austin', 'East Austin', 'Cedar Park'],
-      },
-      
-      // Additional Major Cities
-      {
-        id: 'boston_ma',
-        name: 'Boston Studio',
-        city: 'Boston',
-        state: 'MA',
-        region: 'Northeast',
+        description: 'Default studio for the Greenville, SC area',
+        coversTowns: ['Greenville', 'Simpsonville', 'Greer', 'Mauldin'],
         isActive: true,
         status: 'active',
-        coversTowns: ['Boston', 'Cambridge', 'Somerville', 'Back Bay'],
-        coordinates: { lat: 42.3601, lng: -71.0589 },
-      },
-      {
-        id: 'philadelphia_pa',
-        name: 'Philadelphia Studio',
-        city: 'Philadelphia',
-        state: 'PA',
-        region: 'Northeast',
-        isActive: true,
-        status: 'active',
-        coversTowns: ['Philadelphia', 'Center City', 'Northern Liberties', 'Fishtown'],
-      },
-      {
-        id: 'washington_dc',
-        name: 'Washington DC Studio',
-        city: 'Washington',
-        state: 'DC',
-        region: 'Northeast',
-        isActive: true,
-        status: 'active',
-        coversTowns: ['Washington', 'Georgetown', 'Adams Morgan', 'Capitol Hill'],
-      },
-      {
-        id: 'raleigh_nc',
-        name: 'Raleigh Studio',
-        city: 'Raleigh',
-        state: 'NC',
-        region: 'Southeast',
-        isActive: true,
-        status: 'active',
-        coversTowns: ['Raleigh', 'Durham', 'Chapel Hill', 'Cary'],
-      },
-      {
-        id: 'miami_fl',
-        name: 'Miami Studio',
-        city: 'Miami',
-        state: 'FL',
-        region: 'Southeast',
-        isActive: true,
-        status: 'active',
-        coversTowns: ['Miami', 'Miami Beach', 'Coral Gables', 'Wynwood'],
-        coordinates: { lat: 25.7617, lng: -80.1918 },
-      },
-      {
-        id: 'detroit_mi',
-        name: 'Detroit Studio',
-        city: 'Detroit',
-        state: 'MI',
-        region: 'Midwest',
-        isActive: true,
-        status: 'active',
-        coversTowns: ['Detroit', 'Royal Oak', 'Ferndale', 'Midtown'],
-      },
-      {
-        id: 'minneapolis_mn',
-        name: 'Minneapolis Studio',
-        city: 'Minneapolis',
-        state: 'MN',
-        region: 'Midwest',
-        isActive: true,
-        status: 'active',
-        coversTowns: ['Minneapolis', 'St. Paul', 'Uptown', 'Northeast'],
-      },
-      {
-        id: 'dallas_tx',
-        name: 'Dallas Studio',
-        city: 'Dallas',
-        state: 'TX',
-        region: 'Southwest',
-        isActive: true,
-        status: 'active',
-        coversTowns: ['Dallas', 'Plano', 'Deep Ellum', 'Uptown'],
-      },
-      {
-        id: 'houston_tx',
-        name: 'Houston Studio',
-        city: 'Houston',
-        state: 'TX',
-        region: 'Southwest',
-        isActive: true,
-        status: 'active',
-        coversTowns: ['Houston', 'The Woodlands', 'Sugar Land', 'Heights'],
-      },
-      {
-        id: 'denver_co',
-        name: 'Denver Studio',
-        city: 'Denver',
-        state: 'CO',
-        region: 'Southwest',
-        isActive: true,
-        status: 'active',
-        coversTowns: ['Denver', 'Boulder', 'Lakewood', 'Capitol Hill'],
-      },
-      {
-        id: 'phoenix_az',
-        name: 'Phoenix Studio',
-        city: 'Phoenix',
-        state: 'AZ',
-        region: 'Southwest',
-        isActive: true,
-        status: 'active',
-        coversTowns: ['Phoenix', 'Scottsdale', 'Tempe', 'Mesa'],
-      },
-      {
-        id: 'las_vegas_nv',
-        name: 'Las Vegas Studio',
-        city: 'Las Vegas',
-        state: 'NV',
-        region: 'Southwest',
-        isActive: true,
-        status: 'active',
-        coversTowns: ['Las Vegas', 'Henderson', 'Summerlin', 'The Strip'],
-      },
-      {
-        id: 'orange_county_ca',
-        name: 'Orange County Studio',
-        city: 'Orange County',
-        state: 'CA',
-        region: 'West Coast',
-        isActive: true,
-        status: 'active',
-        coversTowns: ['Irvine', 'Newport Beach', 'Anaheim', 'Huntington Beach'],
-      },
-      {
-        id: 'san_diego_ca',
-        name: 'San Diego Studio',
-        city: 'San Diego',
-        state: 'CA',
-        region: 'West Coast',
-        isActive: true,
-        status: 'active',
-        coversTowns: ['San Diego', 'La Jolla', 'Pacific Beach', 'Gaslamp'],
-      },
-      {
-        id: 'sacramento_ca',
-        name: 'Sacramento Studio',
-        city: 'Sacramento',
-        state: 'CA',
-        region: 'West Coast',
-        isActive: true,
-        status: 'active',
-        coversTowns: ['Sacramento', 'Davis', 'Folsom', 'Midtown'],
-      },
-      {
-        id: 'seattle_wa',
-        name: 'Seattle Studio',
-        city: 'Seattle',
-        state: 'WA',
-        region: 'West Coast',
-        isActive: true,
-        status: 'active',
-        coversTowns: ['Seattle', 'Bellevue', 'Capitol Hill', 'Fremont'],
-      },
-      {
-        id: 'portland_or',
-        name: 'Portland Studio',
-        city: 'Portland',
-        state: 'OR',
-        region: 'West Coast',
-        isActive: true,
-        status: 'active',
-        coversTowns: ['Portland', 'Pearl District', 'Hawthorne', 'Alberta'],
       },
     ];
   }
@@ -582,6 +310,13 @@ export class StudioService {
    * @returns {number} Distance in miles
    */
   static calculateDistance(lat1, lng1, lat2, lng2) {
+    // Safety check for undefined coordinates
+    if (typeof lat1 !== 'number' || typeof lng1 !== 'number' || 
+        typeof lat2 !== 'number' || typeof lng2 !== 'number') {
+      console.warn('[StudioService] Invalid coordinates for distance calculation:', { lat1, lng1, lat2, lng2 });
+      return null;
+    }
+    
     const R = 3959; // Earth's radius in miles
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLng = (lng2 - lng1) * Math.PI / 180;
@@ -598,12 +333,24 @@ export class StudioService {
    * @param {number} userLat - User's latitude
    * @param {number} userLng - User's longitude
    * @param {number} limit - Number of studios to return (default 5)
+   * @param {number} maxDistance - Maximum distance in miles (default 100)
    * @returns {Promise<Array>} Array of closest studios with distance
    */
-  static async getClosestStudios(userLat, userLng, limit = 5) {
+  static async getClosestStudios(userLat, userLng, limit = 5, maxDistance = 100) {
+    console.log('[StudioService] Getting closest studios for coordinates:', { userLat, userLng, maxDistance });
     const allStudios = await this.getAllStudios();
-    const studiosWithDistance = allStudios
-      .filter(studio => studio.coordinates) // Only studios with coordinates
+    console.log('[StudioService] All studios loaded:', allStudios.length);
+    console.log('[StudioService] Studios with coordinates:', allStudios.map(s => ({
+      id: s.id,
+      name: s.name,
+      hasCoordinates: !!s.coordinates,
+      coordinates: s.coordinates
+    })));
+    
+    const studiosWithCoordinates = allStudios.filter(studio => studio.coordinates);
+    console.log('[StudioService] Studios after coordinate filter:', studiosWithCoordinates.length);
+    
+    const studiosWithDistance = studiosWithCoordinates
       .map(studio => ({
         ...studio,
         distance: this.calculateDistance(
@@ -613,10 +360,15 @@ export class StudioService {
           studio.coordinates.lng
         )
       }))
+      .filter(studio => studio.distance !== null && studio.distance <= maxDistance) // Filter by maximum distance and valid distance
       .sort((a, b) => a.distance - b.distance) // Sort by distance
       .slice(0, limit); // Limit results
 
-    return studiosWithDistance;
+    console.log('[StudioService] Studios within', maxDistance, 'miles:', studiosWithDistance.length);
+
+    // Add member counts to the closest studios
+    const studiosWithCounts = await this.addMemberCounts(studiosWithDistance);
+    return studiosWithCounts;
   }
 
   /**

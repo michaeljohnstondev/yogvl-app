@@ -154,6 +154,7 @@ export default function CreateEventForm({
       currentUserId: userData?.uid,
       eventDateTime: dateTimeValues?.event?.value,
       onUpdateSettings: updateField,
+      userContext: 'hosting', // User is hosting this event
     });
   }, [navigation, formData.notificationSettings, userData, dateTimeValues, updateField]);
 

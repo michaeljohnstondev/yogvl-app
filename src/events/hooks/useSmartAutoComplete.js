@@ -1,6 +1,9 @@
 // components/events/hooks/useSmartAutoComplete.js
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { getEmojiForText } from '../../lib/emojiUtils';
+import { GooglePlacesService } from '../../services/GooglePlacesService';
+import { VenueService } from '../../services/VenueService';
+import { isPersonalLocation } from '../../lib/locationUtils';
 
 /**
  * Check if text already contains an emoji
@@ -20,86 +23,8 @@ const hasEmojiAtStart = (text) => {
   return emojiRegex.test(trimmed);
 };
 
-/**
- * Location database for Greenville area popular spots
- * In a real app, this could be loaded from your backend or a service like Google Places
- */
-const LOCATION_DATABASE = {
-  // Parks
-  'Unity Park': {
-    address: '950 Riverfront Dr, Greenville, SC 29601',
-    category: 'park',
-    aliases: ['unity', 'unity park', 'riverfront park'],
-  },
-  'Falls Park': {
-    address: '601 S Main St, Greenville, SC 29601',
-    category: 'park',
-    aliases: ['falls park', 'falls', 'reedy river falls', 'main street park'],
-  },
-  'Cleveland Park': {
-    address: '1 Conestee Rd, Greenville, SC 29607',
-    category: 'park',
-    aliases: ['cleveland', 'cleveland park', 'zoo park'],
-  },
-
-  // Restaurants
-  'The Lazy Goat': {
-    address: '170 River Pl, Greenville, SC 29601',
-    category: 'restaurant',
-    aliases: ['lazy goat', 'the lazy goat', 'goat restaurant'],
-  },
-  'Tupelo Honey': {
-    address: '10 N Main St, Greenville, SC 29601',
-    category: 'restaurant',
-    aliases: ['tupelo', 'tupelo honey', 'honey restaurant'],
-  },
-  "Soby's": {
-    address: '207 S Main St, Greenville, SC 29601',
-    category: 'restaurant',
-    aliases: ['sobys', 'soby', 'sobys restaurant'],
-  },
-
-  // Entertainment
-  'Liberty Bridge': {
-    address: 'Falls Park Dr, Greenville, SC 29601',
-    category: 'landmark',
-    aliases: ['liberty bridge', 'falls park bridge', 'suspension bridge'],
-  },
-  'Peace Center': {
-    address: '300 S Main St, Greenville, SC 29601',
-    category: 'venue',
-    aliases: ['peace center', 'peace', 'theater', 'performing arts'],
-  },
-  'Bon Secours Wellness Arena': {
-    address: '650 N Academy St, Greenville, SC 29601',
-    category: 'venue',
-    aliases: ['wellness arena', 'bon secours arena', 'arena', 'swamp rabbits'],
-  },
-
-  // Shopping
-  'Main Street': {
-    address: 'Main St, Greenville, SC 29601',
-    category: 'area',
-    aliases: ['main street', 'downtown', 'main st', 'downtown main'],
-  },
-  'Haywood Mall': {
-    address: '700 Haywood Rd, Greenville, SC 29607',
-    category: 'shopping',
-    aliases: ['haywood', 'haywood mall', 'mall'],
-  },
-
-  // Popular neighborhoods/areas
-  'Augusta Road': {
-    address: 'Augusta Rd, Greenville, SC 29605',
-    category: 'area',
-    aliases: ['augusta road', 'augusta', 'augusta rd'],
-  },
-  Verdae: {
-    address: 'Verdae Blvd, Greenville, SC 29607',
-    category: 'area',
-    aliases: ['verdae', 'verdae area', 'verdae boulevard'],
-  },
-};
+// Removed hardcoded Greenville location database 
+// Now using past events + Google Places API for location suggestions
 
 /**
  * Default suggestion databases for when user has no events yet
@@ -163,6 +88,12 @@ const useSmartAutoComplete = (config = {}, onLocationSelect = () => {}) => {
   // Cache for external suggestions (from your existing API)
   const [externalSuggestions, setExternalSuggestions] = useState({});
 
+  // Cache for Google Places suggestions
+  const [googlePlacesSuggestions, setGooglePlacesSuggestions] = useState({});
+
+  // Cache for venue database suggestions 
+  const [venueDatabaseSuggestions, setVenueDatabaseSuggestions] = useState({});
+
   // Loading states for different fields
   const [loadingStates, setLoadingStates] = useState({});
 
@@ -178,45 +109,81 @@ const useSmartAutoComplete = (config = {}, onLocationSelect = () => {}) => {
     setSuggestionVisibility(initialVisibility);
   }, [config]);
 
-  // Smart location search function
-  const searchLocations = useCallback((query) => {
-    if (!query || typeof query !== 'string' || query.trim().length < 2)
-      return [];
+  // Venue database search function - YOUR DATABASE SEARCH (FREE)
+  const searchVenueDatabase = useCallback(async (fieldId, query) => {
+    if (!query || query.trim().length < 2) {
+      setVenueDatabaseSuggestions(prev => ({ ...prev, [fieldId]: [] }));
+      return;
+    }
 
-    const searchTerm = query.toLowerCase().trim();
-    const matches = [];
+    // Skip venue database search for personal locations
+    if (isPersonalLocation(query)) {
+      console.log('[useSmartAutoComplete] Personal location detected, skipping venue database');
+      setVenueDatabaseSuggestions(prev => ({ ...prev, [fieldId]: [] }));
+      return;
+    }
 
-    Object.entries(LOCATION_DATABASE).forEach(([name, data]) => {
-      // Check main name
-      if (name.toLowerCase().includes(searchTerm)) {
-        matches.push({
-          name,
-          address: data.address,
-          category: data.category,
-          matchType: 'name',
-          score: name.toLowerCase().indexOf(searchTerm) === 0 ? 10 : 5,
-        });
-      }
+    try {
+      console.log('[useSmartAutoComplete] Searching venue database for:', query);
+      const venueSuggestions = await VenueService.getVenueSuggestions(query);
+      
+      // Format venue suggestions for autocomplete
+      const formattedVenues = venueSuggestions.map(venue => ({
+        text: venue.name,
+        type: 'location',
+        address: venue.address,
+        category: 'venue',
+        icon: '🏢',
+        isVenueDb: true,
+        venueId: venue.id
+      }));
 
-      // Check aliases
-      data.aliases.forEach((alias) => {
-        if (
-          alias.includes(searchTerm) &&
-          !matches.find((m) => m.name === name)
-        ) {
-          matches.push({
-            name,
-            address: data.address,
-            category: data.category,
-            matchType: 'alias',
-            score: alias.indexOf(searchTerm) === 0 ? 8 : 3,
-          });
-        }
-      });
-    });
+      setVenueDatabaseSuggestions(prev => ({ 
+        ...prev, 
+        [fieldId]: formattedVenues 
+      }));
+      
+      console.log(`[useSmartAutoComplete] Found ${formattedVenues.length} venue database results`);
+    } catch (error) {
+      console.error('[useSmartAutoComplete] Error searching venue database:', error);
+      setVenueDatabaseSuggestions(prev => ({ ...prev, [fieldId]: [] }));
+    }
+  }, []);
 
-    // Sort by relevance score (higher = better)
-    return matches.sort((a, b) => b.score - a.score).slice(0, 8); // Limit to top 8 results
+  // Google Places search function - COSTS MONEY (fallback only)
+  const searchGooglePlaces = useCallback(async (fieldId, query) => {
+    if (!query || query.trim().length < 3) {
+      setGooglePlacesSuggestions(prev => ({ ...prev, [fieldId]: [] }));
+      return;
+    }
+
+    // Skip Google Places search for personal locations
+    if (isPersonalLocation(query)) {
+      console.log('[useSmartAutoComplete] Personal location detected, skipping Google Places');
+      setGooglePlacesSuggestions(prev => ({ ...prev, [fieldId]: [] }));
+      return;
+    }
+
+    setLoadingStates(prev => ({ ...prev, [fieldId]: true }));
+
+    try {
+      console.log('[useSmartAutoComplete] Searching Google Places for:', query);
+      const predictions = await GooglePlacesService.getAutocompletePredictions(query);
+
+      const formattedPredictions = predictions.map(prediction => 
+        GooglePlacesService.formatPredictionForAutocomplete(prediction)
+      );
+
+      setGooglePlacesSuggestions(prev => ({ 
+        ...prev, 
+        [fieldId]: formattedPredictions 
+      }));
+    } catch (error) {
+      console.error('[useSmartAutoComplete] Error fetching Google Places:', error);
+      setGooglePlacesSuggestions(prev => ({ ...prev, [fieldId]: [] }));
+    } finally {
+      setLoadingStates(prev => ({ ...prev, [fieldId]: false }));
+    }
   }, []);
 
   // Filter and combine suggestions for a field
@@ -229,20 +196,9 @@ const useSmartAutoComplete = (config = {}, onLocationSelect = () => {}) => {
 
       const suggestions = [];
 
-      // Add location suggestions for location fields
-      if (fieldConfig.enableLocationLookup && currentValue) {
-        const locationMatches = searchLocations(currentValue);
-        suggestions.push(
-          ...locationMatches.map((match) => ({
-            text: match.name,
-            type: 'location',
-            address: match.address,
-            category: match.category,
-          }))
-        );
-      }
+      // COST OPTIMIZATION: Search FREE sources first, Google Places only as expensive fallback
 
-      // Add external suggestions (from your API)
+      // 1. Add external suggestions (past events - FREE)
       const external = externalSuggestions[fieldId] || [];
       const filteredExternal = external
         .filter((suggestion) => {
@@ -250,21 +206,54 @@ const useSmartAutoComplete = (config = {}, onLocationSelect = () => {}) => {
             typeof suggestion === 'string' ? suggestion : suggestion.text || '';
           return (
             currentValue &&
-            suggestionText.toLowerCase().includes(currentValue.toLowerCase()) &&
-            !suggestions.find(
-              (s) => s.text.toLowerCase() === suggestionText.toLowerCase()
-            )
+            suggestionText.toLowerCase().includes(currentValue.toLowerCase())
           );
         })
-        .slice(0, 5)
+        .slice(0, 3) // Limit past events to top 3 to leave room for venue db
         .map((suggestion) => ({
           text:
             typeof suggestion === 'string' ? suggestion : suggestion.text || '',
-          type: 'suggestion',
-          icon: '💡',
+          type: 'past_event',
+          icon: '🔄'
         }));
 
       suggestions.push(...filteredExternal);
+
+      // 2. Add YOUR venue database suggestions (FREE - higher priority than Google)
+      if (fieldConfig.enableLocationLookup && currentValue && suggestions.length < 6) {
+        const venueSuggestions = venueDatabaseSuggestions[fieldId] || [];
+        const remainingSlots = 6 - suggestions.length;
+        
+        // Filter out duplicates with past events
+        const uniqueVenueSuggestions = venueSuggestions.filter(venueSug => {
+          const isDuplicate = suggestions.find(s => 
+            s.text && venueSug.text && 
+            s.text.toLowerCase() === venueSug.text.toLowerCase()
+          );
+          return !isDuplicate;
+        });
+        
+        suggestions.push(...uniqueVenueSuggestions.slice(0, remainingSlots));
+      }
+
+      // 3. Add Google Places suggestions LAST (COSTS MONEY - only if we need more results)
+      if (fieldConfig.enableLocationLookup && currentValue && suggestions.length < 6) {
+        const googleSuggestions = googlePlacesSuggestions[fieldId] || [];
+        const remainingSlots = 6 - suggestions.length;
+        
+        // Filter out duplicates with existing suggestions
+        const uniqueGoogleSuggestions = googleSuggestions.filter(googleSug => {
+          const isDuplicate = suggestions.find(s => 
+            s.text && googleSug.text && 
+            s.text.toLowerCase() === googleSug.text.toLowerCase()
+          );
+          return !isDuplicate;
+        });
+        
+        suggestions.push(...uniqueGoogleSuggestions.slice(0, remainingSlots));
+      }
+
+      // External suggestions already handled above
 
       // Add contextual suggestions (same logic as VibeAutoComplete)
       if (currentValue && currentValue.length >= 1 && fieldId === 'title') {
@@ -323,7 +312,7 @@ const useSmartAutoComplete = (config = {}, onLocationSelect = () => {}) => {
 
       return suggestions.slice(0, 8); // Max 8 total suggestions
     },
-    [config, externalSuggestions, searchLocations]
+    [config, externalSuggestions, venueDatabaseSuggestions, googlePlacesSuggestions]
   );
 
   // Show suggestions for a field
@@ -345,7 +334,7 @@ const useSmartAutoComplete = (config = {}, onLocationSelect = () => {}) => {
 
   // Handle suggestion selection
   const handleSuggestionSelect = useCallback(
-    (fieldId, suggestion, currentValue, onFieldUpdate) => {
+    async (fieldId, suggestion, currentValue, onFieldUpdate) => {
       // Safely extract suggestion text
       const suggestionText =
         typeof suggestion === 'string' ? suggestion : suggestion?.text || '';
@@ -362,8 +351,42 @@ const useSmartAutoComplete = (config = {}, onLocationSelect = () => {}) => {
       // Update the field value
       onFieldUpdate(fieldId, textWithEmoji);
 
-      // If it's a location with an address, trigger the location callback
-      if (
+      // Handle Google Places selection
+      if (suggestion && suggestion.isGooglePlace && suggestion.placeId) {
+        console.log('[useSmartAutoComplete] Google Place selected, getting details...');
+        setLoadingStates(prev => ({ ...prev, [fieldId]: true }));
+        
+        try {
+          const placeDetails = await GooglePlacesService.getPlaceDetails(suggestion.placeId);
+          console.log('[useSmartAutoComplete] Place details received:', placeDetails);
+          if (placeDetails && placeDetails.address) {
+            console.log('[useSmartAutoComplete] Calling onLocationSelect with:', {
+              fieldId,
+              location: placeDetails.name,
+              address: placeDetails.address,
+              placeId: suggestion.placeId,
+              isGooglePlace: true,
+              coordinates: placeDetails.location
+            });
+            onLocationSelect({
+              fieldId,
+              location: placeDetails.name,
+              address: placeDetails.address,
+              placeId: suggestion.placeId,
+              isGooglePlace: true,
+              coordinates: placeDetails.location
+            });
+          } else {
+            console.log('[useSmartAutoComplete] No address found in place details:', placeDetails);
+          }
+        } catch (error) {
+          console.error('[useSmartAutoComplete] Error getting Google Place details:', error);
+        } finally {
+          setLoadingStates(prev => ({ ...prev, [fieldId]: false }));
+        }
+      }
+      // Handle local location selection
+      else if (
         suggestion &&
         typeof suggestion === 'object' &&
         suggestion.type === 'location' &&
@@ -404,6 +427,17 @@ const useSmartAutoComplete = (config = {}, onLocationSelect = () => {}) => {
         return;
       }
 
+      // Trigger location searches for location fields - DATABASE FIRST, then Google Places
+      if (fieldConfig.enableLocationLookup) {
+        // 1. Search your venue database first (FREE)
+        searchVenueDatabase(fieldId, value);
+        
+        // 2. Only search Google Places if available (COSTS MONEY - fallback)
+        if (GooglePlacesService.isAvailable()) {
+          searchGooglePlaces(fieldId, value);
+        }
+      }
+
       // Show suggestions based on field configuration
       if (fieldConfig.showSuggestionsOnChange) {
         if (
@@ -418,7 +452,7 @@ const useSmartAutoComplete = (config = {}, onLocationSelect = () => {}) => {
         }
       }
     },
-    [config, showSuggestions, hideSuggestions]
+    [config, showSuggestions, hideSuggestions, searchVenueDatabase, searchGooglePlaces]
   );
 
   // Handle field focus
@@ -487,27 +521,7 @@ const useSmartAutoComplete = (config = {}, onLocationSelect = () => {}) => {
     });
   }, []);
 
-  // Search for location by name (utility function)
-  const findLocationByName = useCallback((locationName) => {
-    if (!locationName || typeof locationName !== 'string') return null;
-
-    const searchTerm = locationName.toLowerCase().trim();
-
-    for (const [name, data] of Object.entries(LOCATION_DATABASE)) {
-      if (name.toLowerCase() === searchTerm) {
-        return { name, ...data };
-      }
-
-      // Check aliases
-      for (const alias of data.aliases) {
-        if (alias === searchTerm) {
-          return { name, ...data };
-        }
-      }
-    }
-
-    return null;
-  }, []);
+  // Location search by name removed - using past events + Google Places only
 
   return {
     // Field handlers
@@ -525,9 +539,9 @@ const useSmartAutoComplete = (config = {}, onLocationSelect = () => {}) => {
     updateExternalSuggestions,
     setFieldLoading,
 
-    // Utilities
-    searchLocations,
-    findLocationByName,
+    // Utilities  
+    searchVenueDatabase,
+    searchGooglePlaces,
 
     // State
     suggestionVisibility,

@@ -418,9 +418,53 @@ export const cleanupExpiredNotifications = async () => {
 
 /**
  * Get user notification preferences
+ * Updated to match actual database structure: users/{userId}/userdata/settings/notifications
  */
 const getUserNotificationPreferences = async (userId) => {
   try {
+    // First try the correct location in userdata.settings.notifications
+    const userRef = doc(db, 'users', userId);
+    const userDoc = await getDoc(userRef);
+    
+    if (userDoc.exists()) {
+      const userData = userDoc.data();
+      const notifications = userData?.userdata?.settings?.notifications;
+      
+      if (notifications) {
+        // Map our database structure to expected format
+        return {
+          pushNotifications: notifications.app?.pushNotifications !== false,
+          emailNotifications: notifications.app?.emailNotifications !== false,
+          smsNotifications: notifications.app?.smsNotifications === true,
+          invitations: {
+            received: notifications.attending?.eventReminders !== false,
+            responses: true,
+          },
+          events: {
+            updates: notifications.attending?.hostChanges !== false,
+            reminders: notifications.attending?.eventReminders !== false,
+            cancellations: true, // Always allow critical notifications
+            attendeeChanges: notifications.hosting?.notifyOnJoin !== false,
+            attendanceReminders: notifications.attending?.eventReminders !== false,
+          },
+          friendRequests: {
+            received: notifications.app?.friendAdded !== false,
+            responses: notifications.app?.friendFollowed !== false,
+          },
+          cohostInvitations: {
+            received: true, // Always allow cohost invitations
+            responses: true,
+          },
+          followers: {
+            newFollower: notifications.app?.friendFollowed !== false,
+            mutualFollow: notifications.app?.friendFollowed !== false,
+          },
+          quietHours: notifications.app?.quietHours || false,
+        };
+      }
+    }
+
+    // Fallback: check old location for backward compatibility
     const prefsRef = doc(db, 'users', userId, 'notificationPreferences', 'settings');
     const prefsDoc = await getDoc(prefsRef);
     

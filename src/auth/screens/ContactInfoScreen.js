@@ -62,7 +62,9 @@ export default function ContactInfoScreen({ navigation }) {
   }, [user]);
 
   const handleSubmit = async () => {
-    if (!firstName.trim() || !lastName.trim() || !phoneNumber.trim()) {
+    if (!firstName || (typeof firstName !== 'string') || !firstName.trim() || 
+        !lastName || (typeof lastName !== 'string') || !lastName.trim() || 
+        !phoneNumber || (typeof phoneNumber !== 'string') || !phoneNumber.trim()) {
       vibeAlert.warning(
         'Missing info',
         'Please enter your first name, last name, and phone number.'

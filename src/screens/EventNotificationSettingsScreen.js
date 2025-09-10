@@ -5,15 +5,15 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import VibeButton from '../components/ui/VibeButton';
 import CloseButton from '../components/ui/CloseButton';
-import NotificationSettingsForm from '../components/notifications/NotificationSettingsForm';
+import HostNotificationSettingsForm from '../components/notifications/HostNotificationSettingsForm';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
+import CustomTemplateService from '../services/CustomTemplateService';
 import theme from '../theme/themes';
 
 export default function NotificationSettingsScreen() {
@@ -26,6 +26,7 @@ export default function NotificationSettingsScreen() {
     currentUserId,
     eventDateTime,
     onUpdateSettings,
+    userContext = 'attending', // Default to attending if not specified
   } = route.params;
   const defaultSettings = {
     enabled: true,
@@ -36,20 +37,32 @@ export default function NotificationSettingsScreen() {
   };
   
   const [localSettings, setLocalSettings] = useState(notificationSettings || defaultSettings);
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
+  const [templatesLoaded, setTemplatesLoaded] = useState(false);
   const scrollViewRef = useRef(null);
 
-  // Update local settings when prop changes
+  // Simple initialization - just use the notification settings passed from CreateEventScreen
   useEffect(() => {
+    console.log('[EventNotificationSettings] Initializing with notification settings from CreateEventScreen');
+    
     if (notificationSettings) {
+      console.log('[EventNotificationSettings] Using notification settings directly:', notificationSettings);
       setLocalSettings(notificationSettings);
+    } else {
+      console.log('[EventNotificationSettings] No notification settings provided, using defaults');
+      setLocalSettings(defaultSettings);
     }
+    
+    setTemplatesLoaded(true);
+    setIsLoadingTemplates(false);
   }, [notificationSettings]);
 
-  // Update parent form immediately when local settings change, but avoid infinite loop
+
+  // Auto-save - update parent form immediately when local settings change
   useEffect(() => {
     // Only update if localSettings actually differs from the prop to prevent loops
     if (JSON.stringify(localSettings) !== JSON.stringify(notificationSettings)) {
-      console.log('🔧 [EventNotificationSettings] useEffect updating parent with localSettings:', localSettings);
+      console.log('🔧 [EventNotificationSettings] Auto-saving changes to parent form:', localSettings);
       onUpdateSettings('notificationSettings', localSettings);
     }
   }, [localSettings, onUpdateSettings, notificationSettings]);
@@ -61,59 +74,65 @@ export default function NotificationSettingsScreen() {
         return;
       }
 
-      // Save current local settings as user defaults
+      // Save current local settings as user context defaults (hosting or attending)
+      const contextPath = `userdata.settings.notifications.${userContext}`;
       const userRef = doc(db, 'users', currentUserId);
       await updateDoc(userRef, {
-        'userdata.settings.notifications.hosting': {
-          enabled: localSettings?.enabled ?? true,
-          notifyOnJoin: localSettings?.notifyOnJoin ?? true,
-          notifyOnLeave: localSettings?.notifyOnLeave ?? true,
-          newComments: localSettings?.newComments ?? true,
+        [contextPath]: {
+          hostChanges: localSettings?.hostChanges ?? true,
+          eventReminders: localSettings?.eventReminders ?? true,
+          reminderTiming: localSettings?.reminderTiming ?? '1hour',
+          dayBeforeReminder: localSettings?.dayBeforeReminder ?? true,
+          hostComments: localSettings?.hostComments ?? true,
+          newComments: localSettings?.newComments ?? false,
           reminderTemplates: localSettings?.reminderTemplates ?? [],
         }
       });
+      
+      console.log(`Successfully saved ${userContext} notification defaults`);
+
+      // Save custom templates for future use
+      if (localSettings?.reminderTemplates) {
+        await CustomTemplateService.saveCustomTemplates(currentUserId, localSettings.reminderTemplates);
+      }
 
       // Also apply to current event
       onUpdateSettings('notificationSettings', localSettings);
 
-      console.log('Successfully saved notification defaults and applied to current event');
+      console.log(`Successfully saved ${userContext} notification defaults and custom templates`);
     } catch (error) {
       console.error('Failed to save notification defaults:', error);
     }
   };
 
-  const handleSave = () => {
-    console.log('🔧 [EventNotificationSettings] handleSave - localSettings:', localSettings);
-    onUpdateSettings('notificationSettings', localSettings);
-  };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <CloseButton onPress={() => navigation.goBack()} />
-          </View>
+          <CloseButton onPress={() => navigation.goBack()} />
           <Text style={styles.headerTitle}>Notification Settings</Text>
-          <View style={styles.headerRight}>
-            <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
-              <Text style={styles.saveButtonText}>Save</Text>
-            </TouchableOpacity>
-          </View>
         </View>
 
-        <ScrollView ref={scrollViewRef} style={styles.content} showsVerticalScrollIndicator={false}>
-          <NotificationSettingsForm
+        <ScrollView 
+          ref={scrollViewRef} 
+          style={styles.content} 
+          showsVerticalScrollIndicator={false}
+        >
+          <HostNotificationSettingsForm
             settings={localSettings}
             onUpdateSettings={setLocalSettings}
-            showMasterToggle={true}
-            showEventActivity={true}
-            showSaveAsDefaults={true}
-            onSaveAsDefaults={saveAsDefaults}
+            showCriticalUpdates={false}
+            showEventUpdates={true}
+            showReminders={true}
+            showSocialActivity={true}
+            sectionStyle={styles.section}
             scrollViewRef={scrollViewRef}
+            isLoadingTemplates={isLoadingTemplates}
+            currentUserId={currentUserId}
           />
         </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -124,38 +143,24 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.darkGray,
   },
-  headerLeft: {
-    width: 50,
-  },
   headerTitle: {
     color: theme.colors.textPrimary,
     fontSize: 18,
     fontWeight: 'bold',
-    textAlign: 'center',
+    marginLeft: 16,
     flex: 1,
-  },
-  headerRight: {
-    width: 80,
-    alignItems: 'flex-end',
-  },
-  saveButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  saveButtonText: {
-    color: theme.colors.vibeBlue,
-    fontSize: 16,
-    fontWeight: '600',
   },
   content: {
     flex: 1,
     paddingHorizontal: 16,
+  },
+  section: {
+    paddingHorizontal: 0, // Remove padding since it's handled by the form component
   },
 });

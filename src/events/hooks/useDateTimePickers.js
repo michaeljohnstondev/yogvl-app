@@ -25,6 +25,7 @@ const useDateTimePickers = (config = {}, onUpdate = () => {}) => {
         timeSelected: pickerConfig.initialTimeSelected || false, // Use initial time selection state
         showDatePicker: false,
         showTimePicker: false,
+        isFromTemplate: false, // Track if data came from template
       };
     });
     return initialState;
@@ -115,6 +116,7 @@ const useDateTimePickers = (config = {}, onUpdate = () => {}) => {
 
       updatePicker(pickerId, 'value', newDateTime);
       updatePicker(pickerId, 'timeSelected', true);
+      updatePicker(pickerId, 'isFromTemplate', false); // Reset template flag on user interaction
 
       // Check if date was already selected, if so mark whole picker as selected
       if (currentPicker?.dateSelected) {
@@ -258,6 +260,7 @@ const useDateTimePickers = (config = {}, onUpdate = () => {}) => {
         timeSelected: false,
         showDatePicker: false,
         showTimePicker: false,
+        isFromTemplate: false,
       };
     });
     setPickerData(resetState);
@@ -284,6 +287,7 @@ const useDateTimePickers = (config = {}, onUpdate = () => {}) => {
               data[pickerId].timeSelected !== undefined
                 ? data[pickerId].timeSelected
                 : newState[pickerId].timeSelected,
+            isFromTemplate: true, // Mark as loaded from template
           };
         }
       });
@@ -395,6 +399,7 @@ const useDateTimePickers = (config = {}, onUpdate = () => {}) => {
               <VibeAnalogClock
                 visible={picker.showTimePicker}
                 initialTime={picker.value}
+                isFromTemplate={picker.isFromTemplate}
                 onConfirm={(time) => handleTimeConfirm(pickerId, time)}
                 onClose={() => hidePicker(pickerId, 'Time')}
               />

@@ -4,7 +4,7 @@ import { VibeAlertProvider } from './src/components/ui/VibeAlertContext';
 import VibeScreen from './src/components/ui/VibeScreen';
 import { useEventEndNotifications } from './src/hooks/useEventEndNotifications';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import fcmService from './src/services/fcmService';
+import fcmService from './src/services/fcmServiceWrapper';
 import { initializeNotificationServices } from './src/services/notificationInit';
 
 function AppWithNotifications() {
@@ -14,10 +14,8 @@ function AppWithNotifications() {
   // Initialize push notifications
   useEffect(() => {
     const initializePushNotifications = async () => {
-      console.log('[App] Initializing push notifications...');
       const success = await fcmService.initialize();
       if (success) {
-        console.log('[App] ✅ Push notifications initialized');
       } else {
         console.warn('[App] ❌ Push notifications initialization failed');
       }
@@ -26,11 +24,8 @@ function AppWithNotifications() {
     initializePushNotifications();
 
     // Initialize scheduled notification services
-    console.log('[App] Initializing scheduled notification services...');
     const scheduledServicesStarted = initializeNotificationServices();
-    if (scheduledServicesStarted) {
-      console.log('[App] ✅ Scheduled notification services started');
-    } else {
+    if (!scheduledServicesStarted) {
       console.warn('[App] ❌ Scheduled notification services failed to start');
     }
 
@@ -44,7 +39,6 @@ function AppWithNotifications() {
 }
 
 export default function App() {
-  console.log('📱 App component rendering');
   return (
     <SafeAreaProvider>
       <VibeScreen>

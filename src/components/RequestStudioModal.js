@@ -14,6 +14,69 @@ import {
 import theme from '../theme/themes';
 import { StudioRequestService } from '../services/StudioRequestService';
 import { useAuth } from '../auth/AuthContext';
+import { useVibeAlert } from './ui/VibeAlertContext';
+
+// Validation function to prevent database abuse
+const validateFormData = (formData) => {
+  const { cityName, stateName, country, reason } = formData;
+  
+  // Required field validation
+  if (!cityName?.trim() || !stateName?.trim() || !country?.trim()) {
+    return { isValid: false, message: 'City, State/Province, and Country are required.' };
+  }
+  
+  // Length limits to prevent abuse
+  if (cityName.trim().length > 50) {
+    return { isValid: false, message: 'City name must be 50 characters or less.' };
+  }
+  
+  if (stateName.trim().length > 20) {
+    return { isValid: false, message: 'State/Province must be 20 characters or less.' };
+  }
+  
+  if (country.trim().length > 30) {
+    return { isValid: false, message: 'Country must be 30 characters or less.' };
+  }
+  
+  if (reason && reason.length > 500) {
+    return { isValid: false, message: 'Additional notes must be 500 characters or less.' };
+  }
+  
+  // Character validation - only allow letters, spaces, hyphens, apostrophes
+  const namePattern = /^[a-zA-Z\s\-'\.]+$/;
+  
+  if (!namePattern.test(cityName.trim())) {
+    return { isValid: false, message: 'City name contains invalid characters. Only letters, spaces, hyphens, and apostrophes are allowed.' };
+  }
+  
+  if (!namePattern.test(stateName.trim())) {
+    return { isValid: false, message: 'State/Province contains invalid characters. Only letters, spaces, hyphens, and apostrophes are allowed.' };
+  }
+  
+  if (!namePattern.test(country.trim())) {
+    return { isValid: false, message: 'Country contains invalid characters. Only letters, spaces, hyphens, and apostrophes are allowed.' };
+  }
+  
+  // Min length validation
+  if (cityName.trim().length < 2) {
+    return { isValid: false, message: 'City name must be at least 2 characters long.' };
+  }
+  
+  if (stateName.trim().length < 2) {
+    return { isValid: false, message: 'State/Province must be at least 2 characters long.' };
+  }
+  
+  // Prevent obvious spam/test data
+  const spamPatterns = ['test', 'spam', 'fake', 'admin', 'null', 'undefined', 'script'];
+  const lowerCity = cityName.trim().toLowerCase();
+  const lowerState = stateName.trim().toLowerCase();
+  
+  if (spamPatterns.some(pattern => lowerCity.includes(pattern) || lowerState.includes(pattern))) {
+    return { isValid: false, message: 'Please enter a valid location name.' };
+  }
+  
+  return { isValid: true };
+};
 
 const RequestStudioModal = ({ 
   visible, 
@@ -23,6 +86,7 @@ const RequestStudioModal = ({
   onRequestSubmitted 
 }) => {
   const { user } = useAuth();
+  const vibeAlert = useVibeAlert();
   const [formData, setFormData] = useState({
     cityName: initialCity,
     stateName: initialState,
@@ -39,13 +103,15 @@ const RequestStudioModal = ({
   };
 
   const handleSubmit = async () => {
-    if (!formData.cityName.trim() || !formData.stateName.trim()) {
-      Alert.alert('Missing Information', 'Please provide both city and state/province.');
+    // Comprehensive validation
+    const validation = validateFormData(formData);
+    if (!validation.isValid) {
+      vibeAlert.error('Validation Error', validation.message);
       return;
     }
 
     if (!user?.uid) {
-      Alert.alert('Authentication Error', 'You must be logged in to request a studio.');
+      vibeAlert.error('Authentication Error', 'You must be logged in to request a studio.');
       return;
     }
 
@@ -61,23 +127,18 @@ const RequestStudioModal = ({
       );
 
       if (result.success) {
-        Alert.alert(
-          'Request Submitted!',
-          result.message,
-          [{ text: 'OK', onPress: () => {
-            onClose();
-            if (onRequestSubmitted) onRequestSubmitted(result);
-          }}]
-        );
+        vibeAlert.success('Request Submitted!', result.message);
+        onClose();
+        if (onRequestSubmitted) onRequestSubmitted(result);
       } else {
-        Alert.alert('Request Status', result.message);
+        vibeAlert.info('Request Status', result.message);
         if (result.type === 'studio_exists' || result.type === 'request_exists') {
           onClose();
         }
       }
     } catch (error) {
       console.error('[RequestStudioModal] Error submitting request:', error);
-      Alert.alert('Error', 'Failed to submit studio request. Please try again.');
+      vibeAlert.error('Error', 'Failed to submit studio request. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -117,7 +178,9 @@ const RequestStudioModal = ({
           </Text>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>City *</Text>
+            <Text style={styles.label}>
+              City <Text style={styles.required}>*</Text>
+            </Text>
             <TextInput
               style={styles.input}
               value={formData.cityName}
@@ -125,11 +188,14 @@ const RequestStudioModal = ({
               placeholder="Enter city name"
               placeholderTextColor={theme.colors.textSecondary}
               autoCapitalize="words"
+              maxLength={50}
             />
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>State/Province *</Text>
+            <Text style={styles.label}>
+              State/Province <Text style={styles.required}>*</Text>
+            </Text>
             <TextInput
               style={styles.input}
               value={formData.stateName}
@@ -137,13 +203,15 @@ const RequestStudioModal = ({
               placeholder="Enter state or province"
               placeholderTextColor={theme.colors.textSecondary}
               autoCapitalize="characters"
-              maxLength={3}
+              maxLength={20}
             />
             <Text style={styles.hint}>Use abbreviation (e.g., SC, CA, ON)</Text>
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Country</Text>
+            <Text style={styles.label}>
+              Country <Text style={styles.required}>*</Text>
+            </Text>
             <TextInput
               style={styles.input}
               value={formData.country}
@@ -151,20 +219,23 @@ const RequestStudioModal = ({
               placeholder="Enter country"
               placeholderTextColor={theme.colors.textSecondary}
               autoCapitalize="words"
+              maxLength={30}
             />
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Reason (Optional)</Text>
+            <Text style={styles.label}>Additional Notes (Optional)</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
               value={formData.reason}
               onChangeText={(value) => handleInputChange('reason', value)}
-              placeholder="Why do you need a studio in this location?"
+              placeholder="Any additional information for the admin team?"
               placeholderTextColor={theme.colors.textSecondary}
               multiline
               numberOfLines={3}
               textAlignVertical="top"
+              maxLength={500}
+              autoComplete="off"
             />
           </View>
         </ScrollView>
@@ -246,10 +317,14 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
     marginBottom: 8,
   },
+  required: {
+    color: theme.colors.vibePink,
+    fontWeight: 'bold',
+  },
   input: {
     backgroundColor: theme.colors.cardBackground,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderWidth: 2,
+    borderColor: '#666666',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -281,7 +356,7 @@ const styles = StyleSheet.create({
   cancelButton: {
     backgroundColor: theme.colors.cardBackground,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: '#666666',
   },
   cancelButtonText: {
     fontSize: 16,
@@ -289,12 +364,14 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   submitButton: {
-    backgroundColor: theme.colors.vibeBlue,
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: theme.colors.vibeGreen,
   },
   submitButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.colors.textPrimary,
+    color: theme.colors.vibeGreen,
   },
   disabledButton: {
     opacity: 0.6,

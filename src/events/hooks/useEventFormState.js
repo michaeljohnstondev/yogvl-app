@@ -17,23 +17,9 @@ const DEFAULT_FORM_DATA = {
   allowGuestInvites: false,
   showHostContact: false,
   hasRsvpDeadline: false,
+  rsvpDeadlineType: 'none',
   trackAttendance: true,
   attendanceType: 'casual', // 'strict' | 'casual'
-  notificationSettings: {
-    enabled: true,
-    reminderTiming: '1hour',
-    notifyOnJoin: true,
-    notifyOnLeave: true,
-    sendReminders: true,
-    sendDayBefore: true,
-    newComments: true,
-    customMessage: '',
-    reminderTemplates: [
-      { id: '15min', amount: 15, unit: 'minutes', enabled: true, label: '15 min' },
-      { id: '1hour', amount: 1, unit: 'hours', enabled: true, label: '1 hour' },
-      { id: '1day', amount: 1, unit: 'days', enabled: false, label: '1 day' },
-    ]
-  },
 };
 
 /**
@@ -317,7 +303,7 @@ const useEventFormState = (initialData = {}, options = {}) => {
 // Validation helpers for common use cases
 export const eventFormValidators = {
   title: (value) => {
-    if (!value || value.trim().length === 0) {
+    if (!value || (typeof value !== 'string') || value.trim().length === 0) {
       return 'Event name is required';
     }
     if (value.trim().length > 100) {
@@ -327,7 +313,7 @@ export const eventFormValidators = {
   },
 
   location: (value) => {
-    if (!value || value.trim().length === 0) {
+    if (!value || (typeof value !== 'string') || value.trim().length === 0) {
       return 'Location is required';
     }
     if (value.trim().length > 200) {
@@ -337,14 +323,14 @@ export const eventFormValidators = {
   },
 
   address: (value) => {
-    if (value && value.trim().length > 300) {
+    if (value && typeof value === 'string' && value.trim().length > 300) {
       return 'Address must be 300 characters or less';
     }
     return true;
   },
 
   maxGuests: (value) => {
-    if (value && value.trim().length > 0) {
+    if (value && typeof value === 'string' && value.trim().length > 0) {
       const num = parseInt(value);
       if (isNaN(num) || num < 1) {
         return 'Max guests must be a positive number';
@@ -358,7 +344,7 @@ export const eventFormValidators = {
 
   entryFee: (value, formData) => {
     if (formData.hasFee) {
-      if (!value || value.trim().length === 0) {
+      if (!value || (typeof value !== 'string') || value.trim().length === 0) {
         return 'Entry fee amount is required for paid events';
       }
       const feeValue = parseFloat(value.replace(/[$,]/g, ''));

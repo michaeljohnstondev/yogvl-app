@@ -474,7 +474,16 @@ const HostProfileScreen = ({ navigation, route }) => {
           const highlights = [];
 
           // Conditional highlights based on stats
-          if (stats.eventsCreated > 10) {
+          
+          // New Host badge for users with little event history
+          if (stats.eventsCreated <= 3 && stats.totalRSVPs < 3) {
+            highlights.push(
+              <View key="new-host" style={styles.highlight}>
+                <Text style={styles.highlightIcon}>🆕</Text>
+                <Text style={styles.highlightText}>New Host</Text>
+              </View>
+            );
+          } else if (stats.eventsCreated > 10) {
             highlights.push(
               <View key="experienced" style={styles.highlight}>
                 <Text style={styles.highlightIcon}>🌟</Text>
@@ -483,7 +492,8 @@ const HostProfileScreen = ({ navigation, route }) => {
             );
           }
 
-          if (stats.reliabilityScore > 95) {
+          // Only show "Highly Reliable" if they have sufficient event history (5+ events) AND high score
+          if (stats.reliabilityScore > 95 && stats.totalRSVPs >= 5) {
             highlights.push(
               <View key="reliable" style={styles.highlight}>
                 <Text style={styles.highlightIcon}>✅</Text>
@@ -520,7 +530,8 @@ const HostProfileScreen = ({ navigation, route }) => {
             );
           }
 
-          if (stats.eventsCreated >= 5 && stats.reliabilityScore > 90) {
+          // Require event history for reliability-based badges
+          if (stats.eventsCreated >= 5 && stats.reliabilityScore > 90 && stats.totalRSVPs >= 5) {
             highlights.push(
               <View key="trusted" style={styles.highlight}>
                 <Text style={styles.highlightIcon}>🛡️</Text>
