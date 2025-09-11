@@ -111,7 +111,7 @@ export default function AttendanceScreen({ route, navigation }) {
   const handleMarkAttended = async (userId) => {
     try {
       setSaving(true);
-      await AttendanceService.markAttended(eventId, userId, currentUserId);
+      await AttendanceService.markAttended(studioId, eventId, userId, currentUserId);
       vibeAlert.success('Success', 'User marked as attended.');
       await loadAttendanceData(); // Refresh data
     } catch (error) {
@@ -124,7 +124,7 @@ export default function AttendanceScreen({ route, navigation }) {
   const handleMarkNoShow = async (userId) => {
     try {
       setSaving(true);
-      await AttendanceService.markNoShow(eventId, userId, currentUserId);
+      await AttendanceService.markNoShow(studioId, eventId, userId, currentUserId);
       vibeAlert.warning('Marked', 'User marked as no-show.');
       await loadAttendanceData(); // Refresh data
     } catch (error) {

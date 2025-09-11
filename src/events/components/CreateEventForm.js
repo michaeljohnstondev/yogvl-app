@@ -20,7 +20,7 @@ import VibeButtonPlain from '../../components/ui/VibeButtonPlain';
 import VibeSeparator from '../../components/ui/VibeSeparator';
 import VibeInput from '../../components/ui/VibeInput';
 import VibeDropdown from '../../components/ui/VibeDropdown';
-import ReliabilityWarning from './attendees/ReliabilityWarning';
+import ReliabilityWarning from '../../components/ui/ReliabilityWarning';
 import {
   TemplateSelectionModal,
   SaveTemplateModal,
@@ -34,7 +34,7 @@ import { Who } from './who/Who';
 import { Details } from './details/Details';
 import { AdditionalSettings } from './additionalSettings/AdditionalSettings';
 import GuestListViewer from './guests/GuestListViewer';
-import NotificationButton from './notificationSettings/NotificationButton';
+import ManageNotificationsButton from './notificationSettings/ManageNotificationsButton';
 // NotificationSettings is now a screen, not a component
 
 // Theme
@@ -148,8 +148,26 @@ export default function CreateEventForm({
 
   // Notification settings handlers
   const handleManageNotifications = useCallback(() => {
+    // Ensure complete notification settings with all required fields
+    const completeNotificationSettings = {
+      enabled: formData.notificationSettings?.enabled ?? true,
+      notifyOnJoin: formData.notificationSettings?.notifyOnJoin ?? true,
+      notifyOnLeave: formData.notificationSettings?.notifyOnLeave ?? true,
+      newComments: formData.notificationSettings?.newComments ?? true,
+      hostChanges: formData.notificationSettings?.hostChanges ?? true,
+      eventReminders: formData.notificationSettings?.eventReminders ?? true,
+      reminderTiming: formData.notificationSettings?.reminderTiming ?? '1hour',
+      dayBeforeReminder: formData.notificationSettings?.dayBeforeReminder ?? true,
+      hostComments: formData.notificationSettings?.hostComments ?? true,
+      reminderTemplates: formData.notificationSettings?.reminderTemplates || [
+        { id: '15min', amount: 15, unit: 'minutes', enabled: true, label: '15 min' },
+        { id: '1hour', amount: 1, unit: 'hours', enabled: true, label: '1 hour' },
+        { id: '1day', amount: 1, unit: 'days', enabled: false, label: '1 day' },
+      ],
+    };
+
     navigation.navigate('EventNotificationSettings', {
-      notificationSettings: formData.notificationSettings,
+      notificationSettings: completeNotificationSettings,
       userDefaults: userData?.userdata?.settings?.notifications,
       currentUserId: userData?.uid,
       eventDateTime: dateTimeValues?.event?.value,
@@ -688,7 +706,7 @@ export default function CreateEventForm({
             </Pressable>
           </View>
 
-          <ReliabilityWarning userData={userData} context="create" />
+          <ReliabilityWarning userData={userData} />
 
           {(isLoading || templatesLoading) && (
             <Text style={styles.loadingText}>Loading...</Text>
@@ -796,7 +814,7 @@ export default function CreateEventForm({
             />
           </View>
           {/* Notification Settings */}
-          <NotificationButton onPress={handleManageNotifications} />
+          <ManageNotificationsButton onPress={handleManageNotifications} />
 
           {/* Separator */}
           <VibeSeparator />

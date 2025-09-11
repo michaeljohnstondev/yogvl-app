@@ -692,17 +692,18 @@ const sendNotificationToChannels = async (notification, channels) => {
 };
 
 /**
- * Send push notification using Expo Push Notifications
+ * Send push notification using Firebase Cloud Messaging
+ * NOTE: This function should be deprecated in favor of Cloud Functions for better reliability
  */
 const sendPushNotification = async (notification) => {
   try {
-    console.log(`[sendPushNotification] ⏩ Starting push notification to user ${notification.userId}:`, {
+    console.log(`[sendPushNotification] ⏩ Starting FCM push notification to user ${notification.userId}:`, {
       type: notification.type,
       title: notification.title,
       message: notification.message
     });
 
-    // Get user's push token
+    // Get user's FCM token
     const userDoc = await getDoc(doc(db, 'users', notification.userId));
     if (!userDoc.exists()) {
       console.error(`[sendPushNotification] User ${notification.userId} not found in database`);
@@ -710,49 +711,32 @@ const sendPushNotification = async (notification) => {
     }
     
     const userData = userDoc.data();
-    const expoPushToken = userData.deviceInfo?.expoPushToken;
+    const fcmToken = userData.deviceInfo?.fcmToken;
     
-    if (!expoPushToken) {
-      console.warn(`[sendPushNotification] No push token found for user ${notification.userId}. User may not have set up notifications yet.`);
-      return { success: false, error: 'No push token found - user needs to enable notifications' };
+    if (!fcmToken) {
+      console.warn(`[sendPushNotification] No FCM token found for user ${notification.userId}. User may not have set up notifications yet.`);
+      return { success: false, error: 'No FCM token found - user needs to enable notifications' };
     }
 
-    console.log(`[sendPushNotification] Found push token for user ${notification.userId}:`, expoPushToken?.substring(0, 20) + '...');
+    console.log(`[sendPushNotification] Found FCM token for user ${notification.userId}:`, fcmToken?.substring(0, 20) + '...');
 
-    // Send push notification via Expo Push API
-    const message = {
-      to: expoPushToken,
-      sound: 'default',
+    // Create notification trigger for Cloud Function to handle
+    // This is more reliable than client-side FCM calls
+    const triggerRef = doc(collection(db, 'notificationTriggers'));
+    await setDoc(triggerRef, {
+      type: 'client_push_notification',
+      userId: notification.userId,
+      fcmToken,
       title: notification.title,
-      body: notification.message,
-      data: notification.data,
-    };
-
-    console.log(`[sendPushNotification] 📤 Sending to Expo API:`, message);
-
-    const response = await fetch('https://exp.host/--/api/v2/push/send', {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Accept-encoding': 'gzip, deflate',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(message),
+      message: notification.message,
+      data: notification.data || {},
+      createdAt: Timestamp.now(),
+      processed: false,
     });
 
-    const result = await response.json();
-    console.log(`[sendPushNotification] 📨 Expo API response:`, result);
+    console.log(`[sendPushNotification] ✅ Push notification trigger created for user ${notification.userId}`);
+    return { success: true, triggerId: triggerRef.id };
     
-    // Handle both single notification and batch notification responses
-    const isSuccess = result.data?.status === 'ok' || (result.data?.[0]?.status === 'ok');
-    
-    if (isSuccess) {
-      console.log(`[sendPushNotification] ✅ Push notification sent successfully to user ${notification.userId}:`, notification.title);
-      return { success: true };
-    } else {
-      console.error(`[sendPushNotification] ❌ Push notification failed for user ${notification.userId}:`, result);
-      return { success: false, error: result.data?.message || result.data?.[0]?.message || 'Failed to send' };
-    }
   } catch (error) {
     console.error(`[sendPushNotification] ❌ Push notification error for user ${notification.userId}:`, error);
     return { success: false, error: error.message };

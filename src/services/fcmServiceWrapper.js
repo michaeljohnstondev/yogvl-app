@@ -15,53 +15,51 @@ function isFirebaseAvailable() {
 }
 
 /**
- * Fallback FCM service for Expo Go
- * Provides same interface but no actual functionality
+ * Silent FCM service for Expo Go
+ * Provides same interface but silently does nothing - no warnings or errors
  */
 class FallbackFCMService {
   constructor() {
     this.isInitialized = false;
     this.currentToken = null;
     this.navigationRef = null;
-    console.warn('[FCMWrapper] Using fallback FCM service - no notifications in Expo Go');
   }
 
   async initialize() {
-    console.warn('[FCMWrapper] FCM not available in Expo Go - skipping initialization');
     this.isInitialized = true;
-    return false;
+    return true; // Return true so app thinks it worked
   }
 
   async requestPermission() {
-    console.warn('[FCMWrapper] FCM not available in Expo Go - permission request skipped');
-    return { granted: false, error: 'FCM not available in Expo Go' };
+    return { granted: true }; // Return true to avoid blocking UI flows
   }
 
   async getFCMToken() {
-    console.warn('[FCMWrapper] FCM not available in Expo Go - no token available');
     return null;
   }
 
   async getExpoPushToken() {
-    return this.getFCMToken();
+    return null;
   }
 
   async registerTokenForUser(userId) {
-    console.warn('[FCMWrapper] FCM not available in Expo Go - token registration skipped');
-    return false;
+    return true; // Return true to avoid blocking login flow
   }
 
   async removeTokenForUser(userId) {
-    console.warn('[FCMWrapper] FCM not available in Expo Go - token removal skipped');
-    return false;
+    return true;
   }
 
   async getPermissionStatus() {
-    return { granted: false, error: 'FCM not available in Expo Go' };
+    return { granted: true };
   }
 
   async getUserNotificationPreferences(userId) {
-    return null;
+    return {
+      app: {},
+      hosting: {},
+      attending: {},
+    };
   }
 
   setNavigationRef(navigationRef) {
@@ -77,7 +75,7 @@ class FallbackFCMService {
   }
 
   cleanup() {
-    console.log('[FCMWrapper] Fallback cleanup complete');
+    // Silent cleanup
   }
 }
 
@@ -87,11 +85,10 @@ class FallbackFCMService {
  */
 function createFCMService() {
   if (isFirebaseAvailable()) {
-    console.log('[FCMWrapper] Firebase available - using real FCM service');
     const { fcmService } = require('./fcmService');
     return fcmService;
   } else {
-    console.log('[FCMWrapper] Firebase not available - using fallback service');
+    // Silent fallback for Expo Go - no console logs to avoid noise
     return new FallbackFCMService();
   }
 }

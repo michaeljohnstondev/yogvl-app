@@ -22,12 +22,14 @@ export const useEventEndNotifications = () => {
   const cleanupRef = useRef(null);
   const appStateRef = useRef(AppState.currentState);
 
-  // Start the service when user is authenticated
+  // DISABLED: Start the service when user is authenticated
+  // Event end notifications moved to Cloud Functions for better performance
   useEffect(() => {
     if (isAuthenticated && currentUserId) {
       
-      // Start periodic checks
-      cleanupRef.current = EventEndNotificationService.schedulePeriodicCheck();
+      // DISABLED - causes battery drain: Start periodic checks
+      // cleanupRef.current = EventEndNotificationService.schedulePeriodicCheck();
+      console.log('Event end notifications handled by Cloud Functions');
       
       return () => {
         if (cleanupRef.current) {
@@ -50,9 +52,10 @@ export const useEventEndNotifications = () => {
       
       if (appStateRef.current.match(/inactive|background/) && nextAppState === 'active') {
         // App has come to the foreground
-        if (isAuthenticated && currentUserId && !cleanupRef.current) {
-          cleanupRef.current = EventEndNotificationService.schedulePeriodicCheck();
-        }
+        // DISABLED - event end notifications handled by Cloud Functions
+        // if (isAuthenticated && currentUserId && !cleanupRef.current) {
+        //   cleanupRef.current = EventEndNotificationService.schedulePeriodicCheck();
+        // }
       } else if (appStateRef.current === 'active' && nextAppState.match(/inactive|background/)) {
         // App has gone to the background
         if (cleanupRef.current) {

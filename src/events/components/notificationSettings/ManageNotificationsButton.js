@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, Text, StyleSheet } from 'react-native';
 import theme from '../../../theme/themes';
 
-export default function NotificationButton({ onPress, style }) {
+export default function ManageNotificationsButton({ onPress, style }) {
   return (
     <Pressable
       style={[styles.button, style]}

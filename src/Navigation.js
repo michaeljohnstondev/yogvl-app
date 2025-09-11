@@ -18,14 +18,12 @@ import { RealtimeNotificationsProvider } from './contexts/RealtimeNotificationsC
 import { useEventEndNotifications } from './hooks/useEventEndNotifications';
 import fcmService from './services/fcmServiceWrapper';
 import LandingScreen from './screens/LandingScreen';
-import LoginScreen from './auth/screens/LoginScreen';
-import SignUpScreen from './auth/screens/SignUpScreen';
 import ContactInfoScreen from './auth/screens/ContactInfoScreen';
 import LocationScreen from './auth/screens/LocationScreen';
 import HomeScreen from './screens/HomeScreen';
 import CreateEventScreen from './events/screens/CreateEventScreen';
 import EventDetailScreen from './events/screens/EventDetailScreen';
-import EventNotificationSettingsScreen from './screens/EventNotificationSettingsScreen';
+import EventNotificationSettingsScreen from './events/screens/EventNotificationSettingsScreen';
 import InviteGuestsScreen from './events/screens/InviteGuestsScreen';
 import InvitationsScreen from './events/screens/InvitationsScreen';
 import AttendanceScreen from './events/screens/AttendanceScreen';
@@ -39,8 +37,6 @@ import InterestsScreen from './screens/InterestsScreen';
 import AdminScreen from './screens/AdminScreen';
 import EditEventScreen from './events/screens/EditEventScreen';
 import HostProfileScreen from './screens/HostProfileScreen';
-import HostEventWrapUpScreen from './screens/HostEventWrapUpScreen';
-import GuestEventWrapUpScreen from './screens/GuestEventWrapUpScreen';
 import MessageBoardScreen from './screens/MessageBoardScreen';
 
 const Stack = createNativeStackNavigator();
@@ -152,10 +148,13 @@ export default function Navigation() {
               await fcmService.initialize();
             }
             fcmService.setNavigationRef(navigationRef.current);
-            const tokenRegistered = await fcmService.registerTokenForUser(user.uid);
-            if (tokenRegistered) {
-            } else {
-              console.warn('[Navigation] Failed to register push token');
+            
+            // Register FCM token for authenticated user
+            if (user?.uid) {
+              const tokenRegistered = await fcmService.registerTokenForUser(user.uid);
+              if (!tokenRegistered) {
+                console.warn('[Navigation] Failed to register push token');
+              }
             }
           } catch (fcmError) {
             console.error('[Navigation] FCM setup failed:', fcmError);
@@ -313,14 +312,6 @@ export default function Navigation() {
               name="Landing"
               component={LandingScreen}
             />
-            <Stack.Screen
-              name="Login"
-              component={LoginScreen}
-            />
-            <Stack.Screen
-              name="SignUp"
-              component={SignUpScreen}
-            />
           </Stack.Navigator>
         ) : userDataLoading ? (
           <VibeLoadingScreen 
@@ -439,14 +430,6 @@ export default function Navigation() {
             <Stack.Screen
               name="HostProfile"
               component={HostProfileScreen}
-            />
-            <Stack.Screen
-              name="HostEventWrapUp"
-              component={HostEventWrapUpScreen}
-            />
-            <Stack.Screen
-              name="GuestEventWrapUp"
-              component={GuestEventWrapUpScreen}
             />
             <Stack.Screen
               name="MessageBoard"

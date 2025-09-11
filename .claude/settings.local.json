@@ -42,7 +42,11 @@
       "Bash(eas build:*)",
       "Bash(eas update:*)",
       "Bash(del test-api.js)",
-      "Bash(npm run start:*)"
+      "Bash(npm run start:*)",
+      "Bash(while read -r file)",
+      "Bash(done)",
+      "Bash(firebase functions:log:*)",
+      "Bash(gcloud:*)"
     ],
     "deny": [],
     "ask": [],

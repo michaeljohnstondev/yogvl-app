@@ -8,7 +8,10 @@ import {
   getDocs,
   serverTimestamp,
   limit,
-  orderBy 
+  orderBy,
+  increment,
+  arrayUnion,
+  arrayRemove
 } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 import { Logger } from '../lib/logger';
@@ -27,17 +30,34 @@ export class ReliabilityService {
   /**
    * Calculate comprehensive user reliability score
    * @param {string} userId - User ID
+   * @param {string} studioId - Studio ID (required for querying events)
    * @returns {Promise<Object>} Reliability data with score, tier, and metrics
    */
-  static async calculateUserReliability(userId) {
+  static async calculateUserReliability(userId, studioId = null) {
     try {
-      // More efficient: Query only events where user was subscribed
-      const eventsRef = collection(db, 'events');
+      if (!studioId) {
+        // Try to get user's studio from their profile
+        const userRef = doc(db, 'users', userId);
+        const userDoc = await getDoc(userRef);
+        
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          studioId = userData?.userdata?.studioId || userData?.studioId;
+        }
+        
+        if (!studioId) {
+          Logger.warn('ReliabilityService', 'No studio ID found for user, using fallback data', { userId });
+          // Return default reliability data for users without studio context
+          return this.getDefaultReliabilityData();
+        }
+      }
+
+      // Query studio-specific events collection
+      const eventsRef = collection(db, 'studios', studioId, 'events');
       const q = query(
         eventsRef,
         where('subscribers', 'array-contains', userId),
-        // Limit to recent events to avoid massive queries
-        // We'll calculate based on last 100 events maximum
+        orderBy('eventTimestamp', 'desc'),
         limit(100)
       );
       
@@ -55,7 +75,9 @@ export class ReliabilityService {
       const events = [];
 
       Logger.debug('ReliabilityService', 'Processing events for reliability calculation', { 
-        eventCount: eventsSnapshot.docs.length 
+        eventCount: eventsSnapshot.docs.length,
+        userId,
+        studioId
       });
 
       // Check each event for this user's participation
@@ -168,6 +190,33 @@ export class ReliabilityService {
     } catch (error) {
       throw error;
     }
+  }
+
+  /**
+   * Get default reliability data for users without event history
+   * @returns {Object} Default reliability data
+   */
+  static getDefaultReliabilityData() {
+    return {
+      reliabilityScore: 100, // New users get benefit of doubt
+      tier: { label: 'New User', color: '#00C6FF', emoji: '🆕' },
+      metrics: {
+        totalRSVPs: 0,
+        totalAttended: 0,
+        totalNoShows: 0,
+        lastMinuteCancellations: 0,
+        recentEvents: 0,
+        recentAttended: 0,
+        attendanceRate: 100,
+        recentAttendanceRate: 100,
+      },
+      streaks: {
+        currentAttendanceStreak: 0,
+        longestAttendanceStreak: 0,
+        currentNoShowStreak: 0,
+      },
+      lastUpdated: serverTimestamp(),
+    };
   }
 
   /**
@@ -290,9 +339,10 @@ export class ReliabilityService {
    * Update user's reliability in their profile
    * @param {string} userId - User ID
    * @param {boolean} forceUpdate - Force update even if recently calculated
+   * @param {string} studioId - Studio ID (optional, will be fetched if not provided)
    * @returns {Promise<Object>} Updated reliability data
    */
-  static async updateUserReliability(userId, forceUpdate = false) {
+  static async updateUserReliability(userId, forceUpdate = false, studioId = null) {
     try {
       // Check if we need to update (avoid excessive recalculation)
       if (!forceUpdate) {
@@ -327,7 +377,7 @@ export class ReliabilityService {
       }
 
       Logger.time('ReliabilityCalculation');
-      const reliabilityData = await this.calculateUserReliability(userId);
+      const reliabilityData = await this.calculateUserReliability(userId, studioId);
       Logger.timeEnd('ReliabilityCalculation');
       
       const userRef = doc(db, 'users', userId);
@@ -443,7 +493,11 @@ export class ReliabilityService {
         stars: null, // No star rating yet
         tier: { label: 'New Host', color: '#00C6FF', emoji: '🆕' }, // Custom tier for new hosts
         metrics,
-        streaks,
+        streaks: {
+          currentAttendanceStreak: 0,
+          longestAttendanceStreak: 0,
+          currentNoShowStreak: 0
+        },
         isNewUser: true,
         warning: null, // No warnings for new users
         displayText: `🆕 New Host`,
@@ -454,7 +508,11 @@ export class ReliabilityService {
     // Existing users with event history
     const score = reliabilityData.score || 70; // Default to "Good" if no score calculated yet
     const tier = this.getReliabilityTier(score);
-    const streaks = reliabilityData.streaks || {};
+    const streaks = reliabilityData.streaks || {
+      currentAttendanceStreak: 0,
+      longestAttendanceStreak: 0,
+      currentNoShowStreak: 0
+    };
     
     // Convert score to stars and format display
     const stars = this.scoreToStars(score);
@@ -471,5 +529,223 @@ export class ReliabilityService {
       displayText: `${starDisplay} ${stars}/5 ${tier.label}`,
       shortDisplayText: `${stars}/5`,
     };
+  }
+
+  // ========== MIGRATED USER METRICS FUNCTIONS ==========
+  // These functions were moved from events/lib/userMetrics.js to centralize
+  // all reliability and metrics logic in one service
+
+  /**
+   * Updates user metrics when they attend an event
+   * @param {string} userId - User ID
+   * @param {string} eventId - Event ID
+   * @param {string} attendanceType - Event attendance type ('strict', 'casual', 'open')
+   */
+  static async updateEventAttendance(userId, eventId, attendanceType = 'casual') {
+    try {
+      Logger.debug('ReliabilityService', 'Updating attendance metrics', { userId, eventId, attendanceType });
+      const userRef = doc(db, 'users', userId);
+
+      const updateData = {
+        'userdata.metrics.events.attended': increment(1),
+        'userdata.metrics.events.attendedEvents': arrayUnion(eventId),
+        'userdata.metrics.events.lastEventAttended': serverTimestamp(),
+        'userdata.metrics.events.lastActivity': serverTimestamp(),
+      };
+      
+      await updateDoc(userRef, updateData);
+      Logger.debug('ReliabilityService', 'Successfully updated attendance metrics', { userId });
+      return { success: true };
+    } catch (error) {
+      Logger.error('ReliabilityService', 'Error updating attendance metrics', error);
+      return { success: false, error };
+    }
+  }
+
+  /**
+   * Updates user metrics when they have a no-show
+   * @param {string} userId - User ID
+   * @param {string} eventId - Event ID
+   * @param {string} attendanceType - Event attendance type
+   */
+  static async updateNoShow(userId, eventId, attendanceType = 'strict') {
+    try {
+      Logger.debug('ReliabilityService', 'Updating no-show metrics', { userId, eventId, attendanceType });
+      const userRef = doc(db, 'users', userId);
+
+      const updateData = {
+        'userdata.metrics.events.noShows': increment(1),
+        'userdata.metrics.events.noShowEvents': arrayUnion(eventId),
+        'userdata.metrics.events.lastActivity': serverTimestamp(),
+      };
+
+      // Only impact reliability for strict events
+      if (attendanceType === 'strict') {
+        updateData['userdata.metrics.reliability.lastImpact'] = serverTimestamp();
+        updateData['userdata.metrics.reliability.strictNoShows'] = increment(1);
+      }
+
+      await updateDoc(userRef, updateData);
+      Logger.debug('ReliabilityService', 'Successfully updated no-show metrics', { userId });
+      return { success: true };
+    } catch (error) {
+      Logger.error('ReliabilityService', 'Error updating no-show metrics', error);
+      return { success: false, error };
+    }
+  }
+
+  /**
+   * Updates user metrics when they subscribe to an event
+   * @param {string} userId - User ID
+   * @param {string} eventId - Event ID
+   */
+  static async updateEventSubscription(userId, eventId) {
+    try {
+      const userRef = doc(db, 'users', userId);
+
+      await updateDoc(userRef, {
+        'userdata.metrics.events.subscribedEvents': arrayUnion(eventId),
+        'userdata.metrics.events.joined': increment(1),
+        'userdata.metrics.events.lastActivity': serverTimestamp(),
+      });
+
+      Logger.debug('ReliabilityService', 'Updated subscription metrics', { userId });
+      return { success: true };
+    } catch (error) {
+      Logger.error('ReliabilityService', 'Error updating subscription metrics', error);
+      
+      // If the structure doesn't exist, initialize it
+      try {
+        Logger.debug('ReliabilityService', 'Initializing metrics structure', { userId });
+        await updateDoc(userRef, {
+          'userdata.metrics.events.created': 0,
+          'userdata.metrics.events.joined': 1,
+          'userdata.metrics.events.attended': 0,
+          'userdata.metrics.events.noShows': 0,
+          'userdata.metrics.events.subscribedEvents': [eventId],
+          'userdata.metrics.events.attendedEvents': [],
+          'userdata.metrics.events.noShowEvents': [],
+          'userdata.metrics.events.lastActivity': serverTimestamp(),
+        });
+        Logger.debug('ReliabilityService', 'Initialized and updated subscription metrics', { userId });
+        return { success: true };
+      } catch (retryError) {
+        Logger.error('ReliabilityService', 'Error initializing metrics structure', retryError);
+        return { success: false, error: retryError };
+      }
+    }
+  }
+
+  /**
+   * Updates user metrics when they unsubscribe from an event
+   * @param {string} userId - User ID
+   * @param {string} eventId - Event ID
+   */
+  static async updateEventUnsubscription(userId, eventId) {
+    try {
+      Logger.debug('ReliabilityService', 'Updating unsubscription metrics', { userId, eventId });
+      const userRef = doc(db, 'users', userId);
+
+      await updateDoc(userRef, {
+        'userdata.metrics.events.subscribedEvents': arrayRemove(eventId),
+        'userdata.metrics.events.joined': increment(-1),
+        'userdata.metrics.events.lastActivity': serverTimestamp(),
+      });
+
+      Logger.debug('ReliabilityService', 'Successfully updated unsubscription metrics', { userId });
+      return { success: true };
+    } catch (error) {
+      Logger.error('ReliabilityService', 'Error updating unsubscription metrics', error);
+      return { success: false, error };
+    }
+  }
+
+  /**
+   * Updates user metrics when they create an event
+   * @param {string} userId - User ID
+   * @param {string} eventId - Event ID
+   * @param {string} studioId - Studio ID
+   */
+  static async updateEventCreationMetrics(userId, eventId, studioId) {
+    try {
+      Logger.debug('ReliabilityService', 'Updating creation metrics', { userId, eventId, studioId });
+      const userRef = doc(db, 'users', userId);
+
+      await updateDoc(userRef, {
+        'userdata.metrics.events.created': increment(1),
+        'userdata.metrics.events.lastEventCreated': serverTimestamp(),
+        'userdata.metrics.events.lastActivity': serverTimestamp(),
+      });
+
+      Logger.debug('ReliabilityService', 'Successfully updated creation metrics', { userId });
+      return { success: true };
+    } catch (error) {
+      Logger.error('ReliabilityService', 'Error updating creation metrics', error);
+      return { success: false, error };
+    }
+  }
+
+  /**
+   * Updates user metrics when they delete an event
+   * @param {string} userId - User ID
+   * @param {string} eventId - Event ID
+   */
+  static async updateEventDeletionMetrics(userId, eventId) {
+    try {
+      Logger.debug('ReliabilityService', 'Updating deletion metrics', { userId, eventId });
+      const userRef = doc(db, 'users', userId);
+
+      await updateDoc(userRef, {
+        'userdata.metrics.events.created': increment(-1),
+        'userdata.metrics.events.lastActivity': serverTimestamp(),
+      });
+
+      Logger.debug('ReliabilityService', 'Successfully updated deletion metrics', { userId });
+      return { success: true };
+    } catch (error) {
+      Logger.error('ReliabilityService', 'Error updating deletion metrics', error);
+      return { success: false, error };
+    }
+  }
+
+  /**
+   * Updates host's average attendees metric
+   * @param {string} hostId - Host user ID
+   * @param {number} attendeeCount - Number of attendees
+   */
+  static async updateHostAverageAttendees(hostId, attendeeCount) {
+    try {
+      Logger.debug('ReliabilityService', 'Updating host average attendees', { hostId, attendeeCount });
+      const userRef = doc(db, 'users', hostId);
+      const userDoc = await getDoc(userRef);
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const hostMetrics = userData?.userdata?.metrics?.hosting || {};
+        
+        const currentAverage = hostMetrics.averageAttendees || 0;
+        const eventsHosted = hostMetrics.eventsCompleted || 0;
+        
+        // Calculate new average
+        const newAverage = eventsHosted > 0 
+          ? ((currentAverage * eventsHosted) + attendeeCount) / (eventsHosted + 1)
+          : attendeeCount;
+
+        await updateDoc(userRef, {
+          'userdata.metrics.hosting.averageAttendees': newAverage,
+          'userdata.metrics.hosting.eventsCompleted': increment(1),
+          'userdata.metrics.hosting.totalAttendees': increment(attendeeCount),
+          'userdata.metrics.hosting.lastEventCompleted': serverTimestamp(),
+        });
+
+        Logger.debug('ReliabilityService', 'Successfully updated host metrics', { hostId, newAverage });
+        return { success: true, newAverage };
+      }
+      
+      return { success: false, error: 'User not found' };
+    } catch (error) {
+      Logger.error('ReliabilityService', 'Error updating host metrics', error);
+      return { success: false, error };
+    }
   }
 }

@@ -208,6 +208,7 @@ class FCMService {
 
   /**
    * Register user's push token with their Firebase user document
+   * Only updates if token has actually changed to reduce Firestore writes
    */
   async registerTokenForUser(userId) {
     try {
@@ -230,16 +231,31 @@ class FCMService {
         return false;
       }
 
-      // Update user document with push token
+      // Check if token has changed before updating
       const userRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userRef);
+      
+      if (userDoc.exists()) {
+        const currentToken = userDoc.data()?.deviceInfo?.fcmToken;
+        const currentPlatform = userDoc.data()?.deviceInfo?.platform;
+        
+        // Only update if token or platform changed
+        if (currentToken === token && currentPlatform === Platform.OS) {
+          console.log('[FCMService] Token unchanged, skipping update');
+          return true;
+        }
+      }
+
+      // Update user document with push token (only when changed)
       await updateDoc(userRef, {
         'deviceInfo.fcmToken': token,
-        'deviceInfo.expoPushToken': token, // Keep compatibility with existing code
         'deviceInfo.platform': Platform.OS,
         'deviceInfo.lastTokenUpdate': new Date(),
         'deviceInfo.notificationsEnabled': true,
+        // Remove legacy expoPushToken field - no longer needed
       });
 
+      console.log('[FCMService] FCM token updated for user:', userId);
       return true;
 
     } catch (error) {
@@ -398,7 +414,6 @@ class FCMService {
       const userRef = doc(db, 'users', userId);
       await updateDoc(userRef, {
         'deviceInfo.fcmToken': null,
-        'deviceInfo.expoPushToken': null, // Keep compatibility
         'deviceInfo.notificationsEnabled': false,
         'deviceInfo.lastTokenUpdate': new Date(),
       });

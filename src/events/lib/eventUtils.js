@@ -15,7 +15,6 @@ export {
 // Export all event validation utilities
 export {
   validateUserCanJoinEvent,
-  getReliabilityWarning,
   getUserEventPermissions,
   validateEventJoinConstraints,
   validateUserCanCreateEvent,
@@ -35,8 +34,6 @@ export {
   updateEventSubscription,
   updateEventCreationMetrics,
   getUserEventStats,
-  getUserReliabilityScore,
-  getUserReliabilityStatus,
   completeEvent,
   autoDetectNoShows,
   initializeUserMetrics,

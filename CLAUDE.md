@@ -176,7 +176,9 @@ Never assume missing context → ask first
 
 Confirm paths exist before referencing
 
-Don’t add dependencies unless:
+**ALWAYS check COMPONENT_INVENTORY.md before creating new components, screens, hooks, or services** to avoid duplication
+
+Don't add dependencies unless:
 
 Checked package.json
 

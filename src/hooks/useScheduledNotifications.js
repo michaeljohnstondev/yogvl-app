@@ -168,11 +168,13 @@ export const useScheduledNotifications = () => {
     }
   };
 
-  // Auto-start processor when hook mounts
+  // DISABLED: Auto-start processor when hook mounts
+  // Background processing moved to Cloud Functions for better performance
   useEffect(() => {
-    startNotificationProcessor();
+    // startNotificationProcessor(); // DISABLED - causes battery drain
+    console.log('Scheduled notification processing handled by Cloud Functions');
 
-    // Cleanup when component unmounts
+    // Cleanup when component unmounts (still needed if manually started)
     return () => {
       stopNotificationProcessor();
     };

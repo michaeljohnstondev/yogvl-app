@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+// Cleaned up auth imports
 import { View, Text, Animated, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import VibeButton from '../components/ui/VibeButton';

@@ -76,10 +76,10 @@ export class AttendanceService {
         attendanceCount: attendance.filter(a => a.attended).length
       });
 
-      // Only update reliability score for non-solo events
+      // Log the attendance marking
       if (!isSolo) {
-        await ReliabilityService.updateUserReliability(userId);
         console.log(`Marked ${userId} as attended for event ${eventId} ${isHost ? '(host)' : '(guest)'} (${eventData.attendanceType || 'unknown'} event)`);
+        // Note: Reliability updates are now handled by PostEventService during event completion
       } else {
         console.log(`Marked ${userId} as attended for SOLO event ${eventId} - no metrics recorded`);
       }
@@ -137,15 +137,13 @@ export class AttendanceService {
         attendanceCount: attendance.filter(a => a.attended).length
       });
 
-      // Skip reliability updates for solo events
+      // Log the no-show marking
       if (isSolo) {
         console.log(`No-show recorded for SOLO event ${eventId} - no metrics recorded`);
       } else {
-        // Only update user's reliability score for strict events
-        // Casual events track no-shows for host visibility but don't affect reliability
+        // Track no-shows for host visibility - reliability impact handled by PostEventService
         if (eventData.attendanceType === 'strict') {
-          await ReliabilityService.updateUserReliability(userId);
-          console.log(`Updated reliability for strict event no-show: ${userId}`);
+          console.log(`No-show recorded for strict event: ${userId} (reliability will be updated on event completion)`);
         } else {
           console.log(`No-show recorded for casual event (no reliability impact): ${userId}`);
         }
@@ -194,76 +192,6 @@ export class AttendanceService {
     }
   }
 
-  /**
-   * Get user's attendance record
-   * @param {string} userId - User ID
-   * @returns {Promise<Object>} User's attendance stats
-   */
-  static async getUserAttendanceRecord(userId) {
-    try {
-      // Query all attendance records for this user
-      // Note: This method queries across all studios - needs refactoring for studio-centric approach
-      const eventsSnapshot = await getDocs(eventsRef);
-      
-      let totalEvents = 0;
-      let attendedEvents = 0;
-      let noShowEvents = 0;
-      const recentActivity = [];
-
-      // Check each event for this user's attendance
-      for (const eventDoc of eventsSnapshot.docs) {
-        const eventId = eventDoc.id;
-        const eventData = eventDoc.data();
-        
-        // Skip if user wasn't subscribed to this event
-        if (!eventData.subscribers?.includes(userId)) {
-          continue;
-        }
-
-        const attendanceRef = doc(db, 'events', eventId, 'attendance', userId);
-        const attendanceDoc = await getDoc(attendanceRef);
-        
-        if (attendanceDoc.exists()) {
-          const attendanceData = attendanceDoc.data();
-          totalEvents++;
-          
-          if (attendanceData.attended) {
-            attendedEvents++;
-          } else if (attendanceData.noShow) {
-            noShowEvents++;
-          }
-
-          recentActivity.push({
-            eventId,
-            eventTitle: eventData.title,
-            eventDate: eventData.eventTimestamp,
-            attended: attendanceData.attended,
-            noShow: attendanceData.noShow,
-            markedAt: attendanceData.markedAt,
-          });
-        }
-      }
-
-      // Sort recent activity by event date
-      recentActivity.sort((a, b) => {
-        const dateA = a.eventDate?.toDate() || new Date(0);
-        const dateB = b.eventDate?.toDate() || new Date(0);
-        return dateB - dateA;
-      });
-
-      const reliabilityScore = totalEvents > 0 ? (attendedEvents / totalEvents) * 100 : 100;
-
-      return {
-        totalEvents,
-        attendedEvents,
-        noShowEvents,
-        reliabilityScore: Math.round(reliabilityScore),
-        recentActivity: recentActivity.slice(0, 10), // Last 10 events
-      };
-    } catch (error) {
-      throw error;
-    }
-  }
 
 
   // This function is no longer needed as attendance count is updated inline
@@ -318,18 +246,19 @@ export class AttendanceService {
 
   /**
    * Bulk mark attendance for multiple users
+   * @param {string} studioId - Studio ID
    * @param {string} eventId - Event ID
    * @param {Array} attendanceList - Array of {userId, attended} objects
    * @param {string} markedBy - ID of user marking attendance
    * @returns {Promise<boolean>} Success status
    */
-  static async bulkMarkAttendance(eventId, attendanceList, markedBy) {
+  static async bulkMarkAttendance(studioId, eventId, attendanceList, markedBy) {
     try {
       const promises = attendanceList.map(({ userId, attended }) => {
         if (attended) {
-          return this.markAttended(eventId, userId, markedBy);
+          return this.markAttended(studioId, eventId, userId, markedBy);
         } else {
-          return this.markNoShow(eventId, userId, markedBy);
+          return this.markNoShow(studioId, eventId, userId, markedBy);
         }
       });
 
@@ -380,8 +309,7 @@ export class AttendanceService {
         });
       }
 
-      // Update user's reliability score
-      await ReliabilityService.updateUserReliability(hostUserId);
+      // Note: Host reliability is updated when event is completed via PostEventService
 
       console.log(`Auto-marked host ${hostUserId} as attended for event ${eventId} in studio ${studioId}`);
       return true;
@@ -487,11 +415,8 @@ export class AttendanceService {
         attendanceCount: attendance.filter(a => a.attended).length
       });
 
-      // Update user's reliability score only for positive attendance
-      // (casual no-shows don't affect reliability)
-      if (attended) {
-        await ReliabilityService.updateUserReliability(userId);
-      }
+      // Note: Reliability updates are handled by PostEventService during event completion
+      // Self-reported positive attendance for casual events is tracked for metrics
 
       console.log(`Self-reported attendance: ${userId} - ${attended ? 'attended' : 'did not attend'} casual event ${eventId}`);
       return true;

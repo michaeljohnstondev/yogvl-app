@@ -44,7 +44,12 @@ const AppUsersTab = ({
   themeBgColor,
   maxLimit,
   localSelectedContacts,
-  localSelectedPhoneContacts
+  localSelectedPhoneContacts,
+  
+  // Event subscribers
+  eventSubscribers = [],
+  loadingSubscribers = false,
+  hasEventId = false
 }) => {
   const filteredAppUsers = filterAndSortAppUsers(
     appUsers, 
@@ -101,6 +106,15 @@ const AppUsersTab = ({
         onChangeText={setSearchQuery}
         style={styles.searchInput}
       />
+
+      {/* Show info about filtered subscribers */}
+      {hasEventId && eventSubscribers.length > 0 && !loadingSubscribers && (
+        <View style={styles.subscriberFilterInfo}>
+          <Text style={styles.subscriberFilterText}>
+            {eventSubscribers.length} user{eventSubscribers.length === 1 ? '' : 's'} already attending this event {eventSubscribers.length === 1 ? 'is' : 'are'} hidden
+          </Text>
+        </View>
+      )}
       
       <View style={styles.itemsList}>
         {filteredAppUsers.map((item) => {

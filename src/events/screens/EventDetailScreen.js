@@ -1230,7 +1230,10 @@ export default function EventDetailScreen({ route, navigation }) {
             <View style={styles.detailItem}>
               <Text style={styles.detailLabel}>RSVP Deadline</Text>
               <Text style={styles.detailValue}>
-                {FormatDate(event.rsvpDeadline, event.eventTimeZone)}
+                {FormatDate(
+                  event.rsvpDeadline?.toDate ? event.rsvpDeadline.toDate() : new Date(event.rsvpDeadline), 
+                  event.eventTimeZone || Intl.DateTimeFormat().resolvedOptions().timeZone
+                )}
               </Text>
             </View>
           </View>

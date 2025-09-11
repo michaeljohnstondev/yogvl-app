@@ -42,7 +42,6 @@ export default function AddReminderModal({
   }, [visible]);
 
   const presetOptions = [
-    { label: '5 min', value: { amount: 5, unit: 'minutes' } },
     { label: '15 min', value: { amount: 15, unit: 'minutes' } },
     { label: '30 min', value: { amount: 30, unit: 'minutes' } },
     { label: '1 hour', value: { amount: 1, unit: 'hours' } },
@@ -65,10 +64,10 @@ export default function AddReminderModal({
 
   const calculateReminderTime = () => {
     if (!eventDateTime) return null;
-    
+
     const eventDate = new Date(eventDateTime);
     let timing;
-    
+
     if (timeType === 'preset' && selectedPreset) {
       timing = selectedPreset;
     } else if (timeType === 'custom' && customAmount) {
@@ -86,8 +85,10 @@ export default function AddReminderModal({
       days: 24 * 60 * 60 * 1000,
     };
 
-    const reminderTime = new Date(eventDate.getTime() - (timing.amount * unitMultipliers[timing.unit]));
-    
+    const reminderTime = new Date(
+      eventDate.getTime() - timing.amount * unitMultipliers[timing.unit]
+    );
+
     // Don't allow reminders in the past
     if (reminderTime <= new Date()) {
       return null;
@@ -101,7 +102,7 @@ export default function AddReminderModal({
 
   const handleAddReminder = () => {
     const reminderCalc = calculateReminderTime();
-    
+
     if (!reminderCalc) {
       Alert.alert(
         'Invalid Time',
@@ -135,7 +136,7 @@ export default function AddReminderModal({
   const formatPreviewTime = () => {
     const calc = calculateReminderTime();
     if (!calc) return null;
-    
+
     return calc.reminderTime.toLocaleDateString([], {
       month: 'short',
       day: 'numeric',
@@ -167,24 +168,34 @@ export default function AddReminderModal({
             <Text style={styles.sectionTitle}>REMINDER TIME</Text>
             <View style={styles.timeTypeContainer}>
               <TouchableOpacity
-                style={[styles.timeTypeButton, timeType === 'preset' && styles.timeTypeButtonActive]}
+                style={[
+                  styles.timeTypeButton,
+                  timeType === 'preset' && styles.timeTypeButtonActive,
+                ]}
                 onPress={() => setTimeType('preset')}
               >
-                <Text style={[
-                  styles.timeTypeButtonText,
-                  timeType === 'preset' && styles.timeTypeButtonTextActive
-                ]}>
+                <Text
+                  style={[
+                    styles.timeTypeButtonText,
+                    timeType === 'preset' && styles.timeTypeButtonTextActive,
+                  ]}
+                >
                   Quick Options
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.timeTypeButton, timeType === 'custom' && styles.timeTypeButtonActive]}
+                style={[
+                  styles.timeTypeButton,
+                  timeType === 'custom' && styles.timeTypeButtonActive,
+                ]}
                 onPress={() => setTimeType('custom')}
               >
-                <Text style={[
-                  styles.timeTypeButtonText,
-                  timeType === 'custom' && styles.timeTypeButtonTextActive
-                ]}>
+                <Text
+                  style={[
+                    styles.timeTypeButtonText,
+                    timeType === 'custom' && styles.timeTypeButtonTextActive,
+                  ]}
+                >
                   Custom
                 </Text>
               </TouchableOpacity>
@@ -201,17 +212,19 @@ export default function AddReminderModal({
                     style={[
                       styles.presetOption,
                       selectedPreset?.amount === option.value.amount &&
-                      selectedPreset?.unit === option.value.unit &&
-                      styles.presetOptionSelected
+                        selectedPreset?.unit === option.value.unit &&
+                        styles.presetOptionSelected,
                     ]}
                     onPress={() => setSelectedPreset(option.value)}
                   >
-                    <Text style={[
-                      styles.presetOptionText,
-                      selectedPreset?.amount === option.value.amount &&
-                      selectedPreset?.unit === option.value.unit &&
-                      styles.presetOptionTextSelected
-                    ]}>
+                    <Text
+                      style={[
+                        styles.presetOptionText,
+                        selectedPreset?.amount === option.value.amount &&
+                          selectedPreset?.unit === option.value.unit &&
+                          styles.presetOptionTextSelected,
+                      ]}
+                    >
                       {option.label}
                     </Text>
                   </TouchableOpacity>
@@ -279,7 +292,10 @@ export default function AddReminderModal({
             title="Add Reminder"
             onPress={handleAddReminder}
             disabled={!canAddReminder()}
-            style={[styles.addButton, !canAddReminder() && styles.addButtonDisabled]}
+            style={[
+              styles.addButton,
+              !canAddReminder() && styles.addButtonDisabled,
+            ]}
           />
         </View>
       </View>

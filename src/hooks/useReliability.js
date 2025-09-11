@@ -12,12 +12,17 @@ export const useReliability = (userData) => {
     }
   }, [userData]);
 
-  const refreshReliability = async (userId) => {
+  const refreshReliability = async (userId, studioId = null) => {
     if (!userId) return;
+    
+    // Try to get studioId from userData if not provided
+    if (!studioId && userData) {
+      studioId = userData?.userdata?.studioId || userData?.studioId;
+    }
     
     try {
       setLoading(true);
-      const updatedData = await ReliabilityService.updateUserReliability(userId);
+      const updatedData = await ReliabilityService.updateUserReliability(userId, false, studioId);
       const displayData = ReliabilityService.getUserReliabilityDisplay({
         ...userData,
         userdata: {

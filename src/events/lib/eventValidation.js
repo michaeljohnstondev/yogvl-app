@@ -38,48 +38,6 @@ export const validateUserCanJoinEvent = async (userData, event = null) => {
   return true;
 };
 
-/**
- * Check if user should see a reliability warning
- * @param {Object} userData - User data with noShows count
- * @returns {Object} Warning info with shouldWarn flag and message
- */
-export const getReliabilityWarning = (userData) => {
-  const userNoShows = userData?.userdata?.metrics?.events?.noShows || 0;
-
-  if (userNoShows >= 5) {
-    return {
-      shouldWarn: true,
-      level: 'restricted',
-      message: 'Account restricted due to multiple no-shows',
-      color: '#F44336',
-    };
-  }
-
-  if (userNoShows >= 3) {
-    return {
-      shouldWarn: true,
-      level: 'warning',
-      message: `${userNoShows} no-shows - please attend events you join`,
-      color: '#FF9800',
-    };
-  }
-
-  if (userNoShows >= 1) {
-    return {
-      shouldWarn: true,
-      level: 'caution',
-      message: `${userNoShows} no-show${userNoShows > 1 ? 's' : ''} - maintain good attendance`,
-      color: '#FFC107',
-    };
-  }
-
-  return {
-    shouldWarn: false,
-    level: 'good',
-    message: 'Good attendance record',
-    color: '#4CAF50',
-  };
-};
 
 /**
  * Get user permissions for an event

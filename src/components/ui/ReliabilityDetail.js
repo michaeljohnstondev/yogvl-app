@@ -11,8 +11,29 @@ import ReliabilityBadge from './ReliabilityBadge';
 import theme from '../../theme/themes';
 
 export default function ReliabilityDetail({ userData, onClose }) {
+  if (!userData) {
+    return null; // Don't render if no user data
+  }
+
   const reliabilityData = ReliabilityService.getUserReliabilityDisplay(userData);
   const { score, tier, metrics, streaks } = reliabilityData;
+
+  // Debug logging to help troubleshoot
+  console.log('[ReliabilityDetail] Rendering with data:', {
+    userData: {
+      id: userData.id,
+      hasUserdata: !!userData.userdata,
+      hasMetrics: !!userData.userdata?.metrics,
+      hasReliability: !!userData.userdata?.metrics?.reliability,
+    },
+    reliabilityData: {
+      score,
+      tier: tier?.label,
+      hasMetrics: !!metrics,
+      totalRSVPs: metrics?.totalRSVPs,
+      totalAttended: metrics?.totalAttended
+    }
+  });
 
   const StatRow = ({ label, value, color = theme.colors.textSecondary }) => (
     <View style={styles.statRow}>
@@ -51,6 +72,23 @@ export default function ReliabilityDetail({ userData, onClose }) {
             </Text>
             <ReliabilityBadge userData={userData} size="large" />
           </View>
+
+          {/* New User Welcome Message */}
+          {reliabilityData.isNewUser && (
+            <View style={styles.newUserSection}>
+              <Text style={styles.newUserTitle}>🎉 Welcome to Big Vibe Studios!</Text>
+              <Text style={styles.newUserText}>
+                Your reliability score will be calculated after attending a few events. 
+                Start building your reputation by RSVPing and attending events!
+              </Text>
+              <View style={styles.newUserTips}>
+                <Text style={styles.tipTitle}>💡 Build Your Reliability:</Text>
+                <Text style={styles.tipText}>• RSVP only when you can attend</Text>
+                <Text style={styles.tipText}>• Attend events you've committed to</Text>
+                <Text style={styles.tipText}>• Update your RSVP if plans change</Text>
+              </View>
+            </View>
+          )}
 
           {/* Overall Stats */}
           <View style={styles.section}>
@@ -105,18 +143,18 @@ export default function ReliabilityDetail({ userData, onClose }) {
             <View style={styles.statsGrid}>
               <StatRow 
                 label="Current Attendance Streak" 
-                value={streaks.currentAttendanceStreak || 0}
+                value={streaks?.currentAttendanceStreak || 0}
                 color={theme.colors.vibeGreen}
               />
               <StatRow 
                 label="Longest Attendance Streak" 
-                value={streaks.longestAttendanceStreak || 0}
+                value={streaks?.longestAttendanceStreak || 0}
                 color={theme.colors.vibeBlue}
               />
-              {streaks.currentNoShowStreak > 0 && (
+              {streaks?.currentNoShowStreak > 0 && (
                 <StatRow 
                   label="Current No-Show Streak" 
-                  value={streaks.currentNoShowStreak}
+                  value={streaks?.currentNoShowStreak}
                   color="#FF6B6B"
                 />
               )}
@@ -240,5 +278,44 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     lineHeight: 16,
     marginLeft: 8,
+  },
+  newUserSection: {
+    backgroundColor: 'rgba(138, 43, 226, 0.15)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(138, 43, 226, 0.3)',
+  },
+  newUserTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.colors.vibePink,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  newUserText: {
+    fontSize: 14,
+    color: theme.colors.textPrimary,
+    lineHeight: 20,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  newUserTips: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 8,
+    padding: 12,
+  },
+  tipTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.vibeBlue,
+    marginBottom: 8,
+  },
+  tipText: {
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+    lineHeight: 18,
+    marginBottom: 4,
   },
 });

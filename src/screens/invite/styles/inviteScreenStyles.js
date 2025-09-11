@@ -594,6 +594,25 @@ export default StyleSheet.create({
     fontFamily: theme.fonts.main,
   },
 
+  // Subscriber filter info
+  subscriberFilterInfo: {
+    backgroundColor: theme.colors.vibeBackgroundBlue,
+    borderWidth: 1,
+    borderColor: theme.colors.vibeBlue + '50',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  subscriberFilterText: {
+    color: theme.colors.vibeBlue,
+    fontSize: 12,
+    fontFamily: theme.fonts.main,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+
   // Bottom button
   bottomButtonContainer: {
     position: 'absolute',

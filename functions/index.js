@@ -45,10 +45,10 @@ exports.onCommentNotificationTrigger = functions.firestore
         return;
       }
 
-      // Get host's Expo push token
-      const hostToken = hostData?.deviceInfo?.expoPushToken;
+      // Get host's FCM push token
+      const hostToken = hostData?.deviceInfo?.fcmToken;
       if (!hostToken) {
-        console.log('Host has no Expo push token');
+        console.log('Host has no FCM push token');
         return;
       }
 
@@ -139,7 +139,7 @@ exports.onEventJoin = functions.firestore
     }
 
     // Get host's Expo push token
-    const hostToken = hostData?.deviceInfo?.expoPushToken;
+    const hostToken = hostData?.deviceInfo?.fcmToken;
     if (!hostToken) {
       console.log('Host has no Expo push token');
       return;
@@ -229,7 +229,7 @@ exports.onEventLeave = functions.firestore
     }
 
     // Get host's Expo push token
-    const hostToken = hostData?.deviceInfo?.expoPushToken;
+    const hostToken = hostData?.deviceInfo?.fcmToken;
     if (!hostToken) {
       console.log('Host has no Expo push token');
       return;
@@ -329,11 +329,11 @@ exports.onEventUpdate = functions.firestore
       // Check if user wants host change notifications
       if (!attendingPrefs.hostChanges) continue;
 
-      const expoPushToken = userData?.deviceInfo?.expoPushToken;
-      if (!expoPushToken) continue;
+      const fcmToken = userData?.deviceInfo?.fcmToken;
+      if (!fcmToken) continue;
 
       notifications.push({
-        token: expoPushToken,
+        token: fcmToken,
         userId: subscriberId,
       });
     }
@@ -443,8 +443,8 @@ exports.sendEventReminders = functions.scheduler
           continue;
         }
 
-        const expoPushToken = userData?.deviceInfo?.expoPushToken;
-        if (!expoPushToken) {
+        const fcmToken = userData?.deviceInfo?.fcmToken;
+        if (!fcmToken) {
           // Mark as sent if no token available
           remindersToMarkSent.push(reminderDoc.ref);
           continue;
@@ -472,7 +472,7 @@ exports.sendEventReminders = functions.scheduler
         }
 
         notifications.push({
-          token: expoPushToken,
+          token: fcmToken,
           notification: {
             title: isHost ? `Your event starts ${timeText}!` : `Event starting ${timeText}!`,
             body: isHost ? `"${eventTitle}" starts ${timeText}` : `"${eventTitle}" is starting ${timeText}`,
@@ -630,7 +630,7 @@ exports.onFriendRequest = functions.firestore
       }
 
       // Get recipient's Expo push token
-      const recipientToken = recipientData?.deviceInfo?.expoPushToken;
+      const recipientToken = recipientData?.deviceInfo?.fcmToken;
       if (!recipientToken) {
         console.log('Recipient has no Expo push token');
         return;
@@ -705,7 +705,7 @@ exports.onFriendAccepted = functions.firestore
         }
 
         // Get sender's Expo push token
-        const senderToken = senderData?.deviceInfo?.expoPushToken;
+        const senderToken = senderData?.deviceInfo?.fcmToken;
         if (!senderToken) {
           console.log('Sender has no Expo push token');
           return;
@@ -778,7 +778,7 @@ exports.onCohostInvitation = functions.firestore
       }
 
       // Get recipient's Expo push token
-      const recipientToken = recipientData?.deviceInfo?.expoPushToken;
+      const recipientToken = recipientData?.deviceInfo?.fcmToken;
       if (!recipientToken) {
         console.log('Recipient has no Expo push token');
         return;
@@ -863,7 +863,7 @@ exports.onAdminNotificationTrigger = functions.firestore
       }
 
       const userData = userDoc.data();
-      const userToken = userData?.deviceInfo?.expoPushToken;
+      const userToken = userData?.deviceInfo?.fcmToken;
       if (!userToken) {
         console.log('User has no push token');
         return;
@@ -873,37 +873,41 @@ exports.onAdminNotificationTrigger = functions.firestore
       const isHighPriority = priority === 'high' || ['warning', 'strike'].includes(subType);
       const sound = isHighPriority ? 'default' : false;
 
-      const pushMessage = {
-        to: userToken,
-        sound: sound,
-        title: title,
-        body: message,
+      const fcmMessage = {
+        token: userToken,
+        notification: {
+          title: title,
+          body: message,
+        },
         data: {
           ...data,
           adminNotificationType: subType,
           priority: priority,
+          type: 'admin_notification',
+          screen: 'Notifications',
         },
-        priority: isHighPriority ? 'high' : 'normal',
-        channelId: isHighPriority ? 'admin-urgent' : 'admin-general',
+        android: {
+          priority: isHighPriority ? 'high' : 'normal',
+          notification: {
+            channelId: isHighPriority ? 'admin-urgent' : 'admin-general',
+            sound: sound ? 'default' : undefined,
+          },
+        },
+        apns: {
+          payload: {
+            aps: {
+              sound: sound ? 'default' : undefined,
+            },
+          },
+        },
       };
 
-      // Send via Expo Push Service
-      const response = await fetch('https://exp.host/--/api/v2/push/send', {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          'Accept-Encoding': 'gzip, deflate',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(pushMessage),
-      });
-
-      const result = await response.json();
-      
-      if (result.data && result.data.status === 'ok') {
+      // Send via Firebase Admin SDK
+      try {
+        await admin.messaging().send(fcmMessage);
         console.log(`Admin notification sent to user ${userId}: ${subType}`);
-      } else {
-        console.error('Failed to send admin notification:', result);
+      } catch (error) {
+        console.error('Failed to send admin notification:', error);
       }
 
       // Clean up processed trigger after a delay
@@ -917,6 +921,240 @@ exports.onAdminNotificationTrigger = functions.firestore
 
     } catch (error) {
       console.error('Error processing admin notification trigger:', error);
+    }
+  });
+
+/**
+ * Scheduled function to process pending scheduled notifications
+ * Runs every 2 minutes to check for scheduled notifications that need to be sent
+ * This replaces the client-side background processor to improve battery life
+ */
+exports.processScheduledNotifications = functions.scheduler
+  .onSchedule('*/2 * * * *', async (context) => {
+    console.log('Processing pending scheduled notifications...');
+    
+    const now = admin.firestore.Timestamp.now();
+    const cutoffTime = admin.firestore.Timestamp.fromMillis(now.toMillis() + (5 * 60 * 1000)); // 5 minutes buffer
+    
+    try {
+      // Query for notifications that should be sent now
+      const q = admin.firestore()
+        .collection('scheduledNotifications')
+        .where('status', '==', 'pending')
+        .where('scheduledFor', '<=', cutoffTime)
+        .orderBy('scheduledFor')
+        .limit(50); // Process in batches
+
+      const snapshot = await q.get();
+      
+      if (snapshot.empty) {
+        console.log('No pending scheduled notifications to process');
+        return;
+      }
+
+      console.log(`Found ${snapshot.size} scheduled notifications to process`);
+      
+      const results = [];
+      const batch = admin.firestore().batch();
+
+      for (const notificationDoc of snapshot.docs) {
+        const notification = notificationDoc.data();
+        
+        try {
+          // Check if event still exists and hasn't been cancelled
+          if (notification.eventId) {
+            const isEventValid = await validateEventForNotification(notification.eventId);
+            if (!isEventValid) {
+              // Cancel notification - event no longer exists or was cancelled
+              batch.update(notificationDoc.ref, {
+                status: 'cancelled',
+                cancelledAt: admin.firestore.Timestamp.now(),
+                cancelReason: 'Event no longer valid',
+              });
+              results.push({ id: notification.id, status: 'cancelled', reason: 'Event invalid' });
+              continue;
+            }
+          }
+
+          // Get user data and FCM token
+          const userDoc = await admin.firestore().doc(`users/${notification.userId}`).get();
+          if (!userDoc.exists) {
+            batch.update(notificationDoc.ref, {
+              status: 'failed',
+              attempts: notification.attempts + 1,
+              lastAttemptAt: admin.firestore.Timestamp.now(),
+              failureReason: 'User not found',
+            });
+            results.push({ id: notification.id, status: 'failed', reason: 'User not found' });
+            continue;
+          }
+
+          const userData = userDoc.data();
+          const fcmToken = userData?.deviceInfo?.fcmToken;
+          if (!fcmToken) {
+            batch.update(notificationDoc.ref, {
+              status: 'failed',
+              attempts: notification.attempts + 1,
+              lastAttemptAt: admin.firestore.Timestamp.now(),
+              failureReason: 'No FCM token',
+            });
+            results.push({ id: notification.id, status: 'failed', reason: 'No FCM token' });
+            continue;
+          }
+
+          // Send the notification via FCM
+          const message = {
+            token: fcmToken,
+            notification: {
+              title: notification.title,
+              body: notification.message,
+            },
+            data: {
+              ...notification.data,
+              type: notification.type,
+              notificationId: notification.id,
+            },
+            apns: {
+              payload: {
+                aps: {
+                  badge: 1,
+                  sound: 'default',
+                },
+              },
+            },
+          };
+
+          await admin.messaging().send(message);
+
+          // Update scheduled notification status
+          batch.update(notificationDoc.ref, {
+            status: 'sent',
+            sentAt: admin.firestore.Timestamp.now(),
+          });
+          results.push({ id: notification.id, status: 'sent' });
+
+        } catch (error) {
+          console.error(`Error processing scheduled notification ${notification.id}:`, error);
+          batch.update(notificationDoc.ref, {
+            status: 'failed',
+            attempts: notification.attempts + 1,
+            lastAttemptAt: admin.firestore.Timestamp.now(),
+            failureReason: error.message,
+          });
+          results.push({ id: notification.id, status: 'failed', reason: error.message });
+        }
+      }
+
+      // Commit all updates
+      await batch.commit();
+
+      console.log(`Processed ${results.length} scheduled notifications`);
+      return {
+        success: true,
+        processedCount: results.length,
+        results,
+      };
+
+    } catch (error) {
+      console.error('Error processing scheduled notifications:', error);
+    }
+  });
+
+/**
+ * Helper function to validate if an event is still valid for notifications
+ */
+async function validateEventForNotification(eventId) {
+  try {
+    // Check if event exists in the events collection
+    const eventDoc = await admin.firestore().doc(`events/${eventId}`).get();
+    
+    if (!eventDoc.exists) {
+      return false;
+    }
+    
+    const eventData = eventDoc.data();
+    
+    // Check if event is cancelled
+    if (eventData.cancelled) {
+      return false;
+    }
+    
+    // Check if event is in the past
+    const eventTime = eventData.eventTimestamp.toDate ? eventData.eventTimestamp.toDate() : new Date(eventData.eventTimestamp);
+    if (eventTime < new Date()) {
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error validating event:', error);
+    return false; // Assume invalid on error
+  }
+}
+
+/**
+ * Handle client push notification triggers
+ * This handles push notifications triggered from the client-side notification service
+ */
+exports.onClientPushNotificationTrigger = functions.firestore
+  .onDocumentCreated('notificationTriggers/{triggerId}', async (event) => {
+    const triggerData = event.data.data();
+    const { triggerId } = event.params;
+
+    if (triggerData.type !== 'client_push_notification' || triggerData.processed) {
+      return;
+    }
+
+    try {
+      // Mark as processed immediately to prevent duplicate processing
+      await admin.firestore().doc(`notificationTriggers/${triggerId}`).update({
+        processed: true,
+        processedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      const { userId, fcmToken, title, message, data } = triggerData;
+
+      if (!fcmToken) {
+        console.log('No FCM token provided in trigger');
+        return;
+      }
+
+      // Send notification via Firebase Admin SDK
+      const fcmMessage = {
+        token: fcmToken,
+        notification: {
+          title: title,
+          body: message,
+        },
+        data: {
+          ...data,
+          type: 'client_notification',
+          userId: userId,
+        },
+        apns: {
+          payload: {
+            aps: {
+              badge: 1,
+              sound: 'default',
+            },
+          },
+        },
+      };
+
+      await admin.messaging().send(fcmMessage);
+      console.log(`Client push notification sent to user ${userId}: ${title}`);
+
+      // Clean up processed trigger after a delay
+      setTimeout(async () => {
+        try {
+          await admin.firestore().doc(`notificationTriggers/${triggerId}`).delete();
+        } catch (error) {
+          console.error('Error cleaning up client trigger document:', error);
+        }
+      }, 60000); // Delete after 1 minute
+
+    } catch (error) {
+      console.error('Error processing client push notification trigger:', error);
     }
   });
 
@@ -950,43 +1188,47 @@ exports.onBanNotificationTrigger = functions.firestore
       }
 
       const userData = userDoc.data();
-      const userToken = userData?.deviceInfo?.expoPushToken;
+      const userToken = userData?.deviceInfo?.fcmToken;
       if (!userToken) {
         console.log('User has no push token');
         return;
       }
 
-      const pushMessage = {
-        to: userToken,
-        sound: 'default', // Ban notifications should always have sound
-        title: title,
-        body: message,
+      const fcmMessage = {
+        token: userToken,
+        notification: {
+          title: title,
+          body: message,
+        },
         data: {
           ...data,
           banType: banType,
           reason: reason,
+          type: 'ban_notification',
+          screen: 'Home',
         },
-        priority: 'high', // Ban notifications are always high priority
-        channelId: 'admin-urgent',
+        android: {
+          priority: 'high', // Ban notifications are always high priority
+          notification: {
+            channelId: 'admin-urgent',
+            sound: 'default',
+          },
+        },
+        apns: {
+          payload: {
+            aps: {
+              sound: 'default',
+            },
+          },
+        },
       };
 
-      // Send via Expo Push Service
-      const response = await fetch('https://exp.host/--/api/v2/push/send', {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          'Accept-Encoding': 'gzip, deflate',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(pushMessage),
-      });
-
-      const result = await response.json();
-      
-      if (result.data && result.data.status === 'ok') {
+      // Send via Firebase Admin SDK
+      try {
+        await admin.messaging().send(fcmMessage);
         console.log(`Ban notification sent to user ${userId}: ${banType} ban`);
-      } else {
-        console.error('Failed to send ban notification:', result);
+      } catch (error) {
+        console.error('Failed to send ban notification:', error);
       }
 
       // Clean up processed trigger after a delay

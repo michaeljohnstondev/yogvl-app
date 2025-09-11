@@ -27,25 +27,30 @@ export const useRealtimeNotifications = (userId, options = {}) => {
     setIsLoading(true);
     setError(null);
 
+    let unsubscribe = null;
+
     try {
-      // Build query for notifications
+      // Build query for notifications with optimized limits
+      const effectiveLimit = Math.min(limitCount || 50, 100); // Cap at 100 for performance
+      
       let notificationQuery = query(
         collection(db, 'users', userId, 'notifications'),
-        orderBy('createdAt', 'desc')
+        orderBy('createdAt', 'desc'),
+        limit(effectiveLimit) // Always include limit for performance
       );
 
       // Add filters
       if (unreadOnly) {
-        notificationQuery = query(notificationQuery, where('read', '==', false));
-      }
-
-      // Add limit
-      if (limitCount) {
-        notificationQuery = query(notificationQuery, limit(limitCount));
+        notificationQuery = query(
+          collection(db, 'users', userId, 'notifications'),
+          where('read', '==', false),
+          orderBy('createdAt', 'desc'),
+          limit(effectiveLimit)
+        );
       }
 
       // Set up real-time listener
-      const unsubscribe = onSnapshot(
+      unsubscribe = onSnapshot(
         notificationQuery,
         (snapshot) => {
           const notificationsList = [];
@@ -64,14 +69,17 @@ export const useRealtimeNotifications = (userId, options = {}) => {
 
           setNotifications(notificationsList);
           
-          // Count total notifications since we no longer use read/unread
-          setUnreadCount(notificationsList.length);
+          // Count actual unread notifications
+          const actualUnreadCount = notificationsList.filter(n => !n.read).length;
+          setUnreadCount(actualUnreadCount);
           
           setIsLoading(false);
           setError(null);
 
-          // Debug logging
-          console.log(`[useRealtimeNotifications] Real-time update: ${notificationsList.length} notifications`);
+          // Debug logging (reduced frequency)
+          if (notificationsList.length > 0) {
+            console.log(`[useRealtimeNotifications] ${notificationsList.length} notifications (${actualUnreadCount} unread)`);
+          }
         },
         (err) => {
           console.error('Error in real-time notifications listener:', err);
@@ -80,12 +88,19 @@ export const useRealtimeNotifications = (userId, options = {}) => {
         }
       );
 
-      return unsubscribe;
     } catch (err) {
       console.error('Error setting up real-time notifications:', err);
       setError(err);
       setIsLoading(false);
     }
+
+    // Cleanup function
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+        console.log('[useRealtimeNotifications] Cleaned up listener for user:', userId);
+      }
+    };
   }, [userId, limitCount, unreadOnly, includeRead]);
 
 

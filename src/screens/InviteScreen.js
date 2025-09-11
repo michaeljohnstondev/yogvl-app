@@ -57,7 +57,7 @@ export default function InviteScreen() {
 
   // Custom hooks
   const state = useInviteScreenState(selectedUsers, selectedContacts, selectedPhoneContacts);
-  const contactManagement = useContactManagement(currentUserId, userData, state.activeTab);
+  const contactManagement = useContactManagement(currentUserId, userData, state.activeTab, eventId, routeStudioId || studioId);
   const groupManagement = useGroupManagement();
   const selectionHandlers = useSelectionHandlers(
     maxLimit,
@@ -365,6 +365,9 @@ export default function InviteScreen() {
               maxLimit={maxLimit}
               localSelectedContacts={state.localSelectedContacts}
               localSelectedPhoneContacts={state.localSelectedPhoneContacts}
+              eventSubscribers={contactManagement.eventSubscribers}
+              loadingSubscribers={contactManagement.loadingSubscribers}
+              hasEventId={!!eventId}
             />
           )}
 

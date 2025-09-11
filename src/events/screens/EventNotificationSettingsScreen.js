@@ -1,4 +1,4 @@
-// FILE: screens/NotificationSettingsScreen.js
+// EventNotificationSettingsScreen.js
 
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -9,24 +9,18 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import CloseButton from '../components/ui/CloseButton';
-import HostNotificationSettingsForm from '../components/notifications/HostNotificationSettingsForm';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../auth/services/firebase';
-import CustomTemplateService from '../services/CustomTemplateService';
-import theme from '../theme/themes';
+import CloseButton from '../../components/ui/CloseButton';
+import HostNotificationSettingsForm from '../../components/notifications/HostNotificationSettingsForm';
+import theme from '../../theme/themes';
 
-export default function NotificationSettingsScreen() {
+export default function EventNotificationSettingsScreen() {
   const route = useRoute();
   const navigation = useNavigation();
   
   const {
     notificationSettings,
-    userDefaults = {},
     currentUserId,
-    eventDateTime,
     onUpdateSettings,
-    userContext = 'attending', // Default to attending if not specified
   } = route.params;
   const defaultSettings = {
     enabled: true,
@@ -60,50 +54,15 @@ export default function NotificationSettingsScreen() {
 
   // Auto-save - update parent form immediately when local settings change
   useEffect(() => {
-    // Only update if localSettings actually differs from the prop to prevent loops
-    if (JSON.stringify(localSettings) !== JSON.stringify(notificationSettings)) {
+    // Use stable reference check to prevent memory leaks from JSON.stringify
+    if (localSettings !== notificationSettings && 
+        localSettings && notificationSettings &&
+        Object.keys(localSettings).length > 0) {
       console.log('🔧 [EventNotificationSettings] Auto-saving changes to parent form:', localSettings);
       onUpdateSettings('notificationSettings', localSettings);
     }
   }, [localSettings, onUpdateSettings, notificationSettings]);
 
-  const saveAsDefaults = async () => {
-    try {
-      if (!currentUserId) {
-        console.error('No user ID available');
-        return;
-      }
-
-      // Save current local settings as user context defaults (hosting or attending)
-      const contextPath = `userdata.settings.notifications.${userContext}`;
-      const userRef = doc(db, 'users', currentUserId);
-      await updateDoc(userRef, {
-        [contextPath]: {
-          hostChanges: localSettings?.hostChanges ?? true,
-          eventReminders: localSettings?.eventReminders ?? true,
-          reminderTiming: localSettings?.reminderTiming ?? '1hour',
-          dayBeforeReminder: localSettings?.dayBeforeReminder ?? true,
-          hostComments: localSettings?.hostComments ?? true,
-          newComments: localSettings?.newComments ?? false,
-          reminderTemplates: localSettings?.reminderTemplates ?? [],
-        }
-      });
-      
-      console.log(`Successfully saved ${userContext} notification defaults`);
-
-      // Save custom templates for future use
-      if (localSettings?.reminderTemplates) {
-        await CustomTemplateService.saveCustomTemplates(currentUserId, localSettings.reminderTemplates);
-      }
-
-      // Also apply to current event
-      onUpdateSettings('notificationSettings', localSettings);
-
-      console.log(`Successfully saved ${userContext} notification defaults and custom templates`);
-    } catch (error) {
-      console.error('Failed to save notification defaults:', error);
-    }
-  };
 
 
   return (
