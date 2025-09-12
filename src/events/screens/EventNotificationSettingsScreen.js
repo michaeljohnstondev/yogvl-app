@@ -3,13 +3,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import CloseButton from '../../components/ui/CloseButton';
+import ScreenHeader from '../../components/ui/ScreenHeader';
 import HostNotificationSettingsForm from '../../components/notifications/HostNotificationSettingsForm';
 import theme from '../../theme/themes';
 
@@ -30,48 +29,65 @@ export default function EventNotificationSettingsScreen() {
     reminderTemplates: []
   };
   
-  const [localSettings, setLocalSettings] = useState(notificationSettings || defaultSettings);
+  const initialSettings = notificationSettings || defaultSettings;
+  const [localSettings, setLocalSettings] = useState(initialSettings);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
-  const [templatesLoaded, setTemplatesLoaded] = useState(false);
   const scrollViewRef = useRef(null);
+
+  // Auto-save - update parent form immediately when local settings change
+  // Using debounced pattern similar to useNotificationAutoSave hook
+  const isFirstRender = useRef(true);
+  const saveTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    // Skip saving on first render
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
+    // Clear any existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Debounced save after 500ms
+    saveTimeoutRef.current = setTimeout(() => {
+      // Only save if settings have actually changed from initial values
+      if (JSON.stringify(localSettings) !== JSON.stringify(initialSettings)) {
+        onUpdateSettings('notificationSettings', localSettings);
+      }
+    }, 500);
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [localSettings, onUpdateSettings, initialSettings]);
 
   // Simple initialization - just use the notification settings passed from CreateEventScreen
   useEffect(() => {
-    console.log('[EventNotificationSettings] Initializing with notification settings from CreateEventScreen');
-    
     if (notificationSettings) {
-      console.log('[EventNotificationSettings] Using notification settings directly:', notificationSettings);
       setLocalSettings(notificationSettings);
     } else {
-      console.log('[EventNotificationSettings] No notification settings provided, using defaults');
       setLocalSettings(defaultSettings);
     }
     
-    setTemplatesLoaded(true);
     setIsLoadingTemplates(false);
   }, [notificationSettings]);
-
-
-  // Auto-save - update parent form immediately when local settings change
-  useEffect(() => {
-    // Use stable reference check to prevent memory leaks from JSON.stringify
-    if (localSettings !== notificationSettings && 
-        localSettings && notificationSettings &&
-        Object.keys(localSettings).length > 0) {
-      console.log('🔧 [EventNotificationSettings] Auto-saving changes to parent form:', localSettings);
-      onUpdateSettings('notificationSettings', localSettings);
-    }
-  }, [localSettings, onUpdateSettings, notificationSettings]);
 
 
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-        {/* Header */}
-        <View style={styles.header}>
-          <CloseButton onPress={() => navigation.goBack()} />
-          <Text style={styles.headerTitle}>Notification Settings</Text>
-        </View>
+        <ScreenHeader 
+          title="Notification Settings"
+          onClose={() => navigation.goBack()}
+          showBorder={true}
+          showCloseButton={true}
+        />
 
         <ScrollView 
           ref={scrollViewRef} 
@@ -99,21 +115,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.darkGray,
-  },
-  headerTitle: {
-    color: theme.colors.textPrimary,
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginLeft: 16,
-    flex: 1,
   },
   content: {
     flex: 1,

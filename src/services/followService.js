@@ -296,17 +296,27 @@ export const getFollowing = async (userId, limitCount = 50) => {
 };
 
 /**
- * Get mutual followers (friends)
+ * Get mutual followers (friends) - OPTIMIZED with batch queries
  */
 export const getMutualFollows = async (userId, limitCount = 50) => {
   try {
     const following = await getFollowing(userId, limitCount);
+    const targetUserIds = following.map(f => f.targetUserId);
+    
+    if (targetUserIds.length === 0) {
+      return [];
+    }
+    
+    // Batch check all follow relationships in parallel instead of sequential for loop
+    const followBackPromises = targetUserIds.map(targetId => 
+      getDoc(doc(db, 'users', targetId, 'followers', userId))
+    );
+    
+    const followBackResults = await Promise.all(followBackPromises);
+    
     const mutualFollows = [];
-
-    // Check each person we follow to see if they follow us back
-    for (const followedUser of following) {
-      const isFollowingBack = await checkIfFollowing(followedUser.targetUserId, userId);
-      if (isFollowingBack) {
+    following.forEach((followedUser, index) => {
+      if (followBackResults[index].exists()) {
         mutualFollows.push({
           id: followedUser.targetUserId,
           ...followedUser.targetData,
@@ -314,7 +324,7 @@ export const getMutualFollows = async (userId, limitCount = 50) => {
           followedAt: followedUser.createdAt
         });
       }
-    }
+    });
 
     return mutualFollows;
   } catch (error) {
@@ -573,6 +583,69 @@ export const getMutualFriendsList = async (userId) => {
   } catch (error) {
     console.error('Error getting mutual friends list:', error);
     return [];
+  }
+};
+
+/**
+ * Get follow status between two users (API compatibility method)
+ */
+export const getFollowStatus = async (followerId, targetUserId) => {
+  try {
+    const isFollowing = await checkIfFollowing(followerId, targetUserId);
+    return { 
+      isFollowing,
+      success: true 
+    };
+  } catch (error) {
+    console.error('Error getting follow status:', error);
+    return { 
+      isFollowing: false, 
+      success: false, 
+      error: error.message 
+    };
+  }
+};
+
+/**
+ * OPTIMIZED: Get complete relationship status between two users (follow + block status)
+ * Combines multiple checks into single efficient operation
+ */
+export const getUserRelationshipStatus = async (currentUserId, targetUserId) => {
+  try {
+    // Batch the essential document reads
+    const [followingDoc, currentUserDoc, targetUserDoc] = await Promise.all([
+      getDoc(doc(db, 'users', currentUserId, 'following', targetUserId)),
+      getDoc(doc(db, 'users', currentUserId)),
+      getDoc(doc(db, 'users', targetUserId))
+    ]);
+
+    if (!currentUserDoc.exists() || !targetUserDoc.exists()) {
+      return { 
+        isFollowing: false, 
+        isBlocked: false, 
+        isBlockedBy: false, 
+        error: 'User not found' 
+      };
+    }
+
+    const currentUserData = currentUserDoc.data();
+    const targetUserData = targetUserDoc.data();
+
+    return {
+      isFollowing: followingDoc.exists(),
+      isBlocked: currentUserData.blockedUsers?.includes(targetUserId) || false,
+      isBlockedBy: targetUserData.blockedUsers?.includes(currentUserId) || false,
+      success: true
+    };
+  } catch (error) {
+    console.error('Error getting relationship status:', error);
+    return { 
+      isFollowing: false, 
+      isBlocked: false, 
+      isBlockedBy: false, 
+      error: error.message,
+      success: false 
+    };
   }
 };
 

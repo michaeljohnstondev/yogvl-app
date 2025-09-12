@@ -170,6 +170,41 @@ This document defines the Firestore database schema for the Big Vibe Studios not
 - Single field: `eventId` for event cleanup
 - Composite: `(eventDateTime, sent)` for cleanup operations
 
+### Event Notification Settings
+**Collection**: `studios/{studioId}/events/{eventId}` - notificationSettings field
+
+```javascript
+{
+  notificationSettings: {
+    enabled: boolean,           // Master event notification toggle
+    notifyOnJoin: boolean,      // Notify host when guests join event
+    notifyOnLeave: boolean,     // Notify host when guests leave event  
+    newComments: boolean,       // Notify host of new event comments
+    reminderTemplates: [        // Custom reminder configurations for this event
+      {
+        id: string,             // Template identifier (e.g., "15min", "custom_123456")
+        amount: number,         // Reminder timing amount (e.g., 15)
+        unit: string,           // Time unit: "minutes" | "hours" | "days" | "weeks" | "months"
+        enabled: boolean,       // Whether this reminder is active
+        label: string           // Display label (e.g., "15 min", "1 hour")
+      }
+    ]
+  }
+}
+```
+
+**Purpose**: 
+- Controls host-specific notification preferences for individual events
+- Overrides user-level notification settings for specific events
+- Used by EventNotificationScheduler to determine which notifications to send
+- Integrates with Event Reminders collection for scheduling custom reminders
+
+**Relationship to User Notification Preferences**:
+- Event-level settings take precedence over user-level hosting preferences
+- If event.notificationSettings.enabled is false, no notifications are sent regardless of user preferences
+- Individual toggles (notifyOnJoin, newComments, etc.) can override corresponding user preferences
+- Custom reminder templates are event-specific and supplement user-level reminder settings
+
 ### Admin Notifications
 **Collection**: `users/{userId}/adminNotifications`
 

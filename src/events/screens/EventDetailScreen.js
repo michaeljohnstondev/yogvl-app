@@ -1748,8 +1748,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     margin: 20,
-    minWidth: 250,
-    maxWidth: 300,
+    minWidth: 350,
+    maxWidth: 400,
     borderWidth: 1,
     borderColor: theme.colors.vibeBlue,
   },
@@ -1786,9 +1786,8 @@ const styles = StyleSheet.create({
   kickButton: {
     padding: 8,
     borderRadius: 6,
-    backgroundColor: 'rgba(255, 77, 77, 0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 77, 77, 0.4)',
+    backgroundColor: 'transparent',
+    borderWidth: 0,
     marginLeft: 8,
   },
   kickButtonText: {

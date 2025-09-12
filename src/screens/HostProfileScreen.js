@@ -11,6 +11,7 @@ import {
   BackHandler,
 } from 'react-native';
 import VibeButton from '../components/ui/VibeButton';
+import BlockButton from '../components/ui/BlockButton';
 import VibeScreen from '../components/ui/VibeScreen';
 import ProfileAvatar from '../components/ui/ProfileAvatar';
 import { UserReliabilityCard } from '../events/components/UserReliabilityCard';
@@ -303,10 +304,12 @@ const HostProfileScreen = ({ navigation, route }) => {
             <Text style={styles.closeButtonText}>✕</Text>
           </TouchableOpacity>
 
-          {/* Report button - right side, aligned with top of picture */}
-          <TouchableOpacity onPress={handleReport} style={styles.reportButtonTop}>
-            <Text style={styles.reportButtonText}>⚠️</Text>
-          </TouchableOpacity>
+          {/* Report button - only show for other users' profiles */}
+          {hostData?.id && currentUserId && hostData.id !== currentUserId && (
+            <TouchableOpacity onPress={handleReport} style={styles.reportButtonTop}>
+              <Text style={styles.reportButtonText}>⚠️</Text>
+            </TouchableOpacity>
+          )}
 
           <ProfileAvatar 
             userData={hostData} 
@@ -685,10 +688,10 @@ const HostProfileScreen = ({ navigation, route }) => {
             />
             
             {/* Block/Unblock Button */}
-            <VibeButton
+            <BlockButton
               label={blockStatus.isBlocked ? "UNBLOCK USER" : "BLOCK USER"}
               onPress={handleBlock}
-              variant="outline"
+              isLoading={blockStatus.loading}
               style={styles.blockButton}
             />
           </View>

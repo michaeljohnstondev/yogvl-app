@@ -1,9 +1,11 @@
 # EVENTS FOLDER - CLAUDE.md
 
 ## MANDATORY AGENT WORKFLOW
+
 **⚠️ CRITICAL: ALWAYS use these agents when modifying ANY event-related file in this folder**
 
 ### PRIMARY EVENT AGENTS
+
 When ANY event file is modified, Claude MUST automatically use these agents:
 
 1. **database-guardian**
@@ -56,9 +58,17 @@ When ANY event file is modified, Claude MUST automatically use these agents:
    - Ensure location data is handled securely
    - Review attendee data protection measures
 
+9. **orchestration-reporter**
+   - Coordinate findings from all event-related agents
+   - Consolidate agent reports into unified ZFINAL.md
+   - Detect conflicts between agent recommendations
+   - Prevent duplicate agent work on event files
+   - Route event tasks to appropriate specialized agents
+
 ## EVENT ARCHITECTURE PRINCIPLES
 
 ### What Event Files SHOULD Contain:
+
 - Event-specific business logic
 - Event form state management
 - Event data validation
@@ -67,6 +77,7 @@ When ANY event file is modified, Claude MUST automatically use these agents:
 - Attendance tracking logic
 
 ### What Event Files SHOULD NOT Contain:
+
 - ❌ Generic UI components (extract to components/ui)
 - ❌ Generic utility functions (extract to lib)
 - ❌ Direct Firebase operations (use services)
@@ -76,6 +87,7 @@ When ANY event file is modified, Claude MUST automatically use these agents:
 ## EVENT FOLDER STRUCTURE
 
 ### Current Event Organization:
+
 ```
 src/events/
 ├── components/          # Event-specific components
@@ -95,6 +107,7 @@ src/events/
 ### Component Categories:
 
 #### Form Components:
+
 - **What** - Event name, privacy, description
 - **When** - Date and time selection
 - **Where** - Location and venue selection
@@ -102,11 +115,13 @@ src/events/
 - **Details** - Additional event information
 
 #### Management Components:
+
 - **CreateEventForm** - Main event creation
 - **EventCard** - Event display
 - **EventTips** - Creation guidance
 
 #### Guest Components:
+
 - **GuestListViewer** - Display guests
 - **GuestManager** - Manage guest operations
 - **InvitationCard** - Individual invitations
@@ -114,6 +129,7 @@ src/events/
 ## DATABASE SCHEMA COMPLIANCE
 
 ### Required Event Data Structure:
+
 ```javascript
 // Events are stored in studio-specific collections
 const eventPath = `studios/${studioId}/events/${eventId}`
@@ -124,7 +140,7 @@ const eventData = {
   dateTime: timestamp,
   location: object,
   privacy: string,
-  
+
   // Attendance tracking
   attendance: [
     {
@@ -137,12 +153,13 @@ const eventData = {
       isSoloEvent?: boolean
     }
   ],
-  
+
   // Additional fields as per schema
 }
 ```
 
 ### Database Operation Requirements:
+
 - Always use studio-specific paths
 - Validate event data against schema
 - Handle attendance tracking properly
@@ -151,12 +168,14 @@ const eventData = {
 ## EVENT FORM SYSTEM
 
 ### Core Event Hooks:
+
 - **useEventFormState** - Form state management with dirty tracking
 - **useEventForm** - High-level form logic and submission
 - **useDateTimePickers** - Date/time selection state
 - **useSuggestions** - Autocomplete and suggestions
 
 ### Form Validation Requirements:
+
 - Use event form validators
 - Implement real-time validation
 - Handle form submission errors
@@ -165,16 +184,19 @@ const eventData = {
 ## MANDATORY CHECKS
 
 ### Pre-Modification:
+
 1. **database-guardian**: Review DATABASE.md for event schema
 2. **component-inventory-moderator**: Check existing event components
 3. **duplicate-code-guardian**: Scan for similar event logic
 
 ### During Development:
+
 1. **firebase-efficiency-guardian**: Monitor Firebase usage
 2. **code-organization-monitor**: Track file complexity
 3. Ensure proper event data handling
 
 ### Post-Modification:
+
 1. **code-cleanup-auditor**: Remove unused code
 2. Test event operations end-to-end
 3. Verify database schema compliance
@@ -182,12 +204,14 @@ const eventData = {
 ## EVENT FILE SIZE LIMITS
 
 ### File Size Guidelines:
+
 - **Event Components**: < 300 lines
 - **Event Hooks**: < 200 lines
-- **Event Services**: < 400 lines
-- **Event Screens**: < 400 lines
+- **Event Services**: < 500 lines
+- **Event Screens**: < 500 lines
 
 ### Complexity Indicators:
+
 - Large event forms (break into sub-components)
 - Complex event logic (extract to hooks)
 - Multiple Firebase operations (extract to services)
@@ -196,6 +220,7 @@ const eventData = {
 ## EVENT BUSINESS LOGIC PATTERNS
 
 ### Event Creation Flow:
+
 1. Form state initialization
 2. User input validation
 3. Data transformation
@@ -203,6 +228,7 @@ const eventData = {
 5. Success/error handling
 
 ### Event Management Operations:
+
 - Create, read, update, delete events
 - Manage guest lists and invitations
 - Handle attendance tracking
@@ -211,6 +237,7 @@ const eventData = {
 ## FIREBASE EFFICIENCY FOR EVENTS
 
 ### Event Query Optimization:
+
 ```javascript
 // Good: Studio-specific queries with limits
 const eventsQuery = query(
@@ -218,12 +245,13 @@ const eventsQuery = query(
   where('dateTime', '>=', startDate),
   orderBy('dateTime'),
   limit(20)
-)
+);
 
 // Avoid: Root-level event queries
 ```
 
 ### Event Listener Management:
+
 - Clean up event listeners on unmount
 - Use pagination for event lists
 - Implement proper error handling
@@ -232,12 +260,14 @@ const eventsQuery = query(
 ## EVENT TEMPLATE SYSTEM
 
 ### Template Requirements:
+
 - Save user event templates
 - Apply templates to new events
 - Template validation and error handling
 - Template sharing and management
 
 ### Template Data Structure:
+
 - Follow event schema for template data
 - Support partial templates
 - Implement template versioning
@@ -245,6 +275,7 @@ const eventsQuery = query(
 ## TESTING REQUIREMENTS
 
 ### Event Testing Strategy:
+
 - Test event creation flow
 - Test event data validation
 - Test Firebase operations
@@ -252,6 +283,7 @@ const eventsQuery = query(
 - Test template system
 
 ### Integration Testing:
+
 - Test event screens with real data
 - Test event form state management
 - Test event service operations
@@ -259,6 +291,7 @@ const eventsQuery = query(
 ## SUCCESS CRITERIA
 
 An event modification is complete when:
+
 - ✅ Database operations validated against schema
 - ✅ Firebase usage optimized for efficiency
 - ✅ No duplicate event logic exists

@@ -2,15 +2,15 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
   StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
   KeyboardAvoidingView,
   ScrollView,
   Platform,
 } from 'react-native';
 import { useVibeAlert } from '../../components/ui/VibeAlertContext';
+import VibeInput from '../../components/ui/VibeInput';
+import VibeButton from '../../components/ui/VibeButton';
+import VibeLoadingScreen from '../../components/ui/VibeLoadingScreen';
 import { LinearGradient } from 'expo-linear-gradient';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
@@ -26,7 +26,6 @@ export default function ContactInfoScreen({ navigation }) {
   const vibeAlert = useVibeAlert();
 
   const user = auth.currentUser;
-  console.log('Current user in ContactInfo:', user);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -172,14 +171,10 @@ export default function ContactInfoScreen({ navigation }) {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <LinearGradient
-          colors={theme.colors.backgroundGradient}
-          style={StyleSheet.absoluteFillObject}
-        />
-        <ActivityIndicator size="large" color={theme.colors.alertButton} />
-        <Text style={styles.loadingText}>Loading...</Text>
-      </View>
+      <VibeLoadingScreen 
+        loadingText="Loading your profile..."
+        showBranding={false}
+      />
     );
   }
 
@@ -204,48 +199,44 @@ export default function ContactInfoScreen({ navigation }) {
           <Text style={styles.subtitle}>Help others find and connect with you</Text>
 
           <Text style={styles.label}>First Name</Text>
-          <TextInput
-            style={styles.input}
+          <VibeInput
             value={firstName}
             onChangeText={setFirstName}
             placeholder="Enter your first name"
-            placeholderTextColor={theme.colors.textSecondary}
+            autoComplete="given-name"
+            isCompleted={!!firstName?.trim()}
+            maxLength={50}
+            style={styles.input}
           />
 
           <Text style={styles.label}>Last Name</Text>
-          <TextInput
-            style={styles.input}
+          <VibeInput
             value={lastName}
             onChangeText={setLastName}
             placeholder="Enter your last name"
-            placeholderTextColor={theme.colors.textSecondary}
+            autoComplete="family-name"
+            isCompleted={!!lastName?.trim()}
+            maxLength={50}
+            style={styles.input}
           />
 
           <Text style={styles.label}>Phone Number</Text>
-          <TextInput
-            style={styles.input}
+          <VibeInput
             value={phoneNumber}
             onChangeText={setPhoneNumber}
             placeholder="Enter your phone number"
-            placeholderTextColor={theme.colors.textSecondary}
             keyboardType="phone-pad"
             autoComplete="tel"
+            isCompleted={!!phoneNumber?.trim()}
+            maxLength={20}
+            style={styles.input}
           />
 
-          <TouchableOpacity
-            style={styles.buttonContainer}
+          <VibeButton
+            label={saving ? 'Saving...' : 'Complete Profile'}
             onPress={handleSubmit}
             disabled={saving}
-          >
-            <LinearGradient
-              colors={theme.colors.buttonGradient}
-              style={[styles.button, saving && styles.buttonDisabled]}
-            >
-              <Text style={styles.buttonText}>
-                {saving ? 'Saving...' : 'Complete Profile'}
-              </Text>
-            </LinearGradient>
-          </TouchableOpacity>
+          />
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -285,41 +276,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   input: {
-    borderWidth: 1,
-    borderColor: theme.colors.inputBorder,
-    backgroundColor: theme.colors.inputBackground,
-    color: theme.colors.textPrimary,
-    padding: theme.sizes.inputPadding,
+    width: '100%',
     marginBottom: 20,
-    borderRadius: theme.sizes.borderRadius,
-    fontSize: 16,
-  },
-  buttonContainer: {
-    marginTop: 20,
-    borderRadius: theme.sizes.buttonRadius,
-    overflow: 'hidden',
-  },
-  button: {
-    padding: 15,
-    borderRadius: theme.sizes.buttonRadius,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: theme.colors.textPrimary,
-    textAlign: 'center',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 10,
-    color: theme.colors.textPrimary,
-    fontSize: 16,
   },
 });

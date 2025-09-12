@@ -1,7 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-// Cleaned up auth imports
-import { View, Text, Animated, StyleSheet, TouchableOpacity, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, Text, Animated, StyleSheet, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
 import VibeInput from '../components/ui/VibeInput';
 import VibeButton from '../components/ui/VibeButton';
 import VibeSegmentedControl from '../components/ui/VibeSegmentedControl';
@@ -9,9 +7,41 @@ import { useNavigation } from '@react-navigation/native';
 import { useVibeAlert } from '../components/ui/VibeAlertContext';
 import { login, signup } from '../auth/services/FirebaseAuthService';
 import { db } from '../auth/services/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import { getDefaultUserSettings, getDefaultUserMetrics } from '../services/defaultUserSettings';
 import theme from '../theme/themes';
+// Helper function to convert Firebase errors to human-friendly messages
+const getHumanFriendlyError = (error) => {
+  const errorCode = error.code || error.message;
+  
+  switch (errorCode) {
+    case 'auth/user-not-found':
+    case 'auth/invalid-email':
+    case 'auth/wrong-password':
+    case 'auth/invalid-credential':
+      return "Wrong email or password. Double-check and try again!";
+    
+    case 'auth/email-already-in-use':
+      return "This email is already registered. Try logging in instead!";
+    
+    case 'auth/weak-password':
+      return "Choose a stronger password (at least 6 characters).";
+    
+    case 'auth/too-many-requests':
+      return "Too many failed attempts. Try again in a few minutes.";
+    
+    case 'auth/network-request-failed':
+      return "Connection issue. Check your internet and try again.";
+    
+    case 'auth/user-disabled':
+      return "This account has been disabled. Contact support if you need help.";
+    
+    default:
+      // For any other errors, provide a generic friendly message
+      return "Something went wrong. Please try again!";
+  }
+};
+
 export default function LandingScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const navigation = useNavigation();
@@ -41,7 +71,7 @@ export default function LandingScreen() {
       console.log('Login successful - Navigation will handle routing');
     } catch (err) {
       console.error('Login error:', err);
-      vibeAlert.error('Login Failed', err.message);
+      vibeAlert.error('Login Failed', getHumanFriendlyError(err));
     } finally {
       setLoading(false);
     }
@@ -86,7 +116,7 @@ export default function LandingScreen() {
       });
     } catch (err) {
       console.error('Signup error:', err);
-      vibeAlert.error('Signup Failed', err.message);
+      vibeAlert.error('Signup Failed', getHumanFriendlyError(err));
     } finally {
       setLoading(false);
     }
@@ -124,6 +154,8 @@ export default function LandingScreen() {
         autoCapitalize="none"
         onChangeText={setEmail}
         value={email}
+        maxLength={254}
+        style={styles.authInput}
       />
 
       <VibeInput
@@ -132,6 +164,8 @@ export default function LandingScreen() {
         autoCapitalize="none"
         onChangeText={setPassword}
         value={password}
+        maxLength={128}
+        style={styles.authInput}
       />
 
       <VibeButton
@@ -175,6 +209,10 @@ const styles = StyleSheet.create({
   authToggle: {
     width: '100%',
     marginBottom: 30,
+  },
+  authInput: {
+    width: '100%',
+    marginBottom: 20,
   },
   authButton: {
     marginTop: 10,

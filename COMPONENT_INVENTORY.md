@@ -27,6 +27,12 @@ This document provides a comprehensive inventory of all existing components in t
   - Props: `isFollowing`, `isLoading`, `onFollow`, `onUnfollow`, `disabled`
   - Features: Automatic state management, consistent styling
 
+- **BlockButton** (`src/components/ui/BlockButton.js`)
+  - Reusable block button with dark red gradient aesthetic
+  - Props: `onPress`, `isLoading`, `disabled`, `style`, `label`
+  - Features: LinearGradient styling, loading state with ActivityIndicator, BVS theme compliance
+  - Colors: Dark red gradient ['#CC0022', '#FF0844', '#AA001B']
+
 ### Inputs & Forms
 - **VibeInput** (`src/components/ui/VibeInput.js`)
   - Styled text input with completion states
@@ -118,6 +124,27 @@ This document provides a comprehensive inventory of all existing components in t
 
 - **ReliabilityWarning** (`src/components/ui/ReliabilityWarning.js`)
   - Warning component for reliability issues
+
+- **ProfileSectionCard** (`src/components/ui/ProfileSectionCard.js`)
+  - Reusable section container for profile screens
+  - Props: `title`, `children`, `style`, `containerStyle`, `titleStyle`
+  - Features: Consistent BVS styling with vibeBackgroundBlue container and vibeBlue border
+
+- **ContactItem** (`src/components/ui/ContactItem.js`)
+  - Individual contact field display component
+  - Props: `icon`, `children`, `text`, `textStyle`, `style`, `isLast`
+  - Features: Icon + text/children layout, automatic last item margin handling
+
+- **UserStatsGrid** (`src/components/ui/UserStatsGrid.js`)
+  - Reusable stats display grid for profile metrics
+  - Props: `stats`, `onStatPress`, `isOwnProfile`
+  - Features: Support for clickable stats on own profile, automatic TouchableOpacity wrapping
+
+- **ProfileActionButtons** (`src/components/ui/ProfileActionButtons.js`)
+  - Consolidated button logic for profile screens
+  - Returns: `{ topButtons, bottomButtons }` for flexible placement
+  - Features: Smart rendering based on profile ownership, report button safety checks, consistent styling
+  - Props: `isOwnProfile`, `targetUserId`, `currentUserId`, `isEditing`, follow/block state, action handlers
 
 ---
 
@@ -360,6 +387,7 @@ Based on usage analysis, consider creating:
 - **LandingScreen** (`src/screens/LandingScreen.js`) - Route: `Landing`
   - App introduction and unified authentication entry point
   - Features: Combined login/signup with toggle, modern auth UX
+  - **✅ OPTIMIZED**: Perfect component reuse, no duplications detected
 
 
 

@@ -2,24 +2,32 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
   Image,
   Alert,
   ActionSheetIOS,
   Platform,
+  Pressable,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 import VibeButton from '../components/ui/VibeButton';
 import VibeInput from '../components/ui/VibeInput';
 import CloseButton from '../components/ui/CloseButton';
+import FollowButton from '../components/ui/FollowButton';
+import BlockButton from '../components/ui/BlockButton';
 import AttendanceStats from '../components/ui/AttendanceStats';
 import ReliabilityBadge from '../components/ui/ReliabilityBadge';
 import ProfileAvatar from '../components/ui/ProfileAvatar';
 import QRCodeGenerator from '../components/ui/QRCodeGenerator';
+import ProfileSectionCard from '../components/ui/ProfileSectionCard';
+import ContactItem from '../components/ui/ContactItem';
+import UserStatsGrid from '../components/ui/UserStatsGrid';
+import ProfileActionButtons from '../components/ui/ProfileActionButtons';
 import { useAuth } from '../auth/AuthContext';
-import { getFollowStats } from '../services/followService';
+import { getFollowStats, getUserRelationshipStatus } from '../services/followService';
+import { useFollowActions } from '../hooks/useFollowActions';
 import { deleteUserAccount, getUserDeletionPreview } from '../services/userDeletionService';
 import { uploadProfilePicture, removeProfilePicture, hasProfilePicture } from '../services/profilePictureService';
 import { blockingService } from '../services/blockingService';
@@ -30,6 +38,7 @@ import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 import { useVibeAlert } from '../components/ui/VibeAlertContext';
 import theme from '../theme/themes';
+import { styles } from './UserProfileScreen.styles';
 
 function UserProfile({ navigation, route }) {
   const { userData, logout, currentUserId } = useAuth();
@@ -38,6 +47,12 @@ function UserProfile({ navigation, route }) {
   // Check if viewing someone else's profile or own profile
   const targetUserId = route?.params?.userId || currentUserId;
   const isOwnProfile = targetUserId === currentUserId;
+  
+  // Debug logging
+  console.log('[UserProfile] Debug - currentUserId:', currentUserId);
+  console.log('[UserProfile] Debug - targetUserId:', targetUserId);
+  console.log('[UserProfile] Debug - isOwnProfile:', isOwnProfile);
+  console.log('[UserProfile] Debug - route params:', route?.params);
   
   const [isEditing, setIsEditing] = useState(false);
   const [followStats, setFollowStats] = useState({
@@ -49,10 +64,50 @@ function UserProfile({ navigation, route }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [showQRCode, setShowQRCode] = useState(false);
   const [targetUserData, setTargetUserData] = useState(null);
   const [loadingUserData, setLoadingUserData] = useState(false);
   const [visibleContactInfo, setVisibleContactInfo] = useState({});
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+
+  // Use existing follow actions hook
+  const { handleFollow: followAction, handleUnfollow: unfollowAction, isActionLoading } = useFollowActions(
+    currentUserId, 
+    userData, 
+    loadFollowStats, 
+    null
+  );
+
+  // Wrapper functions to handle targetUserId
+  const handleFollow = () => followAction(targetUserId);
+  const handleUnfollow = () => unfollowAction(targetUserId);
+  const followLoading = isActionLoading(targetUserId);
+
+  const handleBlockUser = async () => {
+    if (!currentUserId || !targetUserId) return;
+
+    vibeAlert.confirm(
+      'Block User',
+      'Are you sure you want to block this user? They will not be able to see your profile or invite you to events.',
+      async () => {
+        try {
+          const result = await blockingService.blockUser(currentUserId, targetUserId);
+          
+          if (result.success) {
+            setIsBlocked(true);
+            vibeAlert.success('User Blocked', 'This user has been blocked');
+            // Navigate back since we blocked them
+            setTimeout(() => navigation.goBack(), 1500);
+          } else {
+            vibeAlert.error('Error', result.message || 'Failed to block user');
+          }
+        } catch (error) {
+          console.error('[UserProfile] Error blocking user:', error);
+          vibeAlert.error('Error', 'Failed to block user');
+        }
+      }
+    );
+  };
   
   // Use target user's data if viewing someone else, otherwise use current user's data
   const displayUserData = isOwnProfile ? userData : targetUserData;
@@ -217,14 +272,12 @@ function UserProfile({ navigation, route }) {
   };
 
   const handleRemovePhoto = async () => {
-    console.log('🚨 handleRemovePhoto called');
     // Small delay to allow the menu alert to close first
     setTimeout(() => {
       vibeAlert.confirm(
         'Remove Photo',
         'Are you sure you want to remove your profile picture?',
         async () => {
-          console.log('🚨 Confirm pressed - starting removal');
           setUploadingPhoto(true);
           try {
             const result = await removeProfilePicture(currentUserId, userData);
@@ -238,9 +291,6 @@ function UserProfile({ navigation, route }) {
           } finally {
             setUploadingPhoto(false);
           }
-        },
-        () => {
-          console.log('🚨 Cancel pressed');
         }
       );
     }, 100);
@@ -478,31 +528,37 @@ function UserProfile({ navigation, route }) {
     loadFollowStats();
   }, [currentUserId, targetUserId, isOwnProfile]);
 
-  // Check for blocking restrictions when viewing other profiles
+  // OPTIMIZED: Single useEffect for all relationship status checks
   useEffect(() => {
-    const checkProfileAccess = async () => {
-      // Only check if viewing someone else's profile
-      if (isOwnProfile || !targetUserId || !currentUserId) return;
+    const checkAllRelationshipStatus = async () => {
+      if (isOwnProfile || !currentUserId || !targetUserId) return;
 
       try {
-        // Check if current user is blocked by the target user
-        const isBlockedByResult = await blockingService.isBlockedBy(currentUserId, targetUserId);
+        // Single optimized call that gets follow + block status in 3 Firebase reads instead of 4-5
+        const relationshipStatus = await getUserRelationshipStatus(currentUserId, targetUserId);
         
-        if (isBlockedByResult) {
+        if (!relationshipStatus.success) {
+          console.error('[UserProfile] Failed to get relationship status:', relationshipStatus.error);
+          return;
+        }
+        
+        setIsFollowing(relationshipStatus.isFollowing);
+        setIsBlocked(relationshipStatus.isBlocked);
+        
+        // Handle blocked by target user - redirect away from profile
+        if (relationshipStatus.isBlockedBy) {
           console.log('[UserProfile] Access denied - user is blocked by target');
           vibeAlert.error('User Not Available', 'This user is not available.');
           setTimeout(() => navigation.goBack(), 1500);
           return;
         }
       } catch (error) {
-        console.error('[UserProfile] Error checking profile access:', error);
+        console.error('[UserProfile] Error checking relationship status:', error);
       }
     };
 
-    checkProfileAccess();
+    checkAllRelationshipStatus();
   }, [currentUserId, targetUserId, isOwnProfile, navigation, vibeAlert]);
-
-  // Detect if we're returning from navigation with an activeTab set
 
   const formatPhoneNumber = (phoneNumber) => {
     if (!phoneNumber) return null;
@@ -536,12 +592,6 @@ function UserProfile({ navigation, route }) {
     }
   };
 
-  const StatCard = ({ title, value, color = theme.colors.vibeBlue }) => (
-    <View style={styles.statCard}>
-      <Text style={[styles.statValue, { color }]}>{value}</Text>
-      <Text style={styles.statTitle}>{title}</Text>
-    </View>
-  );
 
   // Show loading while fetching target user data
   if (!isOwnProfile && loadingUserData) {
@@ -564,28 +614,17 @@ function UserProfile({ navigation, route }) {
       {/* Top buttons row */}
       <View style={styles.topButtonsRow}>
         <CloseButton onPress={() => navigation.goBack()} style={styles.closeButton} />
-        
-        <View style={styles.topButtonsRightSide}>
-          {!isOwnProfile && (
-            <TouchableOpacity
-              style={styles.reportButton}
-              onPress={handleReportUser}
-            >
-              <Text style={styles.reportButtonText}>⚠️</Text>
-            </TouchableOpacity>
-          )}
-          
-          {isOwnProfile && (
-            <TouchableOpacity
-              onPress={() => setIsEditing(!isEditing)}
-              style={styles.editButton}
-            >
-              <Text style={styles.editButtonText}>
-                {isEditing ? 'Cancel' : 'Edit'}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        {(() => {
+          const actionButtons = ProfileActionButtons({
+            isOwnProfile,
+            targetUserId,
+            currentUserId,
+            isEditing,
+            setIsEditing,
+            onReportUser: handleReportUser,
+          });
+          return actionButtons.topButtons;
+        })()}
       </View>
 
       {/* Centered Profile Picture */}
@@ -619,34 +658,28 @@ function UserProfile({ navigation, route }) {
 
       {/* Bio Section - Only show if has content OR in edit mode */}
       {(displayUserData?.bio || isEditing) && (
-        <View style={styles.aboutSection}>
-          <View style={styles.aboutContainer}>
-            <Text style={styles.aboutTitle}>About Me</Text>
-            {isEditing ? (
-              <VibeInput
-                placeholder="Tell others about yourself..."
-                value={editedData.bio}
-                onChangeText={(text) => setEditedData(prev => ({ ...prev, bio: text }))}
-                multiline
-                numberOfLines={4}
-                maxLength={300}
-                style={styles.bioInput}
-              />
-            ) : (
-              <Text style={styles.aboutText}>
-                {displayUserData?.bio}
-              </Text>
-            )}
-          </View>
-        </View>
+        <ProfileSectionCard title="About Me">
+          {isEditing ? (
+            <VibeInput
+              placeholder="Tell others about yourself..."
+              value={editedData.bio}
+              onChangeText={(text) => setEditedData(prev => ({ ...prev, bio: text }))}
+              multiline
+              numberOfLines={4}
+              maxLength={300}
+              style={styles.bioInput}
+            />
+          ) : (
+            <Text style={styles.aboutText}>
+              {displayUserData?.bio}
+            </Text>
+          )}
+        </ProfileSectionCard>
       )}
 
       {/* Contact Section */}
-      <View style={styles.contactSection}>
-        <View style={styles.contactContainer}>
-          <Text style={styles.contactTitle}>Contact Info</Text>
-          <View style={styles.contactItem}>
-            <Text style={styles.contactIcon}>👤</Text>
+      <ProfileSectionCard title="Contact Info">
+          <ContactItem icon="👤">
             {isEditing ? (
               <View style={styles.nameEditContainer}>
                 <VibeInput
@@ -669,166 +702,123 @@ function UserProfile({ navigation, route }) {
                   : contactInfo?.firstName || contactInfo?.lastName || contactInfo?.email?.split('@')[0] || displayUserData?.email?.split('@')[0] || 'User'}
               </Text>
             )}
-          </View>
-          <View style={styles.contactItem}>
-            <Text style={styles.contactIcon}>📍</Text>
-            <Text style={styles.contactText}>
-              {isOwnProfile 
+          </ContactItem>
+          {(isOwnProfile ? (displayUserData?.location || displayUserData?.userdata?.studios?.default?.studioName) : contactInfo?.location) && (
+            <ContactItem 
+              icon="📍"
+              text={isOwnProfile 
                 ? (displayUserData?.location || displayUserData?.userdata?.studios?.default?.studioName || 'Not set')
-                : (contactInfo?.location || 'Not shared')}
-            </Text>
-          </View>
-          <View style={styles.contactItem}>
-            <Text style={styles.contactIcon}>📞</Text>
-            {isEditing ? (
-              <VibeInput
-                placeholder="Phone number (required)"
-                value={editedData.phone}
-                onChangeText={(text) => setEditedData(prev => ({ ...prev, phone: text }))}
-                style={styles.contactInput}
-                keyboardType="phone-pad"
-              />
-            ) : (
-              <Text style={[styles.contactText, !contactInfo?.phone && isOwnProfile && styles.requiredMissing]}>
-                {isOwnProfile 
-                  ? (formatPhoneNumber(contactInfo?.phone || contactInfo?.phoneNumber || displayUserData?.phone || displayUserData?.phoneNumber) || 'Required - Please add phone number')
-                  : (contactInfo?.phone ? formatPhoneNumber(contactInfo.phone) : 'Not shared')}
-              </Text>
-            )}
-          </View>
-          <View style={[styles.contactItem, { marginBottom: 0 }]}>
-            <Text style={styles.contactIcon}>📧</Text>
-            {isEditing ? (
-              <VibeInput
-                placeholder="Email address"
-                value={editedData.email}
-                onChangeText={(text) => setEditedData(prev => ({ ...prev, email: text }))}
-                style={styles.contactInput}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            ) : (
-              <Text style={styles.contactText}>
-                {isOwnProfile 
-                  ? (contactInfo?.email || displayUserData?.email || 'Not set')
-                  : (contactInfo?.email || 'Not shared')}
-              </Text>
-            )}
-          </View>
-        </View>
-      </View>
+                : contactInfo?.location}
+            />
+          )}
+          {(isEditing || isOwnProfile || contactInfo?.phone) && (
+            <ContactItem icon="📞">
+              {isEditing ? (
+                <VibeInput
+                  placeholder="Phone number (required)"
+                  value={editedData.phone}
+                  onChangeText={(text) => setEditedData(prev => ({ ...prev, phone: text }))}
+                  style={styles.contactInput}
+                  keyboardType="phone-pad"
+                />
+              ) : (
+                <Text style={[styles.contactText, !contactInfo?.phone && isOwnProfile && styles.requiredMissing]}>
+                  {isOwnProfile 
+                    ? (formatPhoneNumber(contactInfo?.phone || contactInfo?.phoneNumber || displayUserData?.phone || displayUserData?.phoneNumber) || 'Required - Please add phone number')
+                    : formatPhoneNumber(contactInfo?.phone)}
+                </Text>
+              )}
+            </ContactItem>
+          )}
+          {(isEditing || isOwnProfile || contactInfo?.email) && (
+            <ContactItem icon="📧" isLast={true}>
+              {isEditing ? (
+                <VibeInput
+                  placeholder="Email address"
+                  value={editedData.email}
+                  onChangeText={(text) => setEditedData(prev => ({ ...prev, email: text }))}
+                  style={styles.contactInput}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              ) : (
+                <Text style={styles.contactText}>
+                  {isOwnProfile 
+                    ? (contactInfo?.email || displayUserData?.email || 'Not set')
+                    : contactInfo?.email}
+                </Text>
+              )}
+            </ContactItem>
+          )}
+        </ProfileSectionCard>
 
 
       {/* Activity Section */}
-      <View style={styles.activitySection}>
-        <View style={styles.activityContainer}>
-          <Text style={styles.activityTitle}>Events</Text>
-          <View style={styles.quickStats}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{displayUserData?.userdata?.metrics?.events?.created || 0}</Text>
-              <Text style={styles.statLabel}>Hosted</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{displayUserData?.userdata?.metrics?.events?.attended || 0}</Text>
-              <Text style={styles.statLabel}>Attended</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{displayUserData?.userdata?.metrics?.events?.noShows || 0}</Text>
-              <Text style={styles.statLabel}>No Shows</Text>
-            </View>
-          </View>
-        </View>
-      </View>
+      <ProfileSectionCard title="Events">
+        <UserStatsGrid 
+          stats={[
+            {
+              value: displayUserData?.userdata?.metrics?.events?.created || 0,
+              label: 'Hosted'
+            },
+            {
+              value: displayUserData?.userdata?.metrics?.events?.attended || 0,
+              label: 'Attended'
+            },
+            {
+              value: displayUserData?.userdata?.metrics?.events?.noShows || 0,
+              label: 'No Shows'
+            }
+          ]}
+        />
+      </ProfileSectionCard>
 
       {/* Social Section */}
-      <View style={styles.socialSection}>
-        <View style={styles.socialContainer}>
-          <Text style={styles.socialTitle}>Social</Text>
-          <View style={styles.quickStats}>
-            {isOwnProfile ? (
-              <TouchableOpacity 
-                style={styles.statItem}
-                onPress={() => navigation.navigate('SocialList', {
-                  userId: currentUserId,
-                  type: 'friends',
-                  onStatsChange: loadFollowStats
-                })}
-              >
-                <Text style={styles.statNumber}>{loadingStats ? '...' : followStats.mutualCount}</Text>
-                <Text style={styles.statLabel}>Friends</Text>
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{loadingStats ? '...' : followStats.mutualCount}</Text>
-                <Text style={styles.statLabel}>Friends</Text>
-              </View>
-            )}
-            {isOwnProfile ? (
-              <TouchableOpacity 
-                style={styles.statItem}
-                onPress={() => navigation.navigate('SocialList', {
-                  userId: currentUserId,
-                  type: 'following',
-                  onStatsChange: loadFollowStats
-                })}
-              >
-                <Text style={styles.statNumber}>{loadingStats ? '...' : followStats.followingCount}</Text>
-                <Text style={styles.statLabel}>Following</Text>
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{loadingStats ? '...' : followStats.followingCount}</Text>
-                <Text style={styles.statLabel}>Following</Text>
-              </View>
-            )}
-            {isOwnProfile ? (
-              <TouchableOpacity 
-                style={styles.statItem}
-                onPress={() => navigation.navigate('SocialList', {
-                  userId: currentUserId,
-                  type: 'followers',
-                  onStatsChange: loadFollowStats
-                })}
-              >
-                <Text style={styles.statNumber}>{loadingStats ? '...' : followStats.followerCount}</Text>
-                <Text style={styles.statLabel}>Followers</Text>
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{loadingStats ? '...' : followStats.followerCount}</Text>
-                <Text style={styles.statLabel}>Followers</Text>
-              </View>
-            )}
-          </View>
-        </View>
-      </View>
+      <ProfileSectionCard title="Social">
+        <UserStatsGrid 
+          stats={[
+            {
+              value: loadingStats ? '...' : followStats.mutualCount,
+              label: 'Friends',
+              onPress: isOwnProfile ? () => navigation.navigate('SocialList', {
+                userId: currentUserId,
+                type: 'friends',
+                onStatsChange: loadFollowStats
+              }) : undefined
+            },
+            {
+              value: loadingStats ? '...' : followStats.followingCount,
+              label: 'Following',
+              onPress: isOwnProfile ? () => navigation.navigate('SocialList', {
+                userId: currentUserId,
+                type: 'following',
+                onStatsChange: loadFollowStats
+              }) : undefined
+            },
+            {
+              value: loadingStats ? '...' : followStats.followerCount,
+              label: 'Followers',
+              onPress: isOwnProfile ? () => navigation.navigate('SocialList', {
+                userId: currentUserId,
+                type: 'followers',
+                onStatsChange: loadFollowStats
+              }) : undefined
+            }
+          ]}
+          isOwnProfile={isOwnProfile}
+        />
+      </ProfileSectionCard>
 
       {/* QR Code Section - Only for own profile */}
       {isOwnProfile && (
-        <View style={styles.qrSection}>
-          <View style={styles.qrContainer}>
-            <View style={styles.qrHeader}>
-              <Text style={styles.qrTitle}>Share Profile</Text>
-              <TouchableOpacity
-                style={styles.toggleQRButton}
-                onPress={() => setShowQRCode(!showQRCode)}
-              >
-                <Text style={styles.toggleQRButtonText}>
-                  {showQRCode ? 'Hide QR' : 'Show QR'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            
-            {showQRCode && (
-              <QRCodeGenerator
-                type="user"
-                data={currentUserId}
-                size={180}
-                showShareButton={false}
-              />
-            )}
-          </View>
-        </View>
+        <ProfileSectionCard title="Share Profile">
+            <QRCodeGenerator
+              type="user"
+              data={currentUserId}
+              size={180}
+              showShareButton={false}
+            />
+        </ProfileSectionCard>
       )}
 
       {/* Attendance Details */}
@@ -836,58 +826,48 @@ function UserProfile({ navigation, route }) {
         <View style={styles.cardSection}>
           <Text style={styles.sectionTitle}>Attendance Breakdown</Text>
           <View style={styles.contactSection}>
-            <AttendanceStats stats={userData.attendanceStats} />
+            <AttendanceStats stats={displayUserData.attendanceStats} />
           </View>
         </View>
       )}
 
-      {/* Action Buttons - Only show for own profile */}
-      {isOwnProfile && (
+      {/* Bottom Action Buttons */}
+      {isEditing ? (
         <View style={styles.buttonContainer}>
-          {isEditing ? (
-            <VibeButton
-              label={isSaving ? "SAVING..." : "SAVE CHANGES"}
-              onPress={handleSave}
-              style={styles.saveButton}
-              disabled={isSaving}
-            />
-          ) : (
-            <>
-              <TouchableOpacity
-                style={styles.settingsButton}
-                onPress={() => navigation.navigate('Privacy')}
-              >
-                <Text style={styles.settingsButtonText}>Privacy Settings</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={styles.settingsButton}
-                onPress={() => navigation.navigate('Notifications')}
-              >
-                <Text style={styles.settingsButtonText}>Notification Settings</Text>
-              </TouchableOpacity>
-
-              <View style={styles.buttonSeparator} />
-
-              <TouchableOpacity
-                style={[styles.deleteButton, isDeleting && styles.deleteButtonDisabled]}
-                onPress={handleDeleteAccount}
-                disabled={isDeleting}
-              >
-                <Text style={styles.deleteButtonText}>
-                  {isDeleting ? 'Deleting Account...' : 'Delete Account'}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.logoutButton}
-                onPress={handleLogout}
-              >
-                <Text style={styles.logoutButtonText}>Logout</Text>
-              </TouchableOpacity>
-            </>
-          )}
+          <VibeButton
+            label={isSaving ? "SAVING..." : "SAVE CHANGES"}
+            onPress={handleSave}
+            style={styles.saveButton}
+            disabled={isSaving}
+          />
         </View>
+      ) : (
+        (() => {
+          const actionButtons = ProfileActionButtons({
+            isOwnProfile,
+            targetUserId,
+            currentUserId,
+            isEditing,
+            setIsEditing,
+            onReportUser: handleReportUser,
+            // Follow/block props
+            isFollowing,
+            isFollowLoading: followLoading,
+            onFollow: handleFollow,
+            onUnfollow: handleUnfollow,
+            isBlocked,
+            isBlockLoading: false, // Add if needed
+            onBlock: handleBlockUser,
+            onUnblock: handleBlockUser, // Same handler for now
+            // Own profile actions
+            onSettings: () => navigation.navigate('Settings'),
+            onNotificationSettings: () => navigation.navigate('Notifications'),
+            onPrivacySettings: () => navigation.navigate('Privacy'),
+            onLogout: handleLogout,
+            onDeleteAccount: handleDeleteAccount,
+          });
+          return actionButtons.bottomButtons;
+        })()
       )}
         </ScrollView>
     </View>
@@ -895,415 +875,3 @@ function UserProfile({ navigation, route }) {
 }
 
 export default UserProfile;
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: 'transparent',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  avatarWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    paddingHorizontal: 20,
-    position: 'relative',
-  },
-  closeButton: {
-    // Default CloseButton styling
-  },
-  editButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: theme.colors.vibeBlue,
-  },
-  editButtonText: {
-    color: theme.colors.white,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  topButtonsRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    paddingTop: 20,
-    paddingHorizontal: 24,
-    paddingBottom: 8,
-  },
-  topButtonsRightSide: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  reportButton: {
-    padding: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  reportButtonText: {
-    fontSize: 18,
-  },
-  profilePictureSection: {
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  profileInfoSection: {
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingBottom: 20,
-    gap: 16,
-  },
-  profilePictureContainer: {
-    alignItems: 'center',
-    gap: 12,
-  },
-  editingSection: {
-    width: '100%',
-    gap: 12,
-  },
-  avatarContainer: {
-    alignItems: 'center',
-    marginBottom: 20,
-    width: '100%',
-  },
-  avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: theme.colors.darkGray,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 4,
-    borderColor: theme.colors.vibeBlue,
-    shadowColor: theme.colors.vibeBlue,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-    elevation: 10,
-  },
-  avatarText: {
-    color: theme.colors.vibeBlue,
-    fontSize: 40,
-    fontWeight: 'bold',
-    fontFamily: theme.fonts.main,
-  },
-  profileInfo: {
-    alignItems: 'center',
-  },
-  userName: {
-    color: theme.colors.white,
-    fontSize: 28,
-    fontWeight: 'bold',
-    fontFamily: theme.fonts.main,
-    marginBottom: 8,
-    textShadowColor: theme.colors.vibeBlue,
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 8,
-  },
-  userEmail: {
-    color: theme.colors.gray,
-    fontSize: 16,
-    marginBottom: 15,
-    fontFamily: theme.fonts.main,
-  },
-  reliabilityContainer: {
-    marginTop: 10,
-  },
-  joinDate: {
-    fontSize: 14,
-    color: '#888',
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  editInput: {
-    marginBottom: 10,
-    width: 250,
-  },
-  contactContainer: {
-    backgroundColor: 'transparent',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.vibeBlue,
-    overflow: 'hidden',
-  },
-  contactRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-  },
-  contactDivider: {
-    height: 1,
-    backgroundColor: theme.colors.vibeBlue,
-  },
-  requiredMissing: {
-    color: theme.colors.vibeRed,
-    fontStyle: 'italic',
-  },
-  requiredText: {
-    color: theme.colors.vibeRed,
-    fontSize: 12,
-  },
-  contactInput: {
-    marginBottom: 0,
-    flex: 1,
-  },
-  nameEditContainer: {
-    flex: 1,
-    gap: 8,
-  },
-  nameInput: {
-    marginBottom: 0,
-  },
-  cardSection: {
-    marginBottom: 20,
-    marginHorizontal: 20,
-  },
-  aboutSection: {
-    marginBottom: 20,
-    marginHorizontal: 20,
-  },
-  aboutContainer: {
-    backgroundColor: theme.colors.vibeBackgroundBlue,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.vibeBlue,
-  },
-  aboutTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  aboutItem: {
-    backgroundColor: 'rgba(0, 198, 255, 0.05)',
-    borderRadius: 8,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 198, 255, 0.2)',
-  },
-  aboutText: {
-    fontSize: 16,
-    color: '#fff',
-    lineHeight: 22,
-  },
-  activitySection: {
-    marginBottom: 20,
-    marginHorizontal: 20,
-  },
-  activityContainer: {
-    backgroundColor: theme.colors.vibeBackgroundBlue,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.vibeBlue,
-  },
-  activityTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  socialSection: {
-    marginBottom: 20,
-    marginHorizontal: 20,
-  },
-  socialContainer: {
-    backgroundColor: theme.colors.vibeBackgroundBlue,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.vibeBlue,
-  },
-  socialTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  quickStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#00C6FF',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#888',
-    marginTop: 4,
-  },
-  contactSection: {
-    marginBottom: 20,
-    marginHorizontal: 20,
-  },
-  contactContainer: {
-    backgroundColor: theme.colors.vibeBackgroundBlue,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.vibeBlue,
-  },
-  contactTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  contactItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 198, 255, 0.05)',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 198, 255, 0.2)',
-  },
-  contactIcon: {
-    fontSize: 18,
-    marginRight: 12,
-  },
-  contactText: {
-    fontSize: 16,
-    color: '#fff',
-    flex: 1,
-  },
-  bioCard: {
-    backgroundColor: 'rgba(0, 198, 255, 0.1)',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 198, 255, 0.2)',
-  },
-  section: {
-    paddingHorizontal: 20,
-    paddingVertical: 25,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.darkGray,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 12,
-  },
-  bioText: {
-    color: '#fff',
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  bioInput: {
-    minHeight: 100,
-  },
-  buttonContainer: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  saveButton: {
-    width: '100%',
-  },
-  settingsButton: {
-    backgroundColor: 'transparent',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.vibeBlue,
-    padding: 18,
-    marginBottom: 12,
-  },
-  settingsButtonText: {
-    color: theme.colors.white,
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-    fontFamily: theme.fonts.main,
-  },
-  buttonSeparator: {
-    height: 1,
-    backgroundColor: theme.colors.vibeBlue,
-    marginVertical: 20,
-  },
-  deleteButton: {
-    backgroundColor: 'transparent',
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: theme.colors.vibeRed,
-    padding: 18,
-    marginBottom: 12,
-  },
-  deleteButtonText: {
-    color: theme.colors.vibeRed,
-    fontSize: 16,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    fontFamily: theme.fonts.main,
-    textTransform: 'uppercase',
-  },
-  deleteButtonDisabled: {
-    opacity: 0.5,
-    borderColor: theme.colors.textSecondary,
-  },
-  logoutButton: {
-    backgroundColor: 'transparent',
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: theme.colors.vibeRed,
-    padding: 18,
-    marginTop: 20,
-  },
-  logoutButtonText: {
-    color: theme.colors.vibeRed,
-    fontSize: 16,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    fontFamily: theme.fonts.main,
-    textTransform: 'uppercase',
-  },
-  qrSection: {
-    marginBottom: 20,
-    marginHorizontal: 20,
-  },
-  qrContainer: {
-    backgroundColor: theme.colors.vibeBackgroundBlue,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.vibeBlue,
-  },
-  qrHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  qrTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  toggleQRButton: {
-    backgroundColor: theme.colors.vibeBlue,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  toggleQRButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-});

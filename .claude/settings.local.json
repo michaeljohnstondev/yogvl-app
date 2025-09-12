@@ -46,7 +46,9 @@
       "Bash(while read -r file)",
       "Bash(done)",
       "Bash(firebase functions:log:*)",
-      "Bash(gcloud:*)"
+      "Bash(gcloud:*)",
+      "Bash(npx react-native-cli validate:*)",
+      "Bash(npx metro-resolver:*)"
     ],
     "deny": [],
     "ask": [],

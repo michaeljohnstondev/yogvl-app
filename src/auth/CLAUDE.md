@@ -1,9 +1,11 @@
 # AUTH FOLDER - CLAUDE.md
 
 ## MANDATORY AGENT WORKFLOW
+
 **⚠️ CRITICAL: ALWAYS use these agents when modifying ANY authentication file in this folder**
 
 ### PRIMARY AUTH AGENTS
+
 When ANY auth file is modified, Claude MUST automatically use these agents:
 
 1. **database-guardian**
@@ -56,9 +58,17 @@ When ANY auth file is modified, Claude MUST automatically use these agents:
    - Ensure secure user profile data handling
    - Review Firebase Auth rule security
 
+9. **orchestration-reporter**
+   - Coordinate findings from all auth-related agents
+   - Consolidate agent reports into unified ZFINAL.md
+   - Detect conflicts between agent recommendations
+   - Prevent duplicate agent work on auth files
+   - Route auth tasks to appropriate specialized agents
+
 ## AUTH ARCHITECTURE PRINCIPLES
 
 ### What Auth Files SHOULD Contain:
+
 - User authentication operations
 - Auth state management
 - User profile operations
@@ -67,6 +77,7 @@ When ANY auth file is modified, Claude MUST automatically use these agents:
 - Security and permission checks
 
 ### What Auth Files SHOULD NOT Contain:
+
 - ❌ Generic UI components (extract to components/ui)
 - ❌ Generic utility functions (extract to lib)
 - ❌ Event-specific logic (belongs in events)
@@ -76,6 +87,7 @@ When ANY auth file is modified, Claude MUST automatically use these agents:
 ## AUTH FOLDER STRUCTURE
 
 ### Current Auth Organization:
+
 ```
 src/auth/
 ├── screens/            # Authentication screens
@@ -95,21 +107,25 @@ src/auth/
 ### Auth Component Categories:
 
 #### Authentication Screens:
+
 - **LoginScreen** - Email/password login
 - **SignUpScreen** - Account creation
 - **ContactInfoScreen** - Profile setup
 - **LocationScreen** - Studio selection
 
 #### Auth Services:
+
 - **FirebaseAuthService** - Core auth operations
 - **firebase** - Firebase configuration
 
 #### Auth State:
+
 - **AuthContext** - Global auth state management
 
 ## DATABASE SCHEMA COMPLIANCE
 
 ### User Data Structure:
+
 ```javascript
 // User profile data
 const userData = {
@@ -118,14 +134,14 @@ const userData = {
   displayName: string,
   phoneNumber: string,
   studioId: string,
-  
+
   // Profile information
   profilePicture?: string,
   interests?: string[],
-  
+
   // Onboarding state
   hasCompletedOnboarding: boolean,
-  
+
   // Metrics and reliability data
   metrics: {
     events: { /* event metrics */ },
@@ -136,6 +152,7 @@ const userData = {
 ```
 
 ### Auth State Requirements:
+
 - Track authentication status
 - Manage user profile data
 - Handle onboarding state
@@ -144,6 +161,7 @@ const userData = {
 ## AUTHENTICATION FLOW PATTERNS
 
 ### Standard Auth Flow:
+
 1. **Unauthenticated** → Landing Screen
 2. **Login/SignUp** → Authentication
 3. **No Profile** → ContactInfo Screen
@@ -151,21 +169,23 @@ const userData = {
 5. **Authenticated** → Home Screen
 
 ### Auth State Management:
+
 ```javascript
 // AuthContext pattern
 const authState = {
-  user: null,           // Firebase user
-  userData: null,       // Firestore profile
-  loading: true,        // Auth loading state
-  hasProfile: false,    // Profile completion
-  hasStudio: false,     // Studio selection
-  isOnboarded: false    // Onboarding status
-}
+  user: null, // Firebase user
+  userData: null, // Firestore profile
+  loading: true, // Auth loading state
+  hasProfile: false, // Profile completion
+  hasStudio: false, // Studio selection
+  isOnboarded: false, // Onboarding status
+};
 ```
 
 ## FIREBASE AUTH SECURITY
 
 ### Security Best Practices:
+
 - Validate user input before auth operations
 - Implement proper error handling
 - Use secure password requirements
@@ -173,53 +193,59 @@ const authState = {
 - Implement session management
 
 ### Auth Error Handling:
+
 ```javascript
 // Standard auth error pattern
 try {
-  const result = await authOperation()
-  return { success: true, user: result.user }
+  const result = await authOperation();
+  return { success: true, user: result.user };
 } catch (error) {
-  console.error('[Auth] Operation failed:', error)
-  return { 
-    success: false, 
-    error: getAuthErrorMessage(error.code) 
-  }
+  console.error('[Auth] Operation failed:', error);
+  return {
+    success: false,
+    error: getAuthErrorMessage(error.code),
+  };
 }
 ```
 
 ## AUTH STATE MANAGEMENT
 
 ### AuthContext Requirements:
+
 - Provide current user state
 - Handle authentication operations
 - Manage onboarding flow
 - Support logout and cleanup
 
 ### Auth Hook Patterns:
+
 ```javascript
 // useAuth hook
 const useAuth = () => {
-  const context = useContext(AuthContext)
+  const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within AuthProvider')
+    throw new Error('useAuth must be used within AuthProvider');
   }
-  return context
-}
+  return context;
+};
 ```
 
 ## MANDATORY CHECKS
 
 ### Pre-Modification:
+
 1. **database-guardian**: Review user data schema
 2. **duplicate-code-guardian**: Check for similar auth logic
 3. **firebase-efficiency-guardian**: Review current auth patterns
 
 ### During Development:
+
 1. Monitor Firebase Auth usage
 2. **code-organization-monitor**: Track complexity
 3. Ensure security best practices
 
 ### Post-Modification:
+
 1. **code-cleanup-auditor**: Remove unused code
 2. Test authentication flows
 3. Verify security measures
@@ -227,12 +253,14 @@ const useAuth = () => {
 ## AUTH FILE SIZE LIMITS
 
 ### File Size Guidelines:
+
 - **Auth Components**: < 300 lines
-- **Auth Services**: < 400 lines
+- **Auth Services**: < 500 lines
 - **Auth Hooks**: < 200 lines
-- **Auth Screens**: < 400 lines
+- **Auth Screens**: < 500 lines
 
 ### Complexity Indicators:
+
 - Large auth forms (break into components)
 - Complex validation logic (extract to lib)
 - Multiple Firebase operations (extract to services)
@@ -241,6 +269,7 @@ const useAuth = () => {
 ## ONBOARDING FLOW MANAGEMENT
 
 ### Onboarding Steps:
+
 1. Account creation/login
 2. Contact information collection
 3. Studio location selection
@@ -248,6 +277,7 @@ const useAuth = () => {
 5. App introduction
 
 ### Onboarding State Tracking:
+
 - Track completion status
 - Support flow navigation
 - Handle interruption/resumption
@@ -256,21 +286,22 @@ const useAuth = () => {
 ## AUTH SERVICE PATTERNS
 
 ### Auth Service Structure:
+
 ```javascript
 // FirebaseAuthService.js
 class FirebaseAuthService {
   async signup(email, password) {
     // Account creation logic
   }
-  
+
   async login(email, password) {
     // Login logic
   }
-  
+
   async logout() {
     // Logout and cleanup
   }
-  
+
   onAuthStateChanged(callback) {
     // Auth state listener
   }
@@ -278,6 +309,7 @@ class FirebaseAuthService {
 ```
 
 ### User Profile Operations:
+
 - Create user profile
 - Update profile information
 - Handle profile pictures
@@ -286,6 +318,7 @@ class FirebaseAuthService {
 ## TESTING REQUIREMENTS
 
 ### Auth Testing Strategy:
+
 - Test authentication flows
 - Test onboarding progression
 - Test error handling
@@ -293,6 +326,7 @@ class FirebaseAuthService {
 - Test security measures
 
 ### Integration Testing:
+
 - Test auth with real Firebase
 - Test onboarding completion
 - Test auth state persistence
@@ -300,6 +334,7 @@ class FirebaseAuthService {
 ## SUCCESS CRITERIA
 
 An auth modification is complete when:
+
 - ✅ User data operations validated against schema
 - ✅ Firebase Auth usage optimized
 - ✅ No duplicate auth logic exists
