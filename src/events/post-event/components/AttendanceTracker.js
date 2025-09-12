@@ -8,7 +8,7 @@ import {
   StyleSheet,
   FlatList,
 } from 'react-native';
-import VibeButton from '../../../components/ui/VibeButton';
+import { VibeButton } from '../../../components/ui';
 import theme from '../../../theme/themes';
 
 const AttendanceTracker = ({

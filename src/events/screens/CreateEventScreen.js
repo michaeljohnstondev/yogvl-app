@@ -3,7 +3,8 @@
 import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { BackHandler } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { useVibeAlert } from '../../components/ui/VibeAlertContext';
+import { useVibeAlert } from '../../components/ui/base/VibeAlertContext';
+import { BannedUserModal } from '../../components/ui';
 
 // Components
 import CreateEventForm from '../components/CreateEventForm';
@@ -20,7 +21,6 @@ import { usePastEventsManager } from '../hooks/usePastEventsManager';
 // Utils and Context
 import { useAuth } from '../../auth/AuthContext';
 import { banEnforcementService } from '../../services/banEnforcementService';
-import BannedUserModal from '../../components/ui/BannedUserModal';
 
 export default function CreateEventScreen({ navigation, route }) {
   const { currentUserId, userData } = useAuth();

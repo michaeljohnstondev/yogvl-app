@@ -11,8 +11,10 @@ import {
 } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
 import theme from '../theme/themes';
-import VibeButton from '../components/ui/VibeButton';
-import CloseButton from '../components/ui/CloseButton';
+import { VibeButton } from '../components/ui/base';
+import { CloseButton } from '../components/ui/buttons';
+import { ModerationActionModal } from '../components/ui/modals';
+import { AdminNotificationTool, NotificationTester } from '../components/ui/admin';
 import { 
   isGlobalAdmin, 
   getAllReportsForGlobalAdmin, 
@@ -21,9 +23,6 @@ import {
   getStudioOptions 
 } from '../services/adminService';
 import { moderationService } from '../services/moderationService';
-import ModerationActionModal from '../components/ui/ModerationActionModal';
-import AdminNotificationTool from '../components/ui/AdminNotificationTool';
-import NotificationTester from '../components/ui/NotificationTester';
 import { VenueService } from '../services/VenueService';
 import { StudioRequestService } from '../services/StudioRequestService';
 

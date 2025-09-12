@@ -10,10 +10,9 @@ import {
 } from 'react-native';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
-import VibeButton from '../components/ui/VibeButton';
-import VibeSegmentedControl from '../components/ui/VibeSegmentedControl';
-import CloseButton from '../components/ui/CloseButton';
-import NotificationSettingItem from '../components/ui/NotificationSettingItem';
+import { VibeButton, VibeSegmentedControl } from '../components/ui/base';
+import { CloseButton } from '../components/ui/buttons';
+import { NotificationSettingItem } from '../components/ui';
 import NotificationSettingsForm from '../components/notifications/NotificationSettingsForm';
 import GuestNotificationSettingsForm from '../components/notifications/GuestNotificationSettingsForm';
 import HostNotificationSettingsForm from '../components/notifications/HostNotificationSettingsForm';

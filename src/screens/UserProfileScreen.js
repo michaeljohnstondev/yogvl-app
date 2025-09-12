@@ -12,19 +12,21 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
-import VibeButton from '../components/ui/VibeButton';
-import VibeInput from '../components/ui/VibeInput';
-import CloseButton from '../components/ui/CloseButton';
-import FollowButton from '../components/ui/FollowButton';
-import BlockButton from '../components/ui/BlockButton';
-import AttendanceStats from '../components/ui/AttendanceStats';
-import ReliabilityBadge from '../components/ui/ReliabilityBadge';
-import ProfileAvatar from '../components/ui/ProfileAvatar';
-import QRCodeGenerator from '../components/ui/QRCodeGenerator';
-import ProfileSectionCard from '../components/ui/ProfileSectionCard';
-import ContactItem from '../components/ui/ContactItem';
-import UserStatsGrid from '../components/ui/UserStatsGrid';
-import ProfileActionButtons from '../components/ui/ProfileActionButtons';
+import {
+  VibeButton,
+  VibeInput,
+  CloseButton,
+  FollowButton,
+  BlockButton,
+  AttendanceStats,
+  ReliabilityBadge,
+  ProfileAvatar,
+  QRCodeGenerator,
+  ProfileSectionCard,
+  ContactItem,
+  UserStatsGrid,
+  ProfileActionButtons
+} from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
 import { getFollowStats, getUserRelationshipStatus } from '../services/followService';
 import { useFollowActions } from '../hooks/useFollowActions';
@@ -36,7 +38,7 @@ import { reportUser } from '../services/reportingService';
 import { auth } from '../auth/services/firebase';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
-import { useVibeAlert } from '../components/ui/VibeAlertContext';
+import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
 import theme from '../theme/themes';
 import { styles } from './UserProfileScreen.styles';
 

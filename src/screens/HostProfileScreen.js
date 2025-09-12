@@ -10,13 +10,12 @@ import {
   Linking,
   BackHandler,
 } from 'react-native';
-import VibeButton from '../components/ui/VibeButton';
-import BlockButton from '../components/ui/BlockButton';
-import VibeScreen from '../components/ui/VibeScreen';
-import ProfileAvatar from '../components/ui/ProfileAvatar';
+import { VibeButton, VibeScreen } from '../components/ui/base';
+import { BlockButton } from '../components/ui/buttons';
+import { ProfileAvatar } from '../components/ui/profile';
 import { UserReliabilityCard } from '../events/components/UserReliabilityCard';
 import { getUserEventStats } from '../events/lib/userMetrics';
-import { useVibeAlert } from '../components/ui/VibeAlertContext';
+import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
 import { getVisibleContactInfo, canViewUserStats } from '../services/privacyService';
 import { followUser, unfollowUser, checkIfFollowing, getFollowStats } from '../services/followService';
 import { reportUser } from '../services/reportingService';

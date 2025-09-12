@@ -11,9 +11,9 @@ import {
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../auth/services/firebase';
 import { useAuth } from '../../../auth/AuthContext';
-import { useVibeAlert } from '../../../components/ui/VibeAlertContext';
+import { useVibeAlert } from '../../../components/ui/base/VibeAlertContext';
 import { followUser, unfollowUser } from '../../../services/followService';
-import VibeButton from '../../../components/ui/VibeButton';
+import { VibeButton } from '../../../components/ui';
 import theme from '../../../theme/themes';
 
 const PostEventActions = ({ 

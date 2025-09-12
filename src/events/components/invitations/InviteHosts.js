@@ -9,8 +9,7 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
-import VibeInput from '../../../components/ui/VibeInput';
-import VibeButton from '../../../components/ui/VibeButton';
+import { VibeInput, VibeButton } from '../../../components/ui';
 import theme from '../../../theme/themes';
 
 export default function InviteHosts({ 

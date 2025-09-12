@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
-import VibeInput from '../../../../components/ui/VibeInput';
+import { VibeInput } from '../../../../components/ui';
 import UserListItem from '../lists/UserListItem';
 import GroupFilterSection from '../groups/GroupFilterSection';
 import FilterSection from './FilterSection';

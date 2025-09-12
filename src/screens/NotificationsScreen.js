@@ -20,10 +20,9 @@ import {
 import { useAuth } from '../auth/AuthContext';
 import { useRealtimeNotificationsContext } from '../contexts/RealtimeNotificationsContext';
 import { NotificationItem } from '../components/notifications';
-import VibeScreen from '../components/ui/VibeScreen';
-import VibeButton from '../components/ui/VibeButton';
-import CloseButton from '../components/ui/CloseButton';
-import { useVibeAlert } from '../components/ui/VibeAlertContext';
+import VibeScreen from '../components/ui/base/VibeScreen';
+import { VibeButton, CloseButton } from '../components/ui';
+import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
 import theme from '../theme/themes';
 
 export default function NotificationsScreen({ navigation }) {

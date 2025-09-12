@@ -1,5 +1,5 @@
 import { hasReachedLimit, createManualContact } from '../utils/inviteScreenUtils';
-import { useVibeAlert } from '../../../components/ui/VibeAlertContext';
+import { useVibeAlert } from '../../../components/ui/base/VibeAlertContext';
 
 export const useSelectionHandlers = (
   maxLimit,

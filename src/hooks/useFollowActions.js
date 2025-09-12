@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { followUser, unfollowUser } from '../services/followService';
-import { useVibeAlert } from '../components/ui/VibeAlertContext';
+import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
 
 export const useFollowActions = (currentUserId, userData, onStatsChange, onRefresh) => {
   const [actionLoading, setActionLoading] = useState({});

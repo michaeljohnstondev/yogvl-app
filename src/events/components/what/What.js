@@ -2,9 +2,11 @@
 
 import React from 'react';
 import { View, Text } from 'react-native';
-import VibeInput from '../../../components/ui/VibeInput';
-import VibeSegmentedControl from '../../../components/ui/VibeSegmentedControl';
-import VibeAutoComplete from '../../../components/ui/VibeAutoComplete';
+import {
+  VibeInput,
+  VibeSegmentedControl,
+  VibeAutoComplete
+} from '../../../components/ui/base';
 
 export const What = ({
   formData,

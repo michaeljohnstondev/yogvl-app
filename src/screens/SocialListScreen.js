@@ -1,14 +1,13 @@
 import React from 'react';
 import { View, StyleSheet, FlatList, ActivityIndicator } from 'react-native';
-import VibeInput from '../components/ui/VibeInput';
-import ScreenHeader from '../components/ui/ScreenHeader';
-import SocialUserItem from '../components/ui/SocialUserItem';
+import { VibeInput } from '../components/ui/base';
+import { ScreenHeader } from '../components/ui/layout';
+import { SocialUserItem, EmptyState } from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
 import { useSocialList } from '../hooks/useSocialList';
 import { useUserSearch } from '../hooks/useUserSearch';
 import { useFollowActions } from '../hooks/useFollowActions';
 import { getSocialListTitle, getSocialListEmptyMessage, getSocialListPlaceholder } from '../lib/socialUtils';
-import { EmptyState } from '../components/ui/EmptyState';
 import theme from '../theme/themes';
 
 const SocialListScreen = ({ navigation, route }) => {

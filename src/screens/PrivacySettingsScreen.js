@@ -10,10 +10,9 @@ import {
 } from 'react-native';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
-import VibeButton from '../components/ui/VibeButton';
-import CloseButton from '../components/ui/CloseButton';
+import { VibeButton, CloseButton } from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
-import { useVibeAlert } from '../components/ui/VibeAlertContext';
+import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
 import { blockingService } from '../services/blockingService';
 import theme from '../theme/themes';
 

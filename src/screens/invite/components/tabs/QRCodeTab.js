@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import QRCodeGenerator from '../../../../components/ui/QRCodeGenerator';
+import QRCodeGenerator from '../../../../components/ui/utils/QRCodeGenerator';
 import styles from '../../styles/inviteScreenStyles';
 
 const QRCodeTab = ({

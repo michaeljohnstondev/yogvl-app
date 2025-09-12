@@ -11,8 +11,8 @@ import {
 } from 'react-native';
 import { getEventInvitations } from '../services/invitations';
 import { useAuth } from '../../auth/AuthContext';
-import VibeScreen from '../../components/ui/VibeScreen';
-import QRCodeGenerator from '../../components/ui/QRCodeGenerator';
+import VibeScreen from '../../components/ui/base/VibeScreen';
+import QRCodeGenerator from '../../components/ui/utils/QRCodeGenerator';
 import theme from '../../theme/themes';
 
 export default function InviteGuestsScreen({ navigation, route }) {

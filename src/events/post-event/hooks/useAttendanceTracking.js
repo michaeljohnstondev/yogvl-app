@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { AttendanceService } from '../../../services/AttendanceService';
-import { useVibeAlert } from '../../../components/ui/VibeAlertContext';
+import { useVibeAlert } from '../../../components/ui/base/VibeAlertContext';
 
 export const useAttendanceTracking = (studioId, eventId, participants = []) => {
   const [attendees, setAttendees] = useState(new Set());

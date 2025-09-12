@@ -15,12 +15,14 @@ import {
 import { useNavigation } from '@react-navigation/native';
 
 // Components
-import VibeButton from '../../components/ui/VibeButton';
-import VibeButtonPlain from '../../components/ui/VibeButtonPlain';
-import VibeSeparator from '../../components/ui/VibeSeparator';
-import VibeInput from '../../components/ui/VibeInput';
-import VibeDropdown from '../../components/ui/VibeDropdown';
-import ReliabilityWarning from '../../components/ui/ReliabilityWarning';
+import {
+  VibeButton,
+  VibeButtonPlain,
+  VibeSeparator,
+  VibeInput,
+  VibeDropdown
+} from '../../components/ui/base';
+import { ReliabilityWarning } from '../../components/ui/profile';
 import {
   TemplateSelectionModal,
   SaveTemplateModal,

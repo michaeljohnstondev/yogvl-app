@@ -20,12 +20,13 @@ import {
   increment,
   setDoc,
   deleteDoc,
+  runTransaction,
 } from 'firebase/firestore';
-import VibeButton from '../../components/ui/VibeButton';
-import ProfileAvatar from '../../components/ui/ProfileAvatar';
+import { VibeButton } from '../../components/ui/base';
+import { ProfileAvatar } from '../../components/ui/profile';
+import { MessageBoardButton } from '../../components/ui/buttons';
 import EventCreatorInfo from '../components/hosts/EventCreatorInfo';
-import MessageBoardButton from '../../components/ui/MessageBoardButton';
-import { useVibeAlert } from '../../components/ui/VibeAlertContext';
+import { useVibeAlert } from '../../components/ui/base/VibeAlertContext';
 import { useFocusEffect } from '@react-navigation/native';
 import SubscriptionNotificationSettings from '../components/subscriptionSettings/SubscriptionNotificationSettings';
 import { FormatDate } from '../../lib/formatDate';
@@ -476,27 +477,45 @@ export default function EventDetailScreen({ route, navigation }) {
   };
 
   const handleSubscribe = async () => {
-    if (!event || isLoading || !currentUserId) return;
+    if (!event || !currentUserId) return;
+    
+    // Critical: Set loading state immediately to prevent double-clicks
+    if (isLoading) return;
+    setIsLoading(true);
 
-    // If user is not subscribed, show notification options alert
-    if (!isSubscribed) {
-      // Validate user can join (reliability checks)
-      const canJoin = await validateUserCanJoinEvent(userData, event);
-      if (!canJoin) return;
-      
-      // Show custom VibeAlert with notification options
-      vibeAlert.subscribe(
-        'Join Event',
-        'Choose your notification preferences for this event:',
-        () => subscribeWithDefaults(), // onUseDefaults
-        () => setShowSubscriptionModal(true), // onCustomize
-        () => {} // onCancel (no action needed)
-      );
-      return;
+    try {
+      // If user is not subscribed, show notification options alert
+      if (!isSubscribed) {
+        // Validate user can join (reliability checks)
+        const canJoin = await validateUserCanJoinEvent(userData, event);
+        if (!canJoin) {
+          setIsLoading(false);
+          return;
+        }
+        
+        // Show custom VibeAlert with notification options
+        vibeAlert.subscribe(
+          'Join Event',
+          'Choose your notification preferences for this event:',
+          () => subscribeWithDefaults(), // onUseDefaults
+          () => setShowSubscriptionModal(true), // onCustomize
+          () => setIsLoading(false) // onCancel - reset loading state
+        );
+        return;
+      }
+
+      // If already subscribed, handle unsubscribe directly
+      await performUnsubscribe();
+    } finally {
+      // Note: Loading state is managed by subscribeWithDefaults or performUnsubscribe
+      // Only reset here if we didn't call those functions
+      if (isSubscribed) {
+        // performUnsubscribe was called, it will handle the loading state
+      } else {
+        // If we showed the subscription modal, don't reset loading here
+        // It will be reset by the modal actions
+      }
     }
-
-    // If already subscribed, handle unsubscribe directly
-    await performUnsubscribe();
   };
 
   const subscribeWithDefaults = async () => {
@@ -522,9 +541,10 @@ export default function EventDetailScreen({ route, navigation }) {
 
   // Separate function to handle the actual subscription with notification settings
   const handleSubscribeWithSettings = async (notificationSettings) => {
-    if (!event || !currentUserId) return;
-
+    // Critical: Check loading state first, then set it immediately
+    if (!event || !currentUserId || isLoading) return;
     setIsLoading(true);
+
     try {
       const eventRef = doc(db, 'studios', studioId, 'events', eventId);
       const userRef = doc(db, 'users', currentUserId);
@@ -551,19 +571,37 @@ export default function EventDetailScreen({ route, navigation }) {
         });
       }
 
-      // Check if user is already subscribed to prevent duplicates
-      const currentSubscribers = event.subscribers || [];
-      if (currentSubscribers.includes(currentUserId)) {
-        return; // Already subscribed, do nothing
-      }
+      // Use Firebase transaction to ensure atomic subscribe operation
+      const result = await runTransaction(db, async (transaction) => {
+        // Read the current event data within transaction
+        const eventSnap = await transaction.get(eventRef);
+        
+        if (!eventSnap.exists()) {
+          throw new Error('Event no longer exists');
+        }
+        
+        const eventData = eventSnap.data();
+        const currentSubscribers = eventData.subscribers || [];
+        
+        // Check if user is already subscribed to prevent duplicates
+        if (currentSubscribers.includes(currentUserId)) {
+          throw new Error('ALREADY_SUBSCRIBED');
+        }
 
-      // Subscribe - update event document
-      await updateDoc(eventRef, {
-        subscribers: arrayUnion(currentUserId),
-        subscriberCount: increment(1),
+        // Atomic update within transaction - prevents race conditions
+        transaction.update(eventRef, {
+          subscribers: arrayUnion(currentUserId),
+          subscriberCount: increment(1),
+        });
+
+        // Return data for local state update
+        return {
+          currentSubscribers,
+          currentSubscriberCount: eventData.subscriberCount || 0
+        };
       });
 
-      // Update user metrics
+      // Update user metrics (outside transaction for performance)
       const updateResult = await updateEventSubscription(currentUserId, eventId);
       if (!updateResult.success) {
         console.warn('[EventDetailScreen] Failed to update user metrics:', updateResult.error);
@@ -578,10 +616,7 @@ export default function EventDetailScreen({ route, navigation }) {
         studioId,
       });
 
-      // Attendee reminders are now handled by server-side FCM scheduling
-      // When users subscribe, they're automatically included in event notification scheduling
-
-      // Notify host that user joined
+      // Notify host that user joined (outside transaction for performance)
       const hostId = event.createdBy;
       if (hostId && hostId !== currentUserId) {
         try {
@@ -601,18 +636,22 @@ export default function EventDetailScreen({ route, navigation }) {
         }
       }
 
-      // Update local state
+      // Update local state with the actual incremented count
       setEvent((prev) => ({
         ...prev,
-        subscriberCount: (prev.subscriberCount || 0) + 1,
-        subscribers: [...(prev.subscribers || []), currentUserId],
+        subscriberCount: result.currentSubscriberCount + 1,
+        subscribers: [...result.currentSubscribers, currentUserId],
       }));
 
       setIsSubscribed(true);
       vibeAlert.success('Subscribed!', `You're now registered for "${event.title}"`);
 
     } catch (err) {
-      vibeAlert.error('Error', `Failed to subscribe: ${err.message}. Please try again.`);
+      if (err.message === 'ALREADY_SUBSCRIBED') {
+        vibeAlert.info('Already Joined', 'You are already registered for this event.');
+      } else {
+        vibeAlert.error('Error', `Failed to subscribe: ${err.message}. Please try again.`);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -620,31 +659,52 @@ export default function EventDetailScreen({ route, navigation }) {
 
   // Separate function to handle unsubscribe
   const performUnsubscribe = async () => {
+    // Critical: Check loading state first, then set it immediately
+    if (isLoading) return;
     setIsLoading(true);
+    
     try {
       const eventRef = doc(db, 'studios', studioId, 'events', eventId);
       const userRef = doc(db, 'users', currentUserId);
 
-      // Unsubscribe - update event document
-      await updateDoc(eventRef, {
-        subscribers: arrayRemove(currentUserId),
-        subscriberCount: increment(-1),
+      // Use Firebase transaction to ensure atomic unsubscribe operation
+      const result = await runTransaction(db, async (transaction) => {
+        // Read the current event data within transaction
+        const eventSnap = await transaction.get(eventRef);
+        
+        if (!eventSnap.exists()) {
+          throw new Error('Event no longer exists');
+        }
+        
+        const eventData = eventSnap.data();
+        const currentSubscribers = eventData.subscribers || [];
+        
+        // Check if user is still subscribed
+        if (!currentSubscribers.includes(currentUserId)) {
+          throw new Error('NOT_SUBSCRIBED');
+        }
+
+        // Atomic update within transaction - prevents race conditions
+        transaction.update(eventRef, {
+          subscribers: arrayRemove(currentUserId),
+          subscriberCount: increment(-1),
+        });
+
+        // Return data for local state update
+        return {
+          currentSubscribers,
+          currentSubscriberCount: eventData.subscriberCount || 0
+        };
       });
 
-      // Use the metrics utility function for unsubscription
+      // Update user metrics (outside transaction for performance)
       await updateEventUnsubscription(currentUserId, eventId);
 
       // Remove user's notification settings for this event
       const userEventRef = doc(db, 'users', currentUserId, 'eventSubscriptions', eventId);
       await deleteDoc(userEventRef);
 
-      // User's reminders are handled by server-side FCM scheduling
-      // Individual user notification cancellation would need to be implemented separately
-
-      setIsSubscribed(false);
-      vibeAlert.warning('Event Left', 'You have been removed from this event. 👋');
-
-      // Notify host that user left the event
+      // Notify host that user left the event (outside transaction for performance)
       try {
         await notifyHostOfEventLeave({
           eventId: event.id,
@@ -655,17 +715,26 @@ export default function EventDetailScreen({ route, navigation }) {
         });
       } catch (error) {
         // Failed to notify host, but unsubscription was successful
+        console.error('Failed to notify host of event leave:', error);
       }
 
-      // Update local state
+      // Update local state with the actual decremented count
       setEvent((prev) => ({
         ...prev,
-        subscriberCount: (prev.subscriberCount || 0) - 1,
-        subscribers: (prev.subscribers || []).filter((id) => id !== currentUserId),
+        subscriberCount: Math.max(0, result.currentSubscriberCount - 1),
+        subscribers: result.currentSubscribers.filter((id) => id !== currentUserId),
       }));
 
+      setIsSubscribed(false);
+      vibeAlert.warning('Event Left', 'You have been removed from this event. 👋');
+
     } catch (err) {
-      vibeAlert.error('Error', `Failed to leave event: ${err.message}. Please try again.`);
+      if (err.message === 'NOT_SUBSCRIBED') {
+        vibeAlert.info('Already Left', 'You are not currently registered for this event.');
+        setIsSubscribed(false);
+      } else {
+        vibeAlert.error('Error', `Failed to leave event: ${err.message}. Please try again.`);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -1289,6 +1358,7 @@ export default function EventDetailScreen({ route, navigation }) {
           <VibeButton
             label={isSubscribed ? 'LEAVE EVENT' : 'JOIN EVENT'}
             onPress={handleSubscribe}
+            disabled={isLoading || (!isSubscribed && !joinConstraints.canJoin)}
             style={[
               isLoading && styles.disabledButton,
               !isSubscribed &&

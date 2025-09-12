@@ -2,8 +2,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
-import VibeAnalogClock from '../../components/ui/VibeAnalogClock';
-import VibeButtonPlain from '../../components/ui/VibeButtonPlain';
+import { VibeAnalogClock, VibeButtonPlain } from '../../components/ui/base';
 import theme from '../../theme/themes';
 
 /**

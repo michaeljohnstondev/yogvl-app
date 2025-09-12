@@ -1,10 +1,10 @@
 import React, { useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, BackHandler, TouchableOpacity } from 'react-native';
-import VibeButton from '../components/ui/VibeButton';
+import { VibeButton } from '../components/ui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
-import { useVibeAlert } from '../components/ui/VibeAlertContext';
+import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
 import theme from '../theme/themes';
 
 // Hooks

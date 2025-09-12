@@ -2,8 +2,7 @@
 
 import React, { useState, useImperativeHandle, forwardRef } from 'react';
 import { View, Text, Pressable } from 'react-native';
-import VibeInput from '../../../components/ui/VibeInput';
-import VibeSegmentedControl from '../../../components/ui/VibeSegmentedControl';
+import { VibeInput, VibeSegmentedControl } from '../../../components/ui';
 
 export const AdditionalSettings = forwardRef(({
   formData,

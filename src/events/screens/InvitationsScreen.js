@@ -13,7 +13,7 @@ import {
 import { getUserInvitations } from '../services/invitations';
 import { useAuth } from '../../auth/AuthContext';
 import InvitationCard from '../components/guests/InvitationCard';
-import VibeScreen from '../../components/ui/VibeScreen';
+import VibeScreen from '../../components/ui/base/VibeScreen';
 import theme from '../../theme/themes';
 
 export default function InvitationsScreen({ navigation }) {

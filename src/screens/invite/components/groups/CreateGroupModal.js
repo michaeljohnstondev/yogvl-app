@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Modal } from 'react-native';
-import AutoCompleteInput from '../../../../components/ui/AutoCompleteInput';
+import AutoCompleteInput from '../../../../components/ui/forms/AutoCompleteInput';
 import { getEmojiForText } from '../../../../lib/emojiUtils';
 import styles from '../../styles/inviteScreenStyles';
 

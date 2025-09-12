@@ -71,7 +71,7 @@ import React, { forwardRef } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 
 // Theme
-import { themes } from '../../theme/themes'
+import theme from '../../theme/themes'
 
 const VibeComponentName = forwardRef(({ 
   variant = 'primary',
@@ -125,15 +125,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   primary: {
-    backgroundColor: themes.vibeBlue,
+    backgroundColor: theme.colors.vibeBlue,
   },
   secondary: {
-    backgroundColor: themes.vibeGreen,
+    backgroundColor: theme.colors.vibeGreen,
   },
   ghost: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: themes.vibeBlue,
+    borderColor: theme.colors.vibeBlue,
   },
   small: {
     padding: 8,
@@ -177,13 +177,13 @@ export default VibeComponentName
 ### Theme Integration Requirements:
 ```javascript
 // Always import and use theme values
-import { themes } from '../../theme/themes'
+import theme from '../../theme/themes'
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: themes.vibeBlue,     // Use theme colors
-    borderColor: themes.vibeGreen,       // Not hardcoded values
-    fontFamily: themes.fontFamily,       // Use theme typography
+    backgroundColor: theme.colors.vibeBlue,     // Use theme colors
+    borderColor: theme.colors.vibeGreen,       // Not hardcoded values
+    fontFamily: theme.fonts.main,       // Use theme typography
   }
 })
 ```

@@ -2,9 +2,8 @@
 
 import React, { useState, useImperativeHandle, forwardRef } from 'react';
 import { View, Text, Pressable, TouchableOpacity } from 'react-native';
-import VibeInput from '../../../components/ui/VibeInput';
-import VibeAutoComplete from '../../../components/ui/VibeAutoComplete';
-import { useVibeAlert } from '../../../components/ui/VibeAlertContext';
+import { VibeInput, VibeAutoComplete } from '../../../components/ui';
+import { useVibeAlert } from '../../../components/ui/base/VibeAlertContext';
 import theme from '../../../theme/themes';
 
 export const Details = forwardRef(({

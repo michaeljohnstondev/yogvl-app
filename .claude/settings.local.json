@@ -48,7 +48,9 @@
       "Bash(firebase functions:log:*)",
       "Bash(gcloud:*)",
       "Bash(npx react-native-cli validate:*)",
-      "Bash(npx metro-resolver:*)"
+      "Bash(npx metro-resolver:*)",
+      "Bash(cat:*)",
+      "Bash(while read file)"
     ],
     "deny": [],
     "ask": [],

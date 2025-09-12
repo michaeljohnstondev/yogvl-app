@@ -7,10 +7,7 @@ import {
   StyleSheet,
   Alert,
 } from 'react-native';
-import VibeModal from '../../components/ui/VibeModal';
-import VibeInput from '../../components/ui/VibeInput';
-import VibeButton from '../../components/ui/VibeButton';
-import VibeSegmentedControl from '../../components/ui/VibeSegmentedControl';
+import { VibeModal, VibeInput, VibeButton, VibeSegmentedControl } from '../../components/ui';
 import theme from '../../theme/themes';
 
 // Template Selection Modal

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import CloseButton from '../../../components/ui/CloseButton';
+import { CloseButton } from '../../../components/ui';
 import styles from '../styles/inviteScreenStyles';
 
 const InviteScreenHeader = ({ title, onClose }) => {

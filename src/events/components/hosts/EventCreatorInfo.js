@@ -1,8 +1,8 @@
 // components/events/hosts/EventCreatorInfo.js
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import ProfileAvatar from '../../../components/ui/ProfileAvatar';
-import ReliabilityBadge from '../../../components/ui/ReliabilityBadge';
+import ProfileAvatar from '../../../components/ui/profile/ProfileAvatar';
+import ReliabilityBadge from '../../../components/ui/profile/ReliabilityBadge';
 
 const EventCreatorInfo = ({
   creatorData,

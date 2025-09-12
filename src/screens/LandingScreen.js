@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Animated, StyleSheet, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
-import VibeInput from '../components/ui/VibeInput';
-import VibeButton from '../components/ui/VibeButton';
-import VibeSegmentedControl from '../components/ui/VibeSegmentedControl';
+import {
+  VibeInput,
+  VibeButton,
+  VibeSegmentedControl
+} from '../components/ui/base';
 import { useNavigation } from '@react-navigation/native';
-import { useVibeAlert } from '../components/ui/VibeAlertContext';
+import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
 import { login, signup } from '../auth/services/FirebaseAuthService';
 import { db } from '../auth/services/firebase';
 import { doc, setDoc } from 'firebase/firestore';

@@ -10,8 +10,7 @@ import {
   Modal,
   BackHandler,
 } from 'react-native';
-import VibeButton from '../../../components/ui/VibeButton';
-import CloseButton from '../../../components/ui/CloseButton';
+import { VibeButton, CloseButton } from '../../../components/ui';
 import theme from '../../../theme/themes';
 
 const GuestListViewer = forwardRef(({

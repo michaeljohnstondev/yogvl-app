@@ -8,7 +8,7 @@ import {
   deleteGroup 
 } from '../../../services/groupService';
 import { getEmojiForText } from '../../../lib/emojiUtils';
-import { useVibeAlert } from '../../../components/ui/VibeAlertContext';
+import { useVibeAlert } from '../../../components/ui/base/VibeAlertContext';
 
 export const useGroupManagement = () => {
   const vibeAlert = useVibeAlert();

@@ -12,10 +12,8 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
-import VibeScreen from '../components/ui/VibeScreen';
-import VibeButton from '../components/ui/VibeButton';
-import VibeAutoComplete from '../components/ui/VibeAutoComplete';
-import CloseButton from '../components/ui/CloseButton';
+import VibeScreen from '../components/ui/base/VibeScreen';
+import { VibeButton, VibeAutoComplete, CloseButton } from '../components/ui';
 import theme from '../theme/themes';
 import {
   getUserInterests,

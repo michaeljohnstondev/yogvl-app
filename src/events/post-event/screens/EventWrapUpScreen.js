@@ -9,9 +9,9 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useAuth } from '../../../auth/AuthContext';
-import { useVibeAlert } from '../../../components/ui/VibeAlertContext';
-import VibeScreen from '../../../components/ui/VibeScreen';
-import VibeButton from '../../../components/ui/VibeButton';
+import { useVibeAlert } from '../../../components/ui/base/VibeAlertContext';
+import VibeScreen from '../../../components/ui/base/VibeScreen';
+import { VibeButton } from '../../../components/ui';
 import { useEventCompletion } from '../hooks/useEventCompletion';
 import { useAttendanceTracking } from '../hooks/useAttendanceTracking';
 import AttendanceTracker from '../components/AttendanceTracker';

@@ -3,7 +3,7 @@
 import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { BackHandler, View, Text } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { useVibeAlert } from '../../components/ui/VibeAlertContext';
+import { useVibeAlert } from '../../components/ui/base/VibeAlertContext';
 
 // Components
 import CreateEventForm from '../components/CreateEventForm';

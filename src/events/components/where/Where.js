@@ -2,8 +2,7 @@
 
 import React, { useCallback } from 'react';
 import { View, Text } from 'react-native';
-import VibeInput from '../../../components/ui/VibeInput';
-import VibeAutoComplete from '../../../components/ui/VibeAutoComplete';
+import { VibeInput, VibeAutoComplete } from '../../../components/ui/base';
 import { GooglePlacesService } from '../../../services/GooglePlacesService';
 import { VenueService } from '../../../services/VenueService';
 import { isPersonalLocation } from '../../../lib/locationUtils';

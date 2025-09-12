@@ -8,15 +8,21 @@ import {
   Alert,
   BackHandler,
 } from 'react-native';
-import VibeButton from '../components/ui/VibeButton';
-import ProfileAvatar from '../components/ui/ProfileAvatar';
-import VibeLoadingScreen from '../components/ui/VibeLoadingScreen';
-import { useVibeAlert } from '../components/ui/VibeAlertContext';
-import VibeCarousel from '../components/ui/VibeCarousel';
+import {
+  VibeButton,
+  VibeLoadingScreen,
+  VibeCarousel
+} from '../components/ui/base';
+import {
+  ProfileAvatar,
+  EmptyStateView,
+  AccountSettingsDropdown,
+  BannedUserModal,
+  AdminNotificationModal
+} from '../components/ui';
+import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
 import EventCard from '../events/components/EventCard';
-import EmptyStateView from '../components/ui/EmptyStateView';
 import { NotificationButton } from '../components/notifications';
-import AccountSettingsDropdown from '../components/ui/AccountSettingsModal';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
@@ -27,8 +33,6 @@ import { hasAdminAccess } from '../services/adminService';
 import { banEnforcementService } from '../services/banEnforcementService';
 import { adminNotificationService } from '../services/adminNotificationService';
 import { globalAdminService } from '../services/globalAdminService';
-import BannedUserModal from '../components/ui/BannedUserModal';
-import AdminNotificationModal from '../components/ui/AdminNotificationModal';
 import theme from '../theme/themes';
 
 export default function HomeScreen({ navigation }) {

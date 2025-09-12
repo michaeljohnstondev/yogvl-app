@@ -10,8 +10,7 @@ import {
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../auth/services/firebase';
 import { useAuth } from '../../../auth/AuthContext';
-import VibeButton from '../../../components/ui/VibeButton';
-import CloseButton from '../../../components/ui/CloseButton';
+import { VibeButton, CloseButton } from '../../../components/ui';
 import GuestNotificationSettingsForm from '../../../components/notifications/GuestNotificationSettingsForm';
 import theme from '../../../theme/themes';
 

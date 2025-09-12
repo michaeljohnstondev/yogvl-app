@@ -9,15 +9,14 @@ import {
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useVibeAlert } from '../../components/ui/VibeAlertContext';
+import { useVibeAlert } from '../../components/ui/base/VibeAlertContext';
 import { AttendanceService } from '../../services/AttendanceService';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../auth/services/firebase';
 import { useAuth } from '../../auth/AuthContext';
-import AttendanceStats from '../../components/ui/AttendanceStats';
-import AttendanceCard from '../../components/ui/AttendanceCard';
-import VibeButton from '../../components/ui/VibeButton';
-import CloseButton from '../../components/ui/CloseButton';
+import AttendanceStats from '../../components/ui/events/AttendanceStats';
+import AttendanceCard from '../../components/ui/events/AttendanceCard';
+import { VibeButton, CloseButton } from '../../components/ui';
 import theme from '../../theme/themes';
 
 export default function AttendanceScreen({ route, navigation }) {

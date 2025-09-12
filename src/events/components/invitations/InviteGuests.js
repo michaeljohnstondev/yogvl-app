@@ -11,9 +11,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import VibeInput from '../../../components/ui/VibeInput';
-import VibeButton from '../../../components/ui/VibeButton';
-import QRCodeGenerator from '../../../components/ui/QRCodeGenerator';
+import { VibeInput, VibeButton, QRCodeGenerator } from '../../../components/ui';
 import theme from '../../../theme/themes';
 import { getDeviceContacts, hasContactPermission } from '../../../lib/contactService';
 

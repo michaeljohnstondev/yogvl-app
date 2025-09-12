@@ -11,8 +11,8 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useVibeAlert } from '../../components/ui/VibeAlertContext';
-import CloseButton from '../../components/ui/CloseButton';
+import { useVibeAlert } from '../../components/ui/base/VibeAlertContext';
+import { CloseButton } from '../../components/ui/buttons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';

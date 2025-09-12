@@ -2,8 +2,7 @@
 
 import React, { useState, useImperativeHandle, forwardRef } from 'react';
 import { View, Text, Pressable } from 'react-native';
-import VibeInput from '../../../components/ui/VibeInput';
-import VibeDropdown from '../../../components/ui/VibeDropdown';
+import { VibeInput, VibeDropdown } from '../../../components/ui/base';
 import GuestListViewer from '../guests/GuestListViewer';
 
 export const Who = forwardRef(({ 

@@ -15,9 +15,9 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useComments } from '../components/ui/comments/hooks/useComments';
-import UserAvatar from '../components/ui/UserAvatar';
-import VibeScreen from '../components/ui/VibeScreen';
-import CloseButton from '../components/ui/CloseButton';
+import { UserAvatar } from '../components/ui';
+import VibeScreen from '../components/ui/base/VibeScreen';
+import { CloseButton } from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
 import { FormatDate, getRelativeTimeString } from '../lib/formatDate';
 import theme from '../theme/themes';

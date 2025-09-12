@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import ScreenHeader from '../../components/ui/ScreenHeader';
+import { ScreenHeader } from '../../components/ui/layout';
 import HostNotificationSettingsForm from '../../components/notifications/HostNotificationSettingsForm';
 import theme from '../../theme/themes';
 

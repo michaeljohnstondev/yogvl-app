@@ -4,7 +4,7 @@ import { db } from '../../../auth/services/firebase';
 import { getDeviceContacts } from '../../../lib/contactService';
 import { getStudioUsers } from '../../../services/userService';
 import { TABS } from '../utils/inviteScreenConstants';
-import { useVibeAlert } from '../../../components/ui/VibeAlertContext';
+import { useVibeAlert } from '../../../components/ui/base/VibeAlertContext';
 
 export const useContactManagement = (currentUserId, userData, activeTab, eventId = null, studioId = null) => {
   const vibeAlert = useVibeAlert();

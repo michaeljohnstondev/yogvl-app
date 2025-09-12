@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Modal } from 'react-native';
-import CloseButton from '../../../../components/ui/CloseButton';
-import { useVibeAlert } from '../../../../components/ui/VibeAlertContext';
+import { CloseButton } from '../../../../components/ui';
+import { useVibeAlert } from '../../../../components/ui/base/VibeAlertContext';
 import styles from '../../styles/inviteScreenStyles';
 
 const GroupManagementModal = ({

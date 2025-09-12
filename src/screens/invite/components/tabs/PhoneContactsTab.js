@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
-import VibeInput from '../../../../components/ui/VibeInput';
-import VibeButton from '../../../../components/ui/VibeButton';
+import { VibeInput, VibeButton } from '../../../../components/ui';
 import ContactListItem from '../lists/ContactListItem';
 import { filterPhoneContacts } from '../../utils/inviteScreenUtils';
 import styles from '../../styles/inviteScreenStyles';

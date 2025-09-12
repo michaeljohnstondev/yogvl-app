@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { PostEventService } from '../services/PostEventService';
-import { useVibeAlert } from '../../../components/ui/VibeAlertContext';
+import { useVibeAlert } from '../../../components/ui/base/VibeAlertContext';
 
 export const useEventCompletion = (studioId, eventId, userId) => {
   const [eventData, setEventData] = useState(null);

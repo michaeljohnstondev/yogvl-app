@@ -16,7 +16,7 @@ import {
   kickGuestFromEvent,
   INVITATION_STATUS 
 } from '../../services/invitations';
-import VibeButton from '../../../components/ui/VibeButton';
+import { VibeButton } from '../../../components/ui';
 import theme from '../../../theme/themes';
 
 export default function GuestManager({ eventId, hostId, onInvitePress }) {

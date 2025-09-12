@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getFollowingList, getFollowersList, getMutualFriendsList } from '../services/followService';
-import { useVibeAlert } from '../components/ui/VibeAlertContext';
+import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
 
 export const useSocialList = (userId, listType) => {
   const [users, setUsers] = useState([]);

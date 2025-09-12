@@ -7,10 +7,12 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
-import { useVibeAlert } from '../../components/ui/VibeAlertContext';
-import VibeInput from '../../components/ui/VibeInput';
-import VibeButton from '../../components/ui/VibeButton';
-import VibeLoadingScreen from '../../components/ui/VibeLoadingScreen';
+import {
+  VibeInput,
+  VibeButton,
+  VibeLoadingScreen
+} from '../../components/ui/base';
+import { useVibeAlert } from '../../components/ui/base/VibeAlertContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';

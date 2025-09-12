@@ -9,7 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { acceptInvitation, declineInvitation } from '../../services/invitations';
-import VibeButton from '../../../components/ui/VibeButton';
+import { VibeButton } from '../../../components/ui';
 import theme from '../../../theme/themes';
 
 export default function InvitationCard({ invitation, currentUserId, onResponse }) {
