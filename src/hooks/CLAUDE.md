@@ -29,6 +29,20 @@ When ANY hook is modified, Claude MUST automatically use these agents:
    - Clean up legacy hook code
    - Audit for unused state and effects
 
+5. **missing-dependencies-guardian**
+   - Validate hook dependencies and imports
+   - Prevent runtime errors from missing hook functions
+   - Check that all React imports are present
+   - Detect missing context providers for hooks
+   - Ensure custom hooks are properly exported
+
+6. **security-privacy-guardian**
+   - Review state management hooks for data security
+   - Audit context hooks for sensitive data exposure
+   - Check custom hooks for secure data handling
+   - Ensure hooks don't persist sensitive data unsafely
+   - Validate hook access patterns for privacy compliance
+
 ## HOOK ARCHITECTURE PRINCIPLES
 
 ### What Hooks SHOULD Contain:

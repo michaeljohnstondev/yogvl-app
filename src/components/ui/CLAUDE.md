@@ -29,6 +29,20 @@ When ANY UI component is modified, Claude MUST automatically use these agents:
    - Clean up legacy UI component code
    - Audit for unused styling and dead JSX
 
+5. **missing-dependencies-guardian**
+   - Validate UI component imports and dependencies
+   - Prevent runtime errors from missing UI functions
+   - Check that all component props are properly defined
+   - Detect missing theme or style dependencies
+   - Ensure UI component exports match imports
+
+6. **security-privacy-guardian**
+   - Review UI input components for injection vulnerabilities
+   - Audit data display components for information leakage
+   - Check theme and styling for security implications
+   - Ensure UI components don't expose sensitive data
+   - Validate accessibility security for UI elements
+
 ## UI COMPONENT ARCHITECTURE PRINCIPLES
 
 ### What UI Components SHOULD Contain:

@@ -41,6 +41,21 @@ When ANY event file is modified, Claude MUST automatically use these agents:
    - Clean up legacy event code
    - Audit for dead event logic
 
+7. **missing-dependencies-guardian**
+   - Validate event-related imports and exports
+   - Prevent runtime errors from missing event functions
+   - Check event service dependencies
+   - Detect broken event form functions and hooks
+   - Ensure event template functions are properly exported
+
+8. **security-privacy-guardian**
+   - Review event data privacy (location, attendee information)
+   - Audit invitation systems for data sharing vulnerabilities
+   - Validate user-generated content sanitization
+   - Check event visibility and access controls
+   - Ensure location data is handled securely
+   - Review attendee data protection measures
+
 ## EVENT ARCHITECTURE PRINCIPLES
 
 ### What Event Files SHOULD Contain:

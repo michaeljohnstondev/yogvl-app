@@ -35,6 +35,21 @@ When ANY service is modified, Claude MUST automatically use these agents:
    - Audit for dead API endpoints
    - **REQUEST APPROVAL** for service file deletions
 
+6. **missing-dependencies-guardian**
+   - Validate all service method calls and exports
+   - Prevent runtime errors from missing service functions
+   - Check service import/export chains for completeness
+   - Detect undefined methods on service classes
+   - Suggest fixes for broken service dependencies
+
+7. **security-privacy-guardian**
+   - Review Firebase operations for security vulnerabilities
+   - Audit API key exposure and credential handling
+   - Validate authentication token management
+   - Check database security rules compliance
+   - Ensure data encryption and secure transmission
+   - Review service access patterns for privacy compliance
+
 ## SERVICE ARCHITECTURE PRINCIPLES
 
 ### What Services SHOULD Contain:

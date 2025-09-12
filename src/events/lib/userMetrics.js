@@ -10,6 +10,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../auth/services/firebase';
 import { AttendanceService } from '../../services/AttendanceService';
+import { ReliabilityService } from '../../services/ReliabilityService';
 
 /**
  * Updates user metrics when they attend an event
@@ -416,4 +417,33 @@ export const autoDetectNoShows = async (
     console.error('Error auto-detecting no-shows:', error);
     return { success: false, error };
   }
+};
+
+/**
+ * Get user reliability score from userData
+ * @param {Object} userData - User data object
+ * @returns {number} Reliability score (0-100)
+ */
+export const getUserReliabilityScore = (userData) => {
+  const reliabilityDisplay = ReliabilityService.getUserReliabilityDisplay(userData);
+  return reliabilityDisplay?.score || 0;
+};
+
+/**
+ * Get user reliability status from userData  
+ * @param {Object} userData - User data object
+ * @returns {Object} Reliability status object with tier info
+ */
+export const getUserReliabilityStatus = (userData) => {
+  const reliabilityDisplay = ReliabilityService.getUserReliabilityDisplay(userData);
+  if (!reliabilityDisplay) {
+    return {
+      tier: 'UNRELIABLE',
+      label: 'Unreliable',
+      color: '#F44336',
+      emoji: '🚫'
+    };
+  }
+  
+  return ReliabilityService.getReliabilityTier(reliabilityDisplay.score);
 };

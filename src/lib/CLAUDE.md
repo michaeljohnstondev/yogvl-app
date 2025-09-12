@@ -29,6 +29,20 @@ When ANY lib/utility file is modified, Claude MUST automatically use these agent
    - Prevent duplicate utility creation
    - Track utility usage across components
 
+5. **missing-dependencies-guardian**
+   - Validate utility function dependencies and imports
+   - Prevent runtime errors from missing utility functions
+   - Check that all external dependencies are properly imported
+   - Detect missing exports for utility functions
+   - Ensure utility functions are properly accessible
+
+6. **security-privacy-guardian**
+   - Review utility functions for security vulnerabilities
+   - Audit data transformation functions for safe handling
+   - Check validation utilities for injection protection
+   - Ensure crypto/hashing utilities use secure algorithms
+   - Review file handling utilities for path traversal safety
+
 ## UTILITY ARCHITECTURE PRINCIPLES
 
 ### What Lib/Utils SHOULD Contain:

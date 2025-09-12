@@ -22,6 +22,11 @@ This document provides a comprehensive inventory of all existing components in t
   - Reusable close/back button for modals
   - Props: `onPress`, `style`, `textStyle`, `children` (default: "✕")
 
+- **FollowButton** (`src/components/ui/FollowButton.js`)
+  - Follow/unfollow button with loading states
+  - Props: `isFollowing`, `isLoading`, `onFollow`, `onUnfollow`, `disabled`
+  - Features: Automatic state management, consistent styling
+
 ### Inputs & Forms
 - **VibeInput** (`src/components/ui/VibeInput.js`)
   - Styled text input with completion states
@@ -72,6 +77,16 @@ This document provides a comprehensive inventory of all existing components in t
 - **VibeLoadingScreen** (`src/components/ui/VibeLoadingScreen.js`)
   - Loading screen with BVS branding
   - Props: `loadingText`, `showBranding`, `size`, `color`
+
+- **ScreenHeader** (`src/components/ui/ScreenHeader.js`)
+  - Standardized screen header with title and close button
+  - Props: `title`, `count`, `onClose`, `showBorder`, `showCloseButton`
+  - Features: Consistent header layout, optional count display
+
+- **EmptyState** (`src/components/ui/EmptyState.js`)
+  - Empty state display component
+  - Props: `message`, `style`
+  - Features: Consistent empty state styling across screens
 
 ---
 
@@ -243,8 +258,10 @@ This document provides a comprehensive inventory of all existing components in t
   - Types: 'user', 'event', 'app-download'
 
 ### Lists & Selection
-- **SocialListView** (`src/components/ui/SocialListView.js`)
-  - Social list display component
+- **SocialUserItem** (`src/components/ui/SocialUserItem.js`)
+  - Individual user item for social lists
+  - Props: `user`, `currentUserId`, `onUserPress`, `onFollow`, `onUnfollow`, `isLoading`
+  - Features: User avatar, display name, location, follow/unfollow actions
 
 - **FriendsList** (`src/components/ui/FriendsList.js`)
   - Friends list display
@@ -515,6 +532,21 @@ Based on usage analysis, consider creating:
   - User reliability score management
   - Functions: Score calculation, tier determination, history tracking
   - Features: Reliability analytics, improvement suggestions
+
+- **useSocialList** (`src/hooks/useSocialList.js`)
+  - Social list data management (friends, followers, following)
+  - Functions: `loadUsers`, data loading, error handling
+  - Features: Automatic data loading, error recovery
+
+- **useUserSearch** (`src/hooks/useUserSearch.js`)
+  - User search and filtering functionality
+  - Functions: Search query management, real-time filtering
+  - Features: Memoized filtering, search state management
+
+- **useFollowActions** (`src/hooks/useFollowActions.js`)
+  - Follow/unfollow action handling with loading states
+  - Functions: `handleFollow`, `handleUnfollow`, loading management
+  - Features: Individual user loading states, error handling
 
 ### Invite Screen Specific Hooks
 - **useInviteScreenState** (`src/screens/invite/hooks/useInviteScreenState.js`)

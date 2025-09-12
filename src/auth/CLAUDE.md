@@ -41,6 +41,21 @@ When ANY auth file is modified, Claude MUST automatically use these agents:
    - Clean up legacy authentication code
    - Audit for dead auth logic
 
+7. **missing-dependencies-guardian**
+   - Validate authentication imports and exports
+   - Prevent runtime errors from missing auth functions
+   - Check Firebase Auth service dependencies
+   - Detect broken auth context functions
+   - Ensure auth validation functions are properly exported
+
+8. **security-privacy-guardian**
+   - Audit password handling and storage practices
+   - Review authentication flow security vulnerabilities
+   - Validate session management and token security
+   - Check personal data collection compliance
+   - Ensure secure user profile data handling
+   - Review Firebase Auth rule security
+
 ## AUTH ARCHITECTURE PRINCIPLES
 
 ### What Auth Files SHOULD Contain:

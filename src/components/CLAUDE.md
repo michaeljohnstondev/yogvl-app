@@ -30,6 +30,21 @@ When ANY component is modified, Claude MUST automatically use these agents:
    - Audit for dead JSX and unused state
    - **REQUEST APPROVAL** for component file deletions
 
+5. **missing-dependencies-guardian**
+   - Validate component imports and prop dependencies
+   - Prevent runtime errors from missing component functions
+   - Check that all imported components are properly exported
+   - Detect undefined props or missing context providers
+   - Ensure component dependencies are correctly wired
+
+6. **security-privacy-guardian**
+   - Review input sanitization in form components
+   - Audit data binding security patterns
+   - Check component prop validation for security
+   - Ensure sensitive data isn't exposed in component props
+   - Review component access controls and permissions
+   - Validate data flow security between components
+
 ## COMPONENT ARCHITECTURE PRINCIPLES
 
 ### What Components SHOULD Contain:

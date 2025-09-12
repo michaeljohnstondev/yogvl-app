@@ -49,6 +49,21 @@ When ANY screen is modified, Claude MUST automatically use these agents:
    - Audit for dead code
    - **REQUEST APPROVAL** for file deletions before removing entire files
 
+9. **missing-dependencies-guardian**
+   - Detect missing function exports and undefined imports
+   - Prevent runtime ReferenceError crashes before they happen
+   - Validate all function calls have corresponding exports
+   - Check import/export chains for broken dependencies
+   - Suggest fixes for common typos and missing functions
+
+10. **security-privacy-guardian**
+    - Validate user input sanitization and validation
+    - Review data display for potential exposure risks
+    - Check navigation security (deep links, parameters)
+    - Audit screen access controls and permissions
+    - Ensure sensitive data isn't logged or exposed
+    - Review data sharing patterns between screens
+
 ### SPECIALTY MONITORING AGENTS
 
 **These agents monitor screens to ensure proper architecture separation:**
@@ -150,8 +165,10 @@ import { VibeComponent } from '../components/ui/VibeComponent';
 3. **Organization**: `code-organization-monitor`, `code-placement-validator`
 4. **Database**: `database-guardian` (if data operations involved)
 5. **Performance**: `firebase-efficiency-guardian`
-6. **Cleanup**: `code-cleanup-auditor`
-7. **Troubleshooting**: `troubleshooting-coordinator` (if needed)
+6. **Dependencies**: `missing-dependencies-guardian` (validate imports/exports)
+7. **Security**: `security-privacy-guardian` (security and privacy audit)
+8. **Cleanup**: `code-cleanup-auditor`
+9. **Troubleshooting**: `troubleshooting-coordinator` (if needed)
 
 ## FILE DELETION APPROVAL WORKFLOW
 
@@ -185,13 +202,17 @@ REQUEST APPROVAL: Delete this file? (y/n)
 
 A screen modification is complete when:
 
-- ✅ File size under 5500 lines
+- ✅ File size under 400 lines
 - ✅ No service logic in screen (extracted to services)
 - ✅ No reusable UI components inline (extracted to components)
 - ✅ No complex state logic (extracted to hooks)
 - ✅ No utility functions (extracted to lib)
 - ✅ All agents have completed their checks
 - ✅ No unused imports or dead code
+- ✅ All imports/exports validated and functional
+- ✅ No missing dependencies or broken function calls
+- ✅ Security and privacy compliance validated
+- ✅ No sensitive data exposure or security vulnerabilities
 - ✅ Follows BVS coding conventions
 
 **Remember**: Screens are containers that orchestrate, not implement. Keep them clean, focused, and well-organized.

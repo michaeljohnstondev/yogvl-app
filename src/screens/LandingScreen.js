@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 // Cleaned up auth imports
-import { View, Text, Animated, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
+import { View, Text, Animated, StyleSheet, TouchableOpacity, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import VibeInput from '../components/ui/VibeInput';
 import VibeButton from '../components/ui/VibeButton';
 import VibeSegmentedControl from '../components/ui/VibeSegmentedControl';
 import { useNavigation } from '@react-navigation/native';
@@ -36,27 +37,8 @@ export default function LandingScreen() {
 
     setLoading(true);
     try {
-      const userCredential = await login(email, password);
-      console.log('Logged in:', userCredential.user);
-
-      const userDocRef = doc(db, 'users', userCredential.user.uid);
-      const userDoc = await getDoc(userDocRef);
-      
-      const userData = userDoc.exists() ? userDoc.data() : null;
-      const contactInfo = userData?.userdata?.contactInfo || {};
-      const hasContactInfo = !!(contactInfo.firstName && contactInfo.lastName && contactInfo.email);
-
-      if (hasContactInfo) {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'Home' }],
-        });
-      } else {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'ContactInfo' }],
-        });
-      }
+      await login(email, password);
+      console.log('Login successful - Navigation will handle routing');
     } catch (err) {
       console.error('Login error:', err);
       vibeAlert.error('Login Failed', err.message);
@@ -96,6 +78,12 @@ export default function LandingScreen() {
       );
 
       console.log('User document created successfully');
+      
+      // Navigate to ContactInfo after successful signup
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'ContactInfo' }],
+      });
     } catch (err) {
       console.error('Signup error:', err);
       vibeAlert.error('Signup Failed', err.message);
@@ -130,40 +118,28 @@ export default function LandingScreen() {
       />
 
       {/* Email/Password Form */}
-      <TextInput
+      <VibeInput
         placeholder="Email"
-        placeholderTextColor={theme.colors.textSecondary}
-        style={styles.input}
         keyboardType="email-address"
         autoCapitalize="none"
         onChangeText={setEmail}
         value={email}
       />
 
-      <TextInput
+      <VibeInput
         placeholder="Password"
-        placeholderTextColor={theme.colors.textSecondary}
-        style={styles.input}
         secureTextEntry
         autoCapitalize="none"
         onChangeText={setPassword}
         value={password}
       />
 
-      <TouchableOpacity
-        style={styles.buttonContainer}
+      <VibeButton
+        label={loading ? (authMode === 'login' ? 'Signing In...' : 'Creating Account...') : (authMode === 'login' ? 'Sign In' : 'Sign Up')}
         onPress={authMode === 'login' ? handleLogin : handleSignUp}
         disabled={loading}
-      >
-        <LinearGradient
-          colors={theme.colors.buttonGradient}
-          style={[styles.button, loading && styles.buttonDisabled]}
-        >
-          <Text style={styles.buttonText}>
-            {loading ? (authMode === 'login' ? 'Signing In...' : 'Creating Account...') : (authMode === 'login' ? 'Sign In' : 'Sign Up')}
-          </Text>
-        </LinearGradient>
-      </TouchableOpacity>
+        style={styles.authButton}
+      />
         </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -200,34 +176,8 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 30,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: theme.colors.inputBorder,
-    backgroundColor: theme.colors.inputBackground,
-    color: theme.colors.textPrimary,
-    marginBottom: 15,
-    padding: theme.sizes.inputPadding,
-    borderRadius: theme.sizes.borderRadius,
-    fontSize: 16,
-    width: '100%',
-  },
-  buttonContainer: {
+  authButton: {
     marginTop: 10,
-    borderRadius: theme.sizes.buttonRadius,
-    overflow: 'hidden',
     width: '100%',
-  },
-  button: {
-    padding: 15,
-    borderRadius: theme.sizes.buttonRadius,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: theme.colors.textPrimary,
-    textAlign: 'center',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });
