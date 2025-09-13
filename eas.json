@@ -4,7 +4,8 @@
       "developmentClient": true,
       "distribution": "internal",
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "applicationId": "com.bigvibestudios.bvs.dev"
       }
     },
     "preview": {
