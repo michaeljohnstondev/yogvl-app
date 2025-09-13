@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../auth/services/firebase';
+import { db } from '../../../auth/services/firebase';
 import { LinearGradient } from 'expo-linear-gradient';
 import theme from '../../../theme/themes';
 

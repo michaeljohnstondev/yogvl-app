@@ -3,7 +3,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity } from 'react-native';
 import theme from '../../../theme/themes';
-import VibeButton from './VibeButton';
+import VibeButton from '../base/VibeButton';
 
 /**
  * Modal to display ban information to users

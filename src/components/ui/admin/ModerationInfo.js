@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { useAuth } from '../../auth/AuthContext';
-import { moderationService } from '../../services/moderationService';
-import { isGlobalAdmin } from '../../services/adminService';
+import { useAuth } from '../../../auth/AuthContext';
+import { moderationService } from '../../../services/moderationService';
+import { isGlobalAdmin } from '../../../services/adminService';
 import theme from '../../../theme/themes';
 
 /**

@@ -260,6 +260,8 @@ Hope to see you there! 🎉`;
       studioCity: studioCity,
       studioState: studioState,
       cohosts: [], // Initialize empty cohosts array (will be populated when invitations are accepted)
+      subscribers: [currentUserId], // Initialize with host as subscriber
+      subscriberCount: 1, // Initialize subscriber count with host
       attendance: [{ // Auto-add host to attendance
         userId: currentUserId,
         attended: true,

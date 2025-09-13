@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Alert, Pressable, Text } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import VibeInput from '../VibeInput';
+import VibeInput from '../base/VibeInput';
 import { validateComment } from './utils/commentUtils';
 import theme from '../../../theme/themes';
 import { Keyboard } from 'react-native';

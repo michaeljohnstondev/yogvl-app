@@ -7,9 +7,9 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { signOut } from 'firebase/auth';
-import { auth } from '../../auth/services/firebase';
-import { useVibeAlert } from './VibeAlertContext';
-import CloseButton from './CloseButton';
+import { auth } from '../../../auth/services/firebase';
+import { useVibeAlert } from '../base/VibeAlertContext';
+import CloseButton from '../buttons/CloseButton';
 import theme from '../../../theme/themes';
 
 export default function AccountSettingsDropdown({ visible, onClose, navigation, userData }) {

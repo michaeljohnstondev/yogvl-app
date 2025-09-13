@@ -50,7 +50,10 @@
       "Bash(npx react-native-cli validate:*)",
       "Bash(npx metro-resolver:*)",
       "Bash(cat:*)",
-      "Bash(while read file)"
+      "Bash(while read file)",
+      "Bash(npx kill-port:*)",
+      "Bash(timeout 30 npx expo export --dev)",
+      "Bash(npx reset-cache:*)"
     ],
     "deny": [],
     "ask": [],

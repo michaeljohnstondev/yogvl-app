@@ -8,10 +8,10 @@ import {
   Switch,
   ScrollView,
 } from 'react-native';
-import { useVibeAlert } from '../ui/VibeAlertContext';
-import VibeInput from '../ui/VibeInput';
-import VibeDropdown from '../ui/VibeDropdown';
-import VibeButton from '../ui/VibeButton';
+import { useVibeAlert } from '../ui/base/VibeAlertContext';
+import VibeInput from '../ui/base/VibeInput';
+import VibeDropdown from '../ui/base/VibeDropdown';
+import VibeButton from '../ui/base/VibeButton';
 import theme from '../../theme/themes';
 
 export default function NotificationSettingsForm({

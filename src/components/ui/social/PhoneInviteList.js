@@ -12,8 +12,8 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import theme from '../../../theme/themes';
-import VibeButton from './VibeButton';
-import { useVibeAlert } from './VibeAlertContext';
+import VibeButton from '../base/VibeButton';
+import { useVibeAlert } from '../base/VibeAlertContext';
 
 export default function PhoneInviteList({ 
   eventId, 

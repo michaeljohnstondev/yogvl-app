@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import ProfileAvatar from './ProfileAvatar';
-import FollowButton from './FollowButton';
+import ProfileAvatar from '../profile/ProfileAvatar';
+import FollowButton from '../buttons/FollowButton';
 import { getUserDisplayName } from '../../../lib/userUtils';
 import theme from '../../../theme/themes';
 

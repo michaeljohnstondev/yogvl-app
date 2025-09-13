@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useComments } from './comments/hooks/useComments';
+import { useComments } from '../comments/hooks/useComments';
 import theme from '../../../theme/themes';
 
 export default function MessageBoardButton({ eventId, eventTitle, navigation }) {

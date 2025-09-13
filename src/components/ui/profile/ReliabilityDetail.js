@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ReliabilityService } from '../../services/ReliabilityService';
+import { ReliabilityService } from '../../../services/ReliabilityService';
 import ReliabilityBadge from './ReliabilityBadge';
 import theme from '../../../theme/themes';
 

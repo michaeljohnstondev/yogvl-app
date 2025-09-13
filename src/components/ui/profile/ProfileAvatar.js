@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getProfilePictureUrl } from '../../services/profilePictureService';
+import { getProfilePictureUrl } from '../../../services/profilePictureService';
 import theme from '../../../theme/themes';
 
 export default function ProfileAvatar({ 

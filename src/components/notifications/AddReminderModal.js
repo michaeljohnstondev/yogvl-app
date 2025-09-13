@@ -10,10 +10,10 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import VibeInput from '../ui/VibeInput';
-import VibeButton from '../ui/VibeButton';
-import CloseButton from '../ui/CloseButton';
-import VibeSegmentedControl from '../ui/VibeSegmentedControl';
+import VibeInput from '../ui/base/VibeInput';
+import VibeButton from '../ui/base/VibeButton';
+import CloseButton from '../ui/buttons/CloseButton';
+import VibeSegmentedControl from '../ui/base/VibeSegmentedControl';
 import theme from '../../theme/themes';
 
 export default function AddReminderModal({

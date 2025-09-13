@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
-import VibeInput from './VibeInput';
+import VibeInput from '../base/VibeInput';
 import { getContextualSuggestions } from '../../../lib/emojiUtils';
 import theme from '../../../theme/themes';
 

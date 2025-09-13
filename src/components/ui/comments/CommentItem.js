@@ -10,7 +10,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../auth/services/firebase';
-import ProfileAvatar from '../ProfileAvatar';
+import ProfileAvatar from '../profile/ProfileAvatar';
 import { useAuth } from '../../../auth/AuthContext';
 import { formatTimestamp } from './utils/commentUtils';
 import theme from '../../../theme/themes';

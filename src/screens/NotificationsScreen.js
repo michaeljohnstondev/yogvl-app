@@ -19,7 +19,7 @@ import {
 } from '../services/notifications';
 import { useAuth } from '../auth/AuthContext';
 import { useRealtimeNotificationsContext } from '../contexts/RealtimeNotificationsContext';
-import { NotificationItem } from '../components/notifications';
+import NotificationItem from '../components/notifications/NotificationItem';
 import VibeScreen from '../components/ui/base/VibeScreen';
 import { VibeButton, CloseButton } from '../components/ui';
 import { useVibeAlert } from '../components/ui/base/VibeAlertContext';

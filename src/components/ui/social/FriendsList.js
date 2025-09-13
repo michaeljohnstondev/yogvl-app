@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import VibeInput from './VibeInput';
+import VibeInput from '../base/VibeInput';
 import FriendItem from './FriendItem';
 import theme from '../../../theme/themes';
 

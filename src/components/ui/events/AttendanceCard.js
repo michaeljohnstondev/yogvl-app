@@ -6,10 +6,10 @@ import {
   StyleSheet,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import ProfileAvatar from './ProfileAvatar';
-import ReliabilityBadge from './ReliabilityBadge';
-import ReliabilityWarning from './ReliabilityWarning';
-import ReliabilityDetail from './ReliabilityDetail';
+import ProfileAvatar from '../profile/ProfileAvatar';
+import ReliabilityBadge from '../profile/ReliabilityBadge';
+import ReliabilityWarning from '../profile/ReliabilityWarning';
+import ReliabilityDetail from '../profile/ReliabilityDetail';
 import theme from '../../../theme/themes';
 
 export default function AttendanceCard({ 

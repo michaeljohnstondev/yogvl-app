@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, TouchableOpacity, Text } from 'react-native';
 import { StyleSheet } from 'react-native';
-import VibeButton from './VibeButton';
-import FollowButton from './FollowButton';
-import BlockButton from './BlockButton';
+import VibeButton from '../base/VibeButton';
+import FollowButton from '../buttons/FollowButton';
+import BlockButton from '../buttons/BlockButton';
 import theme from '../../../theme/themes';
 
 const ProfileActionButtons = ({

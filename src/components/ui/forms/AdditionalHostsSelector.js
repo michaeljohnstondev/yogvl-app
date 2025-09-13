@@ -1,9 +1,9 @@
 import React, { useState, useImperativeHandle, forwardRef } from 'react';
 import { View, StyleSheet } from 'react-native';
-import FriendsBucket from './FriendsBucket';
-import FriendsList from './FriendsList';
+import FriendsBucket from '../social/FriendsBucket';
+import FriendsList from '../social/FriendsList';
 import InviteFriendsSelector from './InviteFriendsSelector';
-import VibeButton from './VibeButton';
+import VibeButton from '../base/VibeButton';
 
 export default forwardRef(function AdditionalHostsSelector({ 
   selectedHostIds = [], 

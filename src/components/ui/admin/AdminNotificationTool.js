@@ -11,9 +11,9 @@ import {
   Alert,
 } from 'react-native';
 import theme from '../../../theme/themes';
-import VibeButton from './VibeButton';
-import { adminNotificationService } from '../../services/adminNotificationService';
-import { globalAdminService } from '../../services/globalAdminService';
+import VibeButton from '../base/VibeButton';
+import { adminNotificationService } from '../../../services/adminNotificationService';
+import { globalAdminService } from '../../../services/globalAdminService';
 
 export default function AdminNotificationTool({ currentUserId }) {
   const [targetUserId, setTargetUserId] = useState('');

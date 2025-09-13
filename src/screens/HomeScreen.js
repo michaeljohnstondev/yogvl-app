@@ -22,7 +22,7 @@ import {
 } from '../components/ui';
 import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
 import EventCard from '../events/components/EventCard';
-import { NotificationButton } from '../components/notifications';
+import NotificationButton from '../components/notifications/NotificationButton';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';

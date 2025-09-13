@@ -253,6 +253,12 @@ export default function EventDetailScreen({ route, navigation }) {
   useFocusEffect(
     useCallback(() => {
       const fetchEvent = async () => {
+        console.log('🔄 [DEBUG] useFocusEffect fetchEvent called', { 
+          studioId, 
+          eventId, 
+          currentSubscriberCount: event?.subscriberCount 
+        });
+        
         if (!studioId) {
           vibeAlert.error('Error', 'Unable to load event: studio information missing.');
           return;
@@ -263,6 +269,10 @@ export default function EventDetailScreen({ route, navigation }) {
           const snap = await getDoc(ref);
           if (snap.exists()) {
             const eventData = { id: snap.id, ...snap.data() };
+            console.log('🔄 [DEBUG] useFocusEffect fetched new event data', { 
+              newSubscriberCount: eventData.subscriberCount,
+              previousSubscriberCount: event?.subscriberCount 
+            });
             setEvent(eventData);
 
             // Check if user is subscribed or is the host/cohost
@@ -477,36 +487,65 @@ export default function EventDetailScreen({ route, navigation }) {
   };
 
   const handleSubscribe = async () => {
-    if (!event || !currentUserId) return;
+    console.log('🔵 [DEBUG] handleSubscribe called', { 
+      eventId, 
+      isSubscribed, 
+      isLoading, 
+      currentUserId,
+      currentSubscriberCount: event?.subscriberCount 
+    });
+    
+    if (!event || !currentUserId) {
+      console.log('🔴 [DEBUG] handleSubscribe early return - no event or user');
+      return;
+    }
     
     // Critical: Set loading state immediately to prevent double-clicks
-    if (isLoading) return;
+    if (isLoading) {
+      console.log('🔴 [DEBUG] handleSubscribe early return - already loading');
+      return;
+    }
     setIsLoading(true);
+    console.log('🟡 [DEBUG] handleSubscribe set isLoading = true');
 
     try {
       // If user is not subscribed, show notification options alert
       if (!isSubscribed) {
+        console.log('🟢 [DEBUG] User not subscribed, validating join');
         // Validate user can join (reliability checks)
         const canJoin = await validateUserCanJoinEvent(userData, event);
         if (!canJoin) {
+          console.log('🔴 [DEBUG] User cannot join event');
           setIsLoading(false);
           return;
         }
         
+        console.log('🟢 [DEBUG] Showing subscription alert');
         // Show custom VibeAlert with notification options
         vibeAlert.subscribe(
           'Join Event',
           'Choose your notification preferences for this event:',
-          () => subscribeWithDefaults(), // onUseDefaults
-          () => setShowSubscriptionModal(true), // onCustomize
-          () => setIsLoading(false) // onCancel - reset loading state
+          () => {
+            console.log('🟠 [DEBUG] Use Defaults callback triggered');
+            subscribeWithDefaults();
+          }, // onUseDefaults
+          () => {
+            console.log('🟠 [DEBUG] Customize callback triggered');
+            setShowSubscriptionModal(true);
+          }, // onCustomize
+          () => {
+            console.log('🟠 [DEBUG] Cancel callback triggered');
+            setIsLoading(false);
+          } // onCancel - reset loading state
         );
         return;
       }
 
+      console.log('🟢 [DEBUG] User is subscribed, performing unsubscribe');
       // If already subscribed, handle unsubscribe directly
       await performUnsubscribe();
     } finally {
+      console.log('🔵 [DEBUG] handleSubscribe finally block');
       // Note: Loading state is managed by subscribeWithDefaults or performUnsubscribe
       // Only reset here if we didn't call those functions
       if (isSubscribed) {
@@ -519,7 +558,17 @@ export default function EventDetailScreen({ route, navigation }) {
   };
 
   const subscribeWithDefaults = async () => {
-    if (!event || !currentUserId) return;
+    console.log('🔶 [DEBUG] subscribeWithDefaults called', { 
+      eventId, 
+      currentUserId,
+      isLoading,
+      currentSubscriberCount: event?.subscriberCount 
+    });
+    
+    if (!event || !currentUserId) {
+      console.log('🔴 [DEBUG] subscribeWithDefaults early return - no event or user');
+      return;
+    }
 
     // Get user's default notification preferences or use app defaults
     const userNotificationDefaults = userData?.userdata?.settings?.notifications?.attending || {};
@@ -536,14 +585,32 @@ export default function EventDetailScreen({ route, navigation }) {
       reminderTemplates: userNotificationDefaults.reminderTemplates || [],
     };
 
+    console.log('🔶 [DEBUG] subscribeWithDefaults calling handleSubscribeWithSettings');
     await handleSubscribeWithSettings(defaultSettings);
+    console.log('🔶 [DEBUG] subscribeWithDefaults completed handleSubscribeWithSettings');
   };
 
   // Separate function to handle the actual subscription with notification settings
   const handleSubscribeWithSettings = async (notificationSettings) => {
+    console.log('🟣 [DEBUG] handleSubscribeWithSettings called', { 
+      eventId, 
+      currentUserId,
+      isLoading,
+      currentSubscriberCount: event?.subscriberCount,
+      notificationSettings: Object.keys(notificationSettings || {})
+    });
+    
     // Critical: Check loading state first, then set it immediately
-    if (!event || !currentUserId || isLoading) return;
+    if (!event || !currentUserId || isLoading) {
+      console.log('🔴 [DEBUG] handleSubscribeWithSettings early return', { 
+        hasEvent: !!event, 
+        hasUserId: !!currentUserId, 
+        isLoading 
+      });
+      return;
+    }
     setIsLoading(true);
+    console.log('🟡 [DEBUG] handleSubscribeWithSettings set isLoading = true');
 
     try {
       const eventRef = doc(db, 'studios', studioId, 'events', eventId);
@@ -572,34 +639,48 @@ export default function EventDetailScreen({ route, navigation }) {
       }
 
       // Use Firebase transaction to ensure atomic subscribe operation
+      console.log('🟪 [DEBUG] Starting Firebase transaction for subscribe');
       const result = await runTransaction(db, async (transaction) => {
+        console.log('🟪 [DEBUG] Inside transaction - reading event data');
         // Read the current event data within transaction
         const eventSnap = await transaction.get(eventRef);
         
         if (!eventSnap.exists()) {
+          console.log('🔴 [DEBUG] Transaction error - event no longer exists');
           throw new Error('Event no longer exists');
         }
         
         const eventData = eventSnap.data();
         const currentSubscribers = eventData.subscribers || [];
+        const currentCount = eventData.subscriberCount || 0;
+        
+        console.log('🟪 [DEBUG] Transaction data check', { 
+          currentSubscribers: currentSubscribers.length,
+          currentCount,
+          userAlreadySubscribed: currentSubscribers.includes(currentUserId)
+        });
         
         // Check if user is already subscribed to prevent duplicates
         if (currentSubscribers.includes(currentUserId)) {
+          console.log('🔴 [DEBUG] Transaction error - user already subscribed');
           throw new Error('ALREADY_SUBSCRIBED');
         }
 
         // Atomic update within transaction - prevents race conditions
+        console.log('🟪 [DEBUG] Transaction performing update');
         transaction.update(eventRef, {
           subscribers: arrayUnion(currentUserId),
           subscriberCount: increment(1),
         });
 
         // Return data for local state update
+        console.log('🟪 [DEBUG] Transaction completed successfully');
         return {
           currentSubscribers,
           currentSubscriberCount: eventData.subscriberCount || 0
         };
       });
+      console.log('🟪 [DEBUG] Firebase transaction completed', result);
 
       // Update user metrics (outside transaction for performance)
       const updateResult = await updateEventSubscription(currentUserId, eventId);
@@ -637,6 +718,10 @@ export default function EventDetailScreen({ route, navigation }) {
       }
 
       // Update local state with the actual incremented count
+      console.log('🟢 [DEBUG] Updating local state', { 
+        newCount: result.currentSubscriberCount + 1,
+        previousCount: event?.subscriberCount 
+      });
       setEvent((prev) => ({
         ...prev,
         subscriberCount: result.currentSubscriberCount + 1,
@@ -644,6 +729,7 @@ export default function EventDetailScreen({ route, navigation }) {
       }));
 
       setIsSubscribed(true);
+      console.log('🟢 [DEBUG] Showing success alert');
       vibeAlert.success('Subscribed!', `You're now registered for "${event.title}"`);
 
     } catch (err) {
@@ -1175,22 +1261,22 @@ export default function EventDetailScreen({ route, navigation }) {
         </View>
 
         {/* Only show attendee card if there are attendees beyond the host */}
-        {(event.subscribers?.length || 0) > 1 && (
+        {(event.subscriberCount || 0) > 1 && (
           <View style={styles.infoCard}>
             <TouchableOpacity 
               style={styles.infoRow}
               onPress={() => {
                 const isHostOrCohost = event?.createdBy === currentUserId || event?.cohosts?.includes(currentUserId);
-                const canViewAttendees = (isHostOrCohost && event?.subscribers?.length > 0) || friendAttendees.length > 0;
+                const canViewAttendees = (isHostOrCohost && (event?.subscriberCount || 0) > 1) || friendAttendees.length > 0;
                 if (canViewAttendees) setShowFriendsModal(true);
               }}
               disabled={(() => {
                 const isHostOrCohost = event?.createdBy === currentUserId || event?.cohosts?.includes(currentUserId);
-                return !(isHostOrCohost && event?.subscribers?.length > 0) && friendAttendees.length === 0;
+                return !(isHostOrCohost && (event?.subscriberCount || 0) > 1) && friendAttendees.length === 0;
               })()}
               activeOpacity={(() => {
                 const isHostOrCohost = event?.createdBy === currentUserId || event?.cohosts?.includes(currentUserId);
-                return ((isHostOrCohost && event?.subscribers?.length > 0) || friendAttendees.length > 0) ? 0.7 : 1;
+                return ((isHostOrCohost && (event?.subscriberCount || 0) > 1) || friendAttendees.length > 0) ? 0.7 : 1;
               })()}
             >
               <Text style={styles.infoIcon}>👥</Text>
@@ -1198,14 +1284,15 @@ export default function EventDetailScreen({ route, navigation }) {
                 <Text style={styles.infoLabel}>Attendees</Text>
                 <Text style={styles.infoValue}>
                   {(() => {
-                    const totalSubscribers = event.subscribers?.length || 0;
-                    const attendeeCount = Math.max(0, totalSubscribers - 1); // Subtract 1 for the host
+                    // Use subscriberCount and subtract 1 for host to show actual attendees
+                    const totalSubscribers = event.subscriberCount || 0;
+                    const attendeeCount = Math.max(0, totalSubscribers - 1);
                     return attendeeCount;
                   })()} attendees
                   {event.maxGuests && ` / ${event.maxGuests} max`}
                   {(() => {
                     const isHostOrCohost = event?.createdBy === currentUserId || event?.cohosts?.includes(currentUserId);
-                    const attendeeCount = Math.max(0, (event.subscribers?.length || 0) - 1);
+                    const attendeeCount = Math.max(0, (event.subscriberCount || 0) - 1);
                     return isHostOrCohost && attendeeCount > 0 ? ' (tap to view all)' : '';
                   })()}
                 </Text>
@@ -1488,7 +1575,7 @@ export default function EventDetailScreen({ route, navigation }) {
             ) : (
               <>
                 {/* Solo event message */}
-                {event?.subscribers?.length === 1 && event.subscribers[0] === event.createdBy && (
+                {(event?.subscriberCount || 0) === 1 && event.createdBy === currentUserId && (
                   <View style={styles.soloEventMessage}>
                     <Text style={styles.soloEventMessageText}>
                       📊 Solo Event - No attendance metrics recorded
@@ -1500,7 +1587,7 @@ export default function EventDetailScreen({ route, navigation }) {
                 {event?.attendanceType === 'casual' && 
                  isSubscribed && 
                  selfReportedAttendance === null && 
-                 !(event?.subscribers?.length === 1 && event.subscribers[0] === event.createdBy) && (
+                 !((event?.subscriberCount || 0) === 1 && event.createdBy === currentUserId) && (
                   <View style={styles.selfReportContainer}>
                     <Text style={styles.selfReportTitle}>Did you attend this event?</Text>
                     <Text style={styles.selfReportSubtitle}>Help us track attendance for casual events</Text>

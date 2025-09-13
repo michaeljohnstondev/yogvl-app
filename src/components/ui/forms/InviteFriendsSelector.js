@@ -8,9 +8,9 @@ import {
   Platform 
 } from 'react-native';
 import * as Contacts from 'expo-contacts';
-import VibeButton from './VibeButton';
-import FriendsBucket from './FriendsBucket';
-import FriendsList from './FriendsList';
+import VibeButton from '../base/VibeButton';
+import FriendsBucket from '../social/FriendsBucket';
+import FriendsList from '../social/FriendsList';
 import { FormatDate } from '../../../lib/formatDate';
 import theme from '../../../theme/themes';
 

@@ -5,7 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
-import { ReliabilityService } from '../../services/ReliabilityService';
+import { ReliabilityService } from '../../../services/ReliabilityService';
 import theme from '../../../theme/themes';
 
 export default function ReliabilityBadge({ 

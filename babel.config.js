@@ -4,7 +4,9 @@ module.exports = function (api) {
     presets: ['babel-preset-expo'],
     plugins: [
       '@babel/plugin-transform-runtime',
-      'react-native-reanimated/plugin',
+      ['react-native-reanimated/plugin', {
+        globals: ['__scanFaces']
+      }],
     ],
   };
 };

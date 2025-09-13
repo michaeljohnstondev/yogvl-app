@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Alert, ScrollView } from 'react-native';
-import VibeButton from './VibeButton';
-import fcmService from '../../services/fcmServiceWrapper';
+import VibeButton from '../base/VibeButton';
+import fcmService from '../../../services/fcmServiceWrapper';
 import { 
   notifyNewFollower, 
   notifyGuestInvitation,
   notifyCohostInvitation,
   notifyHostOfEventJoin
-} from '../../services/notifications';
-import { useAuth } from '../../auth/AuthContext';
+} from '../../../services/notifications';
+import { useAuth } from '../../../auth/AuthContext';
 import theme from '../../../theme/themes';
-import { useScheduledNotifications } from '../../hooks/useScheduledNotifications';
+import { useScheduledNotifications } from '../../../hooks/useScheduledNotifications';
 
 export default function NotificationTester() {
   const [testing, setTesting] = useState(false);

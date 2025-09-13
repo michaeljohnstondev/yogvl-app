@@ -11,10 +11,10 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import theme from '../../theme/themes';
+import theme from '../theme/themes';
 import { StudioRequestService } from '../services/StudioRequestService';
 import { useAuth } from '../auth/AuthContext';
-import { useVibeAlert } from './ui/VibeAlertContext';
+import { useVibeAlert } from './ui/base/VibeAlertContext';
 
 // Validation function to prevent database abuse
 const validateFormData = (formData) => {

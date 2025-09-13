@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import CloseButton from './CloseButton';
+import CloseButton from '../buttons/CloseButton';
 import theme from '../../../theme/themes';
 
 const ScreenHeader = ({ 

@@ -12,7 +12,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { deleteNotification } from '../../services/notifications';
-import { useVibeAlert } from '../ui/VibeAlertContext';
+import { useVibeAlert } from '../ui/base/VibeAlertContext';
 import theme from '../../theme/themes';
 
 const { width: screenWidth } = Dimensions.get('window');

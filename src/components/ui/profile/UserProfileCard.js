@@ -9,7 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import ReliabilityBadge from './ReliabilityBadge';
 import ReliabilityDetail from './ReliabilityDetail';
 import ProfileAvatar from './ProfileAvatar';
-import { useReliability } from '../../hooks/useReliability';
+import { useReliability } from '../../../hooks/useReliability';
 import theme from '../../../theme/themes';
 
 export default function UserProfileCard({ userData, style, showDetails = true }) {
