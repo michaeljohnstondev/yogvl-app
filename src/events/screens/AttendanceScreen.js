@@ -11,7 +11,14 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useVibeAlert } from '../../components/ui/base/VibeAlertContext';
 import { AttendanceService } from '../../services/AttendanceService';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from 'firebase/firestore';
 import { db } from '../../auth/services/firebase';
 import { useAuth } from '../../auth/AuthContext';
 import AttendanceStats from '../../components/ui/events/AttendanceStats';
@@ -41,19 +48,28 @@ export default function AttendanceScreen({ route, navigation }) {
     try {
       setLoading(true);
 
-      // Check if user can mark attendance (is host)  
-      const canMark = await AttendanceService.canMarkAttendance(studioId, eventId, currentUserId);
+      // Check if user can mark attendance (is host)
+      const canMark = await AttendanceService.canMarkAttendance(
+        studioId,
+        eventId,
+        currentUserId
+      );
       setCanMarkAttendance(canMark);
 
       if (!canMark) {
-        vibeAlert.error('Access Denied', 'Only event hosts can manage attendance.');
+        vibeAlert.error(
+          'Access Denied',
+          'Only event hosts can manage attendance.'
+        );
         navigation.goBack();
         return;
       }
 
       // Load event data from studio-specific collection
-      
-      const eventDoc = await getDoc(doc(db, 'studios', studioId, 'events', eventId));
+
+      const eventDoc = await getDoc(
+        doc(db, 'studios', studioId, 'events', eventId)
+      );
       if (!eventDoc.exists()) {
         vibeAlert.error('Error', 'Event not found.');
         navigation.goBack();
@@ -64,11 +80,14 @@ export default function AttendanceScreen({ route, navigation }) {
       setEvent(eventData);
 
       // Check if this is a solo event
-      const isSoloEvent = eventData.subscribers?.length === 1 && 
-                         eventData.subscribers[0] === eventData.createdBy;
-      
+      const isSoloEvent =
+        eventData.subscribers?.length === 1 &&
+        eventData.subscribers[0] === eventData.createdBy;
+
       if (isSoloEvent) {
-        console.log('Solo event detected - attendance metrics will not be recorded');
+        console.log(
+          'Solo event detected - attendance metrics will not be recorded'
+        );
       }
 
       // Load RSVP users
@@ -79,8 +98,8 @@ export default function AttendanceScreen({ route, navigation }) {
           const userData = userDoc.data();
           // Extract contact info for easier access in AttendanceCard
           const contactInfo = userData.userdata?.contactInfo || {};
-          return { 
-            id: userId, 
+          return {
+            id: userId,
             ...userData,
             // Flatten contact info for AttendanceCard compatibility
             firstName: contactInfo.firstName,
@@ -96,10 +115,12 @@ export default function AttendanceScreen({ route, navigation }) {
       setRsvpUsers(users);
 
       // Load attendance data
-      const attendance = await AttendanceService.getEventAttendance(studioId, eventId);
+      const attendance = await AttendanceService.getEventAttendance(
+        studioId,
+        eventId
+      );
       setAttendanceData(attendance.attendanceData);
       setAttendanceStats(attendance.stats);
-
     } catch (error) {
       vibeAlert.error('Error', 'Failed to load attendance data.');
     } finally {
@@ -110,7 +131,12 @@ export default function AttendanceScreen({ route, navigation }) {
   const handleMarkAttended = async (userId) => {
     try {
       setSaving(true);
-      await AttendanceService.markAttended(studioId, eventId, userId, currentUserId);
+      await AttendanceService.markAttended(
+        studioId,
+        eventId,
+        userId,
+        currentUserId
+      );
       vibeAlert.success('Success', 'User marked as attended.');
       await loadAttendanceData(); // Refresh data
     } catch (error) {
@@ -123,7 +149,12 @@ export default function AttendanceScreen({ route, navigation }) {
   const handleMarkNoShow = async (userId) => {
     try {
       setSaving(true);
-      await AttendanceService.markNoShow(studioId, eventId, userId, currentUserId);
+      await AttendanceService.markNoShow(
+        studioId,
+        eventId,
+        userId,
+        currentUserId
+      );
       vibeAlert.warning('Marked', 'User marked as no-show.');
       await loadAttendanceData(); // Refresh data
     } catch (error) {
@@ -145,15 +176,27 @@ export default function AttendanceScreen({ route, navigation }) {
           onPress: async () => {
             try {
               setSaving(true);
-              const pendingUsers = rsvpUsers.filter(user => {
-                const attendance = attendanceData.find(a => a.userId === user.id);
+              const pendingUsers = rsvpUsers.filter((user) => {
+                const attendance = attendanceData.find(
+                  (a) => a.userId === user.id
+                );
                 return !attendance?.attended && !attendance?.noShow;
               });
 
-              const bulkList = pendingUsers.map(user => ({ userId: user.id, attended: true }));
-              await AttendanceService.bulkMarkAttendance(eventId, bulkList, currentUserId);
-              
-              vibeAlert.success('Success', `Marked ${pendingUsers.length} users as attended.`);
+              const bulkList = pendingUsers.map((user) => ({
+                userId: user.id,
+                attended: true,
+              }));
+              await AttendanceService.bulkMarkAttendance(
+                eventId,
+                bulkList,
+                currentUserId
+              );
+
+              vibeAlert.success(
+                'Success',
+                `Marked ${pendingUsers.length} users as attended.`
+              );
               await loadAttendanceData();
             } catch (error) {
               vibeAlert.error('Error', 'Failed to bulk mark attendance.');
@@ -167,7 +210,7 @@ export default function AttendanceScreen({ route, navigation }) {
   };
 
   const getUserAttendanceStatus = (userId) => {
-    return attendanceData.find(a => a.userId === userId);
+    return attendanceData.find((a) => a.userId === userId);
   };
 
   if (loading) {
@@ -187,7 +230,10 @@ export default function AttendanceScreen({ route, navigation }) {
       colors={theme.colors.backgroundGradient}
       style={styles.container}
     >
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header */}
         <View style={styles.header}>
           <CloseButton onPress={() => navigation.goBack()} />
@@ -201,45 +247,48 @@ export default function AttendanceScreen({ route, navigation }) {
               style={[
                 styles.eventTypeBadge,
                 {
-                  backgroundColor: event?.attendanceType === 'strict' 
-                    ? 'rgba(253, 126, 20, 0.1)' 
-                    : 'rgba(0, 198, 255, 0.1)',
-                  borderColor: event?.attendanceType === 'strict'
-                    ? '#fd7e14'
-                    : '#00C6FF'
-                }
+                  backgroundColor:
+                    event?.attendanceType === 'strict'
+                      ? 'rgba(253, 126, 20, 0.1)'
+                      : 'rgba(0, 198, 255, 0.1)',
+                  borderColor:
+                    event?.attendanceType === 'strict' ? '#fd7e14' : '#00C6FF',
+                },
               ]}
               onPressIn={() => setShowBadgeContext(true)}
               onPressOut={() => setShowBadgeContext(false)}
               activeOpacity={0.8}
             >
               <Text style={styles.eventTypeBadgeText}>
-                {event?.attendanceType === 'strict' ? '🎯 Strict Event' : '🌊 Casual Event'}
+                {event?.attendanceType === 'strict'
+                  ? '🎯 Strict Event'
+                  : '🌊 Casual Event'}
               </Text>
             </TouchableOpacity>
-            
+
             {/* Only show context for casual events when pressed */}
             {event?.attendanceType === 'casual' && showBadgeContext && (
               <Text style={styles.eventTypeContext}>
                 No-shows are tracked but won't affect reliability
               </Text>
             )}
-            
+
             {/* Always show context for strict events */}
             {event?.attendanceType === 'strict' && (
               <Text style={styles.eventTypeContext}>
                 No-shows will affect user reliability scores
               </Text>
             )}
-            
+
             {/* Solo event warning */}
-            {event?.subscribers?.length === 1 && event.subscribers[0] === event.createdBy && (
-              <View style={styles.soloEventWarning}>
-                <Text style={styles.soloEventWarningText}>
-                  📊 Solo Event - No metrics recorded
-                </Text>
-              </View>
-            )}
+            {event?.subscribers?.length === 1 &&
+              event.subscribers[0] === event.createdBy && (
+                <View style={styles.soloEventWarning}>
+                  <Text style={styles.soloEventWarningText}>
+                    📊 Solo Event - No metrics recorded
+                  </Text>
+                </View>
+              )}
           </View>
         </View>
 
@@ -261,10 +310,8 @@ export default function AttendanceScreen({ route, navigation }) {
 
         {/* Attendance List */}
         <View style={styles.attendanceList}>
-          <Text style={styles.sectionTitle}>
-            RSVPs ({rsvpUsers.length})
-          </Text>
-          
+          <Text style={styles.sectionTitle}>RSVPs ({rsvpUsers.length})</Text>
+
           {rsvpUsers.map((user) => (
             <AttendanceCard
               key={user.id}

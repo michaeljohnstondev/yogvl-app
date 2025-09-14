@@ -13,9 +13,12 @@ import {
 } from 'react-native';
 import { VibeInput, VibeButton, QRCodeGenerator } from '../../../components/ui';
 import theme from '../../../theme/themes';
-import { getDeviceContacts, hasContactPermission } from '../../../lib/contactService';
+import {
+  getDeviceContacts,
+  hasContactPermission,
+} from '../../../lib/contactService';
 
-export default function InviteGuests({ 
+export default function InviteGuests({
   onInviteUsers,
   onInviteContacts,
   onInvitePhoneContacts,
@@ -25,7 +28,7 @@ export default function InviteGuests({
   eventId,
   inviteCode,
   studioId,
-  style 
+  style,
 }) {
   const [activeTab, setActiveTab] = useState('friends'); // 'friends', 'phone', or 'qr'
   const [searchQuery, setSearchQuery] = useState('');
@@ -38,7 +41,9 @@ export default function InviteGuests({
   ]);
 
   const [localSelectedUsers, setLocalSelectedUsers] = useState(selectedUsers);
-  const [localSelectedPhoneContacts, setLocalSelectedPhoneContacts] = useState(selectedPhoneContacts);
+  const [localSelectedPhoneContacts, setLocalSelectedPhoneContacts] = useState(
+    selectedPhoneContacts
+  );
 
   // Real device contacts state
   const [phoneContacts, setPhoneContacts] = useState([]);
@@ -46,15 +51,17 @@ export default function InviteGuests({
   const [contactsLoaded, setContactsLoaded] = useState(false);
 
   // Filter friends based on search query
-  const filteredFriends = friends.filter(friend =>
-    friend.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    friend.email.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredFriends = friends.filter(
+    (friend) =>
+      friend.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      friend.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Filter phone contacts based on search query
-  const filteredPhoneContacts = phoneContacts.filter(contact =>
-    contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (contact.phone && contact.phone.includes(searchQuery))
+  const filteredPhoneContacts = phoneContacts.filter(
+    (contact) =>
+      contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (contact.phone && contact.phone.includes(searchQuery))
   );
 
   // Load device contacts when phone tab is accessed
@@ -80,46 +87,49 @@ export default function InviteGuests({
 
   // Handle user selection
   const toggleUserSelection = (user) => {
-    const isSelected = localSelectedUsers.some(u => u.id === user.id);
+    const isSelected = localSelectedUsers.some((u) => u.id === user.id);
     let updated;
-    
+
     if (isSelected) {
-      updated = localSelectedUsers.filter(u => u.id !== user.id);
+      updated = localSelectedUsers.filter((u) => u.id !== user.id);
     } else {
       updated = [...localSelectedUsers, user];
     }
-    
+
     setLocalSelectedUsers(updated);
     onInviteUsers && onInviteUsers(updated);
   };
 
   // Handle phone contact selection
   const togglePhoneContactSelection = (contact) => {
-    const isSelected = localSelectedPhoneContacts.some(c => c.id === contact.id);
+    const isSelected = localSelectedPhoneContacts.some(
+      (c) => c.id === contact.id
+    );
     let updated;
-    
+
     if (isSelected) {
-      updated = localSelectedPhoneContacts.filter(c => c.id !== contact.id);
+      updated = localSelectedPhoneContacts.filter((c) => c.id !== contact.id);
     } else {
       updated = [...localSelectedPhoneContacts, contact];
     }
-    
+
     setLocalSelectedPhoneContacts(updated);
     onInvitePhoneContacts && onInvitePhoneContacts(updated);
   };
 
-
   // Remove phone contact
   const removePhoneContact = (contactId) => {
-    const updated = localSelectedPhoneContacts.filter(c => c.id !== contactId);
+    const updated = localSelectedPhoneContacts.filter(
+      (c) => c.id !== contactId
+    );
     setLocalSelectedPhoneContacts(updated);
     onInvitePhoneContacts && onInvitePhoneContacts(updated);
   };
 
   // Render friend item
   const renderFriendItem = ({ item }) => {
-    const isSelected = localSelectedUsers.some(u => u.id === item.id);
-    
+    const isSelected = localSelectedUsers.some((u) => u.id === item.id);
+
     return (
       <TouchableOpacity
         style={[styles.friendItem, isSelected && styles.selectedFriendItem]}
@@ -141,8 +151,8 @@ export default function InviteGuests({
 
   // Render phone contact item
   const renderPhoneContactItem = ({ item }) => {
-    const isSelected = localSelectedPhoneContacts.some(c => c.id === item.id);
-    
+    const isSelected = localSelectedPhoneContacts.some((c) => c.id === item.id);
+
     return (
       <TouchableOpacity
         style={[styles.friendItem, isSelected && styles.selectedFriendItem]}
@@ -161,7 +171,6 @@ export default function InviteGuests({
       </TouchableOpacity>
     );
   };
-
 
   // Render selected phone contact item
   const renderSelectedPhoneContactItem = ({ item }) => (
@@ -199,7 +208,7 @@ export default function InviteGuests({
     <View style={[styles.container, style]}>
       {/* Header */}
       <Text style={styles.title}>Invite Guests</Text>
-      
+
       {/* Tabs */}
       <View style={styles.tabContainer}>
         {renderTabButton('friends', 'App')}
@@ -222,9 +231,7 @@ export default function InviteGuests({
           <View style={styles.friendsList}>
             {filteredFriends.length > 0 ? (
               filteredFriends.map((item) => (
-                <View key={item.id}>
-                  {renderFriendItem({ item })}
-                </View>
+                <View key={item.id}>{renderFriendItem({ item })}</View>
               ))
             ) : (
               <Text style={styles.emptyText}>No friends found</Text>
@@ -268,7 +275,9 @@ export default function InviteGuests({
                   </View>
                 ) : (
                   <View style={styles.emptyContainer}>
-                    <Text style={styles.emptyText}>Tap to load your contacts</Text>
+                    <Text style={styles.emptyText}>
+                      Tap to load your contacts
+                    </Text>
                     <VibeButton
                       label="Load Contacts"
                       onPress={loadDeviceContacts}
@@ -286,7 +295,7 @@ export default function InviteGuests({
       {activeTab === 'qr' && (
         <View style={styles.tabContent}>
           <Text style={styles.qrTitle}>Share with QR Codes</Text>
-          
+
           {/* Event QR Code for App Users */}
           {inviteCode && (
             <View style={styles.qrSection}>
@@ -302,7 +311,7 @@ export default function InviteGuests({
               </Text>
             </View>
           )}
-          
+
           {/* App Download QR Code for New Users */}
           {studioId && eventId && (
             <View style={styles.qrSection}>

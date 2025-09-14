@@ -25,11 +25,12 @@ import { banEnforcementService } from '../../services/banEnforcementService';
 export default function CreateEventScreen({ navigation, route }) {
   const { currentUserId, userData } = useAuth();
   const vibeAlert = useVibeAlert();
-  
+
   // Track if event was successfully created to allow navigation
-  const [eventCreatedSuccessfully, setEventCreatedSuccessfully] = useState(false);
+  const [eventCreatedSuccessfully, setEventCreatedSuccessfully] =
+    useState(false);
   const isNavigatingBackRef = useRef(false);
-  
+
   // Ban enforcement state
   const [banStatus, setBanStatus] = useState(null);
   const [showBannedModal, setShowBannedModal] = useState(false);
@@ -49,8 +50,10 @@ export default function CreateEventScreen({ navigation, route }) {
     hasInitialized.current = true;
 
     // Get user hosting defaults - they always exist because defaultUserSettings initializes them
-    const hostingDefaults = userData?.userdata?.settings?.notifications?.hosting;
-    const baseFormData = preservedFormState?.formData || templateFromEvent || {};
+    const hostingDefaults =
+      userData?.userdata?.settings?.notifications?.hosting;
+    const baseFormData =
+      preservedFormState?.formData || templateFromEvent || {};
 
     // Use user's hosting defaults directly (deep copy)
     stableFormRef.current = {
@@ -63,16 +66,19 @@ export default function CreateEventScreen({ navigation, route }) {
   const [selectedTextContacts, setSelectedTextContacts] = useState(
     stableSelectedContacts.current
   );
-  
+
   // Guest invitation selections
   const [selectedGuestUsers, setSelectedGuestUsers] = useState([]);
   const [selectedGuestContacts, setSelectedGuestContacts] = useState([]);
-  const [selectedGuestPhoneContacts, setSelectedGuestPhoneContacts] = useState([]);
-  
-  // Co-host invitation selections  
+  const [selectedGuestPhoneContacts, setSelectedGuestPhoneContacts] = useState(
+    []
+  );
+
+  // Co-host invitation selections
   const [selectedCohostUsers, setSelectedCohostUsers] = useState([]);
   const [selectedCohostContacts, setSelectedCohostContacts] = useState([]);
-  const [selectedCohostPhoneContacts, setSelectedCohostPhoneContacts] = useState([]);
+  const [selectedCohostPhoneContacts, setSelectedCohostPhoneContacts] =
+    useState([]);
 
   // Handle selected text contacts change
   const handleSelectedTextContactsChange = useCallback((contacts) => {
@@ -81,20 +87,27 @@ export default function CreateEventScreen({ navigation, route }) {
 
   // Handle guest invitation selections from InviteScreen
   const handleGuestInvitationChange = useCallback((selections) => {
-    console.log('[CreateEventScreen] Guest invitation selections received:', selections);
+    console.log(
+      '[CreateEventScreen] Guest invitation selections received:',
+      selections
+    );
     if (selections.users) setSelectedGuestUsers(selections.users);
     if (selections.contacts) setSelectedGuestContacts(selections.contacts);
-    if (selections.phoneContacts) setSelectedGuestPhoneContacts(selections.phoneContacts);
+    if (selections.phoneContacts)
+      setSelectedGuestPhoneContacts(selections.phoneContacts);
   }, []);
 
   // Handle co-host invitation selections from InviteScreen
   const handleCohostInvitationChange = useCallback((selections) => {
-    console.log('[CreateEventScreen] Co-host invitation selections received:', selections);
+    console.log(
+      '[CreateEventScreen] Co-host invitation selections received:',
+      selections
+    );
     if (selections.users) setSelectedCohostUsers(selections.users);
     if (selections.contacts) setSelectedCohostContacts(selections.contacts);
-    if (selections.phoneContacts) setSelectedCohostPhoneContacts(selections.phoneContacts);
+    if (selections.phoneContacts)
+      setSelectedCohostPhoneContacts(selections.phoneContacts);
   }, []);
-
 
   // Event form hook (handles all creation logic)
   const { isSubmitting, submitEvent } = useEventForm();
@@ -154,8 +167,8 @@ export default function CreateEventScreen({ navigation, route }) {
     getFieldData,
     loadSuggestions,
   } = useSuggestionsManager(
-    updateField, 
-    appendToDetails, 
+    updateField,
+    appendToDetails,
     userData?.userdata?.studios?.default?.studioId || 'greenville_sc'
   );
 
@@ -222,78 +235,102 @@ export default function CreateEventScreen({ navigation, route }) {
   // Check if form has meaningful user input (not just default/empty values)
   const hasActualChanges = useCallback(() => {
     // Check for any text content in main fields
-    const hasTextContent = formData.title.trim() || 
-                          formData.location.trim() || 
-                          formData.address.trim() || 
-                          formData.details.trim() || 
-                          formData.maxGuests.toString().trim();
-    
+    const hasTextContent =
+      formData.title.trim() ||
+      formData.location.trim() ||
+      formData.address.trim() ||
+      formData.details.trim() ||
+      formData.maxGuests.toString().trim();
+
     // Check for any configuration changes from defaults (compare against DEFAULT values)
-    const hasConfigChanges = formData.hasFee !== false || 
-                            formData.isPrivate !== false || 
-                            formData.showHostContact !== false || 
-                            formData.hasRsvpDeadline !== false || 
-                            formData.trackAttendance !== true ||
-                            (formData.entryFee && String(formData.entryFee).trim());
-    
+    const hasConfigChanges =
+      formData.hasFee !== false ||
+      formData.isPrivate !== false ||
+      formData.showHostContact !== false ||
+      formData.hasRsvpDeadline !== false ||
+      formData.trackAttendance !== true ||
+      (formData.entryFee && String(formData.entryFee).trim());
+
     // Check for any invitations/guests
-    const hasInvitations = selectedGuestUsers.length > 0 || 
-                         selectedGuestContacts.length > 0 || 
-                         selectedGuestPhoneContacts.length > 0 ||
-                         selectedCohostUsers.length > 0 ||
-                         selectedCohostContacts.length > 0 ||
-                         selectedCohostPhoneContacts.length > 0 ||
-                         selectedTextContacts.length > 0;
-    
+    const hasInvitations =
+      selectedGuestUsers.length > 0 ||
+      selectedGuestContacts.length > 0 ||
+      selectedGuestPhoneContacts.length > 0 ||
+      selectedCohostUsers.length > 0 ||
+      selectedCohostContacts.length > 0 ||
+      selectedCohostPhoneContacts.length > 0 ||
+      selectedTextContacts.length > 0;
+
     // Check for date/time changes (if they exist and differ from defaults)
-    const hasDateTimeChanges = dateTimeValues && 
-                              (dateTimeValues.startDate || dateTimeValues.startTime || 
-                               dateTimeValues.endDate || dateTimeValues.endTime);
-    
-    return hasTextContent || hasConfigChanges || hasInvitations || hasDateTimeChanges;
-  }, [formData, selectedGuestUsers, selectedGuestContacts, selectedGuestPhoneContacts, selectedCohostUsers, selectedCohostContacts, selectedCohostPhoneContacts, selectedTextContacts, dateTimeValues]);
+    const hasDateTimeChanges =
+      dateTimeValues &&
+      (dateTimeValues.startDate ||
+        dateTimeValues.startTime ||
+        dateTimeValues.endDate ||
+        dateTimeValues.endTime);
+
+    return (
+      hasTextContent || hasConfigChanges || hasInvitations || hasDateTimeChanges
+    );
+  }, [
+    formData,
+    selectedGuestUsers,
+    selectedGuestContacts,
+    selectedGuestPhoneContacts,
+    selectedCohostUsers,
+    selectedCohostContacts,
+    selectedCohostPhoneContacts,
+    selectedTextContacts,
+    dateTimeValues,
+  ]);
 
   // Handle back navigation confirmation logic
-  const handleBackNavigation = useCallback((onConfirm) => {
-    // Allow navigation if event was successfully created or already navigating
-    if (eventCreatedSuccessfully || isNavigatingBackRef.current) {
+  const handleBackNavigation = useCallback(
+    (onConfirm) => {
+      // Allow navigation if event was successfully created or already navigating
+      if (eventCreatedSuccessfully || isNavigatingBackRef.current) {
+        if (onConfirm) onConfirm();
+        return false;
+      }
+
+      // Only show confirmation if user has made actual meaningful changes
+      if (hasActualChanges()) {
+        // Show confirmation dialog when form has changes
+        vibeAlert.confirm(
+          'Discard Changes?',
+          'You have unsaved changes. Are you sure you want to go back?',
+          () => {
+            // Set flag to prevent re-triggering and execute navigation
+            isNavigatingBackRef.current = true;
+            if (onConfirm) {
+              onConfirm();
+            }
+          },
+          () => {
+            // Do nothing - stay on screen
+          }
+        );
+        return true; // Prevent navigation
+      }
+
+      // Allow navigation when form is empty/default
       if (onConfirm) onConfirm();
       return false;
-    }
-    
-    // Only show confirmation if user has made actual meaningful changes
-    if (hasActualChanges()) {
-      // Show confirmation dialog when form has changes
-      vibeAlert.confirm(
-        'Discard Changes?',
-        'You have unsaved changes. Are you sure you want to go back?',
-        () => {
-          // Set flag to prevent re-triggering and execute navigation
-          isNavigatingBackRef.current = true;
-          if (onConfirm) {
-            onConfirm();
-          }
-        },
-        () => {
-          // Do nothing - stay on screen
-        }
-      );
-      return true; // Prevent navigation
-    }
-    
-    // Allow navigation when form is empty/default
-    if (onConfirm) onConfirm();
-    return false;
-  }, [eventCreatedSuccessfully, hasActualChanges, vibeAlert]);
+    },
+    [eventCreatedSuccessfully, hasActualChanges, vibeAlert]
+  );
 
   // Handle hardware back button
   useFocusEffect(
     useCallback(() => {
-      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-        // Always handle the back press ourselves and prevent default behavior
-        handleBackNavigation(() => navigation.goBack());
-        return true; // Always prevent default back behavior
-      });
+      const backHandler = BackHandler.addEventListener(
+        'hardwareBackPress',
+        () => {
+          // Always handle the back press ourselves and prevent default behavior
+          handleBackNavigation(() => navigation.goBack());
+          return true; // Always prevent default back behavior
+        }
+      );
       return () => backHandler.remove();
     }, [handleBackNavigation, navigation])
   );
@@ -306,11 +343,11 @@ export default function CreateEventScreen({ navigation, route }) {
         if (isNavigatingBackRef.current || eventCreatedSuccessfully) {
           return;
         }
-        
+
         const shouldPrevent = handleBackNavigation(() => {
           navigation.dispatch(e.data.action);
         });
-        
+
         if (shouldPrevent) {
           e.preventDefault();
         }
@@ -327,17 +364,21 @@ export default function CreateEventScreen({ navigation, route }) {
       const combinedFormData = {
         ...formData,
         // Only include date/time in templates if actually selected
-        ...(dateTimeValues.event.selected ? {
-          date: dateTimeValues.event.value,
-          dateSelected: dateTimeValues.event.selected,
-          time: dateTimeValues.event.value,
-          timeSelected: dateTimeValues.event.selected,
-        } : {}),
-        ...(dateTimeValues.rsvpDeadline.selected ? {
-          rsvpDeadline: dateTimeValues.rsvpDeadline.value,
-          rsvpDeadlineSelected: dateTimeValues.rsvpDeadline.selected,
-        } : {}),
-        
+        ...(dateTimeValues.event.selected
+          ? {
+              date: dateTimeValues.event.value,
+              dateSelected: dateTimeValues.event.selected,
+              time: dateTimeValues.event.value,
+              timeSelected: dateTimeValues.event.selected,
+            }
+          : {}),
+        ...(dateTimeValues.rsvpDeadline.selected
+          ? {
+              rsvpDeadline: dateTimeValues.rsvpDeadline.value,
+              rsvpDeadlineSelected: dateTimeValues.rsvpDeadline.selected,
+            }
+          : {}),
+
         // Include all invitation data in the template
         selectedGuestUsers,
         selectedGuestContacts,
@@ -350,10 +391,10 @@ export default function CreateEventScreen({ navigation, route }) {
 
       // Use the template service which handles undefined value cleaning
       const { saveEventTemplate } = await import('../services/templates');
-      
+
       await saveEventTemplate(currentUserId, {
         name: templateName,
-        payload: combinedFormData
+        payload: combinedFormData,
       });
 
       vibeAlert.cyan(
@@ -365,10 +406,10 @@ export default function CreateEventScreen({ navigation, route }) {
       vibeAlert.error('Error', error.message || 'Failed to save template');
     }
   }, [
-    formData, 
-    dateTimeValues, 
-    templateName, 
-    closeSaveModal, 
+    formData,
+    dateTimeValues,
+    templateName,
+    closeSaveModal,
     currentUserId,
     selectedGuestUsers,
     selectedGuestContacts,
@@ -419,7 +460,9 @@ export default function CreateEventScreen({ navigation, route }) {
           setSelectedGuestContacts(templateFormData.selectedGuestContacts);
         }
         if (templateFormData.selectedGuestPhoneContacts) {
-          setSelectedGuestPhoneContacts(templateFormData.selectedGuestPhoneContacts);
+          setSelectedGuestPhoneContacts(
+            templateFormData.selectedGuestPhoneContacts
+          );
         }
         if (templateFormData.selectedCohostUsers) {
           setSelectedCohostUsers(templateFormData.selectedCohostUsers);
@@ -428,27 +471,37 @@ export default function CreateEventScreen({ navigation, route }) {
           setSelectedCohostContacts(templateFormData.selectedCohostContacts);
         }
         if (templateFormData.selectedCohostPhoneContacts) {
-          setSelectedCohostPhoneContacts(templateFormData.selectedCohostPhoneContacts);
+          setSelectedCohostPhoneContacts(
+            templateFormData.selectedCohostPhoneContacts
+          );
         }
         if (templateFormData.selectedTextContacts) {
           setSelectedTextContacts(templateFormData.selectedTextContacts);
         }
 
         // Apply date/time if present in template and valid
-        if ((templateFormData.date && templateFormData.date !== null) || (templateFormData.time && templateFormData.time !== null)) {
-          const templateDateTime = templateFormData.date || templateFormData.time;
-          
+        if (
+          (templateFormData.date && templateFormData.date !== null) ||
+          (templateFormData.time && templateFormData.time !== null)
+        ) {
+          const templateDateTime =
+            templateFormData.date || templateFormData.time;
+
           // Ensure templateDateTime is a valid Date object
-          const validTemplateDate = templateDateTime instanceof Date && !isNaN(templateDateTime) 
-            ? templateDateTime 
-            : new Date(templateDateTime);
-          
+          const validTemplateDate =
+            templateDateTime instanceof Date && !isNaN(templateDateTime)
+              ? templateDateTime
+              : new Date(templateDateTime);
+
           // If still invalid, skip template date/time
           if (isNaN(validTemplateDate)) {
-            console.warn('Invalid template date/time, skipping:', templateDateTime);
+            console.warn(
+              'Invalid template date/time, skipping:',
+              templateDateTime
+            );
             return;
           }
-          
+
           const now = new Date();
 
           // If template date is in the past, adjust it to be in the future
@@ -524,18 +577,22 @@ export default function CreateEventScreen({ navigation, route }) {
   const handleSuccess = useCallback(() => {
     loadSuggestions();
     resetDateTime();
-    
+
     // Set flag to allow navigation
     setEventCreatedSuccessfully(true);
 
     vibeAlert.aqua(
       'Event Created!',
       'Your event is live! You are automatically subscribed. 🌊',
-      [{ text: 'OK', onPress: () => {
-          // Navigation should now work because eventCreatedSuccessfully is true
-          navigation.goBack();
-        }
-      }]
+      [
+        {
+          text: 'OK',
+          onPress: () => {
+            // Navigation should now work because eventCreatedSuccessfully is true
+            navigation.goBack();
+          },
+        },
+      ]
     );
   }, [loadSuggestions, resetForm, resetDateTime, navigation]);
 
@@ -550,7 +607,7 @@ export default function CreateEventScreen({ navigation, route }) {
         cohostContacts: selectedCohostContacts,
         cohostPhoneContacts: selectedCohostPhoneContacts,
         textContacts: [...selectedTextContacts, ...selectedCohostPhoneContacts],
-        defaultMessage: formData.invitationMessage || '' // Optional custom invitation message
+        defaultMessage: formData.invitationMessage || '', // Optional custom invitation message
       };
 
       console.log(`[CreateEventScreen] Selected invitations:`, {
@@ -560,7 +617,13 @@ export default function CreateEventScreen({ navigation, route }) {
         cohostUsers: selectedCohostUsers.length,
         cohostPhoneContacts: selectedCohostPhoneContacts.length,
         textContacts: selectedTextContacts.length,
-        totalInvitations: selectedGuestUsers.length + selectedGuestContacts.length + selectedGuestPhoneContacts.length + selectedCohostUsers.length + selectedCohostPhoneContacts.length + selectedTextContacts.length
+        totalInvitations:
+          selectedGuestUsers.length +
+          selectedGuestContacts.length +
+          selectedGuestPhoneContacts.length +
+          selectedCohostUsers.length +
+          selectedCohostPhoneContacts.length +
+          selectedTextContacts.length,
       });
 
       await submitEvent({
@@ -642,10 +705,18 @@ export default function CreateEventScreen({ navigation, route }) {
         onGuestInvitationChange={handleGuestInvitationChange}
         onCohostInvitationChange={handleCohostInvitationChange}
         // Current invitation counts for UI display
-        selectedGuestCount={selectedGuestUsers.length + selectedGuestContacts.length + selectedGuestPhoneContacts.length}
-        selectedCohostCount={selectedCohostUsers.length + selectedCohostContacts.length + selectedCohostPhoneContacts.length}
+        selectedGuestCount={
+          selectedGuestUsers.length +
+          selectedGuestContacts.length +
+          selectedGuestPhoneContacts.length
+        }
+        selectedCohostCount={
+          selectedCohostUsers.length +
+          selectedCohostContacts.length +
+          selectedCohostPhoneContacts.length
+        }
       />
-      
+
       {/* Template Selection Modal */}
       <TemplateSelectionModal
         visible={showSelectionModal}

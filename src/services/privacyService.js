@@ -1,20 +1,20 @@
 // privacyService.js - Privacy checking utilities
 import { checkIfFollowing, checkIfMutualFollows } from './followService';
-import { 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
+import {
+  collection,
+  query,
+  where,
+  getDocs,
   limit,
   doc,
-  getDoc 
+  getDoc,
 } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 
 export const VISIBILITY_LEVELS = {
   NEVER: 'never',
-  FRIENDS: 'friends', 
-  ALWAYS: 'always'
+  FRIENDS: 'friends',
+  ALWAYS: 'always',
 };
 
 /**
@@ -24,7 +24,11 @@ export const VISIBILITY_LEVELS = {
  * @param {string} visibilityLevel - Privacy setting value ('never', 'friends', 'always')
  * @returns {Promise<boolean>} Whether the viewer can see the information
  */
-export const canViewUserInfo = async (viewerId, targetUserId, visibilityLevel) => {
+export const canViewUserInfo = async (
+  viewerId,
+  targetUserId,
+  visibilityLevel
+) => {
   // User can always see their own information
   if (viewerId === targetUserId) {
     return true;
@@ -33,13 +37,13 @@ export const canViewUserInfo = async (viewerId, targetUserId, visibilityLevel) =
   switch (visibilityLevel) {
     case VISIBILITY_LEVELS.NEVER:
       return false;
-      
+
     case VISIBILITY_LEVELS.ALWAYS:
       return true;
-      
+
     case VISIBILITY_LEVELS.FRIENDS:
       return await checkIfMutualFollows(viewerId, targetUserId);
-      
+
     default:
       // Default to everyone if invalid setting (open social system)
       return true;
@@ -56,11 +60,14 @@ export const getVisibleContactInfo = async (viewerId, targetUserData) => {
   const targetUserId = targetUserData?.uid;
   const contactInfo = targetUserData?.userdata?.contactInfo || {};
   const privacySettings = targetUserData?.userdata?.settings?.privacy || {};
-  
+
   // Default privacy settings if not set
-  const emailVisibility = privacySettings.emailVisibility || VISIBILITY_LEVELS.FRIENDS;
-  const phoneVisibility = privacySettings.phoneVisibility || VISIBILITY_LEVELS.FRIENDS;
-  const locationVisibility = privacySettings.locationVisibility || VISIBILITY_LEVELS.ALWAYS;
+  const emailVisibility =
+    privacySettings.emailVisibility || VISIBILITY_LEVELS.FRIENDS;
+  const phoneVisibility =
+    privacySettings.phoneVisibility || VISIBILITY_LEVELS.FRIENDS;
+  const locationVisibility =
+    privacySettings.locationVisibility || VISIBILITY_LEVELS.ALWAYS;
 
   const visibleInfo = {
     firstName: contactInfo.firstName,
@@ -73,14 +80,16 @@ export const getVisibleContactInfo = async (viewerId, targetUserData) => {
     visibleInfo.email = contactInfo.email;
   }
 
-  // Check phone visibility  
+  // Check phone visibility
   if (await canViewUserInfo(viewerId, targetUserId, phoneVisibility)) {
     visibleInfo.phone = contactInfo.phone || contactInfo.phoneNumber;
   }
 
   // Check location visibility (studio info)
   if (await canViewUserInfo(viewerId, targetUserId, locationVisibility)) {
-    visibleInfo.location = targetUserData?.location || targetUserData?.userdata?.studios?.default?.studioName;
+    visibleInfo.location =
+      targetUserData?.location ||
+      targetUserData?.userdata?.studios?.default?.studioName;
   }
 
   return visibleInfo;
@@ -100,7 +109,7 @@ export const canViewUserStats = async (viewerId, targetUserData) => {
 /**
  * Check if user can see event history
  * @param {string} viewerId - ID of user trying to view history
- * @param {Object} targetUserData - Target user's full data  
+ * @param {Object} targetUserData - Target user's full data
  * @returns {Promise<boolean>} Whether event history should be visible
  */
 export const canViewEventHistory = async (viewerId, targetUserData) => {
@@ -137,16 +146,16 @@ export const isProfileDiscoverable = (userData) => {
  */
 export const filterUsersForDisplay = async (viewerId, users) => {
   const filteredUsers = [];
-  
+
   for (const user of users) {
     // Skip users who have private profiles (unless it's the viewer)
     if (user.id !== viewerId && !isProfileDiscoverable(user)) {
       continue;
     }
-    
+
     // Get visible contact info
     const visibleContactInfo = await getVisibleContactInfo(viewerId, user);
-    
+
     filteredUsers.push({
       ...user,
       visibleContactInfo,
@@ -155,7 +164,7 @@ export const filterUsersForDisplay = async (viewerId, users) => {
       canViewFollowerCounts: canViewFollowerCounts(viewerId, user),
     });
   }
-  
+
   return filteredUsers;
 };
 
@@ -166,7 +175,11 @@ export const filterUsersForDisplay = async (viewerId, users) => {
  * @param {string} userPhone - User's phone number (optional)
  * @returns {Promise<boolean>} Whether user has invitation
  */
-export const hasInvitationToEvent = async (userId, eventId, userPhone = null) => {
+export const hasInvitationToEvent = async (
+  userId,
+  eventId,
+  userPhone = null
+) => {
   try {
     // Check for user invitation
     const userInviteQuery = query(
@@ -176,12 +189,12 @@ export const hasInvitationToEvent = async (userId, eventId, userPhone = null) =>
       where('status', '==', 'pending'),
       limit(1)
     );
-    
+
     const userInviteSnapshot = await getDocs(userInviteQuery);
     if (!userInviteSnapshot.empty) {
       return true;
     }
-    
+
     // Check for phone invitation if phone number provided
     if (userPhone) {
       const normalizedPhone = userPhone.replace(/[^\d+]/g, '');
@@ -192,13 +205,13 @@ export const hasInvitationToEvent = async (userId, eventId, userPhone = null) =>
         where('status', '==', 'pending'),
         limit(1)
       );
-      
+
       const phoneInviteSnapshot = await getDocs(phoneInviteQuery);
       if (!phoneInviteSnapshot.empty) {
         return true;
       }
     }
-    
+
     return false;
   } catch (error) {
     console.error('Error checking event invitation:', error);
@@ -217,11 +230,11 @@ export const isUserSubscribedToEvent = async (userId, eventId, studioId) => {
   try {
     const eventRef = doc(db, 'studios', studioId, 'events', eventId);
     const eventDoc = await getDoc(eventRef);
-    
+
     if (!eventDoc.exists()) {
       return false;
     }
-    
+
     const eventData = eventDoc.data();
     const subscribers = eventData.subscribers || [];
     return subscribers.includes(userId);
@@ -243,11 +256,11 @@ export const isUserSubscribedToEvent = async (userId, eventId, studioId) => {
  * @returns {Promise<Object>} { canAccess: boolean, reason: string }
  */
 export const canUserAccessEvent = async (
-  userId, 
-  eventId, 
-  studioId, 
-  eventData = null, 
-  hostData = null, 
+  userId,
+  eventId,
+  studioId,
+  eventData = null,
+  hostData = null,
   userPhone = null,
   inviteCode = null
 ) => {
@@ -256,68 +269,86 @@ export const canUserAccessEvent = async (
     if (!eventData) {
       const eventRef = doc(db, 'studios', studioId, 'events', eventId);
       const eventDoc = await getDoc(eventRef);
-      
+
       if (!eventDoc.exists()) {
         return { canAccess: false, reason: 'Event not found' };
       }
-      
+
       eventData = eventDoc.data();
     }
-    
+
     // Check if event is active
     if (!eventData.active) {
       return { canAccess: false, reason: 'Event is cancelled' };
     }
-    
+
     // 1. User is the host - always allow
     if (userId === eventData.createdBy) {
       return { canAccess: true, reason: 'Event host' };
     }
-    
+
     // 2. User is already subscribed - always allow
-    const isSubscribed = await isUserSubscribedToEvent(userId, eventId, studioId);
+    const isSubscribed = await isUserSubscribedToEvent(
+      userId,
+      eventId,
+      studioId
+    );
     if (isSubscribed) {
       return { canAccess: true, reason: 'Already subscribed' };
     }
-    
+
     // 3. User has an invitation - allows access regardless of other settings
-    const hasInvitation = await hasInvitationToEvent(userId, eventId, userPhone);
+    const hasInvitation = await hasInvitationToEvent(
+      userId,
+      eventId,
+      userPhone
+    );
     if (hasInvitation) {
       return { canAccess: true, reason: 'Has invitation' };
     }
-    
+
     // 3a. Check if user's phone is in event's invited phones list (fast check)
     if (eventData.invitedPhones && eventData.invitedPhones.length > 0) {
       const { normalizePhoneNumber } = await import('./phoneAccessService');
-      
+
       // Check user's display phone number
       if (userPhone) {
         const normalizedPhone = normalizePhoneNumber(userPhone);
-        if (normalizedPhone && eventData.invitedPhones.includes(normalizedPhone)) {
+        if (
+          normalizedPhone &&
+          eventData.invitedPhones.includes(normalizedPhone)
+        ) {
           return { canAccess: true, reason: 'Phone invited to event' };
         }
       }
-      
+
       // Also check user's verified phone number if different
       // Get user data to check verified phone
       const userRef = doc(db, 'users', userId);
       const userDoc = await getDoc(userRef);
       const userData = userDoc.exists() ? userDoc.data() : null;
       const verifiedPhone = userData?.userdata?.contactInfo?.verifiedPhone;
-      
+
       if (verifiedPhone && verifiedPhone !== userPhone) {
         const normalizedVerified = normalizePhoneNumber(verifiedPhone);
-        if (normalizedVerified && eventData.invitedPhones.includes(normalizedVerified)) {
+        if (
+          normalizedVerified &&
+          eventData.invitedPhones.includes(normalizedVerified)
+        ) {
           return { canAccess: true, reason: 'Verified phone invited to event' };
         }
       }
     }
-    
+
     // 4. Valid invite code provided - allows access regardless of other settings
-    if (inviteCode && eventData.inviteCode === inviteCode && eventData.inviteCodeEnabled) {
+    if (
+      inviteCode &&
+      eventData.inviteCode === inviteCode &&
+      eventData.inviteCodeEnabled
+    ) {
       return { canAccess: true, reason: 'Valid invite code' };
     }
-    
+
     // 5. Public event - check host's friend requirements
     if (!eventData.isPrivate) {
       // Get host data if not provided
@@ -326,26 +357,32 @@ export const canUserAccessEvent = async (
         const hostDoc = await getDoc(hostRef);
         hostData = hostDoc.exists() ? hostDoc.data() : null;
       }
-      
+
       // Check if host requires friends for events
-      const requiresFriends = hostData?.userdata?.settings?.privacy?.requireFollowForEvents || false;
-      
+      const requiresFriends =
+        hostData?.userdata?.settings?.privacy?.requireFollowForEvents || false;
+
       if (!requiresFriends) {
         return { canAccess: true, reason: 'Public event' };
       }
-      
+
       // Check if user is friends with host (mutual follows)
-      const areFriends = await checkIfMutualFollows(userId, eventData.createdBy);
+      const areFriends = await checkIfMutualFollows(
+        userId,
+        eventData.createdBy
+      );
       if (areFriends) {
         return { canAccess: true, reason: 'Friends with host' };
       }
-      
-      return { canAccess: false, reason: 'Host requires friendship to see events' };
+
+      return {
+        canAccess: false,
+        reason: 'Host requires friendship to see events',
+      };
     }
-    
+
     // 6. Private event - only invited users or friends can access
     return { canAccess: false, reason: 'Private event - invitation required' };
-    
   } catch (error) {
     console.error('Error checking event access:', error);
     return { canAccess: false, reason: 'Error checking access' };

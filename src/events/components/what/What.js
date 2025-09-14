@@ -5,7 +5,7 @@ import { View, Text } from 'react-native';
 import {
   VibeInput,
   VibeSegmentedControl,
-  VibeAutoComplete
+  VibeAutoComplete,
 } from '../../../components/ui/base';
 
 export const What = ({

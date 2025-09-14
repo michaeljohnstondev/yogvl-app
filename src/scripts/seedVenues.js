@@ -9,10 +9,10 @@ export const seedVenues = async () => {
     console.log('Starting venue seeding process...');
     await VenueService.seedGreenvilleVenues();
     console.log('✅ Venue seeding completed successfully!');
-    
+
     // You can run this from the React Native debugger console:
     // seedVenues();
-    
+
     return { success: true, message: 'Venues seeded successfully' };
   } catch (error) {
     console.error('❌ Error seeding venues:', error);

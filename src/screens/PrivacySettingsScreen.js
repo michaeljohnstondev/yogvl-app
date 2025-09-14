@@ -19,34 +19,42 @@ import theme from '../theme/themes';
 const VISIBILITY_OPTIONS = {
   NEVER: 'never',
   FRIENDS: 'friends',
-  ALWAYS: 'always'
+  ALWAYS: 'always',
 };
 
 const VISIBILITY_LABELS = {
   [VISIBILITY_OPTIONS.NEVER]: 'Never',
   [VISIBILITY_OPTIONS.FRIENDS]: 'Mutual Friends Only',
-  [VISIBILITY_OPTIONS.ALWAYS]: 'Everyone'
+  [VISIBILITY_OPTIONS.ALWAYS]: 'Everyone',
 };
 
 function PrivacySettings({ navigation }) {
   const { userData, currentUserId } = useAuth();
   const vibeAlert = useVibeAlert();
-  
+
   const [settings, setSettings] = useState({
     // Contact Information Visibility
-    emailVisibility: userData?.userdata?.settings?.privacy?.emailVisibility ?? VISIBILITY_OPTIONS.FRIENDS,
-    phoneVisibility: userData?.userdata?.settings?.privacy?.phoneVisibility ?? VISIBILITY_OPTIONS.FRIENDS,
-    locationVisibility: userData?.userdata?.settings?.privacy?.locationVisibility ?? VISIBILITY_OPTIONS.ALWAYS,
-    
-    
-    
+    emailVisibility:
+      userData?.userdata?.settings?.privacy?.emailVisibility ??
+      VISIBILITY_OPTIONS.FRIENDS,
+    phoneVisibility:
+      userData?.userdata?.settings?.privacy?.phoneVisibility ??
+      VISIBILITY_OPTIONS.FRIENDS,
+    locationVisibility:
+      userData?.userdata?.settings?.privacy?.locationVisibility ??
+      VISIBILITY_OPTIONS.ALWAYS,
+
     // Event Privacy
-    requireFollowForEvents: userData?.userdata?.settings?.privacy?.requireFollowForEvents ?? false,
-    
+    requireFollowForEvents:
+      userData?.userdata?.settings?.privacy?.requireFollowForEvents ?? false,
+
     // Data & Analytics
-    dataCollectionConsent: userData?.userdata?.settings?.privacy?.dataCollectionConsent ?? true,
-    shareLocation: userData?.userdata?.settings?.privacy?.shareLocation ?? false,
-    personalizedAds: userData?.userdata?.settings?.privacy?.personalizedAds ?? true,
+    dataCollectionConsent:
+      userData?.userdata?.settings?.privacy?.dataCollectionConsent ?? true,
+    shareLocation:
+      userData?.userdata?.settings?.privacy?.shareLocation ?? false,
+    personalizedAds:
+      userData?.userdata?.settings?.privacy?.personalizedAds ?? true,
   });
 
   const [hasChanges, setHasChanges] = useState(false);
@@ -56,10 +64,10 @@ function PrivacySettings({ navigation }) {
   const [loadingBlocked, setLoadingBlocked] = useState(true);
 
   const toggleSetting = (key) => {
-    setSettings(prev => {
+    setSettings((prev) => {
       const newSettings = {
         ...prev,
-        [key]: !prev[key]
+        [key]: !prev[key],
       };
       setHasChanges(true);
       return newSettings;
@@ -67,10 +75,10 @@ function PrivacySettings({ navigation }) {
   };
 
   const updateVisibilitySetting = (key, value) => {
-    setSettings(prev => {
+    setSettings((prev) => {
       const newSettings = {
         ...prev,
-        [key]: value
+        [key]: value,
       };
       setHasChanges(true);
       return newSettings;
@@ -86,7 +94,7 @@ function PrivacySettings({ navigation }) {
         const result = await blockingService.getBlockedUsers(currentUserId);
         if (result.blockedUsers) {
           setBlockedUsers(result.blockedUsers);
-          
+
           // Load user data for blocked users
           const usersData = [];
           for (const userId of result.blockedUsers) {
@@ -97,10 +105,14 @@ function PrivacySettings({ navigation }) {
                 const contactInfo = userData.userdata?.contactInfo || {};
                 usersData.push({
                   id: userId,
-                  name: contactInfo.firstName && contactInfo.lastName 
-                    ? `${contactInfo.firstName} ${contactInfo.lastName}`
-                    : contactInfo.firstName || contactInfo.email || userData.email || 'User',
-                  email: contactInfo.email || userData.email
+                  name:
+                    contactInfo.firstName && contactInfo.lastName
+                      ? `${contactInfo.firstName} ${contactInfo.lastName}`
+                      : contactInfo.firstName ||
+                        contactInfo.email ||
+                        userData.email ||
+                        'User',
+                  email: contactInfo.email || userData.email,
                 });
               }
             } catch (error) {
@@ -125,13 +137,21 @@ function PrivacySettings({ navigation }) {
       `Unblock ${userName}? They will be able to see your profile again.`,
       async () => {
         try {
-          const result = await blockingService.unblockUser(currentUserId, userId);
+          const result = await blockingService.unblockUser(
+            currentUserId,
+            userId
+          );
           if (result.success) {
-            setBlockedUsers(prev => prev.filter(id => id !== userId));
-            setBlockedUsersData(prev => prev.filter(user => user.id !== userId));
+            setBlockedUsers((prev) => prev.filter((id) => id !== userId));
+            setBlockedUsersData((prev) =>
+              prev.filter((user) => user.id !== userId)
+            );
             vibeAlert.success('Unblocked', `You have unblocked ${userName}.`);
           } else {
-            vibeAlert.error('Error', 'Failed to unblock user. Please try again.');
+            vibeAlert.error(
+              'Error',
+              'Failed to unblock user. Please try again.'
+            );
           }
         } catch (error) {
           console.error('Error unblocking user:', error);
@@ -143,22 +163,27 @@ function PrivacySettings({ navigation }) {
 
   const saveSettings = async () => {
     if (!currentUserId) return;
-    
+
     setSaving(true);
     try {
       const userRef = doc(db, 'users', currentUserId);
       await updateDoc(userRef, {
         'userdata.settings.privacy': settings,
-        'userdata.settings.lastUpdated': new Date()
+        'userdata.settings.lastUpdated': new Date(),
       });
-      
+
       setHasChanges(false);
-      vibeAlert.success('Settings Saved', 'Your privacy preferences have been updated successfully.');
+      vibeAlert.success(
+        'Settings Saved',
+        'Your privacy preferences have been updated successfully.'
+      );
       console.log('[PrivacySettings] Privacy settings saved successfully');
-      
     } catch (error) {
       console.error('[PrivacySettings] Error saving privacy settings:', error);
-      vibeAlert.error('Error', 'Failed to save privacy settings. Please try again.');
+      vibeAlert.error(
+        'Error',
+        'Failed to save privacy settings. Please try again.'
+      );
     } finally {
       setSaving(false);
     }
@@ -170,8 +195,8 @@ function PrivacySettings({ navigation }) {
       'Are you sure you want to reset all privacy settings to their defaults? This cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Reset', 
+        {
+          text: 'Reset',
           style: 'destructive',
           onPress: () => {
             setSettings({
@@ -184,14 +209,20 @@ function PrivacySettings({ navigation }) {
               personalizedAds: true,
             });
             setHasChanges(true);
-          }
-        }
+          },
+        },
       ]
     );
   };
 
   // Simple toggle setting component
-  const SettingItem = ({ title, description, value, onToggle, isLast = false }) => (
+  const SettingItem = ({
+    title,
+    description,
+    value,
+    onToggle,
+    isLast = false,
+  }) => (
     <View style={[styles.settingItem, !isLast && styles.settingBorder]}>
       <View style={styles.settingContent}>
         <Text style={styles.settingTitle}>{title}</Text>
@@ -210,7 +241,13 @@ function PrivacySettings({ navigation }) {
   );
 
   // Visibility picker component
-  const VisibilitySettingItem = ({ title, description, value, onValueChange, isLast = false }) => (
+  const VisibilitySettingItem = ({
+    title,
+    description,
+    value,
+    onValueChange,
+    isLast = false,
+  }) => (
     <View style={[styles.settingItem, !isLast && styles.settingBorder]}>
       <View style={styles.settingContent}>
         <Text style={styles.settingTitle}>{title}</Text>
@@ -221,14 +258,16 @@ function PrivacySettings({ navigation }) {
               key={key}
               style={[
                 styles.visibilityOption,
-                value === optionValue && styles.visibilityOptionSelected
+                value === optionValue && styles.visibilityOptionSelected,
               ]}
               onPress={() => onValueChange(optionValue)}
             >
-              <Text style={[
-                styles.visibilityOptionText,
-                value === optionValue && styles.visibilityOptionTextSelected
-              ]}>
+              <Text
+                style={[
+                  styles.visibilityOptionText,
+                  value === optionValue && styles.visibilityOptionTextSelected,
+                ]}
+              >
                 {VISIBILITY_LABELS[optionValue]}
               </Text>
             </TouchableOpacity>
@@ -260,26 +299,31 @@ function PrivacySettings({ navigation }) {
             title="Email Address"
             description="Email address visibility"
             value={settings.emailVisibility}
-            onValueChange={(value) => updateVisibilitySetting('emailVisibility', value)}
+            onValueChange={(value) =>
+              updateVisibilitySetting('emailVisibility', value)
+            }
           />
           <VisibilitySettingItem
             title="Phone Number"
             description="Phone number visibility"
             value={settings.phoneVisibility}
-            onValueChange={(value) => updateVisibilitySetting('phoneVisibility', value)}
+            onValueChange={(value) =>
+              updateVisibilitySetting('phoneVisibility', value)
+            }
           />
           <VisibilitySettingItem
             title="Location"
             description="Location information visibility"
             value={settings.locationVisibility}
-            onValueChange={(value) => updateVisibilitySetting('locationVisibility', value)}
+            onValueChange={(value) =>
+              updateVisibilitySetting('locationVisibility', value)
+            }
             isLast
           />
         </View>
       </View>
 
       {/* Profile Privacy Section */}
-
 
       {/* Event Privacy Section */}
       <View style={styles.section}>
@@ -294,7 +338,6 @@ function PrivacySettings({ navigation }) {
           />
         </View>
       </View>
-
 
       {/* Data & Analytics Section */}
       <View style={styles.section}>
@@ -328,7 +371,9 @@ function PrivacySettings({ navigation }) {
         <View style={styles.settingsGroup}>
           {loadingBlocked ? (
             <View style={styles.blockedUserItem}>
-              <Text style={styles.blockedUserText}>Loading blocked users...</Text>
+              <Text style={styles.blockedUserText}>
+                Loading blocked users...
+              </Text>
             </View>
           ) : blockedUsersData.length === 0 ? (
             <View style={styles.blockedUserItem}>
@@ -336,11 +381,11 @@ function PrivacySettings({ navigation }) {
             </View>
           ) : (
             blockedUsersData.map((user, index) => (
-              <View 
-                key={user.id} 
+              <View
+                key={user.id}
                 style={[
-                  styles.blockedUserItem, 
-                  index < blockedUsersData.length - 1 && styles.settingBorder
+                  styles.blockedUserItem,
+                  index < blockedUsersData.length - 1 && styles.settingBorder,
                 ]}
               >
                 <View style={styles.blockedUserInfo}>
@@ -362,19 +407,16 @@ function PrivacySettings({ navigation }) {
       {/* Action Buttons */}
       <View style={styles.buttonContainer}>
         <VibeButton
-          label={saving ? "SAVING..." : "SAVE SETTINGS"}
+          label={saving ? 'SAVING...' : 'SAVE SETTINGS'}
           onPress={saveSettings}
           disabled={!hasChanges || saving}
           style={[
             styles.saveButton,
-            (!hasChanges || saving) && styles.disabledButton
+            (!hasChanges || saving) && styles.disabledButton,
           ]}
         />
-        
-        <TouchableOpacity
-          onPress={resetToDefaults}
-          style={styles.resetButton}
-        >
+
+        <TouchableOpacity onPress={resetToDefaults} style={styles.resetButton}>
           <Text style={styles.resetButtonText}>Reset to Defaults</Text>
         </TouchableOpacity>
       </View>
@@ -384,15 +426,21 @@ function PrivacySettings({ navigation }) {
         <Text style={styles.helpTitle}>Privacy Levels Explained</Text>
         <View style={styles.helpItem}>
           <Text style={styles.helpLabel}>• Never:</Text>
-          <Text style={styles.helpText}>Information is never visible to anyone</Text>
+          <Text style={styles.helpText}>
+            Information is never visible to anyone
+          </Text>
         </View>
         <View style={styles.helpItem}>
           <Text style={styles.helpLabel}>• Mutual Friends:</Text>
-          <Text style={styles.helpText}>Only people you both follow can see this</Text>
+          <Text style={styles.helpText}>
+            Only people you both follow can see this
+          </Text>
         </View>
         <View style={styles.helpItem}>
           <Text style={styles.helpLabel}>• Everyone:</Text>
-          <Text style={styles.helpText}>All app users can see this information</Text>
+          <Text style={styles.helpText}>
+            All app users can see this information
+          </Text>
         </View>
       </View>
     </ScrollView>
@@ -471,7 +519,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 15,
   },
-  
+
   // Visibility Options
   visibilityOptions: {
     flexDirection: 'row',
@@ -499,7 +547,7 @@ const styles = StyleSheet.create({
     color: theme.colors.vibeBlue,
     fontWeight: '600',
   },
-  
+
   // Buttons
   buttonContainer: {
     padding: 20,
@@ -521,7 +569,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  
+
   // Blocked Users Section
   blockedUserItem: {
     padding: 15,
@@ -558,7 +606,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  
+
   // Help Section
   helpSection: {
     paddingHorizontal: 20,

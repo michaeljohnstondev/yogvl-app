@@ -14,7 +14,7 @@ const AppUsersTab = ({
   searchQuery,
   setSearchQuery,
   localSelectedUsers,
-  
+
   // Group data
   customGroups,
   groupsLoading,
@@ -22,7 +22,7 @@ const AppUsersTab = ({
   setSelectedGroup,
   setShowGroupModal,
   selectGroup,
-  
+
   // Filter state
   showFavorites,
   setShowFavorites,
@@ -34,35 +34,38 @@ const AppUsersTab = ({
   setSelectedInterests,
   userInterestsMap,
   eventTitle,
-  
+
   // Selection
   toggleUserSelection,
   handleAvatarAction,
-  
+
   // UI state
   themeColor,
   themeBgColor,
   maxLimit,
   localSelectedContacts,
   localSelectedPhoneContacts,
-  
+
   // Event subscribers
   eventSubscribers = [],
   loadingSubscribers = false,
-  hasEventId = false
+  hasEventId = false,
 }) => {
   const filteredAppUsers = filterAndSortAppUsers(
-    appUsers, 
-    searchQuery, 
-    selectedGroup, 
-    showFavorites, 
-    showFriends, 
+    appUsers,
+    searchQuery,
+    selectedGroup,
+    showFavorites,
+    showFriends,
     showLocalNode,
     selectedInterests,
     userInterestsMap
   );
 
-  const totalSelected = localSelectedUsers.length + localSelectedContacts.length + localSelectedPhoneContacts.length;
+  const totalSelected =
+    localSelectedUsers.length +
+    localSelectedContacts.length +
+    localSelectedPhoneContacts.length;
   const hasReachedLimit = maxLimit && totalSelected >= maxLimit;
 
   if (loadingAppUsers) {
@@ -99,7 +102,6 @@ const AppUsersTab = ({
         setShowLocalNode={setShowLocalNode}
       />
 
-      
       <VibeInput
         placeholder="Search app users..."
         value={searchQuery}
@@ -111,16 +113,18 @@ const AppUsersTab = ({
       {hasEventId && eventSubscribers.length > 0 && !loadingSubscribers && (
         <View style={styles.subscriberFilterInfo}>
           <Text style={styles.subscriberFilterText}>
-            {eventSubscribers.length} user{eventSubscribers.length === 1 ? '' : 's'} already attending this event {eventSubscribers.length === 1 ? 'is' : 'are'} hidden
+            {eventSubscribers.length} user
+            {eventSubscribers.length === 1 ? '' : 's'} already attending this
+            event {eventSubscribers.length === 1 ? 'is' : 'are'} hidden
           </Text>
         </View>
       )}
-      
+
       <View style={styles.itemsList}>
         {filteredAppUsers.map((item) => {
-          const isSelected = localSelectedUsers.some(u => u.id === item.id);
+          const isSelected = localSelectedUsers.some((u) => u.id === item.id);
           const canSelect = !isSelected && !hasReachedLimit;
-          
+
           return (
             <View key={item.id}>
               <UserListItem

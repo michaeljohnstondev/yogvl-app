@@ -1,15 +1,15 @@
 // interestService.js - User Interest Management Service
 
-import { 
-  doc, 
-  updateDoc, 
-  getDoc, 
-  collection, 
-  query, 
-  getDocs, 
-  arrayUnion, 
+import {
+  doc,
+  updateDoc,
+  getDoc,
+  collection,
+  query,
+  getDocs,
+  arrayUnion,
   arrayRemove,
-  where 
+  where,
 } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 
@@ -26,26 +26,24 @@ export const getUserInterests = async (userId) => {
 
     const userRef = doc(db, 'users', userId);
     const userSnap = await getDoc(userRef);
-    
+
     if (!userSnap.exists()) {
       return [];
     }
 
     const userData = userSnap.data();
     const interests = userData?.preferences?.interests || [];
-    
+
     // If user has no preferences structure, initialize it
     if (!userData?.preferences) {
       try {
         await updateDoc(userRef, {
-          'preferences.interests': []
+          'preferences.interests': [],
         });
-      } catch (error) {
-      }
+      } catch (error) {}
     }
-    
+
     return interests;
-    
   } catch (error) {
     return [];
   }
@@ -69,34 +67,35 @@ export const addUserInterest = async (userId, interest) => {
     }
 
     const userRef = doc(db, 'users', userId);
-    
+
     // First check if interest already exists (case insensitive comparison)
     const currentInterests = await getUserInterests(userId);
-    const existingInterest = currentInterests.find(existing => existing.toLowerCase() === trimmedInterest.toLowerCase());
-    
+    const existingInterest = currentInterests.find(
+      (existing) => existing.toLowerCase() === trimmedInterest.toLowerCase()
+    );
+
     if (existingInterest) {
       // If exact match (same case), no need to update
       if (existingInterest === trimmedInterest) {
         return true;
       }
-      
+
       // If case mismatch, update to new capitalization
       await updateDoc(userRef, {
-        'preferences.interests': arrayRemove(existingInterest)
+        'preferences.interests': arrayRemove(existingInterest),
       });
       await updateDoc(userRef, {
-        'preferences.interests': arrayUnion(trimmedInterest)
+        'preferences.interests': arrayUnion(trimmedInterest),
       });
       return true;
     }
 
     // Add new interest
     await updateDoc(userRef, {
-      'preferences.interests': arrayUnion(trimmedInterest) // Keep original case
+      'preferences.interests': arrayUnion(trimmedInterest), // Keep original case
     });
 
     return true;
-    
   } catch (error) {
     return false;
   }
@@ -115,13 +114,12 @@ export const removeUserInterest = async (userId, interest) => {
     }
 
     const userRef = doc(db, 'users', userId);
-    
+
     await updateDoc(userRef, {
-      'preferences.interests': arrayRemove(interest)
+      'preferences.interests': arrayRemove(interest),
     });
 
     return true;
-    
   } catch (error) {
     return false;
   }
@@ -141,14 +139,14 @@ export const getStudioInterests = async (studioId) => {
     // Get all users in the studio
     const studioRef = doc(db, 'studios', studioId);
     const studioSnap = await getDoc(studioRef);
-    
+
     if (!studioSnap.exists()) {
       return [];
     }
 
     const studioData = studioSnap.data();
     const userIds = studioData.users || [];
-    
+
     if (userIds.length === 0) {
       return [];
     }
@@ -157,23 +155,27 @@ export const getStudioInterests = async (studioId) => {
     const interestCounts = {};
     const interestOriginalCase = {}; // Track original case for display
     const batchSize = 10;
-    
+
     for (let i = 0; i < userIds.length; i += batchSize) {
       const batch = userIds.slice(i, i + batchSize);
-      const userPromises = batch.map(uid => getDoc(doc(db, 'users', uid)));
+      const userPromises = batch.map((uid) => getDoc(doc(db, 'users', uid)));
       const userSnaps = await Promise.all(userPromises);
-      
-      userSnaps.forEach(userSnap => {
+
+      userSnaps.forEach((userSnap) => {
         if (userSnap.exists()) {
           const userData = userSnap.data();
           const interests = userData?.preferences?.interests || [];
-          
-          interests.forEach(interest => {
+
+          interests.forEach((interest) => {
             const normalizedInterest = interest.toLowerCase().trim();
-            interestCounts[normalizedInterest] = (interestCounts[normalizedInterest] || 0) + 1;
-            
+            interestCounts[normalizedInterest] =
+              (interestCounts[normalizedInterest] || 0) + 1;
+
             // Keep track of the most common case (first one seen or most frequent)
-            if (!interestOriginalCase[normalizedInterest] || interest.trim().length > 0) {
+            if (
+              !interestOriginalCase[normalizedInterest] ||
+              interest.trim().length > 0
+            ) {
               interestOriginalCase[normalizedInterest] = interest.trim();
             }
           });
@@ -183,14 +185,13 @@ export const getStudioInterests = async (studioId) => {
 
     // Convert to array and sort by popularity, using original case for display
     const popularInterests = Object.entries(interestCounts)
-      .map(([normalizedInterest, count]) => ({ 
-        interest: interestOriginalCase[normalizedInterest], 
-        count 
+      .map(([normalizedInterest, count]) => ({
+        interest: interestOriginalCase[normalizedInterest],
+        count,
       }))
       .sort((a, b) => b.count - a.count);
 
     return popularInterests;
-    
   } catch (error) {
     return [];
   }
@@ -203,54 +204,62 @@ export const getStudioInterests = async (studioId) => {
  * @param {string} excludeUserId - User ID to exclude from results
  * @returns {Promise<string[]>} Array of user IDs who have matching interests
  */
-export const findUsersWithInterests = async (studioId, interests, excludeUserId = null) => {
+export const findUsersWithInterests = async (
+  studioId,
+  interests,
+  excludeUserId = null
+) => {
   try {
     if (!studioId || !interests || interests.length === 0) {
       return [];
     }
 
-    const normalizedInterests = interests.map(interest => interest.toLowerCase().trim());
-    
+    const normalizedInterests = interests.map((interest) =>
+      interest.toLowerCase().trim()
+    );
+
     // Get all users in the studio
     const studioRef = doc(db, 'studios', studioId);
     const studioSnap = await getDoc(studioRef);
-    
+
     if (!studioSnap.exists()) {
       return [];
     }
 
     const studioData = studioSnap.data();
     const userIds = studioData.users || [];
-    
+
     if (userIds.length === 0) {
       return [];
     }
 
     // Filter out excluded user
-    const targetUserIds = excludeUserId 
-      ? userIds.filter(uid => uid !== excludeUserId)
+    const targetUserIds = excludeUserId
+      ? userIds.filter((uid) => uid !== excludeUserId)
       : userIds;
 
     // Check each user's interests
     const matchingUserIds = [];
     const batchSize = 10;
-    
+
     for (let i = 0; i < targetUserIds.length; i += batchSize) {
       const batch = targetUserIds.slice(i, i + batchSize);
-      const userPromises = batch.map(uid => getDoc(doc(db, 'users', uid)));
+      const userPromises = batch.map((uid) => getDoc(doc(db, 'users', uid)));
       const userSnaps = await Promise.all(userPromises);
-      
+
       userSnaps.forEach((userSnap, index) => {
         if (userSnap.exists()) {
           const userData = userSnap.data();
           const userInterests = userData?.preferences?.interests || [];
-          const normalizedUserInterests = userInterests.map(interest => interest.toLowerCase().trim());
-          
+          const normalizedUserInterests = userInterests.map((interest) =>
+            interest.toLowerCase().trim()
+          );
+
           // Check if user has any matching interests
-          const hasMatchingInterest = normalizedInterests.some(interest => 
+          const hasMatchingInterest = normalizedInterests.some((interest) =>
             normalizedUserInterests.includes(interest)
           );
-          
+
           if (hasMatchingInterest) {
             matchingUserIds.push(batch[index]);
           }
@@ -259,7 +268,6 @@ export const findUsersWithInterests = async (studioId, interests, excludeUserId 
     }
 
     return matchingUserIds;
-    
   } catch (error) {
     return [];
   }
@@ -272,15 +280,41 @@ export const findUsersWithInterests = async (studioId, interests, excludeUserId 
  */
 export const extractInterestsFromEventTitle = (eventTitle) => {
   if (!eventTitle) return [];
-  
+
   const title = eventTitle.toLowerCase().trim();
   const commonInterests = [
-    'Basketball', 'Football', 'Soccer', 'Tennis', 'Pickleball', 'Baseball',
-    'Volleyball', 'Golf', 'Swimming', 'Running', 'Yoga', 'Fitness',
-    'Music', 'Dance', 'Art', 'Painting', 'Photography', 'Cooking',
-    'Gaming', 'Chess', 'Poker', 'Trivia', 'Karaoke', 'Comedy',
-    'Hiking', 'Biking', 'Climbing', 'Skating', 'Surfing'
+    'Basketball',
+    'Football',
+    'Soccer',
+    'Tennis',
+    'Pickleball',
+    'Baseball',
+    'Volleyball',
+    'Golf',
+    'Swimming',
+    'Running',
+    'Yoga',
+    'Fitness',
+    'Music',
+    'Dance',
+    'Art',
+    'Painting',
+    'Photography',
+    'Cooking',
+    'Gaming',
+    'Chess',
+    'Poker',
+    'Trivia',
+    'Karaoke',
+    'Comedy',
+    'Hiking',
+    'Biking',
+    'Climbing',
+    'Skating',
+    'Surfing',
   ];
-  
-  return commonInterests.filter(interest => title.includes(interest.toLowerCase()));
+
+  return commonInterests.filter((interest) =>
+    title.includes(interest.toLowerCase())
+  );
 };

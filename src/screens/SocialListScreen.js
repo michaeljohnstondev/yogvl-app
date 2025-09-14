@@ -7,29 +7,30 @@ import { useAuth } from '../auth/AuthContext';
 import { useSocialList } from '../hooks/useSocialList';
 import { useUserSearch } from '../hooks/useUserSearch';
 import { useFollowActions } from '../hooks/useFollowActions';
-import { getSocialListTitle, getSocialListEmptyMessage, getSocialListPlaceholder } from '../lib/socialUtils';
+import {
+  getSocialListTitle,
+  getSocialListEmptyMessage,
+  getSocialListPlaceholder,
+} from '../lib/socialUtils';
 import theme from '../theme/themes';
 
 const SocialListScreen = ({ navigation, route }) => {
   const { userId, type, onStatsChange } = route.params;
   const { currentUserId, userData } = useAuth();
-  
+
   // Use custom hooks
   const { users, loading, loadUsers } = useSocialList(userId, type);
-  const { searchQuery, setSearchQuery, filteredUsers, hasSearch } = useUserSearch(users);
-  const { actionLoading, handleFollow, handleUnfollow, isActionLoading } = useFollowActions(
-    currentUserId, 
-    userData, 
-    onStatsChange, 
-    loadUsers
-  );
-  
+  const { searchQuery, setSearchQuery, filteredUsers, hasSearch } =
+    useUserSearch(users);
+  const { actionLoading, handleFollow, handleUnfollow, isActionLoading } =
+    useFollowActions(currentUserId, userData, onStatsChange, loadUsers);
+
   const title = getSocialListTitle(type);
 
   const handleUserPress = (user) => {
-    navigation.navigate('HostProfile', { 
+    navigation.navigate('HostProfile', {
       hostData: user,
-      currentUserId: currentUserId
+      currentUserId: currentUserId,
     });
   };
 
@@ -47,10 +48,7 @@ const SocialListScreen = ({ navigation, route }) => {
   if (loading) {
     return (
       <View style={styles.container}>
-        <ScreenHeader 
-          title={title}
-          onClose={() => navigation.goBack()}
-        />
+        <ScreenHeader title={title} onClose={() => navigation.goBack()} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.vibeBlue} />
         </View>
@@ -59,16 +57,17 @@ const SocialListScreen = ({ navigation, route }) => {
   }
 
   const showEmptyState = users.length === 0;
-  const showNoResults = !showEmptyState && filteredUsers.length === 0 && hasSearch;
+  const showNoResults =
+    !showEmptyState && filteredUsers.length === 0 && hasSearch;
 
   return (
     <View style={styles.container}>
-      <ScreenHeader 
+      <ScreenHeader
         title={title}
         count={users.length}
         onClose={() => navigation.goBack()}
       />
-      
+
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <VibeInput
@@ -78,7 +77,7 @@ const SocialListScreen = ({ navigation, route }) => {
           style={styles.searchInput}
         />
       </View>
-      
+
       {showEmptyState ? (
         <EmptyState message={getSocialListEmptyMessage(type)} />
       ) : showNoResults ? (
@@ -87,7 +86,7 @@ const SocialListScreen = ({ navigation, route }) => {
         <FlatList
           data={filteredUsers}
           renderItem={renderUser}
-          keyExtractor={item => item.id}
+          keyExtractor={(item) => item.id}
           style={styles.list}
           showsVerticalScrollIndicator={false}
         />

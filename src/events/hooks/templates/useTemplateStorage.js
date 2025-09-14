@@ -46,8 +46,10 @@ export const useTemplateStorage = (userId) => {
       const templatesRef = getTemplatesCollectionRef();
       const q = query(templatesRef, orderBy('createdAt', 'desc'));
       const querySnapshot = await getDocs(q);
-      
-      console.log(`[TEMPLATE STORAGE] Loaded ${querySnapshot.docs.length} templates for user ${userId}`);
+
+      console.log(
+        `[TEMPLATE STORAGE] Loaded ${querySnapshot.docs.length} templates for user ${userId}`
+      );
 
       const templates = [];
       querySnapshot.forEach((doc) => {
@@ -118,8 +120,14 @@ export const useTemplateStorage = (userId) => {
       setError(null);
 
       try {
-        const templateRef = doc(db, 'users', userId, 'eventTemplates', templateId);
-        
+        const templateRef = doc(
+          db,
+          'users',
+          userId,
+          'eventTemplates',
+          templateId
+        );
+
         const updateData = {
           ...updates,
           updatedAt: Timestamp.now(),
@@ -152,7 +160,13 @@ export const useTemplateStorage = (userId) => {
       setError(null);
 
       try {
-        const templateRef = doc(db, 'users', userId, 'eventTemplates', templateId);
+        const templateRef = doc(
+          db,
+          'users',
+          userId,
+          'eventTemplates',
+          templateId
+        );
         await deleteDoc(templateRef);
         return templateId;
       } catch (err) {

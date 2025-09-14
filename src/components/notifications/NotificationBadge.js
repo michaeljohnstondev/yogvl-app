@@ -4,7 +4,12 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import theme from '../../theme/themes';
 
-const NotificationBadge = React.memo(function NotificationBadge({ count, style, textStyle, maxCount = 99 }) {
+const NotificationBadge = React.memo(function NotificationBadge({
+  count,
+  style,
+  textStyle,
+  maxCount = 99,
+}) {
   if (!count || count <= 0) {
     return null;
   }
@@ -13,9 +18,7 @@ const NotificationBadge = React.memo(function NotificationBadge({ count, style, 
 
   return (
     <View style={[styles.badge, style]}>
-      <Text style={[styles.badgeText, textStyle]}>
-        {displayCount}
-      </Text>
+      <Text style={[styles.badgeText, textStyle]}>{displayCount}</Text>
     </View>
   );
 });

@@ -45,7 +45,13 @@ export default function NotificationSettingsForm({
 
   // Default templates that get created when user is initialized
   const defaultReminderTemplates = [
-    { id: '15min', amount: 15, unit: 'minutes', enabled: true, label: '15 min' },
+    {
+      id: '15min',
+      amount: 15,
+      unit: 'minutes',
+      enabled: true,
+      label: '15 min',
+    },
     { id: '1hour', amount: 1, unit: 'hours', enabled: true, label: '1 hour' },
     { id: '1day', amount: 1, unit: 'days', enabled: false, label: '1 day' },
   ];
@@ -71,49 +77,60 @@ export default function NotificationSettingsForm({
   const toggleSetting = (key) => {
     onUpdateSettings({
       ...settings,
-      [key]: !settings?.[key]
+      [key]: !settings?.[key],
     });
   };
 
   const toggleReminder = (reminder) => {
     const currentTemplates = getCurrentTemplates();
-    const updatedTemplates = currentTemplates.map(template => 
-      template.id === reminder.id 
+    const updatedTemplates = currentTemplates.map((template) =>
+      template.id === reminder.id
         ? { ...template, enabled: !template.enabled }
         : template
     );
-    
+
     onUpdateSettings({
       ...settings,
-      reminderTemplates: updatedTemplates
+      reminderTemplates: updatedTemplates,
     });
   };
 
   const addCustomReminder = () => {
     const amount = parseInt(customAmount);
-    
+
     // Validation
     if (!customAmount || customAmount.trim() === '') {
       vibeAlert.warning('Invalid Input', 'Please enter a number');
       return;
     }
-    
+
     if (!amount || amount <= 0) {
-      vibeAlert.warning('Invalid Input', 'Please enter a number greater than 0');
+      vibeAlert.warning(
+        'Invalid Input',
+        'Please enter a number greater than 0'
+      );
       return;
     }
-    
+
     if (amount > 999) {
-      vibeAlert.warning('Invalid Input', 'Please enter a number less than 1000');
+      vibeAlert.warning(
+        'Invalid Input',
+        'Please enter a number less than 1000'
+      );
       return;
     }
 
     const currentTemplates = getCurrentTemplates();
-    
+
     // Check for duplicates
-    const duplicate = currentTemplates.find(r => r.amount === amount && r.unit === customUnit);
+    const duplicate = currentTemplates.find(
+      (r) => r.amount === amount && r.unit === customUnit
+    );
     if (duplicate) {
-      vibeAlert.warning('Duplicate Reminder', `A reminder for "${amount} ${amount === 1 ? customUnit.slice(0, -1) : customUnit}" already exists`);
+      vibeAlert.warning(
+        'Duplicate Reminder',
+        `A reminder for "${amount} ${amount === 1 ? customUnit.slice(0, -1) : customUnit}" already exists`
+      );
       return;
     }
 
@@ -123,14 +140,14 @@ export default function NotificationSettingsForm({
       amount,
       unit: customUnit,
       enabled: true,
-      label: `${amount} ${unitText}`
+      label: `${amount} ${unitText}`,
     };
 
     const updatedTemplates = [...currentTemplates, newReminder];
-    
+
     onUpdateSettings({
       ...settings,
-      reminderTemplates: updatedTemplates
+      reminderTemplates: updatedTemplates,
     });
 
     // Reset form
@@ -139,14 +156,21 @@ export default function NotificationSettingsForm({
     setShowAddCustomForm(false);
   };
 
-
   const formatReminderText = (reminder, includeBefore = false) => {
     const { amount, unit } = reminder;
     const unitText = amount === 1 ? unit.slice(0, -1) : unit;
-    return includeBefore ? `${amount} ${unitText} before` : `${amount} ${unitText}`;
+    return includeBefore
+      ? `${amount} ${unitText} before`
+      : `${amount} ${unitText}`;
   };
 
-  const SettingItem = ({ title, description, value, onToggle, isLast = false }) => (
+  const SettingItem = ({
+    title,
+    description,
+    value,
+    onToggle,
+    isLast = false,
+  }) => (
     <View style={[styles.settingItem, !isLast && styles.settingBorder]}>
       <View style={styles.settingContent}>
         <Text style={styles.settingTitle}>{title}</Text>
@@ -196,7 +220,9 @@ export default function NotificationSettingsForm({
                       key={template.id}
                       style={[
                         styles.reminderButton,
-                        template.enabled ? styles.reminderButtonEnabled : styles.reminderButtonDisabled
+                        template.enabled
+                          ? styles.reminderButtonEnabled
+                          : styles.reminderButtonDisabled,
                       ]}
                       onPress={() => toggleReminder(template)}
                       onLongPress={() => {
@@ -205,27 +231,33 @@ export default function NotificationSettingsForm({
                           `Remove "${template.label}" notification completely?`,
                           () => {
                             const currentTemplates = getCurrentTemplates();
-                            const updatedTemplates = currentTemplates.filter(t => t.id !== template.id);
+                            const updatedTemplates = currentTemplates.filter(
+                              (t) => t.id !== template.id
+                            );
                             onUpdateSettings({
                               ...settings,
-                              reminderTemplates: updatedTemplates
+                              reminderTemplates: updatedTemplates,
                             });
                           }
                         );
                       }}
                       activeOpacity={0.7}
                     >
-                      <Text style={[
-                        styles.reminderButtonText,
-                        template.enabled ? styles.reminderButtonTextEnabled : styles.reminderButtonTextDisabled
-                      ]}>
+                      <Text
+                        style={[
+                          styles.reminderButtonText,
+                          template.enabled
+                            ? styles.reminderButtonTextEnabled
+                            : styles.reminderButtonTextDisabled,
+                        ]}
+                      >
                         {template.label}
                       </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               </View>
-              
+
               {/* Add Custom Notification */}
               {!showAddCustomForm ? (
                 <VibeButton
@@ -237,7 +269,9 @@ export default function NotificationSettingsForm({
                 />
               ) : (
                 <View style={styles.addCustomForm}>
-                  <Text style={styles.addCustomFormTitle}>Add Custom Notification</Text>
+                  <Text style={styles.addCustomFormTitle}>
+                    Add Custom Notification
+                  </Text>
                   <View style={styles.customFormRow}>
                     <VibeInput
                       value={customAmount}
@@ -286,7 +320,8 @@ export default function NotificationSettingsForm({
                       color="green"
                       style={[
                         styles.addReminderButton,
-                        (!customAmount || parseInt(customAmount) <= 0) && styles.addReminderButtonDisabled
+                        (!customAmount || parseInt(customAmount) <= 0) &&
+                          styles.addReminderButtonDisabled,
                       ]}
                     />
                   </View>
@@ -330,7 +365,9 @@ export default function NotificationSettingsForm({
                 style={styles.defaultsButton}
                 onPress={onSaveAsDefaults}
               >
-                <Text style={styles.defaultsButtonText}>Save as Default Settings</Text>
+                <Text style={styles.defaultsButtonText}>
+                  Save as Default Settings
+                </Text>
               </TouchableOpacity>
             </View>
           )}

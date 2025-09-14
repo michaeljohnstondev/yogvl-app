@@ -1,46 +1,57 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Animated, StyleSheet, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  Animated,
+  StyleSheet,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
+} from 'react-native';
 import {
   VibeInput,
   VibeButton,
-  VibeSegmentedControl
+  VibeSegmentedControl,
 } from '../components/ui/base';
 import { useNavigation } from '@react-navigation/native';
 import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
 import { login, signup } from '../auth/services/FirebaseAuthService';
 import { db } from '../auth/services/firebase';
 import { doc, setDoc } from 'firebase/firestore';
-import { getDefaultUserSettings, getDefaultUserMetrics } from '../services/defaultUserSettings';
+import {
+  getDefaultUserSettings,
+  getDefaultUserMetrics,
+} from '../services/defaultUserSettings';
 import theme from '../theme/themes';
 // Helper function to convert Firebase errors to human-friendly messages
 const getHumanFriendlyError = (error) => {
   const errorCode = error.code || error.message;
-  
+
   switch (errorCode) {
     case 'auth/user-not-found':
     case 'auth/invalid-email':
     case 'auth/wrong-password':
     case 'auth/invalid-credential':
-      return "Wrong email or password. Double-check and try again!";
-    
+      return 'Wrong email or password. Double-check and try again!';
+
     case 'auth/email-already-in-use':
-      return "This email is already registered. Try logging in instead!";
-    
+      return 'This email is already registered. Try logging in instead!';
+
     case 'auth/weak-password':
-      return "Choose a stronger password (at least 6 characters).";
-    
+      return 'Choose a stronger password (at least 6 characters).';
+
     case 'auth/too-many-requests':
-      return "Too many failed attempts. Try again in a few minutes.";
-    
+      return 'Too many failed attempts. Try again in a few minutes.';
+
     case 'auth/network-request-failed':
-      return "Connection issue. Check your internet and try again.";
-    
+      return 'Connection issue. Check your internet and try again.';
+
     case 'auth/user-disabled':
-      return "This account has been disabled. Contact support if you need help.";
-    
+      return 'This account has been disabled. Contact support if you need help.';
+
     default:
       // For any other errors, provide a generic friendly message
-      return "Something went wrong. Please try again!";
+      return 'Something went wrong. Please try again!';
   }
 };
 
@@ -109,13 +120,9 @@ export default function LandingScreen() {
         { merge: true }
       );
 
-      console.log('User document created successfully');
-      
-      // Navigate to ContactInfo after successful signup
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'ContactInfo' }],
-      });
+      console.log(
+        'User document created successfully - Navigation will handle routing'
+      );
     } catch (err) {
       console.error('Signup error:', err);
       vibeAlert.error('Signup Failed', getHumanFriendlyError(err));
@@ -125,57 +132,64 @@ export default function LandingScreen() {
   };
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.keyboardContainer}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContainer}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
+          <Text style={styles.title}>Big Vibe Studios</Text>
 
-      <Text style={styles.title}>Big Vibe Studios</Text>
+          {/* Auth Mode Toggle */}
+          <VibeSegmentedControl
+            options={[
+              { label: 'Sign Up', value: 'signup' },
+              { label: 'Log In', value: 'login' },
+            ]}
+            selectedValue={authMode}
+            onSelect={setAuthMode}
+            style={styles.authToggle}
+          />
 
-      {/* Auth Mode Toggle */}
-      <VibeSegmentedControl
-        options={[
-          { label: 'Sign Up', value: 'signup' },
-          { label: 'Log In', value: 'login' }
-        ]}
-        selectedValue={authMode}
-        onSelect={setAuthMode}
-        style={styles.authToggle}
-      />
+          {/* Email/Password Form */}
+          <VibeInput
+            placeholder="Email"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            onChangeText={setEmail}
+            value={email}
+            maxLength={254}
+            style={styles.authInput}
+          />
 
-      {/* Email/Password Form */}
-      <VibeInput
-        placeholder="Email"
-        keyboardType="email-address"
-        autoCapitalize="none"
-        onChangeText={setEmail}
-        value={email}
-        maxLength={254}
-        style={styles.authInput}
-      />
+          <VibeInput
+            placeholder="Password"
+            secureTextEntry
+            autoCapitalize="none"
+            onChangeText={setPassword}
+            value={password}
+            maxLength={128}
+            style={styles.authInput}
+          />
 
-      <VibeInput
-        placeholder="Password"
-        secureTextEntry
-        autoCapitalize="none"
-        onChangeText={setPassword}
-        value={password}
-        maxLength={128}
-        style={styles.authInput}
-      />
-
-      <VibeButton
-        label={loading ? (authMode === 'login' ? 'Signing In...' : 'Creating Account...') : (authMode === 'login' ? 'Sign In' : 'Sign Up')}
-        onPress={authMode === 'login' ? handleLogin : handleSignUp}
-        disabled={loading}
-        style={styles.authButton}
-      />
+          <VibeButton
+            label={
+              loading
+                ? authMode === 'login'
+                  ? 'Signing In...'
+                  : 'Creating Account...'
+                : authMode === 'login'
+                  ? 'Sign In'
+                  : 'Sign Up'
+            }
+            onPress={authMode === 'login' ? handleLogin : handleSignUp}
+            disabled={loading}
+            style={styles.authButton}
+          />
         </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>

@@ -11,14 +11,14 @@ import {
 import {
   VibeButton,
   VibeLoadingScreen,
-  VibeCarousel
+  VibeCarousel,
 } from '../components/ui/base';
 import {
   ProfileAvatar,
   EmptyStateView,
   AccountSettingsDropdown,
   BannedUserModal,
-  AdminNotificationModal
+  AdminNotificationModal,
 } from '../components/ui';
 import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
 import EventCard from '../events/components/EventCard';
@@ -40,7 +40,7 @@ export default function HomeScreen({ navigation }) {
   const [followedEvents, setFollowedEvents] = useState([]);
   const [suggestedEvents, setSuggestedEvents] = useState([]);
   const [pastEvents, setPastEvents] = useState([]);
-  
+
   // Ban enforcement state
   const [banStatus, setBanStatus] = useState(null);
   const [showBannedModal, setShowBannedModal] = useState(false);
@@ -48,7 +48,7 @@ export default function HomeScreen({ navigation }) {
   const [isLoading, setIsLoading] = useState(true);
   const [showAccountSettings, setShowAccountSettings] = useState(false);
   const [feedStats, setFeedStats] = useState(null);
-  
+
   // Admin notifications state
   const [currentNotification, setCurrentNotification] = useState(null);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
@@ -59,23 +59,27 @@ export default function HomeScreen({ navigation }) {
 
   // Memoize static components to prevent unnecessary re-renders
   const bellIcon = useMemo(() => <Text style={styles.bellIcon}>🔔</Text>, []);
-  const handleNotificationsPress = useCallback(() => navigation.navigate('Notifications'), [navigation]);
+  const handleNotificationsPress = useCallback(
+    () => navigation.navigate('Notifications'),
+    [navigation]
+  );
 
   useEffect(() => {
     const defaultStudio = userData?.userdata?.studios?.default;
     if (!defaultStudio?.studioId || !currentUserId) return; // Wait for user studio info and auth
-    
+
     // Check ban status first
     const checkBanStatus = async () => {
       setCheckingBanStatus(true);
       try {
-        const status = await banEnforcementService.checkBanStatus(currentUserId);
+        const status =
+          await banEnforcementService.checkBanStatus(currentUserId);
         setBanStatus(status);
-        
+
         if (status?.isBanned) {
           setShowBannedModal(true);
         }
-        
+
         setCheckingBanStatus(false);
         return status;
       } catch (error) {
@@ -84,10 +88,10 @@ export default function HomeScreen({ navigation }) {
         return { isBanned: false, error: true };
       }
     };
-    
+
     // Get user's studio
     const userStudio = defaultStudio.studioId;
-    
+
     // Load follow-based event feed (only if not banned)
     const loadEventFeed = async () => {
       setIsLoading(true);
@@ -95,7 +99,7 @@ export default function HomeScreen({ navigation }) {
         const feedData = await getEventFeed(currentUserId, userStudio, {
           followedLimit: 20,
           suggestedLimit: 15,
-          includeSubscribed: true
+          includeSubscribed: true,
         });
 
         // Separate events by category
@@ -105,13 +109,14 @@ export default function HomeScreen({ navigation }) {
         const suggested = [];
         const myPast = [];
 
-        feedData.subscribedEvents.forEach(event => {
-          const eventDate = event.eventTimestamp?.toDate() || new Date(event.utcDateTime);
+        feedData.subscribedEvents.forEach((event) => {
+          const eventDate =
+            event.eventTimestamp?.toDate() || new Date(event.utcDateTime);
           const enrichedEvent = {
             ...event,
-            isHostedByUser: event.createdBy === currentUserId
+            isHostedByUser: event.createdBy === currentUserId,
           };
-          
+
           if (eventDate >= now) {
             myUpcoming.push(enrichedEvent);
           } else {
@@ -120,26 +125,30 @@ export default function HomeScreen({ navigation }) {
         });
 
         // Add followed users' events (exclude events user has already subscribed to)
-        const subscribedEventIds = new Set(feedData.subscribedEvents.map(event => event.id));
-        
-        feedData.followedEvents.forEach(event => {
-          const eventDate = event.eventTimestamp?.toDate() || new Date(event.utcDateTime);
+        const subscribedEventIds = new Set(
+          feedData.subscribedEvents.map((event) => event.id)
+        );
+
+        feedData.followedEvents.forEach((event) => {
+          const eventDate =
+            event.eventTimestamp?.toDate() || new Date(event.utcDateTime);
           // Only add if it's upcoming AND user hasn't subscribed to it
           if (eventDate >= now && !subscribedEventIds.has(event.id)) {
             followed.push({
               ...event,
-              isHostedByUser: event.createdBy === currentUserId
+              isHostedByUser: event.createdBy === currentUserId,
             });
           }
         });
 
         // Add suggested events
-        feedData.suggestedEvents.forEach(event => {
-          const eventDate = event.eventTimestamp?.toDate() || new Date(event.utcDateTime);
+        feedData.suggestedEvents.forEach((event) => {
+          const eventDate =
+            event.eventTimestamp?.toDate() || new Date(event.utcDateTime);
           if (eventDate >= now) {
             suggested.push({
               ...event,
-              isHostedByUser: event.createdBy === currentUserId
+              isHostedByUser: event.createdBy === currentUserId,
             });
           }
         });
@@ -149,7 +158,6 @@ export default function HomeScreen({ navigation }) {
         setSuggestedEvents(suggested);
         setPastEvents(myPast.reverse()); // Most recent first
         setFeedStats(feedData.stats);
-        
       } catch (error) {
         console.error('[HomeScreen] Failed to load event feed:', error);
         vibeAlert.error('Error', 'Failed to load events. Please try again.');
@@ -162,14 +170,21 @@ export default function HomeScreen({ navigation }) {
     const checkAdminNotifications = async () => {
       try {
         // Check individual notifications first
-        const unacknowledgedNotifications = await adminNotificationService.getUnacknowledgedNotifications(currentUserId);
-        
+        const unacknowledgedNotifications =
+          await adminNotificationService.getUnacknowledgedNotifications(
+            currentUserId
+          );
+
         // Check global notifications
-        const globalMessages = await globalAdminService.getActiveGlobalMessages(currentUserId);
-        
+        const globalMessages =
+          await globalAdminService.getActiveGlobalMessages(currentUserId);
+
         // Combine and prioritize (global messages first, then individual)
-        const allNotifications = [...globalMessages, ...unacknowledgedNotifications];
-        
+        const allNotifications = [
+          ...globalMessages,
+          ...unacknowledgedNotifications,
+        ];
+
         if (allNotifications.length > 0) {
           // Show the most recent/highest priority notification
           const notification = allNotifications[0];
@@ -179,14 +194,17 @@ export default function HomeScreen({ navigation }) {
           setShowNotificationModal(true);
         }
       } catch (error) {
-        console.error('[HomeScreen] Error checking admin notifications:', error);
+        console.error(
+          '[HomeScreen] Error checking admin notifications:',
+          error
+        );
       }
     };
 
     // First check ban status, then load events if not banned, and check notifications
     const initializeHomeScreen = async () => {
       const status = await checkBanStatus();
-      
+
       // Only load events if user is not banned
       if (!status?.isBanned) {
         loadEventFeed();
@@ -194,9 +212,9 @@ export default function HomeScreen({ navigation }) {
         await checkAdminNotifications();
       }
     };
-    
+
     initializeHomeScreen();
-    
+
     // Real-time updates will be handled by useFocusEffect instead
     // to avoid unnecessary reloads from notification-related changes
     return () => {}; // No-op cleanup
@@ -205,20 +223,22 @@ export default function HomeScreen({ navigation }) {
   // Handle hardware back button to confirm app exit
   useFocusEffect(
     useCallback(() => {
-      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-        vibeAlert.confirm(
-          'Leave App?',
-          'Are you sure you want to exit Big Vibe Studios?',
-          () => {
-            BackHandler.exitApp();
-          }
-        );
-        return true; // Always prevent default back behavior
-      });
+      const backHandler = BackHandler.addEventListener(
+        'hardwareBackPress',
+        () => {
+          vibeAlert.confirm(
+            'Leave App?',
+            'Are you sure you want to exit Big Vibe Studios?',
+            () => {
+              BackHandler.exitApp();
+            }
+          );
+          return true; // Always prevent default back behavior
+        }
+      );
       return () => backHandler.remove();
     }, [vibeAlert])
   );
-
 
   // Check if user has no events at all
   const hasNoEvents =
@@ -238,19 +258,32 @@ export default function HomeScreen({ navigation }) {
       if (currentNotification) {
         // Handle global vs individual notifications
         if (currentNotification.isGlobal) {
-          await globalAdminService.acknowledgeGlobalMessage(currentUserId, currentNotification.id);
+          await globalAdminService.acknowledgeGlobalMessage(
+            currentUserId,
+            currentNotification.id
+          );
         } else {
-          await adminNotificationService.acknowledgeNotification(currentUserId, currentNotification.id);
+          await adminNotificationService.acknowledgeNotification(
+            currentUserId,
+            currentNotification.id
+          );
         }
-        
+
         setShowNotificationModal(false);
         setCurrentNotification(null);
-        
+
         // Check if there are more notifications to show
-        const individualNotifications = await adminNotificationService.getUnacknowledgedNotifications(currentUserId);
-        const globalMessages = await globalAdminService.getActiveGlobalMessages(currentUserId);
-        const allRemainingNotifications = [...globalMessages, ...individualNotifications];
-        
+        const individualNotifications =
+          await adminNotificationService.getUnacknowledgedNotifications(
+            currentUserId
+          );
+        const globalMessages =
+          await globalAdminService.getActiveGlobalMessages(currentUserId);
+        const allRemainingNotifications = [
+          ...globalMessages,
+          ...individualNotifications,
+        ];
+
         if (allRemainingNotifications.length > 0) {
           const nextNotification = allRemainingNotifications[0];
           nextNotification.isGlobal = globalMessages.includes(nextNotification);
@@ -260,15 +293,20 @@ export default function HomeScreen({ navigation }) {
       }
     } catch (error) {
       console.error('[HomeScreen] Error acknowledging notification:', error);
-      vibeAlert.error('Error', 'Failed to acknowledge notification. Please try again.');
+      vibeAlert.error(
+        'Error',
+        'Failed to acknowledge notification. Please try again.'
+      );
     }
   };
 
   // Don't show empty state while loading or checking ban status
   if (isLoading || checkingBanStatus) {
     return (
-      <VibeLoadingScreen 
-        loadingText={checkingBanStatus ? 'Checking account status...' : 'Loading events...'}
+      <VibeLoadingScreen
+        loadingText={
+          checkingBanStatus ? 'Checking account status...' : 'Loading events...'
+        }
         showBranding={false}
       />
     );
@@ -281,7 +319,7 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Big Vibe Studios</Text>
         </View>
-        
+
         <View style={[styles.centerContent, { flex: 1 }]}>
           <Text style={styles.loadingText}>Account Restricted</Text>
         </View>
@@ -317,11 +355,7 @@ export default function HomeScreen({ navigation }) {
             style={styles.profileButton}
             onPress={() => setShowAccountSettings(true)}
           >
-            <ProfileAvatar 
-              userData={userData} 
-              size={40}
-              showBorder={true}
-            />
+            <ProfileAvatar userData={userData} size={40} showBorder={true} />
           </TouchableOpacity>
         </View>
       </View>
@@ -331,105 +365,110 @@ export default function HomeScreen({ navigation }) {
         <EmptyStateView navigation={navigation} />
       ) : (
         <ScrollView contentContainerStyle={styles.container}>
-        
-        {myEvents.length > 0 && (
-          <>
-            <Text style={styles.sectionHeader}>My Events</Text>
-            <VibeCarousel
-              data={myEvents}
-              renderItem={(item, isScrolling) => (
-                <EventCard
-                  {...item}
-                  onPress={() => {
-                    if (!isScrolling) {
-                      navigation.navigate('EventDetail', { eventId: item.id });
-                    }
-                  }}
-                />
-              )}
-            />
-          </>
-        )}
-
-        {followedEvents.length > 0 && (
-          <>
-            <Text style={styles.sectionHeader}>
-              Events from People You Follow
-            </Text>
-            <VibeCarousel
-              data={followedEvents}
-              renderItem={(item, isScrolling) => (
-                <EventCard
-                  {...item}
-                  onPress={() => {
-                    if (!isScrolling) {
-                      navigation.navigate('EventDetail', { eventId: item.id });
-                    }
-                  }}
-                />
-              )}
-            />
-          </>
-        )}
-
-        {suggestedEvents.length > 0 && (
-          <>
-            <Text style={styles.sectionHeader}>
-              Discover Events
-            </Text>
-            <VibeCarousel
-              data={suggestedEvents}
-              renderItem={(item, isScrolling) => (
-                <EventCard
-                  {...item}
-                  onPress={() => {
-                    if (!isScrolling) {
-                      navigation.navigate('EventDetail', { eventId: item.id });
-                    }
-                  }}
-                />
-              )}
-            />
-          </>
-        )}
-
-        {pastEvents.length > 0 && (
-          <>
-            <Text style={styles.sectionHeader}>My Past Events</Text>
-            <VibeCarousel
-              data={pastEvents}
-              renderItem={(item, isScrolling) => (
-                <EventCard
-                  {...item}
-                  onPress={() => {
-                    if (!isScrolling) {
-                      navigation.navigate('EventDetail', { eventId: item.id });
-                    }
-                  }}
-                />
-              )}
-            />
-          </>
-        )}
-
-        <View style={styles.buttonStack}>
-          <VibeButton
-            label="CREATE EVENT"
-            onPress={() => navigation.navigate('CreateEvent')}
-            variant="filled"
-            style={styles.fullButton}
-          />
-          {hasAdminAccess(userData) && (
-            <VibeButton
-              label="ADMIN TOOLS"
-              onPress={handleAdminMenu}
-              variant="toggle"
-              color="purple"
-              style={[styles.fullButton, styles.adminButton]}
-            />
+          {myEvents.length > 0 && (
+            <>
+              <Text style={styles.sectionHeader}>My Events</Text>
+              <VibeCarousel
+                data={myEvents}
+                renderItem={(item, isScrolling) => (
+                  <EventCard
+                    {...item}
+                    onPress={() => {
+                      if (!isScrolling) {
+                        navigation.navigate('EventDetail', {
+                          eventId: item.id,
+                        });
+                      }
+                    }}
+                  />
+                )}
+              />
+            </>
           )}
-        </View>
-      </ScrollView>
+
+          {followedEvents.length > 0 && (
+            <>
+              <Text style={styles.sectionHeader}>
+                Events from People You Follow
+              </Text>
+              <VibeCarousel
+                data={followedEvents}
+                renderItem={(item, isScrolling) => (
+                  <EventCard
+                    {...item}
+                    onPress={() => {
+                      if (!isScrolling) {
+                        navigation.navigate('EventDetail', {
+                          eventId: item.id,
+                        });
+                      }
+                    }}
+                  />
+                )}
+              />
+            </>
+          )}
+
+          {suggestedEvents.length > 0 && (
+            <>
+              <Text style={styles.sectionHeader}>Discover Events</Text>
+              <VibeCarousel
+                data={suggestedEvents}
+                renderItem={(item, isScrolling) => (
+                  <EventCard
+                    {...item}
+                    onPress={() => {
+                      if (!isScrolling) {
+                        navigation.navigate('EventDetail', {
+                          eventId: item.id,
+                        });
+                      }
+                    }}
+                  />
+                )}
+              />
+            </>
+          )}
+
+          {pastEvents.length > 0 && (
+            <>
+              <Text style={styles.sectionHeader}>My Past Events</Text>
+              <VibeCarousel
+                data={pastEvents}
+                renderItem={(item, isScrolling) => (
+                  <EventCard
+                    {...item}
+                    onPress={() => {
+                      if (!isScrolling) {
+                        navigation.navigate('EventDetail', {
+                          eventId: item.id,
+                        });
+                      }
+                    }}
+                  />
+                )}
+              />
+            </>
+          )}
+
+          <View style={styles.buttonStack}>
+            <VibeButton
+              label="CREATE EVENT"
+              onPress={() => navigation.navigate('CreateEvent')}
+              variant="filled"
+              style={styles.fullButton}
+            />
+            {hasAdminAccess(userData) && (
+              <VibeButton
+                label="ADMIN TOOLS"
+                onPress={handleAdminMenu}
+                variant="toggle"
+                color="purple"
+                style={[styles.fullButton, styles.adminButton]}
+              />
+            )}
+          </View>
+        </ScrollView>
       )}
 
       {showAccountSettings && (

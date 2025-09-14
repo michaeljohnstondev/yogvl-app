@@ -21,7 +21,9 @@ export default function VibeModal({
   headerStyle,
 }) {
   const ContentWrapper = scrollable ? ScrollView : View;
-  const contentWrapperStyle = scrollable ? styles.scrollableContent : styles.content;
+  const contentWrapperStyle = scrollable
+    ? styles.scrollableContent
+    : styles.content;
 
   return (
     <Modal

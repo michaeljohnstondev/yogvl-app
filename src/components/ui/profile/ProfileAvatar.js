@@ -1,37 +1,35 @@
 // ProfileAvatar.js - Reusable Profile Avatar Component
 
 import React from 'react';
-import {
-  View,
-  Text,
-  Image,
-  StyleSheet,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text, Image, StyleSheet, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getProfilePictureUrl } from '../../../services/profilePictureService';
 import theme from '../../../theme/themes';
 
-export default function ProfileAvatar({ 
-  userData, 
-  size = 50, 
+export default function ProfileAvatar({
+  userData,
+  size = 50,
   style,
   showBorder = true,
-  isLoading = false 
+  isLoading = false,
 }) {
   if (!userData) return null;
 
   const contactInfo = userData?.userdata?.contactInfo || {};
   const profilePictureUrl = getProfilePictureUrl(userData);
-  
-  // Get display name and initials
-  const displayName = contactInfo.firstName && contactInfo.lastName 
-    ? `${contactInfo.firstName} ${contactInfo.lastName}`
-    : contactInfo.email || userData.email || 'User';
 
-  const initials = contactInfo.firstName && contactInfo.lastName
-    ? `${contactInfo.firstName.charAt(0)}${contactInfo.lastName.charAt(0)}`.toUpperCase()
-    : (contactInfo.email || userData.email ? (contactInfo.email || userData.email).charAt(0).toUpperCase() : '?');
+  // Get display name and initials
+  const displayName =
+    contactInfo.firstName && contactInfo.lastName
+      ? `${contactInfo.firstName} ${contactInfo.lastName}`
+      : contactInfo.email || userData.email || 'User';
+
+  const initials =
+    contactInfo.firstName && contactInfo.lastName
+      ? `${contactInfo.firstName.charAt(0)}${contactInfo.lastName.charAt(0)}`.toUpperCase()
+      : contactInfo.email || userData.email
+        ? (contactInfo.email || userData.email).charAt(0).toUpperCase()
+        : '?';
 
   const avatarStyle = {
     width: size,
@@ -53,10 +51,20 @@ export default function ProfileAvatar({
     return (
       <View style={[styles.container, avatarStyle, style]}>
         <LinearGradient
-          colors={showBorder ? theme.colors.buttonGradient : ['transparent', 'transparent']}
+          colors={
+            showBorder
+              ? theme.colors.buttonGradient
+              : ['transparent', 'transparent']
+          }
           style={[styles.borderGradient, avatarStyle]}
         >
-          <View style={[styles.innerContainer, innerAvatarStyle, styles.loadingContainer]}>
+          <View
+            style={[
+              styles.innerContainer,
+              innerAvatarStyle,
+              styles.loadingContainer,
+            ]}
+          >
             <ActivityIndicator size="small" color={theme.colors.vibeBlue} />
           </View>
         </LinearGradient>
@@ -67,12 +75,16 @@ export default function ProfileAvatar({
   return (
     <View style={[styles.container, avatarStyle, style]}>
       <LinearGradient
-        colors={showBorder ? theme.colors.buttonGradient : ['transparent', 'transparent']}
+        colors={
+          showBorder
+            ? theme.colors.buttonGradient
+            : ['transparent', 'transparent']
+        }
         style={[styles.borderGradient, avatarStyle]}
       >
         <View style={[styles.innerContainer, innerAvatarStyle]}>
           {profilePictureUrl ? (
-            <Image 
+            <Image
               source={{ uri: profilePictureUrl }}
               style={[styles.profileImage, innerAvatarStyle]}
               resizeMode="cover"

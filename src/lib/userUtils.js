@@ -1,10 +1,12 @@
 export const getUserDisplayName = (user) => {
   if (!user) return 'User';
-  
-  return user.displayName || 
-         `${user.userdata?.contactInfo?.firstName || ''} ${user.userdata?.contactInfo?.lastName || ''}`.trim() ||
-         user.email?.split('@')[0] || 
-         'User';
+
+  return (
+    user.displayName ||
+    `${user.userdata?.contactInfo?.firstName || ''} ${user.userdata?.contactInfo?.lastName || ''}`.trim() ||
+    user.email?.split('@')[0] ||
+    'User'
+  );
 };
 
 export const getUserEmail = (user) => {

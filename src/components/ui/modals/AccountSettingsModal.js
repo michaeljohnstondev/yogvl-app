@@ -1,10 +1,5 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../../auth/services/firebase';
@@ -12,7 +7,12 @@ import { useVibeAlert } from '../base/VibeAlertContext';
 import CloseButton from '../buttons/CloseButton';
 import theme from '../../../theme/themes';
 
-export default function AccountSettingsDropdown({ visible, onClose, navigation, userData }) {
+export default function AccountSettingsDropdown({
+  visible,
+  onClose,
+  navigation,
+  userData,
+}) {
   const vibeAlert = useVibeAlert();
 
   const handleLogout = async () => {
@@ -64,18 +64,24 @@ export default function AccountSettingsDropdown({ visible, onClose, navigation, 
         <View style={styles.profileSection}>
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>
-              {userData?.userdata?.contactInfo?.firstName && userData?.userdata?.contactInfo?.lastName 
+              {userData?.userdata?.contactInfo?.firstName &&
+              userData?.userdata?.contactInfo?.lastName
                 ? `${userData.userdata.contactInfo.firstName} ${userData.userdata.contactInfo.lastName}`
-                : userData?.userdata?.contactInfo?.email || userData?.email || 'User'}
+                : userData?.userdata?.contactInfo?.email ||
+                  userData?.email ||
+                  'User'}
             </Text>
-            <Text style={styles.profileEmail}>{userData?.userdata?.studios?.default?.studioName || 'Studio not set'}</Text>
+            <Text style={styles.profileEmail}>
+              {userData?.userdata?.studios?.default?.studioName ||
+                'Studio not set'}
+            </Text>
           </View>
           <CloseButton onPress={onClose} />
         </View>
 
         {/* Settings Options */}
         <View style={styles.separator} />
-        
+
         <TouchableOpacity style={styles.settingItem} onPress={handleProfile}>
           <Text style={styles.settingText}>My Profile</Text>
         </TouchableOpacity>
@@ -84,15 +90,24 @@ export default function AccountSettingsDropdown({ visible, onClose, navigation, 
           <Text style={styles.settingText}>Interests</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.settingItem} onPress={handleLocationSettings}>
+        <TouchableOpacity
+          style={styles.settingItem}
+          onPress={handleLocationSettings}
+        >
           <Text style={styles.settingText}>Studio Settings</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.settingItem} onPress={handleNotificationSettings}>
+        <TouchableOpacity
+          style={styles.settingItem}
+          onPress={handleNotificationSettings}
+        >
           <Text style={styles.settingText}>Notification Settings</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.settingItem} onPress={handlePrivacySettings}>
+        <TouchableOpacity
+          style={styles.settingItem}
+          onPress={handlePrivacySettings}
+        >
           <Text style={styles.settingText}>Privacy Settings</Text>
         </TouchableOpacity>
 

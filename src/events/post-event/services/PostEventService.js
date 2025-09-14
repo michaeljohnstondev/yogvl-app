@@ -29,17 +29,23 @@ export class PostEventService {
    * @param {Array<string>} noShowIds - User IDs who didn't attend (for strict events)
    * @returns {Promise<boolean>} Success status
    */
-  static async completeEvent(studioId, eventId, hostId, attendeeIds = [], noShowIds = []) {
+  static async completeEvent(
+    studioId,
+    eventId,
+    hostId,
+    attendeeIds = [],
+    noShowIds = []
+  ) {
     try {
       const eventRef = doc(db, 'studios', studioId, 'events', eventId);
       const eventDoc = await getDoc(eventRef);
-      
+
       if (!eventDoc.exists()) {
         throw new Error(`Event ${eventId} not found`);
       }
 
       const eventData = eventDoc.data();
-      
+
       // Verify host permissions
       if (eventData.createdBy !== hostId) {
         throw new Error('Only the event host can complete an event');
@@ -51,7 +57,7 @@ export class PostEventService {
       }
 
       // Validate attendee/no-show lists don't overlap
-      const overlap = attendeeIds.filter(id => noShowIds.includes(id));
+      const overlap = attendeeIds.filter((id) => noShowIds.includes(id));
       if (overlap.length > 0) {
         throw new Error('Users cannot be both attendees and no-shows');
       }
@@ -74,14 +80,28 @@ export class PostEventService {
       await updateDoc(eventRef, updateData);
 
       // Update attendance records for all participants
-      await this.processAttendanceRecords(studioId, eventId, hostId, attendeeIds, noShowIds, eventData);
+      await this.processAttendanceRecords(
+        studioId,
+        eventId,
+        hostId,
+        attendeeIds,
+        noShowIds,
+        eventData
+      );
 
       // Send completion notifications
-      await this.sendEventCompletionNotifications(studioId, eventId, eventData, attendeeIds, noShowIds);
+      await this.sendEventCompletionNotifications(
+        studioId,
+        eventId,
+        eventData,
+        attendeeIds,
+        noShowIds
+      );
 
-      console.log(`Event ${eventId} completed successfully with ${attendeeIds.length} attendees`);
+      console.log(
+        `Event ${eventId} completed successfully with ${attendeeIds.length} attendees`
+      );
       return true;
-
     } catch (error) {
       console.error('Error completing event:', error);
       throw error;
@@ -92,13 +112,20 @@ export class PostEventService {
    * Process attendance records and update reliability scores
    * @private
    */
-  static async processAttendanceRecords(studioId, eventId, hostId, attendeeIds, noShowIds, eventData) {
+  static async processAttendanceRecords(
+    studioId,
+    eventId,
+    hostId,
+    attendeeIds,
+    noShowIds,
+    eventData
+  ) {
     const isSoloEvent = AttendanceService.isSoloEvent(eventData);
     const allParticipants = [...new Set([...attendeeIds, ...noShowIds])];
 
     const attendancePromises = allParticipants.map(async (userId) => {
       const attended = attendeeIds.includes(userId);
-      
+
       if (attended) {
         await AttendanceService.markAttended(studioId, eventId, userId, hostId);
       } else {
@@ -113,7 +140,13 @@ export class PostEventService {
    * Send completion notifications to participants
    * @private
    */
-  static async sendEventCompletionNotifications(studioId, eventId, eventData, attendeeIds, noShowIds) {
+  static async sendEventCompletionNotifications(
+    studioId,
+    eventId,
+    eventData,
+    attendeeIds,
+    noShowIds
+  ) {
     try {
       const eventTitle = eventData.title || 'Event';
       const allParticipants = [...new Set([...attendeeIds, ...noShowIds])];
@@ -122,12 +155,12 @@ export class PostEventService {
         if (userId === eventData.createdBy) return; // Don't notify the host
 
         const attended = attendeeIds.includes(userId);
-        
+
         return createNotification({
           userId: userId,
           type: NOTIFICATION_TYPES.EVENT_COMPLETED,
           title: 'Event Completed',
-          message: attended 
+          message: attended
             ? `"${eventTitle}" has ended. Thanks for attending!`
             : `"${eventTitle}" has ended. Sorry you couldn't make it.`,
           data: {
@@ -135,7 +168,8 @@ export class PostEventService {
             eventTitle,
             studioId,
             attended,
-            canReportAttendance: eventData.attendanceType === 'casual' && !attended,
+            canReportAttendance:
+              eventData.attendanceType === 'casual' && !attended,
           },
           priority: NOTIFICATION_PRIORITY.NORMAL,
           channels: [DELIVERY_CHANNELS.PUSH],
@@ -144,9 +178,9 @@ export class PostEventService {
               id: 'view_event_recap',
               title: 'View Recap',
               action: 'navigate_to_screen',
-              params: { screen: 'EventWrapUp', eventId, studioId }
-            }
-          ]
+              params: { screen: 'EventWrapUp', eventId, studioId },
+            },
+          ],
         });
       });
 
@@ -165,10 +199,20 @@ export class PostEventService {
    * @param {boolean} attended - Whether user attended
    * @returns {Promise<boolean>} Success status
    */
-  static async handleGuestAttendanceReport(studioId, eventId, userId, attended) {
+  static async handleGuestAttendanceReport(
+    studioId,
+    eventId,
+    userId,
+    attended
+  ) {
     try {
       // Use existing AttendanceService method for self-reporting
-      await AttendanceService.selfReportAttendance(studioId, eventId, userId, attended);
+      await AttendanceService.selfReportAttendance(
+        studioId,
+        eventId,
+        userId,
+        attended
+      );
 
       // Update guest attendance reports array for host visibility
       const eventRef = doc(db, 'studios', studioId, 'events', eventId);
@@ -214,7 +258,7 @@ export class PostEventService {
       // Check if guest already rated for this event
       const eventRef = doc(db, 'studios', studioId, 'events', eventId);
       const eventDoc = await getDoc(eventRef);
-      
+
       if (eventDoc.exists()) {
         const guestRatings = eventDoc.data().guestRatings || {};
         if (guestRatings[guestId]?.rated) {
@@ -224,7 +268,10 @@ export class PostEventService {
 
       const hostRef = doc(db, 'users', hostId);
       const hostDoc = await getDoc(hostRef);
-      const currentRatings = hostDoc.data()?.ratings || { stars: [], timeRated: [] };
+      const currentRatings = hostDoc.data()?.ratings || {
+        stars: [],
+        timeRated: [],
+      };
 
       // Remove oldest rating if we have 50+ ratings (keep last 50)
       if (currentRatings.stars.length >= 50) {
@@ -256,9 +303,10 @@ export class PostEventService {
         updateDoc(eventRef, eventUpdates),
       ]);
 
-      console.log(`Rating submitted: ${rating} stars for host ${hostId} by guest ${guestId}`);
+      console.log(
+        `Rating submitted: ${rating} stars for host ${hostId} by guest ${guestId}`
+      );
       return true;
-
     } catch (error) {
       console.error('Error submitting host rating:', error);
       throw error;
@@ -276,7 +324,7 @@ export class PostEventService {
     try {
       const eventRef = doc(db, 'studios', studioId, 'events', eventId);
       const eventDoc = await getDoc(eventRef);
-      
+
       if (!eventDoc.exists()) {
         throw new Error('Event not found');
       }
@@ -291,14 +339,19 @@ export class PostEventService {
       // Get attendance data if available
       let attendanceData = null;
       if (eventData.trackAttendance) {
-        attendanceData = await AttendanceService.getEventAttendance(studioId, eventId);
+        attendanceData = await AttendanceService.getEventAttendance(
+          studioId,
+          eventId
+        );
       }
 
       // Check user's rating status
-      const hasRatedHost = !isHost && eventData.guestRatings?.[userId]?.rated || false;
+      const hasRatedHost =
+        (!isHost && eventData.guestRatings?.[userId]?.rated) || false;
 
       // Check user's attendance report status
-      const hasReportedAttendance = eventData.guestAttendanceReports?.[userId]?.status || null;
+      const hasReportedAttendance =
+        eventData.guestAttendanceReports?.[userId]?.status || null;
 
       return {
         event: eventData,
@@ -312,7 +365,6 @@ export class PostEventService {
           canReportAttendance: !isHost && eventData.attendanceType === 'casual',
         },
       };
-
     } catch (error) {
       console.error('Error loading event wrap-up data:', error);
       throw error;
@@ -330,7 +382,10 @@ export class PostEventService {
         if (userDoc.exists()) {
           return { id: userId, ...userDoc.data() };
         }
-        return { id: userId, userdata: { contactInfo: { displayName: 'Unknown User' } } };
+        return {
+          id: userId,
+          userdata: { contactInfo: { displayName: 'Unknown User' } },
+        };
       });
 
       return await Promise.all(userPromises);
@@ -351,13 +406,13 @@ export class PostEventService {
     try {
       const eventRef = doc(db, 'studios', studioId, 'events', eventId);
       const eventDoc = await getDoc(eventRef);
-      
+
       if (!eventDoc.exists()) {
         throw new Error('Event not found');
       }
 
       const eventData = eventDoc.data();
-      
+
       // Verify permissions (host or admin)
       if (eventData.createdBy !== userId) {
         throw new Error('Only the event host can delete an event');
@@ -371,7 +426,6 @@ export class PostEventService {
 
       console.log(`Event ${eventId} deleted successfully`);
       return true;
-
     } catch (error) {
       console.error('Error deleting event:', error);
       throw error;

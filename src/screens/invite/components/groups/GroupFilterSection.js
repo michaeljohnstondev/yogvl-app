@@ -32,7 +32,7 @@ const GroupFilterSection = ({
   showFriends,
   setShowFriends,
   showLocalNode,
-  setShowLocalNode
+  setShowLocalNode,
 }) => {
   const handleGroupPress = (group) => {
     if (selectedGroup?.id === group.id) {
@@ -50,9 +50,9 @@ const GroupFilterSection = ({
     const cleanTitle = cleanEventTitle(eventTitle);
     console.log('[GroupFilter] Toggling interest filter for:', cleanTitle);
     if (cleanTitle) {
-      setSelectedInterests(prev => 
+      setSelectedInterests((prev) =>
         prev.includes(cleanTitle)
-          ? prev.filter(i => i !== cleanTitle)
+          ? prev.filter((i) => i !== cleanTitle)
           : [...prev, cleanTitle]
       );
     }
@@ -62,7 +62,10 @@ const GroupFilterSection = ({
     <View style={styles.groupContainer}>
       {/* Custom Groups Section */}
       <Text style={[styles.filterLabel]}>
-        Custom Groups: <Text style={styles.privateGroupHint}>Tap filters, long press adds</Text>
+        Custom Groups:{' '}
+        <Text style={styles.privateGroupHint}>
+          Tap filters, long press adds
+        </Text>
       </Text>
       <View style={styles.groupButtons}>
         <TouchableOpacity
@@ -72,7 +75,7 @@ const GroupFilterSection = ({
           <Text style={styles.manageGroupsText}>+ Manage</Text>
         </TouchableOpacity>
       </View>
-      
+
       <Text style={[styles.filterLabel, { marginTop: 20 }]}>Filters:</Text>
       {groupsLoading ? (
         <View style={styles.groupLoadingContainer}>
@@ -82,28 +85,61 @@ const GroupFilterSection = ({
       ) : (
         <View style={styles.groupButtons}>
           <TouchableOpacity
-            style={[styles.groupButton, showFavorites && { backgroundColor: themeBgColor, borderColor: themeColor }]}
+            style={[
+              styles.groupButton,
+              showFavorites && {
+                backgroundColor: themeBgColor,
+                borderColor: themeColor,
+              },
+            ]}
             onPress={() => setShowFavorites(!showFavorites)}
           >
-            <Text style={[styles.groupButtonText, showFavorites && { color: themeColor }]}>
+            <Text
+              style={[
+                styles.groupButtonText,
+                showFavorites && { color: themeColor },
+              ]}
+            >
               ⭐ Favorites
             </Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
-            style={[styles.groupButton, showFriends && { backgroundColor: themeBgColor, borderColor: themeColor }]}
+            style={[
+              styles.groupButton,
+              showFriends && {
+                backgroundColor: themeBgColor,
+                borderColor: themeColor,
+              },
+            ]}
             onPress={() => setShowFriends(!showFriends)}
           >
-            <Text style={[styles.groupButtonText, showFriends && { color: themeColor }]}>
+            <Text
+              style={[
+                styles.groupButtonText,
+                showFriends && { color: themeColor },
+              ]}
+            >
               👫 Friends
             </Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
-            style={[styles.groupButton, showLocalNode && { backgroundColor: themeBgColor, borderColor: themeColor }]}
+            style={[
+              styles.groupButton,
+              showLocalNode && {
+                backgroundColor: themeBgColor,
+                borderColor: themeColor,
+              },
+            ]}
             onPress={() => setShowLocalNode(!showLocalNode)}
           >
-            <Text style={[styles.groupButtonText, showLocalNode && { color: themeColor }]}>
+            <Text
+              style={[
+                styles.groupButtonText,
+                showLocalNode && { color: themeColor },
+              ]}
+            >
               🌐 Local
             </Text>
           </TouchableOpacity>
@@ -112,39 +148,45 @@ const GroupFilterSection = ({
             <TouchableOpacity
               style={[
                 styles.groupButton,
-                selectedInterests.includes(cleanEventTitle(eventTitle)) && { 
-                  backgroundColor: themeBgColor, 
-                  borderColor: themeColor 
-                }
+                selectedInterests.includes(cleanEventTitle(eventTitle)) && {
+                  backgroundColor: themeBgColor,
+                  borderColor: themeColor,
+                },
               ]}
               onPress={toggleEventTitle}
             >
-              <Text style={[
-                styles.groupButtonText,
-                selectedInterests.includes(cleanEventTitle(eventTitle)) && { color: themeColor }
-              ]}>
+              <Text
+                style={[
+                  styles.groupButtonText,
+                  selectedInterests.includes(cleanEventTitle(eventTitle)) && {
+                    color: themeColor,
+                  },
+                ]}
+              >
                 {eventTitle}
               </Text>
             </TouchableOpacity>
           )}
-          
-          {customGroups.map(group => (
+
+          {customGroups.map((group) => (
             <TouchableOpacity
               key={group.id}
               style={[
-                styles.groupButton, 
-                selectedGroup?.id === group.id && { 
-                  backgroundColor: themeBgColor, 
-                  borderColor: themeColor 
-                }
+                styles.groupButton,
+                selectedGroup?.id === group.id && {
+                  backgroundColor: themeBgColor,
+                  borderColor: themeColor,
+                },
               ]}
               onPress={() => handleGroupPress(group)}
               onLongPress={() => handleGroupLongPress(group)}
             >
-              <Text style={[
-                styles.groupButtonText, 
-                selectedGroup?.id === group.id && { color: themeColor }
-              ]}>
+              <Text
+                style={[
+                  styles.groupButtonText,
+                  selectedGroup?.id === group.id && { color: themeColor },
+                ]}
+              >
                 {group.emoji} {group.name} ({group.members.length})
               </Text>
             </TouchableOpacity>

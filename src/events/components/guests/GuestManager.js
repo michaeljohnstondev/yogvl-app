@@ -10,11 +10,11 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
-import { 
-  getEventInvitations, 
+import {
+  getEventInvitations,
   cancelInvitation,
   kickGuestFromEvent,
-  INVITATION_STATUS 
+  INVITATION_STATUS,
 } from '../../services/invitations';
 import { VibeButton } from '../../../components/ui';
 import theme from '../../../theme/themes';
@@ -36,17 +36,16 @@ export default function GuestManager({ eventId, hostId, onInvitePress }) {
 
     try {
       setIsLoading(true);
-      
+
       // Load invitations
       const eventInvitations = await getEventInvitations(eventId);
       setInvitations(eventInvitations);
 
       // Separate accepted invitations as attendees
       const acceptedInvitations = eventInvitations.filter(
-        inv => inv.status === INVITATION_STATUS.ACCEPTED
+        (inv) => inv.status === INVITATION_STATUS.ACCEPTED
       );
       setAttendees(acceptedInvitations);
-
     } catch (error) {
       console.error('Error loading guest data:', error);
       Alert.alert('Error', 'Failed to load guest information');
@@ -62,58 +61,70 @@ export default function GuestManager({ eventId, hostId, onInvitePress }) {
   }, [loadGuestData]);
 
   // Cancel an invitation
-  const handleCancelInvitation = useCallback(async (invitationId, guestName) => {
-    Alert.alert(
-      'Cancel Invitation',
-      `Are you sure you want to cancel the invitation for ${guestName}?`,
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Yes, Cancel',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await cancelInvitation(invitationId, hostId);
-              Alert.alert('Success', 'Invitation cancelled successfully');
-              loadGuestData(); // Refresh the list
-            } catch (error) {
-              Alert.alert('Error', error.message || 'Failed to cancel invitation');
-            }
+  const handleCancelInvitation = useCallback(
+    async (invitationId, guestName) => {
+      Alert.alert(
+        'Cancel Invitation',
+        `Are you sure you want to cancel the invitation for ${guestName}?`,
+        [
+          { text: 'No', style: 'cancel' },
+          {
+            text: 'Yes, Cancel',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await cancelInvitation(invitationId, hostId);
+                Alert.alert('Success', 'Invitation cancelled successfully');
+                loadGuestData(); // Refresh the list
+              } catch (error) {
+                Alert.alert(
+                  'Error',
+                  error.message || 'Failed to cancel invitation'
+                );
+              }
+            },
           },
-        },
-      ]
-    );
-  }, [hostId, loadGuestData]);
+        ]
+      );
+    },
+    [hostId, loadGuestData]
+  );
 
   // Handle kicking an accepted guest
-  const handleKickGuest = useCallback((invitationId, guestName) => {
-    Alert.alert(
-      'Kick Guest',
-      `Are you sure you want to remove ${guestName} from this event? They will be notified.`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Kick',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await kickGuestFromEvent(invitationId, hostId);
-              Alert.alert('Success', `${guestName} has been removed from the event`);
-              loadGuestData(); // Refresh the list
-            } catch (error) {
-              Alert.alert('Error', error.message || 'Failed to kick guest');
-            }
+  const handleKickGuest = useCallback(
+    (invitationId, guestName) => {
+      Alert.alert(
+        'Kick Guest',
+        `Are you sure you want to remove ${guestName} from this event? They will be notified.`,
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
           },
-        },
-      ]
-    );
-  }, [hostId, loadGuestData]);
+          {
+            text: 'Kick',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await kickGuestFromEvent(invitationId, hostId);
+                Alert.alert(
+                  'Success',
+                  `${guestName} has been removed from the event`
+                );
+                loadGuestData(); // Refresh the list
+              } catch (error) {
+                Alert.alert('Error', error.message || 'Failed to kick guest');
+              }
+            },
+          },
+        ]
+      );
+    },
+    [hostId, loadGuestData]
+  );
 
   // Filter invitations based on active filter
-  const filteredInvitations = invitations.filter(invitation => {
+  const filteredInvitations = invitations.filter((invitation) => {
     if (activeFilter === 'all') return true;
     return invitation.status === activeFilter;
   });
@@ -121,22 +132,32 @@ export default function GuestManager({ eventId, hostId, onInvitePress }) {
   // Get status color
   const getStatusColor = (status) => {
     switch (status) {
-      case INVITATION_STATUS.PENDING: return theme.colors.vibeYellow;
-      case INVITATION_STATUS.ACCEPTED: return theme.colors.vibeGreen;
-      case INVITATION_STATUS.DECLINED: return theme.colors.vibeRed;
-      case INVITATION_STATUS.EXPIRED: return theme.colors.gray;
-      default: return theme.colors.gray;
+      case INVITATION_STATUS.PENDING:
+        return theme.colors.vibeYellow;
+      case INVITATION_STATUS.ACCEPTED:
+        return theme.colors.vibeGreen;
+      case INVITATION_STATUS.DECLINED:
+        return theme.colors.vibeRed;
+      case INVITATION_STATUS.EXPIRED:
+        return theme.colors.gray;
+      default:
+        return theme.colors.gray;
     }
   };
 
   // Get status text
   const getStatusText = (status) => {
     switch (status) {
-      case INVITATION_STATUS.PENDING: return 'Pending';
-      case INVITATION_STATUS.ACCEPTED: return 'Accepted';
-      case INVITATION_STATUS.DECLINED: return 'Declined';
-      case INVITATION_STATUS.EXPIRED: return 'Expired';
-      default: return 'Unknown';
+      case INVITATION_STATUS.PENDING:
+        return 'Pending';
+      case INVITATION_STATUS.ACCEPTED:
+        return 'Accepted';
+      case INVITATION_STATUS.DECLINED:
+        return 'Declined';
+      case INVITATION_STATUS.EXPIRED:
+        return 'Expired';
+      default:
+        return 'Unknown';
     }
   };
 
@@ -188,15 +209,22 @@ export default function GuestManager({ eventId, hostId, onInvitePress }) {
             </Text>
           )}
           {item.message && (
-            <Text style={styles.invitationMessage}>Message: "{item.message}"</Text>
+            <Text style={styles.invitationMessage}>
+              Message: "{item.message}"
+            </Text>
           )}
         </View>
 
         <View style={styles.statusContainer}>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: getStatusColor(item.status) },
+            ]}
+          >
             <Text style={styles.statusText}>{getStatusText(item.status)}</Text>
           </View>
-          
+
           {canCancel && (
             <TouchableOpacity
               style={styles.cancelButton}
@@ -205,7 +233,7 @@ export default function GuestManager({ eventId, hostId, onInvitePress }) {
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
           )}
-          
+
           {canKick && (
             <TouchableOpacity
               style={styles.kickButton}
@@ -220,9 +248,15 @@ export default function GuestManager({ eventId, hostId, onInvitePress }) {
   };
 
   // Get counts for filters
-  const pendingCount = invitations.filter(inv => inv.status === INVITATION_STATUS.PENDING).length;
-  const acceptedCount = invitations.filter(inv => inv.status === INVITATION_STATUS.ACCEPTED).length;
-  const declinedCount = invitations.filter(inv => inv.status === INVITATION_STATUS.DECLINED).length;
+  const pendingCount = invitations.filter(
+    (inv) => inv.status === INVITATION_STATUS.PENDING
+  ).length;
+  const acceptedCount = invitations.filter(
+    (inv) => inv.status === INVITATION_STATUS.ACCEPTED
+  ).length;
+  const declinedCount = invitations.filter(
+    (inv) => inv.status === INVITATION_STATUS.DECLINED
+  ).length;
 
   if (isLoading) {
     return (
@@ -286,10 +320,9 @@ export default function GuestManager({ eventId, hostId, onInvitePress }) {
       ) : (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>
-            {activeFilter === 'all' 
-              ? "No invitations sent yet. Tap 'Invite More' to get started!" 
-              : `No ${activeFilter} invitations`
-            }
+            {activeFilter === 'all'
+              ? "No invitations sent yet. Tap 'Invite More' to get started!"
+              : `No ${activeFilter} invitations`}
           </Text>
         </View>
       )}

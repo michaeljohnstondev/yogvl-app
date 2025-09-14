@@ -14,7 +14,7 @@ export const isGlobalAdmin = (userData) => {
 
 /**
  * Check if user is a studio admin (can see their studio)
- * @param {Object} userData - User's data object 
+ * @param {Object} userData - User's data object
  * @param {string} studioId - Studio ID to check
  * @returns {boolean} True if user is an admin of the specific studio
  */
@@ -42,49 +42,62 @@ export const getAllReportsForGlobalAdmin = async (limit = 50) => {
   try {
     const studios = await StudioService.getAllStudios();
     const allReports = [];
-    
-    console.log(`[adminService] Fetching reports from ${studios.length} studios`);
-    
+
+    console.log(
+      `[adminService] Fetching reports from ${studios.length} studios`
+    );
+
     // Fetch reports from each studio
     for (const studio of studios) {
       try {
-        console.log(`[adminService] Checking studio: ${studio.name} (${studio.id})`);
+        console.log(
+          `[adminService] Checking studio: ${studio.name} (${studio.id})`
+        );
         const reports = await getStudioReports(studio.id, limit);
-        
+
         // Add studio information to each report
-        const reportsWithStudio = reports.map(report => ({
+        const reportsWithStudio = reports.map((report) => ({
           ...report,
           studioName: studio.name,
           studioCity: studio.city,
           studioState: studio.state,
-          studioDisplayName: `${studio.city}, ${studio.state}`
+          studioDisplayName: `${studio.city}, ${studio.state}`,
         }));
-        
+
         allReports.push(...reportsWithStudio);
-        console.log(`[adminService] Found ${reports.length} reports in ${studio.name}`);
-        
+        console.log(
+          `[adminService] Found ${reports.length} reports in ${studio.name}`
+        );
+
         if (reports.length > 0) {
-          console.log(`[adminService] Sample report from ${studio.name}:`, reports[0]);
+          console.log(
+            `[adminService] Sample report from ${studio.name}:`,
+            reports[0]
+          );
         }
-        
       } catch (error) {
-        console.warn(`[adminService] Error fetching reports from ${studio.name}:`, error);
+        console.warn(
+          `[adminService] Error fetching reports from ${studio.name}:`,
+          error
+        );
         // Continue with other studios even if one fails
       }
     }
-    
+
     // Sort by report date (newest first)
     allReports.sort((a, b) => {
       const aTime = a.reportedAt?.seconds || 0;
       const bTime = b.reportedAt?.seconds || 0;
       return bTime - aTime;
     });
-    
+
     console.log(`[adminService] Total reports found: ${allReports.length}`);
     return allReports;
-    
   } catch (error) {
-    console.error('[adminService] Error getting all reports for global admin:', error);
+    console.error(
+      '[adminService] Error getting all reports for global admin:',
+      error
+    );
     throw error;
   }
 };
@@ -101,20 +114,22 @@ export const getStudioReportsWithInfo = async (studioId, limit = 50) => {
     if (!studio) {
       throw new Error(`Studio not found: ${studioId}`);
     }
-    
+
     const reports = await getStudioReports(studioId, limit);
-    
+
     // Add studio information to each report
-    return reports.map(report => ({
+    return reports.map((report) => ({
       ...report,
       studioName: studio.name,
       studioCity: studio.city,
       studioState: studio.state,
-      studioDisplayName: `${studio.city}, ${studio.state}`
+      studioDisplayName: `${studio.city}, ${studio.state}`,
     }));
-    
   } catch (error) {
-    console.error(`[adminService] Error getting reports for studio ${studioId}:`, error);
+    console.error(
+      `[adminService] Error getting reports for studio ${studioId}:`,
+      error
+    );
     throw error;
   }
 };
@@ -126,11 +141,11 @@ export const getStudioReportsWithInfo = async (studioId, limit = 50) => {
  */
 export const getReportStatsByStudio = (reports) => {
   const statsByStudio = {};
-  
-  reports.forEach(report => {
+
+  reports.forEach((report) => {
     const studioKey = report.studioId || 'unknown';
     const studioName = report.studioName || 'Unknown Studio';
-    
+
     if (!statsByStudio[studioKey]) {
       statsByStudio[studioKey] = {
         studioId: studioKey,
@@ -142,21 +157,21 @@ export const getReportStatsByStudio = (reports) => {
         resolved: 0,
         dismissed: 0,
         userReports: 0,
-        eventReports: 0
+        eventReports: 0,
       };
     }
-    
+
     const stats = statsByStudio[studioKey];
     stats.total++;
     stats[report.status] = (stats[report.status] || 0) + 1;
-    
+
     if (report.type === 'user') {
       stats.userReports++;
     } else if (report.type === 'event') {
       stats.eventReports++;
     }
   });
-  
+
   return statsByStudio;
 };
 
@@ -168,7 +183,12 @@ export const getReportStatsByStudio = (reports) => {
  * @param {string} adminNotes - Optional admin notes
  * @returns {Object} Success result
  */
-export const updateReport = async (studioId, reportId, status, adminNotes = '') => {
+export const updateReport = async (
+  studioId,
+  reportId,
+  status,
+  adminNotes = ''
+) => {
   try {
     return await updateReportStatus(studioId, reportId, status, adminNotes);
   } catch (error) {
@@ -185,10 +205,10 @@ export const getStudioOptions = () => {
   const studios = StudioService.getAllStudios();
   return [
     { id: 'all', name: 'All Studios', displayName: 'All Studios' },
-    ...studios.map(studio => ({
+    ...studios.map((studio) => ({
       id: studio.id,
       name: studio.name,
-      displayName: `${studio.city}, ${studio.state}`
-    }))
+      displayName: `${studio.city}, ${studio.state}`,
+    })),
   ];
 };

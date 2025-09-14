@@ -9,7 +9,7 @@ const CreateGroupModal = ({
   onClose,
   newGroupName,
   setNewGroupName,
-  onCreateGroup
+  onCreateGroup,
 }) => {
   const handleCreate = async () => {
     const success = await onCreateGroup(newGroupName);
@@ -30,14 +30,16 @@ const CreateGroupModal = ({
             <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
           <Text style={styles.createGroupModalTitle}>New Group</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={handleCreate}
             disabled={!newGroupName.trim()}
           >
-            <Text style={[
-              styles.createButtonText,
-              !newGroupName.trim() && styles.disabledButtonText
-            ]}>
+            <Text
+              style={[
+                styles.createButtonText,
+                !newGroupName.trim() && styles.disabledButtonText,
+              ]}
+            >
               Create
             </Text>
           </TouchableOpacity>
@@ -58,20 +60,22 @@ const CreateGroupModal = ({
               showEmojis={true}
               inputProps={{
                 autoFocus: true,
-                maxLength: 30
+                maxLength: 30,
               }}
               style={styles.groupNameInput}
             />
-            
+
             <Text style={styles.inputHint}>
-              Keep it short and simple - just type keywords like "beach trip friends"
+              Keep it short and simple - just type keywords like "beach trip
+              friends"
             </Text>
           </View>
 
           <View style={styles.emojiPreview}>
             <Text style={styles.emojiPreviewLabel}>Preview:</Text>
             <Text style={styles.emojiPreviewText}>
-              {getEmojiForText(newGroupName || 'Group')} {newGroupName || 'Group Name'}
+              {getEmojiForText(newGroupName || 'Group')}{' '}
+              {newGroupName || 'Group Name'}
             </Text>
           </View>
         </View>

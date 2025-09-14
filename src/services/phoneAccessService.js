@@ -1,15 +1,15 @@
 // FILE: services/phoneAccessService.js - Phone-based Event Access Management
 
-import { 
-  doc, 
-  getDoc, 
-  updateDoc, 
-  arrayUnion, 
-  arrayRemove, 
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  arrayUnion,
+  arrayRemove,
   collection,
   query,
   where,
-  getDocs
+  getDocs,
 } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 
@@ -20,14 +20,17 @@ import { db } from '../auth/services/firebase';
  */
 export const normalizePhoneNumber = (phoneNumber) => {
   if (!phoneNumber || typeof phoneNumber !== 'string') {
-    console.warn('[normalizePhoneNumber] Invalid phone number provided:', phoneNumber);
+    console.warn(
+      '[normalizePhoneNumber] Invalid phone number provided:',
+      phoneNumber
+    );
     return '';
   }
-  
+
   try {
     // Remove all non-digit characters except +
     let normalized = phoneNumber.replace(/[^\d+]/g, '');
-    
+
     // If it doesn't start with +, assume it's US and add +1
     if (!normalized.startsWith('+')) {
       if (normalized.length === 10) {
@@ -36,10 +39,15 @@ export const normalizePhoneNumber = (phoneNumber) => {
         normalized = '+' + normalized;
       }
     }
-    
+
     return normalized;
   } catch (error) {
-    console.error('[normalizePhoneNumber] Error normalizing phone number:', error, 'Input:', phoneNumber);
+    console.error(
+      '[normalizePhoneNumber] Error normalizing phone number:',
+      error,
+      'Input:',
+      phoneNumber
+    );
     return '';
   }
 };
@@ -47,11 +55,15 @@ export const normalizePhoneNumber = (phoneNumber) => {
 /**
  * Add phone numbers to event's invited phones access list
  * @param {string} studioId - Studio ID
- * @param {string} eventId - Event ID  
+ * @param {string} eventId - Event ID
  * @param {string[]} phoneNumbers - Array of phone numbers to add
  * @returns {Promise<boolean>} Success status
  */
-export const addPhonesToEventAccess = async (studioId, eventId, phoneNumbers) => {
+export const addPhonesToEventAccess = async (
+  studioId,
+  eventId,
+  phoneNumbers
+) => {
   try {
     if (!studioId || !eventId || !phoneNumbers || phoneNumbers.length === 0) {
       return false;
@@ -59,21 +71,23 @@ export const addPhonesToEventAccess = async (studioId, eventId, phoneNumbers) =>
 
     // Normalize all phone numbers
     const normalizedPhones = phoneNumbers
-      .map(phone => normalizePhoneNumber(phone))
-      .filter(phone => phone.length > 0);
+      .map((phone) => normalizePhoneNumber(phone))
+      .filter((phone) => phone.length > 0);
 
     if (normalizedPhones.length === 0) {
       return false;
     }
 
     const eventRef = doc(db, 'studios', studioId, 'events', eventId);
-    
+
     // Add phones to invitedPhones array (uses arrayUnion to prevent duplicates)
     await updateDoc(eventRef, {
-      invitedPhones: arrayUnion(...normalizedPhones)
+      invitedPhones: arrayUnion(...normalizedPhones),
     });
 
-    console.log(`Added ${normalizedPhones.length} phone numbers to event ${eventId} access list`);
+    console.log(
+      `Added ${normalizedPhones.length} phone numbers to event ${eventId} access list`
+    );
     return true;
   } catch (error) {
     console.error('Error adding phones to event access:', error);
@@ -88,7 +102,11 @@ export const addPhonesToEventAccess = async (studioId, eventId, phoneNumbers) =>
  * @param {string[]} phoneNumbers - Array of phone numbers to remove
  * @returns {Promise<boolean>} Success status
  */
-export const removePhoneFromEventAccess = async (studioId, eventId, phoneNumbers) => {
+export const removePhoneFromEventAccess = async (
+  studioId,
+  eventId,
+  phoneNumbers
+) => {
   try {
     if (!studioId || !eventId || !phoneNumbers || phoneNumbers.length === 0) {
       return false;
@@ -96,20 +114,22 @@ export const removePhoneFromEventAccess = async (studioId, eventId, phoneNumbers
 
     // Normalize all phone numbers
     const normalizedPhones = phoneNumbers
-      .map(phone => normalizePhoneNumber(phone))
-      .filter(phone => phone.length > 0);
+      .map((phone) => normalizePhoneNumber(phone))
+      .filter((phone) => phone.length > 0);
 
     if (normalizedPhones.length === 0) {
       return false;
     }
 
     const eventRef = doc(db, 'studios', studioId, 'events', eventId);
-    
+
     await updateDoc(eventRef, {
-      invitedPhones: arrayRemove(...normalizedPhones)
+      invitedPhones: arrayRemove(...normalizedPhones),
     });
 
-    console.log(`Removed ${normalizedPhones.length} phone numbers from event ${eventId} access list`);
+    console.log(
+      `Removed ${normalizedPhones.length} phone numbers from event ${eventId} access list`
+    );
     return true;
   } catch (error) {
     console.error('Error removing phones from event access:', error);
@@ -144,7 +164,7 @@ export const checkPhoneEventAccess = async (studioId, eventId, phoneNumber) => {
 
     const eventData = eventDoc.data();
     const invitedPhones = eventData.invitedPhones || [];
-    
+
     return invitedPhones.includes(normalizedPhone);
   } catch (error) {
     console.error('Error checking phone event access:', error);
@@ -177,14 +197,17 @@ export const getEventsForPhone = async (phoneNumber) => {
     for (const studioDoc of studiosSnapshot.docs) {
       const studioId = studioDoc.id;
       const eventsRef = collection(db, 'studios', studioId, 'events');
-      const eventsQuery = query(eventsRef, where('invitedPhones', 'array-contains', normalizedPhone));
+      const eventsQuery = query(
+        eventsRef,
+        where('invitedPhones', 'array-contains', normalizedPhone)
+      );
       const eventsSnapshot = await getDocs(eventsQuery);
 
-      eventsSnapshot.docs.forEach(eventDoc => {
+      eventsSnapshot.docs.forEach((eventDoc) => {
         events.push({
           id: eventDoc.id,
           studioId: studioId,
-          ...eventDoc.data()
+          ...eventDoc.data(),
         });
       });
     }
@@ -223,7 +246,7 @@ export const autoSubscribeToInvitedEvents = async (userId, phoneNumber) => {
 
     // Find all events this phone was invited to
     const invitedEvents = await getEventsForPhone(normalizedPhone);
-    
+
     if (invitedEvents.length === 0) {
       return { success: true, subscribedEvents: [] };
     }
@@ -235,20 +258,26 @@ export const autoSubscribeToInvitedEvents = async (userId, phoneNumber) => {
       try {
         // Check if user is already subscribed
         const isSubscribed = event.subscribers?.includes(userId) || false;
-        
+
         if (!isSubscribed) {
-          const eventRef = doc(db, 'studios', event.studioId, 'events', event.id);
-          
+          const eventRef = doc(
+            db,
+            'studios',
+            event.studioId,
+            'events',
+            event.id
+          );
+
           await updateDoc(eventRef, {
             subscribers: arrayUnion(userId),
-            subscriberCount: (event.subscriberCount || 0) + 1
+            subscriberCount: (event.subscriberCount || 0) + 1,
           });
 
           subscribedEvents.push({
             eventId: event.id,
             studioId: event.studioId,
             title: event.title,
-            eventTimestamp: event.eventTimestamp
+            eventTimestamp: event.eventTimestamp,
           });
         }
       } catch (error) {
@@ -260,19 +289,21 @@ export const autoSubscribeToInvitedEvents = async (userId, phoneNumber) => {
     // Update user's subscribed events list if any were added
     if (subscribedEvents.length > 0) {
       const userRef = doc(db, 'users', userId);
-      const eventIds = subscribedEvents.map(e => e.eventId);
-      
+      const eventIds = subscribedEvents.map((e) => e.eventId);
+
       await updateDoc(userRef, {
-        subscribedEvents: arrayUnion(...eventIds)
+        subscribedEvents: arrayUnion(...eventIds),
       });
     }
 
-    console.log(`Auto-subscribed user ${userId} to ${subscribedEvents.length} events based on phone ${normalizedPhone}`);
-    
+    console.log(
+      `Auto-subscribed user ${userId} to ${subscribedEvents.length} events based on phone ${normalizedPhone}`
+    );
+
     return {
       success: true,
       subscribedEvents,
-      totalFound: invitedEvents.length
+      totalFound: invitedEvents.length,
     };
   } catch (error) {
     console.error('Error auto-subscribing to invited events:', error);

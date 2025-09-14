@@ -1,12 +1,6 @@
 // Subscription Notification Settings Modal for Event Attendees
 import React, { useState, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  ScrollView,
-} from 'react-native';
+import { View, Text, StyleSheet, Modal, ScrollView } from 'react-native';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../auth/services/firebase';
 import { useAuth } from '../../../auth/AuthContext';
@@ -25,26 +19,25 @@ export default function SubscriptionNotificationSettings({
   const scrollViewRef = useRef(null);
   // Get user's attending defaults from the consistent path
   const attendingDefaults = userDefaults.attending || userDefaults; // Support both old and new structure for now
-  
+
   // Default subscription notification settings - simplified for better UX
   const [subscriptionSettings, setSubscriptionSettings] = useState({
     // Critical changes that affect attendance
     eventCancellation: true, // Always true - critical info
     hostChanges: attendingDefaults.hostChanges ?? true, // All host changes (time, location, details, fees, etc.)
-    
+
     // Reminders for the event
     eventReminders: attendingDefaults.eventReminders ?? true,
     reminderTiming: attendingDefaults.reminderTiming ?? '1hour',
     dayBeforeReminder: attendingDefaults.dayBeforeReminder ?? true,
-    
-    // Social activity 
+
+    // Social activity
     hostComments: attendingDefaults.hostComments ?? true, // Host comments in social feed (batched after first) - default ON
     newComments: attendingDefaults.newComments ?? false, // All other comments (batched after first)
-    
+
     // Custom reminder templates
     reminderTemplates: attendingDefaults.reminderTemplates || [],
   });
-
 
   const handleSubscribe = () => {
     onSubscribe(subscriptionSettings);
@@ -65,17 +58,21 @@ export default function SubscriptionNotificationSettings({
           hostComments: subscriptionSettings.hostComments,
           newComments: subscriptionSettings.newComments,
           reminderTemplates: subscriptionSettings.reminderTemplates,
-        }
+        },
       });
-      
+
       // Show success feedback
-      console.log('[SubscriptionSettings] Notification defaults saved successfully');
+      console.log(
+        '[SubscriptionSettings] Notification defaults saved successfully'
+      );
       // Could add a brief success indicator here if desired
     } catch (error) {
-      console.error('[SubscriptionSettings] Failed to save notification defaults:', error);
+      console.error(
+        '[SubscriptionSettings] Failed to save notification defaults:',
+        error
+      );
     }
   };
-
 
   return (
     <Modal
@@ -94,8 +91,11 @@ export default function SubscriptionNotificationSettings({
           <View style={styles.headerRight} />
         </View>
 
-        <ScrollView ref={scrollViewRef} style={styles.content} showsVerticalScrollIndicator={false}>
-
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Use the new reusable guest notification settings form */}
           <GuestNotificationSettingsForm
             settings={subscriptionSettings}

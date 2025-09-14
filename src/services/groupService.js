@@ -1,17 +1,17 @@
 // FILE: services/groupService.js - Group Management Service
 
-import { 
-  collection, 
-  doc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  getDocs, 
+import {
+  collection,
+  doc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  getDocs,
   getDoc,
-  query, 
-  where, 
+  query,
+  where,
   orderBy,
-  serverTimestamp 
+  serverTimestamp,
 } from 'firebase/firestore';
 import { db, auth } from '../auth/services/firebase';
 
@@ -46,17 +46,17 @@ export const createGroup = async (groupData) => {
       members: groupData.members || [],
       isPrivate: groupData.isPrivate || false,
       createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
+      updatedAt: serverTimestamp(),
     };
 
     const docRef = await addDoc(collection(db, 'groups'), groupDoc);
-    
+
     console.log('[GroupService] Created group:', docRef.id);
     return {
       id: docRef.id,
       ...groupDoc,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
   } catch (error) {
     console.error('[GroupService] Error creating group:', error);
@@ -86,32 +86,32 @@ export const getUserGroups = async () => {
 
     const [ownedSnapshot, memberSnapshot] = await Promise.all([
       getDocs(ownedGroupsQuery),
-      getDocs(memberGroupsQuery)
+      getDocs(memberGroupsQuery),
     ]);
 
-    const ownedGroups = ownedSnapshot.docs.map(doc => ({
+    const ownedGroups = ownedSnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
-      isOwner: true
+      isOwner: true,
     }));
 
     const memberGroups = memberSnapshot.docs
-      .filter(doc => !ownedGroups.some(group => group.id === doc.id)) // Avoid duplicates
-      .map(doc => ({
+      .filter((doc) => !ownedGroups.some((group) => group.id === doc.id)) // Avoid duplicates
+      .map((doc) => ({
         id: doc.id,
         ...doc.data(),
-        isOwner: false
+        isOwner: false,
       }));
 
     const allGroups = [...ownedGroups, ...memberGroups];
-    
+
     // Sort by updatedAt on client side (newest first)
     allGroups.sort((a, b) => {
       const aTime = a.updatedAt?.toDate?.() || a.updatedAt || new Date(0);
       const bTime = b.updatedAt?.toDate?.() || b.updatedAt || new Date(0);
       return bTime - aTime;
     });
-    
+
     console.log('[GroupService] Fetched user groups:', allGroups.length);
     return allGroups;
   } catch (error) {
@@ -131,11 +131,11 @@ export const updateGroup = async (groupId, updates) => {
     const groupRef = doc(db, 'groups', groupId);
     const updateData = {
       ...updates,
-      updatedAt: serverTimestamp()
+      updatedAt: serverTimestamp(),
     };
 
     await updateDoc(groupRef, updateData);
-    
+
     console.log('[GroupService] Updated group:', groupId);
     return { id: groupId, ...updates };
   } catch (error) {
@@ -153,13 +153,13 @@ export const addMemberToGroup = async (groupId, userId) => {
     }
 
     const groupRef = doc(db, 'groups', groupId);
-    
+
     // First get current group data to check if user is already a member
     const groupDoc = await getDoc(groupRef);
     if (!groupDoc.exists()) {
       throw new Error('Group not found');
     }
-    
+
     const groupData = groupDoc.data();
     if (groupData.members.includes(userId)) {
       throw new Error('User is already a member of this group');
@@ -168,9 +168,9 @@ export const addMemberToGroup = async (groupId, userId) => {
     // Add user to members array
     await updateDoc(groupRef, {
       members: [...groupData.members, userId],
-      updatedAt: serverTimestamp()
+      updatedAt: serverTimestamp(),
     });
-    
+
     console.log('[GroupService] Added member to group:', groupId, userId);
     return true;
   } catch (error) {
@@ -188,23 +188,23 @@ export const removeMemberFromGroup = async (groupId, userId) => {
     }
 
     const groupRef = doc(db, 'groups', groupId);
-    
+
     // Get current group data
     const groupDoc = await getDoc(groupRef);
     if (!groupDoc.exists()) {
       throw new Error('Group not found');
     }
-    
+
     const groupData = groupDoc.data();
-    
+
     // Remove user from members array
-    const updatedMembers = groupData.members.filter(id => id !== userId);
-    
+    const updatedMembers = groupData.members.filter((id) => id !== userId);
+
     await updateDoc(groupRef, {
       members: updatedMembers,
-      updatedAt: serverTimestamp()
+      updatedAt: serverTimestamp(),
     });
-    
+
     console.log('[GroupService] Removed member from group:', groupId, userId);
     return true;
   } catch (error) {
@@ -222,20 +222,20 @@ export const deleteGroup = async (groupId) => {
     }
 
     const groupRef = doc(db, 'groups', groupId);
-    
+
     // Check if current user is the owner
     const groupDoc = await getDoc(groupRef);
     if (!groupDoc.exists()) {
       throw new Error('Group not found');
     }
-    
+
     const groupData = groupDoc.data();
     if (groupData.ownerId !== currentUser.uid) {
       throw new Error('Only group owner can delete the group');
     }
 
     await deleteDoc(groupRef);
-    
+
     console.log('[GroupService] Deleted group:', groupId);
     return true;
   } catch (error) {
@@ -249,14 +249,14 @@ export const getGroupById = async (groupId) => {
   try {
     const groupRef = doc(db, 'groups', groupId);
     const groupDoc = await getDoc(groupRef);
-    
+
     if (!groupDoc.exists()) {
       throw new Error('Group not found');
     }
-    
+
     return {
       id: groupDoc.id,
-      ...groupDoc.data()
+      ...groupDoc.data(),
     };
   } catch (error) {
     console.error('[GroupService] Error fetching group:', error);
@@ -273,9 +273,9 @@ export const searchPublicGroups = async (searchTerm) => {
     );
 
     const snapshot = await getDocs(groupsQuery);
-    const groups = snapshot.docs.map(doc => ({
+    const groups = snapshot.docs.map((doc) => ({
       id: doc.id,
-      ...doc.data()
+      ...doc.data(),
     }));
 
     // Sort by updatedAt on client side (newest first)
@@ -286,10 +286,11 @@ export const searchPublicGroups = async (searchTerm) => {
     });
 
     // Filter by search term (client-side filtering since Firestore doesn't support full-text search)
-    const filteredGroups = searchTerm 
-      ? groups.filter(group => 
-          group.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          group.description.toLowerCase().includes(searchTerm.toLowerCase())
+    const filteredGroups = searchTerm
+      ? groups.filter(
+          (group) =>
+            group.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            group.description.toLowerCase().includes(searchTerm.toLowerCase())
         )
       : groups;
 

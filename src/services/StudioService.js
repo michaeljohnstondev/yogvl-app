@@ -1,19 +1,18 @@
-import { 
-  doc, 
-  setDoc, 
-  deleteDoc, 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
+import {
+  doc,
+  setDoc,
+  deleteDoc,
+  collection,
+  query,
+  where,
+  getDocs,
   limit,
   getDoc,
-  onSnapshot 
+  onSnapshot,
 } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 
 export class StudioService {
-  
   /**
    * Get all available studios from Firebase
    * @returns {Promise<Array>} Array of studio objects
@@ -23,7 +22,7 @@ export class StudioService {
       const studiosRef = collection(db, 'studios');
       const q = query(studiosRef, where('status', '==', 'active'));
       const snapshot = await getDocs(q);
-      
+
       const studios = [];
       snapshot.forEach((doc) => {
         const studioData = doc.data();
@@ -32,12 +31,17 @@ export class StudioService {
           ...studioData,
         });
       });
-      
-      console.log(`[StudioService] Loaded ${studios.length} active studios from Firebase`);
+
+      console.log(
+        `[StudioService] Loaded ${studios.length} active studios from Firebase`
+      );
       // Add member counts to all studios
       return await this.addMemberCounts(studios);
     } catch (error) {
-      console.error('[StudioService] Error loading studios from Firebase:', error);
+      console.error(
+        '[StudioService] Error loading studios from Firebase:',
+        error
+      );
       // Fallback to hardcoded data if Firebase fails
       console.log('[StudioService] Falling back to hardcoded studio data');
       const hardcodedStudios = this.getHardcodedStudios();
@@ -54,13 +58,16 @@ export class StudioService {
     try {
       const usersRef = collection(db, 'users');
       const q = query(
-        usersRef, 
+        usersRef,
         where('userdata.studios.default.studioId', '==', studioId)
       );
       const snapshot = await getDocs(q);
       return snapshot.size;
     } catch (error) {
-      console.error(`[StudioService] Error counting members for studio ${studioId}:`, error);
+      console.error(
+        `[StudioService] Error counting members for studio ${studioId}:`,
+        error
+      );
       return 0;
     }
   }
@@ -77,7 +84,7 @@ export class StudioService {
           const memberCount = await this.getStudioMemberCount(studio.id);
           return {
             ...studio,
-            memberCount
+            memberCount,
           };
         })
       );
@@ -101,7 +108,7 @@ export class StudioService {
         city: 'Greenville',
         state: 'SC',
         region: 'Southeast',
-        coordinates: { lat: 34.8526, lng: -82.3940 },
+        coordinates: { lat: 34.8526, lng: -82.394 },
         description: 'Default studio for the Greenville, SC area',
         coversTowns: ['Greenville', 'Simpsonville', 'Greer', 'Mauldin'],
         isActive: true,
@@ -125,7 +132,7 @@ export class StudioService {
    */
   static async getStudiosByRegion(region) {
     const allStudios = await this.getAllStudios();
-    return allStudios.filter(studio => studio.region === region);
+    return allStudios.filter((studio) => studio.region === region);
   }
 
   /**
@@ -139,14 +146,17 @@ export class StudioService {
       if (studioDoc.exists()) {
         return {
           id: studioDoc.id,
-          ...studioDoc.data()
+          ...studioDoc.data(),
         };
       }
       return null;
     } catch (error) {
       console.error(`[StudioService] Error getting studio ${studioId}:`, error);
       // Fallback to hardcoded data
-      return this.getHardcodedStudios().find(studio => studio.id === studioId) || null;
+      return (
+        this.getHardcodedStudios().find((studio) => studio.id === studioId) ||
+        null
+      );
     }
   }
 
@@ -158,9 +168,10 @@ export class StudioService {
   static async getStudiosForTown(cityName) {
     const normalizedCity = cityName.toLowerCase().trim();
     const allStudios = await this.getAllStudios();
-    return allStudios.filter(studio => 
-      studio.city?.toLowerCase().includes(normalizedCity) || 
-      normalizedCity.includes(studio.city?.toLowerCase())
+    return allStudios.filter(
+      (studio) =>
+        studio.city?.toLowerCase().includes(normalizedCity) ||
+        normalizedCity.includes(studio.city?.toLowerCase())
     );
   }
 
@@ -175,9 +186,7 @@ export class StudioService {
 
     // Return studios in the same region, excluding home studio
     const regionStudios = await this.getStudiosByRegion(homeStudio.region);
-    return regionStudios.filter(
-      studio => studio.id !== homeStudioId
-    );
+    return regionStudios.filter((studio) => studio.id !== homeStudioId);
   }
 
   /**
@@ -187,7 +196,10 @@ export class StudioService {
    */
   static async updateUserStudio(userId, studioId) {
     try {
-      console.log('[StudioService] Updating user studio:', { userId, studioId });
+      console.log('[StudioService] Updating user studio:', {
+        userId,
+        studioId,
+      });
 
       const studio = await this.getStudioById(studioId);
       if (!studio) {
@@ -206,9 +218,9 @@ export class StudioService {
                 studioCity: studio.city,
                 studioState: studio.state,
               },
-              additional: [] // Array for future multiple studio support
-            }
-          }
+              additional: [], // Array for future multiple studio support
+            },
+          },
         },
         { merge: true }
       );
@@ -227,16 +239,18 @@ export class StudioService {
    */
   static async getSuggestions(searchText) {
     if (!searchText || searchText.trim().length < 2) return [];
-    
+
     const normalizedSearch = searchText.toLowerCase().trim();
     const suggestions = [];
 
     // Search through all studios
     const allStudios = await this.getAllStudios();
-    allStudios.forEach(studio => {
+    allStudios.forEach((studio) => {
       // Check studio name and city
-      if (studio.name?.toLowerCase().includes(normalizedSearch) ||
-          studio.city?.toLowerCase().includes(normalizedSearch)) {
+      if (
+        studio.name?.toLowerCase().includes(normalizedSearch) ||
+        studio.city?.toLowerCase().includes(normalizedSearch)
+      ) {
         suggestions.push({
           displayName: `${studio.city}, ${studio.state}`,
           studioId: studio.id,
@@ -248,7 +262,12 @@ export class StudioService {
 
     // Remove duplicates and limit results
     const uniqueSuggestions = suggestions.reduce((unique, item) => {
-      if (!unique.find(u => u.studioId === item.studioId && u.displayName === item.displayName)) {
+      if (
+        !unique.find(
+          (u) =>
+            u.studioId === item.studioId && u.displayName === item.displayName
+        )
+      ) {
         unique.push(item);
       }
       return unique;
@@ -271,7 +290,7 @@ export class StudioService {
    */
   static async generateStudioFromText(locationText) {
     const suggestions = await this.getSuggestions(locationText);
-    
+
     if (suggestions.length > 0) {
       const bestMatch = suggestions[0];
       return {
@@ -311,19 +330,28 @@ export class StudioService {
    */
   static calculateDistance(lat1, lng1, lat2, lng2) {
     // Safety check for undefined coordinates
-    if (typeof lat1 !== 'number' || typeof lng1 !== 'number' || 
-        typeof lat2 !== 'number' || typeof lng2 !== 'number') {
-      console.warn('[StudioService] Invalid coordinates for distance calculation:', { lat1, lng1, lat2, lng2 });
+    if (
+      typeof lat1 !== 'number' ||
+      typeof lng1 !== 'number' ||
+      typeof lat2 !== 'number' ||
+      typeof lng2 !== 'number'
+    ) {
+      console.warn(
+        '[StudioService] Invalid coordinates for distance calculation:',
+        { lat1, lng1, lat2, lng2 }
+      );
       return null;
     }
-    
+
     const R = 3959; // Earth's radius in miles
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a = 
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLng = ((lng2 - lng1) * Math.PI) / 180;
+    const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLng / 2) *
+        Math.sin(dLng / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }
@@ -336,35 +364,59 @@ export class StudioService {
    * @param {number} maxDistance - Maximum distance in miles (default 100)
    * @returns {Promise<Array>} Array of closest studios with distance
    */
-  static async getClosestStudios(userLat, userLng, limit = 5, maxDistance = 100) {
-    console.log('[StudioService] Getting closest studios for coordinates:', { userLat, userLng, maxDistance });
+  static async getClosestStudios(
+    userLat,
+    userLng,
+    limit = 5,
+    maxDistance = 100
+  ) {
+    console.log('[StudioService] Getting closest studios for coordinates:', {
+      userLat,
+      userLng,
+      maxDistance,
+    });
     const allStudios = await this.getAllStudios();
     console.log('[StudioService] All studios loaded:', allStudios.length);
-    console.log('[StudioService] Studios with coordinates:', allStudios.map(s => ({
-      id: s.id,
-      name: s.name,
-      hasCoordinates: !!s.coordinates,
-      coordinates: s.coordinates
-    })));
-    
-    const studiosWithCoordinates = allStudios.filter(studio => studio.coordinates);
-    console.log('[StudioService] Studios after coordinate filter:', studiosWithCoordinates.length);
-    
+    console.log(
+      '[StudioService] Studios with coordinates:',
+      allStudios.map((s) => ({
+        id: s.id,
+        name: s.name,
+        hasCoordinates: !!s.coordinates,
+        coordinates: s.coordinates,
+      }))
+    );
+
+    const studiosWithCoordinates = allStudios.filter(
+      (studio) => studio.coordinates
+    );
+    console.log(
+      '[StudioService] Studios after coordinate filter:',
+      studiosWithCoordinates.length
+    );
+
     const studiosWithDistance = studiosWithCoordinates
-      .map(studio => ({
+      .map((studio) => ({
         ...studio,
         distance: this.calculateDistance(
-          userLat, 
-          userLng, 
-          studio.coordinates.lat, 
+          userLat,
+          userLng,
+          studio.coordinates.lat,
           studio.coordinates.lng
-        )
+        ),
       }))
-      .filter(studio => studio.distance !== null && studio.distance <= maxDistance) // Filter by maximum distance and valid distance
+      .filter(
+        (studio) => studio.distance !== null && studio.distance <= maxDistance
+      ) // Filter by maximum distance and valid distance
       .sort((a, b) => a.distance - b.distance) // Sort by distance
       .slice(0, limit); // Limit results
 
-    console.log('[StudioService] Studios within', maxDistance, 'miles:', studiosWithDistance.length);
+    console.log(
+      '[StudioService] Studios within',
+      maxDistance,
+      'miles:',
+      studiosWithDistance.length
+    );
 
     // Add member counts to the closest studios
     const studiosWithCounts = await this.addMemberCounts(studiosWithDistance);
@@ -401,9 +453,12 @@ export class StudioService {
         ...studioData,
         status: 'active',
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
-      console.log('[StudioService] Successfully created studio:', studioData.name);
+      console.log(
+        '[StudioService] Successfully created studio:',
+        studioData.name
+      );
       return true;
     } catch (error) {
       console.error('[StudioService] Error creating studio:', error);
@@ -419,25 +474,29 @@ export class StudioService {
     try {
       console.log('[StudioService] Checking if studios exist...');
       const studios = await this.getAllStudios();
-      
+
       if (studios.length === 0) {
-        console.log('[StudioService] No studios found, initializing Greenville studio...');
-        
+        console.log(
+          '[StudioService] No studios found, initializing Greenville studio...'
+        );
+
         const greenvilleStudio = {
           id: 'greenville_sc',
           name: 'Greenville Studio',
           city: 'Greenville',
           state: 'SC',
           region: 'Southeast',
-          coordinates: { lat: 34.8526, lng: -82.3940 },
+          coordinates: { lat: 34.8526, lng: -82.394 },
           description: 'Auto-initialized default studio for Greenville, SC',
           coversTowns: ['Greenville', 'Simpsonville', 'Greer', 'Mauldin'],
-          isActive: true
+          isActive: true,
         };
-        
+
         return await this.createStudio(greenvilleStudio);
       } else {
-        console.log('[StudioService] Studios already exist, skipping auto-initialization');
+        console.log(
+          '[StudioService] Studios already exist, skipping auto-initialization'
+        );
         return true;
       }
     } catch (error) {
@@ -445,5 +504,4 @@ export class StudioService {
       return false;
     }
   }
-
 }

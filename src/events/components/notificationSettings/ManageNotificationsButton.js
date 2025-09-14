@@ -4,10 +4,7 @@ import theme from '../../../theme/themes';
 
 export default function ManageNotificationsButton({ onPress, style }) {
   return (
-    <Pressable
-      style={[styles.button, style]}
-      onPress={onPress}
-    >
+    <Pressable style={[styles.button, style]} onPress={onPress}>
       <Text style={styles.buttonText}>🔔 Manage Notifications</Text>
     </Pressable>
   );

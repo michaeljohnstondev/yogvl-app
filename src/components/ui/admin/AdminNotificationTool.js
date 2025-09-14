@@ -25,15 +25,26 @@ export default function AdminNotificationTool({ currentUserId }) {
   const [sending, setSending] = useState(false);
 
   const notificationTypes = [
-    { value: 'announcement', label: 'Announcement', color: theme.colors.vibeBlue },
+    {
+      value: 'announcement',
+      label: 'Announcement',
+      color: theme.colors.vibeBlue,
+    },
     { value: 'system', label: 'System Notice', color: theme.colors.vibeGreen },
     { value: 'policy', label: 'Policy Update', color: theme.colors.vibePink },
-    { value: 'custom', label: 'Custom Message', color: theme.colors.vibeYellow },
+    {
+      value: 'custom',
+      label: 'Custom Message',
+      color: theme.colors.vibeYellow,
+    },
   ];
 
   const handleSendNotification = async () => {
     if (!isGlobalMessage && !targetUserId.trim()) {
-      Alert.alert('Error', 'Please enter a target user ID or enable global message');
+      Alert.alert(
+        'Error',
+        'Please enter a target user ID or enable global message'
+      );
       return;
     }
 
@@ -52,7 +63,7 @@ export default function AdminNotificationTool({ currentUserId }) {
           currentUserId,
           {
             title: title.trim() || undefined,
-            requiresAcknowledgment: true
+            requiresAcknowledgment: true,
           }
         );
       } else {
@@ -63,13 +74,18 @@ export default function AdminNotificationTool({ currentUserId }) {
           message.trim(),
           currentUserId,
           {
-            requiresResponse: true
+            requiresResponse: true,
           }
         );
       }
 
-      Alert.alert('Success', isGlobalMessage ? 'Global notification posted - all users will see it!' : 'Notification sent successfully');
-      
+      Alert.alert(
+        'Success',
+        isGlobalMessage
+          ? 'Global notification posted - all users will see it!'
+          : 'Notification sent successfully'
+      );
+
       // Reset form
       setTargetUserId('');
       setTitle('');
@@ -77,22 +93,29 @@ export default function AdminNotificationTool({ currentUserId }) {
       setAdditionalInfo('');
       setNotificationType('announcement');
       setIsGlobalMessage(false);
-
     } catch (error) {
-      console.error('[AdminNotificationTool] Error sending notification:', error);
+      console.error(
+        '[AdminNotificationTool] Error sending notification:',
+        error
+      );
       Alert.alert('Error', 'Failed to send notification: ' + error.message);
     } finally {
       setSending(false);
     }
   };
 
-  const selectedType = notificationTypes.find(t => t.value === notificationType);
+  const selectedType = notificationTypes.find(
+    (t) => t.value === notificationType
+  );
 
   return (
     <View style={styles.container}>
       <Text style={styles.sectionTitle}>Send Admin Notification</Text>
-      
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.formContainer}>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        style={styles.formContainer}
+      >
         {/* Global Message Toggle */}
         <View style={styles.inputSection}>
           <Text style={styles.inputLabel}>Message Target</Text>
@@ -100,14 +123,16 @@ export default function AdminNotificationTool({ currentUserId }) {
             <TouchableOpacity
               style={[
                 styles.toggleButton,
-                !isGlobalMessage && styles.toggleButtonActive
+                !isGlobalMessage && styles.toggleButtonActive,
               ]}
               onPress={() => setIsGlobalMessage(false)}
             >
-              <Text style={[
-                styles.toggleButtonText,
-                !isGlobalMessage && styles.toggleButtonTextActive
-              ]}>
+              <Text
+                style={[
+                  styles.toggleButtonText,
+                  !isGlobalMessage && styles.toggleButtonTextActive,
+                ]}
+              >
                 Individual User
               </Text>
             </TouchableOpacity>
@@ -115,14 +140,16 @@ export default function AdminNotificationTool({ currentUserId }) {
               style={[
                 styles.toggleButton,
                 { borderColor: theme.colors.vibeOrange },
-                isGlobalMessage && { backgroundColor: theme.colors.vibeOrange }
+                isGlobalMessage && { backgroundColor: theme.colors.vibeOrange },
               ]}
               onPress={() => setIsGlobalMessage(true)}
             >
-              <Text style={[
-                styles.toggleButtonText,
-                isGlobalMessage && styles.toggleButtonTextActive
-              ]}>
+              <Text
+                style={[
+                  styles.toggleButtonText,
+                  isGlobalMessage && styles.toggleButtonTextActive,
+                ]}
+              >
                 Global Message
               </Text>
             </TouchableOpacity>
@@ -155,28 +182,36 @@ export default function AdminNotificationTool({ currentUserId }) {
         {/* Notification Type */}
         <View style={styles.inputSection}>
           <Text style={styles.inputLabel}>Notification Type</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.typeScrollView}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.typeScrollView}
+          >
             {notificationTypes.map((type) => (
               <TouchableOpacity
                 key={type.value}
                 style={[
                   styles.typeButton,
                   { borderColor: type.color },
-                  notificationType === type.value && { backgroundColor: type.color }
+                  notificationType === type.value && {
+                    backgroundColor: type.color,
+                  },
                 ]}
                 onPress={() => setNotificationType(type.value)}
               >
-                <Text style={[
-                  styles.typeButtonText,
-                  notificationType === type.value && styles.typeButtonTextActive
-                ]}>
+                <Text
+                  style={[
+                    styles.typeButtonText,
+                    notificationType === type.value &&
+                      styles.typeButtonTextActive,
+                  ]}
+                >
                   {type.label}
                 </Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
         </View>
-
 
         {/* Title - Make it smaller */}
         <View style={styles.inputSection}>
@@ -206,18 +241,27 @@ export default function AdminNotificationTool({ currentUserId }) {
             textAlignVertical="top"
           />
         </View>
-
       </ScrollView>
 
       {/* Send Button - Outside ScrollView so always visible */}
       <VibeButton
-        label={sending ? "Sending..." : "Send Notification"}
+        label={sending ? 'Sending...' : 'Send Notification'}
         onPress={handleSendNotification}
         variant="primary"
-        color={selectedType.color === theme.colors.vibeYellow ? 'yellow' : 
-              selectedType.color === theme.colors.vibeGreen ? 'green' :
-              selectedType.color === theme.colors.vibePink ? 'pink' : 'blue'}
-        disabled={sending || (!isGlobalMessage && !targetUserId.trim()) || !message.trim()}
+        color={
+          selectedType.color === theme.colors.vibeYellow
+            ? 'yellow'
+            : selectedType.color === theme.colors.vibeGreen
+              ? 'green'
+              : selectedType.color === theme.colors.vibePink
+                ? 'pink'
+                : 'blue'
+        }
+        disabled={
+          sending ||
+          (!isGlobalMessage && !targetUserId.trim()) ||
+          !message.trim()
+        }
         style={styles.sendButton}
       />
     </View>

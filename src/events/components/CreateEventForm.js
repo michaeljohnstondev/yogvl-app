@@ -20,7 +20,7 @@ import {
   VibeButtonPlain,
   VibeSeparator,
   VibeInput,
-  VibeDropdown
+  VibeDropdown,
 } from '../../components/ui/base';
 import { ReliabilityWarning } from '../../components/ui/profile';
 import {
@@ -159,11 +159,24 @@ export default function CreateEventForm({
       hostChanges: formData.notificationSettings?.hostChanges ?? true,
       eventReminders: formData.notificationSettings?.eventReminders ?? true,
       reminderTiming: formData.notificationSettings?.reminderTiming ?? '1hour',
-      dayBeforeReminder: formData.notificationSettings?.dayBeforeReminder ?? true,
+      dayBeforeReminder:
+        formData.notificationSettings?.dayBeforeReminder ?? true,
       hostComments: formData.notificationSettings?.hostComments ?? true,
       reminderTemplates: formData.notificationSettings?.reminderTemplates || [
-        { id: '15min', amount: 15, unit: 'minutes', enabled: true, label: '15 min' },
-        { id: '1hour', amount: 1, unit: 'hours', enabled: true, label: '1 hour' },
+        {
+          id: '15min',
+          amount: 15,
+          unit: 'minutes',
+          enabled: true,
+          label: '15 min',
+        },
+        {
+          id: '1hour',
+          amount: 1,
+          unit: 'hours',
+          enabled: true,
+          label: '1 hour',
+        },
         { id: '1day', amount: 1, unit: 'days', enabled: false, label: '1 day' },
       ],
     };
@@ -176,7 +189,13 @@ export default function CreateEventForm({
       onUpdateSettings: updateField,
       userContext: 'hosting', // User is hosting this event
     });
-  }, [navigation, formData.notificationSettings, userData, dateTimeValues, updateField]);
+  }, [
+    navigation,
+    formData.notificationSettings,
+    userData,
+    dateTimeValues,
+    updateField,
+  ]);
 
   // Navigation handlers for beautiful InviteScreen
   const openGuestInvitations = () => {
@@ -198,29 +217,42 @@ export default function CreateEventForm({
 
         // When adding guests, don't remove anyone from host lists
         // Hosts have higher priority than guests
-        const guestUserIds = users.map(u => u.id);
-        const guestContactIds = [...contacts, ...phoneContacts].map(c => c.id);
-        
+        const guestUserIds = users.map((u) => u.id);
+        const guestContactIds = [...contacts, ...phoneContacts].map(
+          (c) => c.id
+        );
+
         // Filter out guests who are already hosts (hosts take priority)
-        const existingHostUserIds = (formData.additionalHostUsers || []).map(u => u.id);
+        const existingHostUserIds = (formData.additionalHostUsers || []).map(
+          (u) => u.id
+        );
         const existingHostContactIds = [
           ...(formData.additionalHostContacts || []),
-          ...(formData.additionalHostPhoneContacts || [])
-        ].map(c => c.id);
-        
-        const filteredGuestUsers = users.filter(u => !existingHostUserIds.includes(u.id));
-        const filteredGuestContacts = contacts.filter(c => !existingHostContactIds.includes(c.id));
-        const filteredGuestPhoneContacts = phoneContacts.filter(c => !existingHostContactIds.includes(c.id));
-        
+          ...(formData.additionalHostPhoneContacts || []),
+        ].map((c) => c.id);
+
+        const filteredGuestUsers = users.filter(
+          (u) => !existingHostUserIds.includes(u.id)
+        );
+        const filteredGuestContacts = contacts.filter(
+          (c) => !existingHostContactIds.includes(c.id)
+        );
+        const filteredGuestPhoneContacts = phoneContacts.filter(
+          (c) => !existingHostContactIds.includes(c.id)
+        );
+
         // Update guest fields (only non-hosts)
         updateField('invitedUsers', filteredGuestUsers);
         updateField('invitedContacts', filteredGuestContacts);
         updateField('invitedPhoneContacts', filteredGuestPhoneContacts);
-        
+
         // Host fields remain unchanged
-        
+
         // Update text contacts for guest list display
-        const allTextContacts = [...filteredGuestContacts, ...filteredGuestPhoneContacts];
+        const allTextContacts = [
+          ...filteredGuestContacts,
+          ...filteredGuestPhoneContacts,
+        ];
         handleTextContactsChange(allTextContacts);
 
         // Call the guest invitation change callback
@@ -258,25 +290,34 @@ export default function CreateEventForm({
         }
 
         // Remove any selected hosts from guest lists to prevent duplicates
-        const hostUserIds = users.map(u => u.id);
-        const hostContactIds = [...contacts, ...phoneContacts].map(c => c.id);
-        
-        const filteredGuestUsers = (formData.invitedUsers || []).filter(u => !hostUserIds.includes(u.id));
-        const filteredGuestContacts = (formData.invitedContacts || []).filter(c => !hostContactIds.includes(c.id));
-        const filteredGuestPhoneContacts = (formData.invitedPhoneContacts || []).filter(c => !hostContactIds.includes(c.id));
-        
+        const hostUserIds = users.map((u) => u.id);
+        const hostContactIds = [...contacts, ...phoneContacts].map((c) => c.id);
+
+        const filteredGuestUsers = (formData.invitedUsers || []).filter(
+          (u) => !hostUserIds.includes(u.id)
+        );
+        const filteredGuestContacts = (formData.invitedContacts || []).filter(
+          (c) => !hostContactIds.includes(c.id)
+        );
+        const filteredGuestPhoneContacts = (
+          formData.invitedPhoneContacts || []
+        ).filter((c) => !hostContactIds.includes(c.id));
+
         // Update host fields
         updateField('additionalHostUsers', users);
         updateField('additionalHostContacts', contacts);
         updateField('additionalHostPhoneContacts', phoneContacts);
-        
+
         // Update guest fields (removing duplicates)
         updateField('invitedUsers', filteredGuestUsers);
         updateField('invitedContacts', filteredGuestContacts);
         updateField('invitedPhoneContacts', filteredGuestPhoneContacts);
-        
+
         // Update text contacts for guest list display (removing hosts from text contacts)
-        const allTextContacts = [...filteredGuestContacts, ...filteredGuestPhoneContacts];
+        const allTextContacts = [
+          ...filteredGuestContacts,
+          ...filteredGuestPhoneContacts,
+        ];
         handleTextContactsChange(allTextContacts);
 
         // Call the co-host invitation change callback
@@ -310,7 +351,6 @@ export default function CreateEventForm({
     const backHandler = BackHandler.addEventListener(
       'hardwareBackPress',
       () => {
-
         // Check if any sections are expanded
         const hasExpandedSections = Object.values(expandedSections).some(
           (isExpanded) => isExpanded
@@ -699,7 +739,9 @@ export default function CreateEventForm({
         >
           {/* Header */}
           <View style={styles.headerContainer}>
-            <Text style={styles.title}>{isEditMode ? 'Edit Event' : 'Create Event'}</Text>
+            <Text style={styles.title}>
+              {isEditMode ? 'Edit Event' : 'Create Event'}
+            </Text>
             <Pressable
               style={styles.useTemplateButton}
               onPress={onShowTemplateModal}
@@ -752,7 +794,6 @@ export default function CreateEventForm({
               setFieldRef={setFieldRef}
             />
           </View>
-
 
           {/* WHO SECTION */}
           <View ref={setSectionRef('who')} style={styles.sectionContainer}>
@@ -831,9 +872,13 @@ export default function CreateEventForm({
           {/* Create Button */}
           <VibeButton
             label={
-              isCreating 
-                ? (isEditMode ? 'UPDATING...' : 'CREATING...') 
-                : (isEditMode ? 'UPDATE EVENT' : 'CREATE EVENT')
+              isCreating
+                ? isEditMode
+                  ? 'UPDATING...'
+                  : 'CREATING...'
+                : isEditMode
+                  ? 'UPDATE EVENT'
+                  : 'CREATE EVENT'
             }
             onPress={onCreate}
             style={[styles.createButton, isCreating && styles.disabledButton]}

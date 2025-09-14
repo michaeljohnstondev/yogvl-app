@@ -23,7 +23,7 @@ export const updateVerifiedPhone = async (userId, phoneNumber) => {
     }
 
     const userRef = doc(db, 'users', userId);
-    
+
     // Update user document with verified phone
     await updateDoc(userRef, {
       'userdata.contactInfo.verifiedPhone': normalizedPhone,
@@ -32,16 +32,21 @@ export const updateVerifiedPhone = async (userId, phoneNumber) => {
     });
 
     // Auto-subscribe to events they were invited to by this phone
-    const { autoSubscribeToInvitedEvents } = await import('./phoneAccessService');
-    const autoSubResult = await autoSubscribeToInvitedEvents(userId, normalizedPhone);
+    const { autoSubscribeToInvitedEvents } = await import(
+      './phoneAccessService'
+    );
+    const autoSubResult = await autoSubscribeToInvitedEvents(
+      userId,
+      normalizedPhone
+    );
 
     console.log(`Phone ${normalizedPhone} verified for user ${userId}`);
-    
+
     return {
       success: true,
       verifiedPhone: normalizedPhone,
       subscribedEvents: autoSubResult.subscribedEvents || [],
-      totalEventsFound: autoSubResult.totalFound || 0
+      totalEventsFound: autoSubResult.totalFound || 0,
     };
   } catch (error) {
     console.error('Error updating verified phone:', error);
@@ -55,7 +60,10 @@ export const updateVerifiedPhone = async (userId, phoneNumber) => {
  * @param {string} excludeUserId - User ID to exclude from check (current user)
  * @returns {Promise<boolean>} Whether phone is already verified by another user
  */
-export const isPhoneAlreadyVerified = async (phoneNumber, excludeUserId = null) => {
+export const isPhoneAlreadyVerified = async (
+  phoneNumber,
+  excludeUserId = null
+) => {
   try {
     const normalizedPhone = normalizePhoneNumber(phoneNumber);
     if (!normalizedPhone) {
@@ -65,7 +73,7 @@ export const isPhoneAlreadyVerified = async (phoneNumber, excludeUserId = null) 
     // Note: This would require a query across all users to check for verified phones
     // For now, we'll assume phones can be verified by multiple users (family members, etc.)
     // In production, you might want to enforce unique verified phones
-    
+
     return false; // Allow multiple users to verify the same phone for now
   } catch (error) {
     console.error('Error checking if phone is verified:', error);
@@ -86,22 +94,26 @@ export const getPhoneVerificationStatus = async (userId) => {
 
     const userRef = doc(db, 'users', userId);
     const userDoc = await getDoc(userRef);
-    
+
     if (!userDoc.exists()) {
       throw new Error('User not found');
     }
 
     const userData = userDoc.data();
     const contactInfo = userData.userdata?.contactInfo || {};
-    
+
     return {
       hasPhone: !!contactInfo.phoneNumber,
       displayPhone: contactInfo.phoneNumber || null,
       verifiedPhone: contactInfo.verifiedPhone || null,
       isVerified: contactInfo.phoneVerified || false,
-      needsVerification: !!contactInfo.phoneNumber && !contactInfo.phoneVerified,
-      phoneMatches: contactInfo.phoneNumber && contactInfo.verifiedPhone && 
-        normalizePhoneNumber(contactInfo.phoneNumber) === normalizePhoneNumber(contactInfo.verifiedPhone)
+      needsVerification:
+        !!contactInfo.phoneNumber && !contactInfo.phoneVerified,
+      phoneMatches:
+        contactInfo.phoneNumber &&
+        contactInfo.verifiedPhone &&
+        normalizePhoneNumber(contactInfo.phoneNumber) ===
+          normalizePhoneNumber(contactInfo.verifiedPhone),
     };
   } catch (error) {
     console.error('Error getting phone verification status:', error);
@@ -121,7 +133,7 @@ export const unverifyPhone = async (userId) => {
     }
 
     const userRef = doc(db, 'users', userId);
-    
+
     await updateDoc(userRef, {
       'userdata.contactInfo.verifiedPhone': null,
       'userdata.contactInfo.phoneVerified': false,
@@ -153,15 +165,15 @@ export const sendVerificationCode = async (phoneNumber) => {
     // - Twilio Verify API
     // - AWS SNS
     // - or similar SMS verification service
-    
+
     console.log(`Sending verification code to ${normalizedPhone}`);
-    
+
     // For development/testing, just return success
     return {
       success: true,
       phoneNumber: normalizedPhone,
       sessionId: `verify_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      message: 'Verification code sent (development mode)'
+      message: 'Verification code sent (development mode)',
     };
   } catch (error) {
     console.error('Error sending verification code:', error);
@@ -178,16 +190,16 @@ export const sendVerificationCode = async (phoneNumber) => {
 export const verifyCode = async (sessionId, code) => {
   try {
     // This is a placeholder - in production, verify with your SMS service
-    
+
     console.log(`Verifying code ${code} for session ${sessionId}`);
-    
+
     // For development/testing, accept any 6-digit code
     const isValidFormat = /^\d{6}$/.test(code);
-    
+
     if (!isValidFormat) {
       return false;
     }
-    
+
     // In production, this would check against the actual sent code
     return true; // Accept all properly formatted codes in development
   } catch (error) {

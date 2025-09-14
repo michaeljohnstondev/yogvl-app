@@ -42,7 +42,6 @@ export async function logout() {
   }
 }
 
-
 // Auth state hook
 export function useAuthState() {
   const [user, setUser] = useState(null);

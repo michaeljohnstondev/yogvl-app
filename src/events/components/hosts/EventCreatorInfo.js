@@ -47,16 +47,16 @@ const EventCreatorInfo = ({
   if (compact) {
     return (
       <Container style={[styles.compactContainer, style]} {...containerProps}>
-        <ProfileAvatar 
-          userData={creatorData} 
-          size={32}
-          showBorder={true}
-        />
+        <ProfileAvatar userData={creatorData} size={32} showBorder={true} />
         <Text style={styles.compactName} numberOfLines={1}>
           {displayName}
         </Text>
         {showReliability && (
-          <ReliabilityBadge userData={creatorData} size="small" showLabel={false} />
+          <ReliabilityBadge
+            userData={creatorData}
+            size="small"
+            showLabel={false}
+          />
         )}
         {onPress && <Text style={styles.clickHint}>ⓘ</Text>}
       </Container>
@@ -67,11 +67,7 @@ const EventCreatorInfo = ({
     <Container style={[styles.container, style]} {...containerProps}>
       {showLabel && <Text style={styles.label}>Hosted by:</Text>}
       <View style={styles.details}>
-        <ProfileAvatar 
-          userData={creatorData} 
-          size={40}
-          showBorder={true}
-        />
+        <ProfileAvatar userData={creatorData} size={40} showBorder={true} />
         <View style={styles.nameContainer}>
           <Text style={styles.name}>{displayName}</Text>
           {onPress && <Text style={styles.clickHint}>ⓘ</Text>}

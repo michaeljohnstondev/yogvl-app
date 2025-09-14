@@ -19,71 +19,116 @@ import { useVibeAlert } from './ui/base/VibeAlertContext';
 // Validation function to prevent database abuse
 const validateFormData = (formData) => {
   const { cityName, stateName, country, reason } = formData;
-  
+
   // Required field validation
   if (!cityName?.trim() || !stateName?.trim() || !country?.trim()) {
-    return { isValid: false, message: 'City, State/Province, and Country are required.' };
+    return {
+      isValid: false,
+      message: 'City, State/Province, and Country are required.',
+    };
   }
-  
+
   // Length limits to prevent abuse
   if (cityName.trim().length > 50) {
-    return { isValid: false, message: 'City name must be 50 characters or less.' };
+    return {
+      isValid: false,
+      message: 'City name must be 50 characters or less.',
+    };
   }
-  
+
   if (stateName.trim().length > 20) {
-    return { isValid: false, message: 'State/Province must be 20 characters or less.' };
+    return {
+      isValid: false,
+      message: 'State/Province must be 20 characters or less.',
+    };
   }
-  
+
   if (country.trim().length > 30) {
-    return { isValid: false, message: 'Country must be 30 characters or less.' };
+    return {
+      isValid: false,
+      message: 'Country must be 30 characters or less.',
+    };
   }
-  
+
   if (reason && reason.length > 500) {
-    return { isValid: false, message: 'Additional notes must be 500 characters or less.' };
+    return {
+      isValid: false,
+      message: 'Additional notes must be 500 characters or less.',
+    };
   }
-  
+
   // Character validation - only allow letters, spaces, hyphens, apostrophes
   const namePattern = /^[a-zA-Z\s\-'\.]+$/;
-  
+
   if (!namePattern.test(cityName.trim())) {
-    return { isValid: false, message: 'City name contains invalid characters. Only letters, spaces, hyphens, and apostrophes are allowed.' };
+    return {
+      isValid: false,
+      message:
+        'City name contains invalid characters. Only letters, spaces, hyphens, and apostrophes are allowed.',
+    };
   }
-  
+
   if (!namePattern.test(stateName.trim())) {
-    return { isValid: false, message: 'State/Province contains invalid characters. Only letters, spaces, hyphens, and apostrophes are allowed.' };
+    return {
+      isValid: false,
+      message:
+        'State/Province contains invalid characters. Only letters, spaces, hyphens, and apostrophes are allowed.',
+    };
   }
-  
+
   if (!namePattern.test(country.trim())) {
-    return { isValid: false, message: 'Country contains invalid characters. Only letters, spaces, hyphens, and apostrophes are allowed.' };
+    return {
+      isValid: false,
+      message:
+        'Country contains invalid characters. Only letters, spaces, hyphens, and apostrophes are allowed.',
+    };
   }
-  
+
   // Min length validation
   if (cityName.trim().length < 2) {
-    return { isValid: false, message: 'City name must be at least 2 characters long.' };
+    return {
+      isValid: false,
+      message: 'City name must be at least 2 characters long.',
+    };
   }
-  
+
   if (stateName.trim().length < 2) {
-    return { isValid: false, message: 'State/Province must be at least 2 characters long.' };
+    return {
+      isValid: false,
+      message: 'State/Province must be at least 2 characters long.',
+    };
   }
-  
+
   // Prevent obvious spam/test data
-  const spamPatterns = ['test', 'spam', 'fake', 'admin', 'null', 'undefined', 'script'];
+  const spamPatterns = [
+    'test',
+    'spam',
+    'fake',
+    'admin',
+    'null',
+    'undefined',
+    'script',
+  ];
   const lowerCity = cityName.trim().toLowerCase();
   const lowerState = stateName.trim().toLowerCase();
-  
-  if (spamPatterns.some(pattern => lowerCity.includes(pattern) || lowerState.includes(pattern))) {
+
+  if (
+    spamPatterns.some(
+      (pattern) => lowerCity.includes(pattern) || lowerState.includes(pattern)
+    )
+  ) {
     return { isValid: false, message: 'Please enter a valid location name.' };
   }
-  
+
   return { isValid: true };
 };
 
-const RequestStudioModal = ({ 
-  visible, 
-  onClose, 
-  initialCity = '', 
+const RequestStudioModal = ({
+  visible,
+  onClose,
+  initialCity = '',
   initialState = '',
-  onRequestSubmitted 
+  onRequestSubmitted,
 }) => {
   const { user } = useAuth();
   const vibeAlert = useVibeAlert();
@@ -96,9 +141,9 @@ const RequestStudioModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
@@ -111,12 +156,15 @@ const RequestStudioModal = ({
     }
 
     if (!user?.uid) {
-      vibeAlert.error('Authentication Error', 'You must be logged in to request a studio.');
+      vibeAlert.error(
+        'Authentication Error',
+        'You must be logged in to request a studio.'
+      );
       return;
     }
 
     setIsSubmitting(true);
-    
+
     try {
       const result = await StudioRequestService.requestNewStudio(
         formData.cityName.trim(),
@@ -132,13 +180,19 @@ const RequestStudioModal = ({
         if (onRequestSubmitted) onRequestSubmitted(result);
       } else {
         vibeAlert.info('Request Status', result.message);
-        if (result.type === 'studio_exists' || result.type === 'request_exists') {
+        if (
+          result.type === 'studio_exists' ||
+          result.type === 'request_exists'
+        ) {
           onClose();
         }
       }
     } catch (error) {
       console.error('[RequestStudioModal] Error submitting request:', error);
-      vibeAlert.error('Error', 'Failed to submit studio request. Please try again.');
+      vibeAlert.error(
+        'Error',
+        'Failed to submit studio request. Please try again.'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -174,7 +228,8 @@ const RequestStudioModal = ({
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <Text style={styles.description}>
-            Can't find your city? Request a new studio location and we'll review it for approval.
+            Can't find your city? Request a new studio location and we'll review
+            it for approval.
           </Text>
 
           <View style={styles.formGroup}>
@@ -250,7 +305,11 @@ const RequestStudioModal = ({
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.button, styles.submitButton, isSubmitting && styles.disabledButton]}
+            style={[
+              styles.button,
+              styles.submitButton,
+              isSubmitting && styles.disabledButton,
+            ]}
             onPress={handleSubmit}
             disabled={isSubmitting}
           >

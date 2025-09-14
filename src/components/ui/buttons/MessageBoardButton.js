@@ -5,9 +5,13 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useComments } from '../comments/hooks/useComments';
 import theme from '../../../theme/themes';
 
-export default function MessageBoardButton({ eventId, eventTitle, navigation }) {
+export default function MessageBoardButton({
+  eventId,
+  eventTitle,
+  navigation,
+}) {
   const { comments, loading } = useComments(eventId);
-  
+
   const handlePress = () => {
     navigation.navigate('MessageBoard', {
       eventId,
@@ -23,49 +27,45 @@ export default function MessageBoardButton({ eventId, eventTitle, navigation }) 
 
   const getLastMessagePreview = () => {
     if (loading || comments.length === 0) return null;
-    
+
     const lastMessage = comments[comments.length - 1];
-    const preview = lastMessage.content.length > 50 
-      ? `${lastMessage.content.substring(0, 50)}...`
-      : lastMessage.content;
-    
+    const preview =
+      lastMessage.content.length > 50
+        ? `${lastMessage.content.substring(0, 50)}...`
+        : lastMessage.content;
+
     return `${lastMessage.userName || 'Someone'}: ${preview}`;
   };
 
   return (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.container}
       onPress={handlePress}
-      activeOpacity={0.8}
+      activeOpacity={0.7}
     >
       <View style={styles.content}>
-        {/* Header */}
         <View style={styles.header}>
-          <View style={styles.titleSection}>
-            <Text style={styles.title}>💬 Message Board</Text>
-            <Text style={styles.subtitle}>
-              {getMessageCountText()}
-            </Text>
+          <Text style={styles.emojiContainer}>💬</Text>
+
+          <View style={styles.textContent}>
+            <Text style={styles.title}>Message Board</Text>
+            <Text style={styles.subtitle}>{getMessageCountText()}</Text>
+            {getLastMessagePreview() && (
+              <Text style={styles.preview} numberOfLines={1}>
+                {getLastMessagePreview()}
+              </Text>
+            )}
+            {!loading && comments.length === 0 && (
+              <Text style={styles.emptyMessage}>
+                Start a conversation about this event
+              </Text>
+            )}
           </View>
-          
-          <View style={styles.arrow}>
-            <Text style={styles.arrowText}>›</Text>
+
+          <View style={styles.chevron}>
+            <Text style={styles.chevronText}>‹</Text>
           </View>
         </View>
-        
-        {/* Last message preview */}
-        {getLastMessagePreview() && (
-          <Text style={styles.preview} numberOfLines={1}>
-            {getLastMessagePreview()}
-          </Text>
-        )}
-        
-        {/* Empty state message */}
-        {!loading && comments.length === 0 && (
-          <Text style={styles.emptyMessage}>
-            Start a conversation about this event
-          </Text>
-        )}
       </View>
     </TouchableOpacity>
   );
@@ -73,63 +73,63 @@ export default function MessageBoardButton({ eventId, eventTitle, navigation }) 
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'rgba(0, 198, 255, 0.05)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.vibeBlue || '#00C6FF',
-    marginVertical: 8,
-    overflow: 'hidden',
+    marginBottom: 24,
+    paddingHorizontal: 20,
   },
   content: {
-    padding: 16,
+    backgroundColor: theme.colors.inputBackground,
+    borderRadius: theme.sizes.borderRadius,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.vibeBlue, // Blue instead of inputBorder
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
   },
-  titleSection: {
+  emojiContainer: {
+    fontSize: 24,
+    marginRight: 16,
+    width: 40,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  textContent: {
     flex: 1,
   },
   title: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '600',
     color: theme.colors.textPrimary,
     fontFamily: theme.fonts.main,
-    marginBottom: 4,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: theme.colors.vibeBlue,
     fontFamily: theme.fonts.main,
     fontWeight: '500',
   },
-  arrow: {
-    backgroundColor: theme.colors.vibeBlue,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+  chevron: {
+    width: 20,
+    height: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  arrowText: {
-    color: theme.colors.white,
-    fontSize: 18,
+  chevronText: {
+    fontSize: 16,
+    color: theme.colors.textSecondary,
     fontWeight: 'bold',
-    marginLeft: 2, // Optical centering
+    transform: [{ rotate: '180deg' }],
   },
   preview: {
-    fontSize: 14,
+    fontSize: 12,
     color: theme.colors.textSecondary,
     fontFamily: theme.fonts.main,
-    fontStyle: 'italic',
-    marginTop: 4,
+    marginTop: 2,
   },
   emptyMessage: {
-    fontSize: 14,
+    fontSize: 12,
     color: theme.colors.textSecondary,
     fontFamily: theme.fonts.main,
-    fontStyle: 'italic',
   },
 });

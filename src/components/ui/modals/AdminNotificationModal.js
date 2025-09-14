@@ -1,13 +1,13 @@
 // FILE: components/ui/AdminNotificationModal.js - Modal to show admin notifications to users
 
 import React from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  Modal, 
-  TouchableOpacity, 
-  ScrollView 
+import {
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  TouchableOpacity,
+  ScrollView,
 } from 'react-native';
 import theme from '../../../theme/themes';
 import VibeButton from '../base/VibeButton';
@@ -15,11 +15,11 @@ import VibeButton from '../base/VibeButton';
 /**
  * Modal to display admin notifications to users
  */
-export default function AdminNotificationModal({ 
-  visible, 
-  notification, 
-  onClose, 
-  onAcknowledge 
+export default function AdminNotificationModal({
+  visible,
+  notification,
+  onClose,
+  onAcknowledge,
 }) {
   if (!visible || !notification) {
     return null;
@@ -28,7 +28,11 @@ export default function AdminNotificationModal({
   const formatNotificationDate = (timestamp) => {
     if (!timestamp || !timestamp.seconds) return 'Unknown';
     const date = new Date(timestamp.seconds * 1000);
-    return date.toLocaleDateString() + ' at ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    return (
+      date.toLocaleDateString() +
+      ' at ' +
+      date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    );
   };
 
   const getNotificationConfig = () => {
@@ -39,7 +43,8 @@ export default function AdminNotificationModal({
           title: 'Warning Notice',
           titleColor: theme.colors.vibeYellow,
           borderColor: theme.colors.vibeYellow,
-          description: 'You have received a warning from the moderation team. Please review the message below.'
+          description:
+            'You have received a warning from the moderation team. Please review the message below.',
         };
       case 'strike':
         return {
@@ -47,7 +52,8 @@ export default function AdminNotificationModal({
           title: 'Strike Issued',
           titleColor: theme.colors.vibeOrange,
           borderColor: theme.colors.vibeOrange,
-          description: 'You have received a strike. Multiple strikes may result in temporary restrictions.'
+          description:
+            'You have received a strike. Multiple strikes may result in temporary restrictions.',
         };
       case 'announcement':
         return {
@@ -55,7 +61,7 @@ export default function AdminNotificationModal({
           title: 'Important Announcement',
           titleColor: theme.colors.vibeBlue,
           borderColor: theme.colors.vibeBlue,
-          description: 'The admin team has an important message for you.'
+          description: 'The admin team has an important message for you.',
         };
       case 'system':
         return {
@@ -63,7 +69,7 @@ export default function AdminNotificationModal({
           title: 'System Notice',
           titleColor: theme.colors.vibeGreen,
           borderColor: theme.colors.vibeGreen,
-          description: 'System maintenance or update information.'
+          description: 'System maintenance or update information.',
         };
       case 'policy':
         return {
@@ -71,7 +77,7 @@ export default function AdminNotificationModal({
           title: 'Policy Update',
           titleColor: theme.colors.vibePink,
           borderColor: theme.colors.vibePink,
-          description: 'Community guidelines or policy changes.'
+          description: 'Community guidelines or policy changes.',
         };
       default:
         return {
@@ -79,7 +85,7 @@ export default function AdminNotificationModal({
           title: 'Admin Message',
           titleColor: theme.colors.vibeBlue,
           borderColor: theme.colors.vibeBlue,
-          description: 'You have received a message from the admin team.'
+          description: 'You have received a message from the admin team.',
         };
     }
   };
@@ -99,10 +105,8 @@ export default function AdminNotificationModal({
             <Text style={[styles.title, { color: config.titleColor }]}>
               {config.icon} {config.title}
             </Text>
-            
-            <Text style={styles.description}>
-              {config.description}
-            </Text>
+
+            <Text style={styles.description}>{config.description}</Text>
 
             {/* Notification Content */}
             <View style={styles.notificationCard}>
@@ -112,14 +116,16 @@ export default function AdminNotificationModal({
             </View>
 
             {/* Guidelines Reminder for warnings/strikes */}
-            {(notification.type === 'warning' || notification.type === 'strike') && (
+            {(notification.type === 'warning' ||
+              notification.type === 'strike') && (
               <View style={styles.guidelinesSection}>
-                <Text style={styles.guidelinesTitle}>Community Guidelines Reminder:</Text>
+                <Text style={styles.guidelinesTitle}>
+                  Community Guidelines Reminder:
+                </Text>
                 <Text style={styles.guidelinesText}>
-                  • Keep events and comments respectful{'\n'}
-                  • No inappropriate or offensive content{'\n'}
-                  • Follow event posting guidelines{'\n'}
-                  • Be considerate of other community members
+                  • Keep events and comments respectful{'\n'}• No inappropriate
+                  or offensive content{'\n'}• Follow event posting guidelines
+                  {'\n'}• Be considerate of other community members
                 </Text>
               </View>
             )}
@@ -128,13 +134,20 @@ export default function AdminNotificationModal({
           {/* Acknowledge Button */}
           <View style={styles.buttonContainer}>
             <VibeButton
-              label={notification.requiresResponse ? "I Understand" : "Got It"}
+              label={notification.requiresResponse ? 'I Understand' : 'Got It'}
               onPress={onAcknowledge}
               variant="primary"
-              color={config.titleColor === theme.colors.vibeYellow ? 'yellow' : 
-                    config.titleColor === theme.colors.vibeOrange ? 'orange' :
-                    config.titleColor === theme.colors.vibeGreen ? 'green' :
-                    config.titleColor === theme.colors.vibePink ? 'pink' : 'blue'}
+              color={
+                config.titleColor === theme.colors.vibeYellow
+                  ? 'yellow'
+                  : config.titleColor === theme.colors.vibeOrange
+                    ? 'orange'
+                    : config.titleColor === theme.colors.vibeGreen
+                      ? 'green'
+                      : config.titleColor === theme.colors.vibePink
+                        ? 'pink'
+                        : 'blue'
+              }
               style={styles.acknowledgeButton}
             />
           </View>

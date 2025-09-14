@@ -16,16 +16,26 @@ import { ProfileAvatar } from '../components/ui/profile';
 import { UserReliabilityCard } from '../events/components/UserReliabilityCard';
 import { getUserEventStats } from '../events/lib/userMetrics';
 import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
-import { getVisibleContactInfo, canViewUserStats } from '../services/privacyService';
-import { followUser, unfollowUser, checkIfFollowing, getFollowStats } from '../services/followService';
+import {
+  getVisibleContactInfo,
+  canViewUserStats,
+} from '../services/privacyService';
+import {
+  followUser,
+  unfollowUser,
+  checkIfFollowing,
+  getFollowStats,
+} from '../services/followService';
 import { reportUser } from '../services/reportingService';
 import { blockingService } from '../services/blockingService';
 import { useAuth } from '../auth/AuthContext';
 import theme from '../theme/themes';
 
-
 const HostProfileScreen = ({ navigation, route }) => {
-  console.log('HostProfile component mounted/re-rendered with params:', !!route.params?.returnTo);
+  console.log(
+    'HostProfile component mounted/re-rendered with params:',
+    !!route.params?.returnTo
+  );
   const { hostData, eventId } = route.params;
   const { currentUserId, userData } = useAuth();
   const [isFollowing, setIsFollowing] = useState(false);
@@ -34,11 +44,14 @@ const HostProfileScreen = ({ navigation, route }) => {
   const [followStats, setFollowStats] = useState({
     followingCount: 0,
     followerCount: 0,
-    mutualCount: 0
+    mutualCount: 0,
   });
   const [loadingFollowStats, setLoadingFollowStats] = useState(true);
   const [hasNavigatedAway, setHasNavigatedAway] = useState(false);
-  const [blockStatus, setBlockStatus] = useState({ isBlocked: false, loading: true });
+  const [blockStatus, setBlockStatus] = useState({
+    isBlocked: false,
+    loading: true,
+  });
   const vibeAlert = useVibeAlert();
 
   // Load privacy-filtered contact information
@@ -47,9 +60,12 @@ const HostProfileScreen = ({ navigation, route }) => {
       if (!hostData || !currentUserId) return;
 
       try {
-        const contactInfo = await getVisibleContactInfo(currentUserId, hostData);
+        const contactInfo = await getVisibleContactInfo(
+          currentUserId,
+          hostData
+        );
         const statsVisible = await canViewUserStats(currentUserId, hostData);
-        
+
         setVisibleContactInfo(contactInfo);
         setCanViewStats(statsVisible);
       } catch (error) {
@@ -77,7 +93,7 @@ const HostProfileScreen = ({ navigation, route }) => {
         }
       }
     };
-    
+
     checkFollowStatus();
   }, [currentUserId, hostData.id, isCurrentUser]);
 
@@ -88,12 +104,18 @@ const HostProfileScreen = ({ navigation, route }) => {
 
       try {
         // Check if current user has blocked this host
-        const hasBlockedResult = await blockingService.hasBlocked(currentUserId, hostData.id);
+        const hasBlockedResult = await blockingService.hasBlocked(
+          currentUserId,
+          hostData.id
+        );
         setBlockStatus({ isBlocked: hasBlockedResult, loading: false });
 
         // Check if current user is blocked by this host
-        const isBlockedByResult = await blockingService.isBlockedBy(currentUserId, hostData.id);
-        
+        const isBlockedByResult = await blockingService.isBlockedBy(
+          currentUserId,
+          hostData.id
+        );
+
         if (isBlockedByResult) {
           console.log('[HostProfile] Access denied - user is blocked by host');
           vibeAlert.error('User Not Available', 'This user is not available.');
@@ -113,7 +135,7 @@ const HostProfileScreen = ({ navigation, route }) => {
   useEffect(() => {
     const loadFollowStats = async () => {
       if (!hostData.id) return;
-      
+
       setLoadingFollowStats(true);
       try {
         const stats = await getFollowStats(hostData.id);
@@ -133,10 +155,12 @@ const HostProfileScreen = ({ navigation, route }) => {
     const backAction = () => {
       // Don't handle back button if we've already navigated away
       if (hasNavigatedAway) {
-        console.log('HostProfile ignoring back button - already navigated away');
+        console.log(
+          'HostProfile ignoring back button - already navigated away'
+        );
         return false; // Allow default back action
       }
-      
+
       console.log('Android back button pressed in HostProfile');
       handleBack();
       return true; // Prevent default back action
@@ -164,12 +188,13 @@ const HostProfileScreen = ({ navigation, route }) => {
   const displayName =
     hostData.displayName ||
     `${visibleContactInfo.firstName || contactInfo.firstName || ''} ${visibleContactInfo.lastName || contactInfo.lastName || ''}`.trim() ||
-    (visibleContactInfo.email || contactInfo.email || hostData.email)?.split('@')[0] ||
+    (visibleContactInfo.email || contactInfo.email || hostData.email)?.split(
+      '@'
+    )[0] ||
     'Unknown Host';
 
   const stats = getUserEventStats(hostData);
   const isCurrentUser = currentUserId === hostData.id;
-
 
   const handleFollow = async () => {
     if (!currentUserId || !hostData.id || !userData) {
@@ -179,7 +204,7 @@ const HostProfileScreen = ({ navigation, route }) => {
 
     try {
       const hostName = displayName;
-      
+
       if (isFollowing) {
         // Unfollow
         await unfollowUser(currentUserId, hostData.id);
@@ -217,16 +242,26 @@ const HostProfileScreen = ({ navigation, route }) => {
       async () => {
         try {
           // reportUser now auto-detects the reported user's studio
-          const result = await reportUser(currentUserId, hostData.id, 'Inappropriate content');
-          
+          const result = await reportUser(
+            currentUserId,
+            hostData.id,
+            'Inappropriate content'
+          );
+
           if (result.success) {
             vibeAlert.success('Reported', result.message);
           } else {
-            vibeAlert.error('Error', 'Failed to submit report. Please try again.');
+            vibeAlert.error(
+              'Error',
+              'Failed to submit report. Please try again.'
+            );
           }
         } catch (error) {
           console.error('Error submitting user report:', error);
-          vibeAlert.error('Error', error.message || 'Failed to submit report. Please try again.');
+          vibeAlert.error(
+            'Error',
+            error.message || 'Failed to submit report. Please try again.'
+          );
         }
       }
     );
@@ -240,16 +275,28 @@ const HostProfileScreen = ({ navigation, route }) => {
         `Unblock ${displayName}? They will be able to see your profile again.`,
         async () => {
           try {
-            const result = await blockingService.unblockUser(currentUserId, hostData.id);
+            const result = await blockingService.unblockUser(
+              currentUserId,
+              hostData.id
+            );
             if (result.success) {
               setBlockStatus({ isBlocked: false, loading: false });
-              vibeAlert.success('Unblocked', `You have unblocked ${displayName}.`);
+              vibeAlert.success(
+                'Unblocked',
+                `You have unblocked ${displayName}.`
+              );
             } else {
-              vibeAlert.error('Error', 'Failed to unblock user. Please try again.');
+              vibeAlert.error(
+                'Error',
+                'Failed to unblock user. Please try again.'
+              );
             }
           } catch (error) {
             console.error('[HostProfile] Error unblocking user:', error);
-            vibeAlert.error('Error', 'Failed to unblock user. Please try again.');
+            vibeAlert.error(
+              'Error',
+              'Failed to unblock user. Please try again.'
+            );
           }
         }
       );
@@ -260,13 +307,19 @@ const HostProfileScreen = ({ navigation, route }) => {
         `Block ${displayName}? They won't be able to see your profile, events, or contact you. You will both be unfollowed.`,
         async () => {
           try {
-            const result = await blockingService.blockUser(currentUserId, hostData.id);
+            const result = await blockingService.blockUser(
+              currentUserId,
+              hostData.id
+            );
             if (result.success) {
               setBlockStatus({ isBlocked: true, loading: false });
               setIsFollowing(false); // Update follow status since blocking removes follows
               vibeAlert.success('Blocked', `You have blocked ${displayName}.`);
             } else {
-              vibeAlert.error('Error', 'Failed to block user. Please try again.');
+              vibeAlert.error(
+                'Error',
+                'Failed to block user. Please try again.'
+              );
             }
           } catch (error) {
             console.error('[HostProfile] Error blocking user:', error);
@@ -278,26 +331,31 @@ const HostProfileScreen = ({ navigation, route }) => {
   };
 
   const handleBack = () => {
-    console.log('HostProfile handleBack called - using default navigation.goBack()');
-    
+    console.log(
+      'HostProfile handleBack called - using default navigation.goBack()'
+    );
+
     // Mark that we've navigated away to disable future back button handling
     setHasNavigatedAway(true);
-    
+
     // Use standard back navigation - this will work correctly with the screen-based approach
     navigation.goBack();
   };
 
   return (
     <VibeScreen>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Profile Info */}
         <View style={styles.profileSection}>
           {/* Close button - left side, aligned with top of picture */}
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => {
               console.log('Back button touched!');
               handleBack();
-            }} 
+            }}
             style={styles.closeButton}
           >
             <Text style={styles.closeButtonText}>✕</Text>
@@ -305,16 +363,15 @@ const HostProfileScreen = ({ navigation, route }) => {
 
           {/* Report button - only show for other users' profiles */}
           {hostData?.id && currentUserId && hostData.id !== currentUserId && (
-            <TouchableOpacity onPress={handleReport} style={styles.reportButtonTop}>
+            <TouchableOpacity
+              onPress={handleReport}
+              style={styles.reportButtonTop}
+            >
               <Text style={styles.reportButtonText}>⚠️</Text>
             </TouchableOpacity>
           )}
 
-          <ProfileAvatar 
-            userData={hostData} 
-            size={120}
-            showBorder={true}
-          />
+          <ProfileAvatar userData={hostData} size={120} showBorder={true} />
 
           <Text style={styles.hostName}>{displayName}</Text>
 
@@ -328,7 +385,7 @@ const HostProfileScreen = ({ navigation, route }) => {
         {/* Contact Info */}
         {(() => {
           const contactItems = [];
-          
+
           // Check email visibility
           if (visibleContactInfo.email) {
             contactItems.push(
@@ -345,7 +402,9 @@ const HostProfileScreen = ({ navigation, route }) => {
                 }}
               >
                 <Text style={styles.contactIcon}>📧</Text>
-                <Text style={styles.contactText}>{visibleContactInfo.email}</Text>
+                <Text style={styles.contactText}>
+                  {visibleContactInfo.email}
+                </Text>
               </TouchableOpacity>
             );
           }
@@ -356,10 +415,14 @@ const HostProfileScreen = ({ navigation, route }) => {
               <TouchableOpacity
                 key="phone"
                 style={styles.contactItem}
-                onPress={() => Linking.openURL(`tel:${visibleContactInfo.phone}`)}
+                onPress={() =>
+                  Linking.openURL(`tel:${visibleContactInfo.phone}`)
+                }
               >
                 <Text style={styles.contactIcon}>📞</Text>
-                <Text style={styles.contactText}>{visibleContactInfo.phone}</Text>
+                <Text style={styles.contactText}>
+                  {visibleContactInfo.phone}
+                </Text>
               </TouchableOpacity>
             );
           }
@@ -369,7 +432,9 @@ const HostProfileScreen = ({ navigation, route }) => {
             contactItems.push(
               <View key="location" style={styles.contactItem}>
                 <Text style={styles.contactIcon}>📍</Text>
-                <Text style={styles.contactText}>{visibleContactInfo.location}</Text>
+                <Text style={styles.contactText}>
+                  {visibleContactInfo.location}
+                </Text>
               </View>
             );
           }
@@ -403,9 +468,12 @@ const HostProfileScreen = ({ navigation, route }) => {
           // Remove margin from last item
           if (contactItems.length > 0) {
             const lastItem = contactItems[contactItems.length - 1];
-            contactItems[contactItems.length - 1] = React.cloneElement(lastItem, {
-              style: [lastItem.props.style, { marginBottom: 0 }]
-            });
+            contactItems[contactItems.length - 1] = React.cloneElement(
+              lastItem,
+              {
+                style: [lastItem.props.style, { marginBottom: 0 }],
+              }
+            );
           }
 
           // Only show contact section if there are visible contact items
@@ -433,7 +501,9 @@ const HostProfileScreen = ({ navigation, route }) => {
                 <Text style={styles.statLabel}>Attended</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{stats.averageAttendees.toFixed(1)}</Text>
+                <Text style={styles.statNumber}>
+                  {stats.averageAttendees.toFixed(1)}
+                </Text>
                 <Text style={styles.statLabel}>Avg Attendees</Text>
               </View>
               <View style={styles.statItem}>
@@ -450,15 +520,21 @@ const HostProfileScreen = ({ navigation, route }) => {
             <Text style={styles.socialTitle}>Social</Text>
             <View style={styles.quickStats}>
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{loadingFollowStats ? '...' : followStats.mutualCount}</Text>
+                <Text style={styles.statNumber}>
+                  {loadingFollowStats ? '...' : followStats.mutualCount}
+                </Text>
                 <Text style={styles.statLabel}>Mutual Friends</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{loadingFollowStats ? '...' : followStats.followingCount}</Text>
+                <Text style={styles.statNumber}>
+                  {loadingFollowStats ? '...' : followStats.followingCount}
+                </Text>
                 <Text style={styles.statLabel}>Following</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{loadingFollowStats ? '...' : followStats.followerCount}</Text>
+                <Text style={styles.statNumber}>
+                  {loadingFollowStats ? '...' : followStats.followerCount}
+                </Text>
                 <Text style={styles.statLabel}>Followers</Text>
               </View>
             </View>
@@ -466,17 +542,18 @@ const HostProfileScreen = ({ navigation, route }) => {
         </View>
 
         {/* Event Statistics - Only show if user has been rated */}
-        {canViewStats && (hostData?.ratings?.stars?.length > 0 || hostData?.userdata?.metrics?.engagement?.totalRatings > 0) && (
-          <UserReliabilityCard userData={hostData} />
-        )}
-
+        {canViewStats &&
+          (hostData?.ratings?.stars?.length > 0 ||
+            hostData?.userdata?.metrics?.engagement?.totalRatings > 0) && (
+            <UserReliabilityCard userData={hostData} />
+          )}
 
         {/* Host Highlights */}
         {(() => {
           const highlights = [];
 
           // Conditional highlights based on stats
-          
+
           // New Host badge for users with little event history
           if (stats.eventsCreated <= 3 && stats.totalRSVPs < 3) {
             highlights.push(
@@ -533,7 +610,11 @@ const HostProfileScreen = ({ navigation, route }) => {
           }
 
           // Require event history for reliability-based badges
-          if (stats.eventsCreated >= 5 && stats.reliabilityScore > 90 && stats.totalRSVPs >= 5) {
+          if (
+            stats.eventsCreated >= 5 &&
+            stats.reliabilityScore > 90 &&
+            stats.totalRSVPs >= 5
+          ) {
             highlights.push(
               <View key="trusted" style={styles.highlight}>
                 <Text style={styles.highlightIcon}>🛡️</Text>
@@ -554,7 +635,12 @@ const HostProfileScreen = ({ navigation, route }) => {
 
           // Time-based Highlights
           if (hostData?.userdata?.metadata?.createdAt) {
-            const accountAge = Date.now() - (hostData.userdata.metadata.createdAt.toDate?.() || new Date(hostData.userdata.metadata.createdAt)).getTime();
+            const accountAge =
+              Date.now() -
+              (
+                hostData.userdata.metadata.createdAt.toDate?.() ||
+                new Date(hostData.userdata.metadata.createdAt)
+              ).getTime();
             const yearsOld = accountAge / (1000 * 60 * 60 * 24 * 365);
             const monthsOld = accountAge / (1000 * 60 * 60 * 24 * 30);
 
@@ -645,7 +731,10 @@ const HostProfileScreen = ({ navigation, route }) => {
           }
 
           // VIP/Special Status
-          if (hostData?.userdata?.membership?.tier === 'premium' || hostData?.userdata?.membership?.tier === 'vip') {
+          if (
+            hostData?.userdata?.membership?.tier === 'premium' ||
+            hostData?.userdata?.membership?.tier === 'vip'
+          ) {
             highlights.push(
               <View key="vip" style={styles.highlight}>
                 <Text style={styles.highlightIcon}>👑</Text>
@@ -657,9 +746,12 @@ const HostProfileScreen = ({ navigation, route }) => {
           // Remove margin from last highlight
           if (highlights.length > 0) {
             const lastHighlight = highlights[highlights.length - 1];
-            highlights[highlights.length - 1] = React.cloneElement(lastHighlight, {
-              style: [lastHighlight.props.style, { marginBottom: 0 }]
-            });
+            highlights[highlights.length - 1] = React.cloneElement(
+              lastHighlight,
+              {
+                style: [lastHighlight.props.style, { marginBottom: 0 }],
+              }
+            );
           }
 
           // Only show highlights section if there are highlights to display
@@ -685,17 +777,17 @@ const HostProfileScreen = ({ navigation, route }) => {
                 isFollowing && styles.followingButton,
               ]}
             />
-            
+
             {/* Block/Unblock Button */}
             <BlockButton
-              label={blockStatus.isBlocked ? "UNBLOCK USER" : "BLOCK USER"}
+              label={blockStatus.isBlocked ? 'UNBLOCK USER' : 'BLOCK USER'}
               onPress={handleBlock}
               isLoading={blockStatus.loading}
               style={styles.blockButton}
             />
           </View>
         )}
-        
+
         {/* Safe area spacing */}
         <View style={styles.safeAreaBottom} />
       </ScrollView>

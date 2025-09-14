@@ -1,10 +1,5 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import ProfileAvatar from '../profile/ProfileAvatar';
 import ReliabilityBadge from '../profile/ReliabilityBadge';
@@ -12,12 +7,12 @@ import ReliabilityWarning from '../profile/ReliabilityWarning';
 import ReliabilityDetail from '../profile/ReliabilityDetail';
 import theme from '../../../theme/themes';
 
-export default function AttendanceCard({ 
-  user, 
-  attendanceStatus, 
-  onMarkAttended, 
-  onMarkNoShow, 
-  disabled = false 
+export default function AttendanceCard({
+  user,
+  attendanceStatus,
+  onMarkAttended,
+  onMarkNoShow,
+  disabled = false,
 }) {
   const [showReliabilityDetail, setShowReliabilityDetail] = useState(false);
   const getStatusColor = () => {
@@ -32,28 +27,25 @@ export default function AttendanceCard({
     return '⏳ Pending';
   };
 
-  const showButtons = !attendanceStatus?.attended && !attendanceStatus?.noShow && !disabled;
+  const showButtons =
+    !attendanceStatus?.attended && !attendanceStatus?.noShow && !disabled;
 
   return (
     <View style={styles.card}>
       <View style={styles.userInfo}>
-        <ProfileAvatar 
-          userData={user} 
-          size={50}
-          showBorder={true}
-        />
-        
+        <ProfileAvatar userData={user} size={50} showBorder={true} />
+
         <View style={styles.userDetails}>
           <Text style={styles.userName}>
-            {user.firstName && user.lastName 
+            {user.firstName && user.lastName
               ? `${user.firstName} ${user.lastName}`
               : user.email || 'Unknown User'}
           </Text>
           <Text style={[styles.statusText, { color: getStatusColor() }]}>
             {getStatusText()}
           </Text>
-          <ReliabilityBadge 
-            userData={user} 
+          <ReliabilityBadge
+            userData={user}
             size="small"
             onPress={() => setShowReliabilityDetail(true)}
           />
@@ -90,7 +82,8 @@ export default function AttendanceCard({
 
       {attendanceStatus?.markedAt && (
         <Text style={styles.markedTime}>
-          Marked: {new Date(attendanceStatus.markedAt.toDate()).toLocaleString()}
+          Marked:{' '}
+          {new Date(attendanceStatus.markedAt.toDate()).toLocaleString()}
         </Text>
       )}
 

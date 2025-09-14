@@ -56,13 +56,13 @@ export const templateToForm = (template, options = {}) => {
 
   // Extract payload (actual form data) from template
   const payload = template.payload || template;
-  
+
   // Apply template payload data, excluding metadata
   const { name, createdAt, updatedAt, id, userId, ...templateFields } = payload;
 
   // Convert Firestore timestamps to JavaScript Date objects
   const convertedFields = {};
-  Object.keys(templateFields).forEach(key => {
+  Object.keys(templateFields).forEach((key) => {
     const value = templateFields[key];
     // Check if value is a Firestore timestamp
     if (value && typeof value === 'object' && value.toDate) {
@@ -143,10 +143,10 @@ export const pastEventToTemplate = (pastEvent) => {
   }, {});
 
   // Generate a default template name based on the event
-  const eventDate = pastEvent.eventTimestamp ? 
-    new Date(pastEvent.eventTimestamp.seconds * 1000).toLocaleDateString() :
-    new Date(pastEvent.utcDateTime).toLocaleDateString();
-  
+  const eventDate = pastEvent.eventTimestamp
+    ? new Date(pastEvent.eventTimestamp.seconds * 1000).toLocaleDateString()
+    : new Date(pastEvent.utcDateTime).toLocaleDateString();
+
   const templateName = `${pastEvent.title} (${eventDate})`;
 
   return {

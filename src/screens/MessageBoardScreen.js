@@ -1,6 +1,6 @@
 // FILE: screens/MessageBoardScreen.js
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, memo } from 'react';
 import {
   View,
   Text,
@@ -27,8 +27,9 @@ export default function MessageBoardScreen({ route, navigation }) {
   const { currentUserId, userData } = useAuth();
   const [messageText, setMessageText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  // Removed reply state - no longer using threading
   const flatListRef = useRef(null);
-  
+
   const {
     comments: messages,
     loading,
@@ -53,13 +54,15 @@ export default function MessageBoardScreen({ route, navigation }) {
   // Handle sending message
   const handleSendMessage = async () => {
     if (!messageText.trim() || submitting) return;
-    
+
     const success = await sendMessage(messageText.trim());
     if (success) {
       setMessageText('');
       setIsTyping(false);
     }
   };
+
+  // Removed reply handlers - no longer using threading
 
   // Handle message deletion
   const handleDeleteMessage = async (messageId, messageUserId) => {
@@ -92,80 +95,97 @@ export default function MessageBoardScreen({ route, navigation }) {
   const canDeleteMessage = (message) => {
     // User can delete their own message
     if (currentUserId === message.userId) return true;
-    
+
     // Host can delete any message
     const userRole = getCurrentUserRole();
     if (userRole === 'host') return true;
-    
+
     // Admin can delete any message (if we add admin role later)
     if (userRole === 'admin') return true;
-    
+
     return false;
   };
 
+  // Get border color based on user role
+  const getBorderColor = (message) => {
+    // Current user gets green border
+    if (message.userId === currentUserId) {
+      return theme.colors.vibeGreen;
+    }
+
+    // Admin gets purple border
+    const userRole = message.userRole || 'attendee';
+    if (userRole === 'admin') {
+      return theme.colors.vibePurple;
+    }
+
+    // Host or cohost gets orange border
+    if (userRole === 'host') {
+      return theme.colors.vibeOrange;
+    }
+
+    // Everyone else gets blue border
+    return theme.colors.vibeBlue;
+  };
+
   // Message item component
-  const MessageItem = ({ message, isCurrentUser }) => (
-    <View style={[
-      styles.messageContainer,
-      isCurrentUser ? styles.currentUserMessage : styles.otherUserMessage
-    ]}>
-      {!isCurrentUser && (
-        <View style={styles.messageAvatar}>
-          <UserAvatar 
-            userId={message.userId}
-            size={32}
-            style={styles.avatar}
-          />
-        </View>
-      )}
-      
-      <View style={[
-        styles.messageContent,
-        isCurrentUser ? styles.currentUserContent : styles.otherUserContent
-      ]}>
-        {!isCurrentUser && (
-          <Text style={styles.senderName}>
-            {message.userName || 'Anonymous'}
-          </Text>
-        )}
-        
-        <Text style={[
-          styles.messageText,
-          isCurrentUser ? styles.currentUserText : styles.otherUserText
-        ]}>
-          {message.content}
-        </Text>
-        
-        <View style={styles.messageFooter}>
-          <Text style={[
-            styles.messageTime,
-            isCurrentUser ? styles.currentUserTime : styles.otherUserTime
-          ]}>
-            {formatMessageTime(message.timestamp)}
-          </Text>
-          
+  const MessageItem = memo(({ message, isCurrentUser }) => {
+    const borderColor = getBorderColor(message);
+
+    return (
+      <View style={styles.messageContainer}>
+        {/* Message Card */}
+        <View
+          style={[
+            styles.messageCard,
+            { borderColor: borderColor },
+          ]}
+        >
+          {/* Delete button - top right */}
           {canDeleteMessage(message) && (
             <TouchableOpacity
-              onPress={() => handleDeleteMessage(message.id, message.userId)}
+              onPress={() =>
+                handleDeleteMessage(message.id, message.userId)
+              }
               style={styles.deleteButton}
             >
               <Text style={styles.deleteButtonText}>✕</Text>
             </TouchableOpacity>
           )}
+
+          {/* Profile Avatar */}
+          <View style={styles.avatarContainer}>
+            <UserAvatar
+              userId={message.userId}
+              size={44}
+            />
+          </View>
+
+          {/* Message Content */}
+          <View style={styles.messageContentContainer}>
+            {/* Sender name */}
+            <Text style={styles.senderName}>
+              {message.userName || 'Anonymous'}
+              {message.userRole === 'host' && ' (Host)'}
+              {message.userRole === 'admin' && ' (Admin)'}
+            </Text>
+
+            {/* Message text */}
+            <Text style={styles.messageText}>
+              {message.content}
+            </Text>
+
+            {/* Message footer */}
+            <View style={styles.messageFooter}>
+              <Text style={styles.messageTime}>
+                {formatMessageTime(message.timestamp)}
+              </Text>
+            </View>
+          </View>
         </View>
       </View>
-      
-      {isCurrentUser && (
-        <View style={styles.messageAvatar}>
-          <UserAvatar 
-            userId={message.userId}
-            size={32}
-            style={styles.avatar}
-          />
-        </View>
-      )}
-    </View>
-  );
+    );
+  });
 
   // Empty state component
   const EmptyState = () => (
@@ -179,7 +199,7 @@ export default function MessageBoardScreen({ route, navigation }) {
 
   return (
     <VibeScreen>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
@@ -193,11 +213,6 @@ export default function MessageBoardScreen({ route, navigation }) {
               {eventTitle}
             </Text>
           </View>
-          <View style={styles.headerRight}>
-            <Text style={styles.messageCount}>
-              {messages.length === 0 ? 'No messages' : `${messages.length}`}
-            </Text>
-          </View>
         </View>
 
         {/* Messages List */}
@@ -206,8 +221,8 @@ export default function MessageBoardScreen({ route, navigation }) {
           data={messages}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <MessageItem 
-              message={item} 
+            <MessageItem
+              message={item}
               isCurrentUser={item.userId === currentUserId}
             />
           )}
@@ -228,6 +243,7 @@ export default function MessageBoardScreen({ route, navigation }) {
             }
           }}
         />
+
 
         {/* Message Input */}
         <View style={styles.inputContainer}>
@@ -250,11 +266,12 @@ export default function MessageBoardScreen({ route, navigation }) {
                 }, 300);
               }}
             />
-            
+
             <TouchableOpacity
               style={[
                 styles.sendButton,
-                (!messageText.trim() || submitting) && styles.sendButtonDisabled
+                (!messageText.trim() || submitting) &&
+                  styles.sendButtonDisabled,
               ]}
               onPress={handleSendMessage}
               disabled={!messageText.trim() || submitting}
@@ -267,22 +284,27 @@ export default function MessageBoardScreen({ route, navigation }) {
                 }
                 style={styles.sendButtonGradient}
               >
-                <Text style={[
-                  styles.sendButtonText,
-                  (!messageText.trim() || submitting) && styles.sendButtonTextDisabled
-                ]}>
+                <Text
+                  style={[
+                    styles.sendButtonText,
+                    (!messageText.trim() || submitting) &&
+                      styles.sendButtonTextDisabled,
+                  ]}
+                >
                   {submitting ? '⏳' : '➤'}
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
-          
+
           {/* Character count */}
           {messageText.length > 400 && (
-            <Text style={[
-              styles.charCount,
-              messageText.length >= 500 && styles.charCountWarning
-            ]}>
+            <Text
+              style={[
+                styles.charCount,
+                messageText.length >= 500 && styles.charCountWarning,
+              ]}
+            >
               {messageText.length}/500
             </Text>
           )}
@@ -302,7 +324,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.darkGray,
+    borderBottomColor: theme.colors.inputBorder,
     backgroundColor: theme.colors.background,
   },
   headerContent: {
@@ -321,14 +343,6 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.main,
     marginTop: 2,
   },
-  headerRight: {
-    alignItems: 'flex-end',
-  },
-  messageCount: {
-    fontSize: 12,
-    color: theme.colors.vibeBlue,
-    fontWeight: '600',
-  },
   messagesList: {
     flex: 1,
   },
@@ -337,86 +351,59 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   messageContainer: {
-    flexDirection: 'row',
-    marginBottom: 16,
+    marginBottom: 20,
     paddingHorizontal: 16,
-    alignItems: 'flex-end',
+    position: 'relative',
   },
-  currentUserMessage: {
-    justifyContent: 'flex-end',
-  },
-  otherUserMessage: {
-    justifyContent: 'flex-start',
-  },
-  messageAvatar: {
-    marginHorizontal: 8,
-  },
-  avatar: {
-    borderWidth: 2,
-    borderColor: theme.colors.vibeBlue,
-  },
-  messageContent: {
-    maxWidth: '75%',
-    borderRadius: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-  },
-  currentUserContent: {
-    backgroundColor: theme.colors.vibeBlue,
-    borderBottomRightRadius: 4,
-    borderColor: theme.colors.vibeBlue,
-  },
-  otherUserContent: {
+  messageCard: {
     backgroundColor: theme.colors.inputBackground,
-    borderBottomLeftRadius: 4,
-    borderColor: theme.colors.gray,
+    borderRadius: theme.sizes.borderRadius,
+    padding: 16,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  avatarContainer: {
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 4,
+  },
+  messageContentContainer: {
+    flex: 1,
+    gap: 6,
   },
   senderName: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
-    color: theme.colors.vibeBlue,
-    marginBottom: 4,
+    color: theme.colors.textPrimary,
     fontFamily: theme.fonts.main,
   },
   messageText: {
     fontSize: 16,
-    lineHeight: 20,
-    fontFamily: theme.fonts.main,
-  },
-  currentUserText: {
-    color: theme.colors.white,
-  },
-  otherUserText: {
+    lineHeight: 22,
     color: theme.colors.textPrimary,
+    fontFamily: theme.fonts.main,
   },
   messageFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 6,
+    marginTop: 4,
   },
   messageTime: {
-    fontSize: 11,
+    fontSize: 12,
+    color: theme.colors.textSecondary,
     fontFamily: theme.fonts.main,
   },
-  currentUserTime: {
-    color: 'rgba(255, 255, 255, 0.8)',
-  },
-  otherUserTime: {
-    color: theme.colors.textSecondary,
-  },
   deleteButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 68, 68, 0.1)',
-    minWidth: 24,
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    padding: 4,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 1,
   },
   deleteButtonText: {
-    fontSize: 14,
+    fontSize: 12,
     color: theme.colors.vibeRed || '#FF4444',
     fontWeight: 'bold',
   },
@@ -441,7 +428,7 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     borderTopWidth: 1,
-    borderTopColor: theme.colors.darkGray,
+    borderTopColor: theme.colors.inputBorder,
     backgroundColor: theme.colors.background,
     paddingHorizontal: 16,
     paddingVertical: 12,

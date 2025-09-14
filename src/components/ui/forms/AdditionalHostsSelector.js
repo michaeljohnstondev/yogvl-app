@@ -5,15 +5,18 @@ import FriendsList from '../social/FriendsList';
 import InviteFriendsSelector from './InviteFriendsSelector';
 import VibeButton from '../base/VibeButton';
 
-export default forwardRef(function AdditionalHostsSelector({ 
-  selectedHostIds = [], 
-  onSelectionChange,
-  maxHosts = 10,
-  event, // Pass event data for invite messages
-  onBucketExpand, // Callback when a bucket is expanded for scrolling
-  onInviteExpansion, // Callback to track invite section expansion
-  onSelectedTextContactsChange // Callback when text contacts are selected for event creation flow
-}, ref) {
+export default forwardRef(function AdditionalHostsSelector(
+  {
+    selectedHostIds = [],
+    onSelectionChange,
+    maxHosts = 10,
+    event, // Pass event data for invite messages
+    onBucketExpand, // Callback when a bucket is expanded for scrolling
+    onInviteExpansion, // Callback to track invite section expansion
+    onSelectedTextContactsChange, // Callback when text contacts are selected for event creation flow
+  },
+  ref
+) {
   const [expandedBuckets, setExpandedBuckets] = useState({});
   const [activeTab, setActiveTab] = useState('app'); // 'app', 'phone', 'manual'
 
@@ -29,7 +32,7 @@ export default forwardRef(function AdditionalHostsSelector({
           onInviteExpansion('inviteText', false);
         }
       }
-    }
+    },
   }));
 
   // Mock data for now - this will come from APIs later
@@ -50,15 +53,16 @@ export default forwardRef(function AdditionalHostsSelector({
   const toggleBucket = (bucketKey) => {
     const wasExpanded = expandedBuckets[bucketKey];
     const willBeExpanded = !wasExpanded;
-    
-    setExpandedBuckets(prev => ({
+
+    setExpandedBuckets((prev) => ({
       ...prev,
-      [bucketKey]: !prev[bucketKey]
+      [bucketKey]: !prev[bucketKey],
     }));
 
     // Notify parent of invite section expansion state
     if (onInviteExpansion) {
-      const inviteKey = bucketKey === 'appFriends' ? 'appFriends' : 'inviteText';
+      const inviteKey =
+        bucketKey === 'appFriends' ? 'appFriends' : 'inviteText';
       onInviteExpansion(inviteKey, willBeExpanded);
     }
 
@@ -74,10 +78,10 @@ export default forwardRef(function AdditionalHostsSelector({
   const handleSelection = (friendId) => {
     const isCurrentlySelected = selectedHostIds.includes(friendId);
     let newSelectedIds;
-    
+
     if (isCurrentlySelected) {
       // Remove from selection
-      newSelectedIds = selectedHostIds.filter(id => id !== friendId);
+      newSelectedIds = selectedHostIds.filter((id) => id !== friendId);
     } else {
       // Add to selection (if not at max)
       if (selectedHostIds.length < maxHosts) {
@@ -86,10 +90,9 @@ export default forwardRef(function AdditionalHostsSelector({
         return; // Max reached, don't select
       }
     }
-    
+
     onSelectionChange(newSelectedIds);
   };
-
 
   return (
     <View style={styles.container}>
@@ -102,7 +105,7 @@ export default forwardRef(function AdditionalHostsSelector({
           onPress={() => setActiveTab('app')}
           style={[
             styles.toggleButton,
-            activeTab === 'app' && styles.activeToggleButton
+            activeTab === 'app' && styles.activeToggleButton,
           ]}
         />
         <VibeButton
@@ -112,7 +115,7 @@ export default forwardRef(function AdditionalHostsSelector({
           onPress={() => setActiveTab('phone')}
           style={[
             styles.toggleButton,
-            activeTab === 'phone' && styles.activeToggleButton
+            activeTab === 'phone' && styles.activeToggleButton,
           ]}
         />
         <VibeButton
@@ -122,7 +125,7 @@ export default forwardRef(function AdditionalHostsSelector({
           onPress={() => setActiveTab('manual')}
           style={[
             styles.toggleButton,
-            activeTab === 'manual' && styles.activeToggleButton
+            activeTab === 'manual' && styles.activeToggleButton,
           ]}
         />
       </View>
@@ -161,7 +164,7 @@ export default forwardRef(function AdditionalHostsSelector({
       </View>
     </View>
   );
-})
+});
 
 const styles = StyleSheet.create({
   container: {

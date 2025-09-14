@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { TABS } from '../utils/inviteScreenConstants';
 
-export const useInviteScreenState = (selectedUsers, selectedContacts, selectedPhoneContacts) => {
+export const useInviteScreenState = (
+  selectedUsers,
+  selectedContacts,
+  selectedPhoneContacts
+) => {
   const [activeTab, setActiveTab] = useState(TABS.APP);
   const [searchQuery, setSearchQuery] = useState('');
-  const [contactName, setContactName] = useState('');
-  const [contactEmail, setContactEmail] = useState('');
-  const [contactPhone, setContactPhone] = useState('');
-  const [personalMessage, setPersonalMessage] = useState('');
 
   // Filter toggles
   const [showFavorites, setShowFavorites] = useState(false);
@@ -23,15 +23,11 @@ export const useInviteScreenState = (selectedUsers, selectedContacts, selectedPh
 
   // Local selections
   const [localSelectedUsers, setLocalSelectedUsers] = useState(selectedUsers);
-  const [localSelectedContacts, setLocalSelectedContacts] = useState(selectedContacts);
-  const [localSelectedPhoneContacts, setLocalSelectedPhoneContacts] = useState(selectedPhoneContacts);
-
-  const clearManualForm = () => {
-    setContactName('');
-    setContactEmail('');
-    setContactPhone('');
-    setPersonalMessage('');
-  };
+  const [localSelectedContacts, setLocalSelectedContacts] =
+    useState(selectedContacts);
+  const [localSelectedPhoneContacts, setLocalSelectedPhoneContacts] = useState(
+    selectedPhoneContacts
+  );
 
   const resetGroupModal = () => {
     setNewGroupName('');
@@ -44,18 +40,7 @@ export const useInviteScreenState = (selectedUsers, selectedContacts, selectedPh
     setActiveTab,
     searchQuery,
     setSearchQuery,
-    
-    // Manual form state
-    contactName,
-    setContactName,
-    contactEmail,
-    setContactEmail,
-    contactPhone,
-    setContactPhone,
-    personalMessage,
-    setPersonalMessage,
-    clearManualForm,
-    
+
     // Filter states
     showFavorites,
     setShowFavorites,
@@ -65,7 +50,7 @@ export const useInviteScreenState = (selectedUsers, selectedContacts, selectedPh
     setShowLocalNode,
     selectedInterests,
     setSelectedInterests,
-    
+
     // Group states
     selectedGroup,
     setSelectedGroup,
@@ -76,7 +61,7 @@ export const useInviteScreenState = (selectedUsers, selectedContacts, selectedPh
     newGroupName,
     setNewGroupName,
     resetGroupModal,
-    
+
     // Selection states
     localSelectedUsers,
     setLocalSelectedUsers,

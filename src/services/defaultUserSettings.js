@@ -25,11 +25,29 @@ export const getDefaultNotificationSettings = () => ({
     notifyOnJoin: true,
     notifyOnLeave: true,
     reminderTemplates: [
-      { id: '15min', amount: 15, unit: 'minutes', enabled: true, label: '15 min' },
+      {
+        id: '15min',
+        amount: 15,
+        unit: 'minutes',
+        enabled: true,
+        label: '15 min',
+      },
       { id: '1hour', amount: 1, unit: 'hours', enabled: true, label: '1 hour' },
       { id: '1day', amount: 1, unit: 'days', enabled: false, label: '1 day' },
-      { id: '2hours', amount: 2, unit: 'hours', enabled: false, label: '2 hours' },
-      { id: '30min', amount: 30, unit: 'minutes', enabled: false, label: '30 min' },
+      {
+        id: '2hours',
+        amount: 2,
+        unit: 'hours',
+        enabled: false,
+        label: '2 hours',
+      },
+      {
+        id: '30min',
+        amount: 30,
+        unit: 'minutes',
+        enabled: false,
+        label: '30 min',
+      },
     ],
   },
   attending: {
@@ -40,11 +58,29 @@ export const getDefaultNotificationSettings = () => ({
     hostComments: true,
     newComments: false,
     reminderTemplates: [
-      { id: '15min', amount: 15, unit: 'minutes', enabled: true, label: '15 min' },
+      {
+        id: '15min',
+        amount: 15,
+        unit: 'minutes',
+        enabled: true,
+        label: '15 min',
+      },
       { id: '1hour', amount: 1, unit: 'hours', enabled: true, label: '1 hour' },
       { id: '1day', amount: 1, unit: 'days', enabled: false, label: '1 day' },
-      { id: '2hours', amount: 2, unit: 'hours', enabled: false, label: '2 hours' },
-      { id: '30min', amount: 30, unit: 'minutes', enabled: false, label: '30 min' },
+      {
+        id: '2hours',
+        amount: 2,
+        unit: 'hours',
+        enabled: false,
+        label: '2 hours',
+      },
+      {
+        id: '30min',
+        amount: 30,
+        unit: 'minutes',
+        enabled: false,
+        label: '30 min',
+      },
     ],
   },
 });
@@ -57,30 +93,30 @@ export const getDefaultPrivacySettings = () => ({
   emailVisibility: 'friends', // 'never', 'friends', 'followers', 'always'
   phoneVisibility: 'friends',
   locationVisibility: 'followers',
-  
+
   // Profile Visibility
   profileVisibility: true,
-  
+
   // Follow Privacy (removed - anyone can follow anyone)
-  
+
   // Event Privacy
   canSeeMyEvents: 'followers',
   canInviteMe: 'followers',
   showMyAttendance: true,
   allowDirectInvites: true,
-  
+
   // Content Sharing
   allowEventSharing: true,
   allowProfileSharing: true,
   showInSearch: true,
   allowSuggestions: true,
-  
+
   // Account Security
   twoFactorAuth: false,
   requirePasswordForSensitiveActions: false,
   sessionTimeout: 30, // days
   logSecurityEvents: true,
-  
+
   // Data & Analytics
   allowAnalytics: true,
   shareUsageData: false,
@@ -97,7 +133,8 @@ export const getDefaultUserSettings = () => ({
   preferences: {
     theme: 'dark',
     language: 'en',
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York',
+    timezone:
+      Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York',
     dateFormat: 'MM/dd/yyyy',
     timeFormat: '12hour',
     firstDayOfWeek: 'sunday',

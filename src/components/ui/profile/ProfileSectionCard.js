@@ -3,19 +3,17 @@ import { View, Text } from 'react-native';
 import { StyleSheet } from 'react-native';
 import theme from '../../../theme/themes';
 
-const ProfileSectionCard = ({ 
-  title, 
-  children, 
-  style, 
+const ProfileSectionCard = ({
+  title,
+  children,
+  style,
   containerStyle,
-  titleStyle 
+  titleStyle,
 }) => {
   return (
     <View style={[styles.section, style]}>
       <View style={[styles.container, containerStyle]}>
-        {title && (
-          <Text style={[styles.title, titleStyle]}>{title}</Text>
-        )}
+        {title && <Text style={[styles.title, titleStyle]}>{title}</Text>}
         {children}
       </View>
     </View>

@@ -1,21 +1,20 @@
-import { 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  deleteDoc, 
-  doc, 
-  updateDoc, 
-  arrayRemove, 
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  deleteDoc,
+  doc,
+  updateDoc,
+  arrayRemove,
   writeBatch,
   orderBy,
   limit,
-  serverTimestamp 
+  serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 
 export class DataCleanupService {
-  
   /**
    * Clean up old events and attendance data
    * @param {number} retentionDays - Days to keep data (default: 365)
@@ -25,9 +24,11 @@ export class DataCleanupService {
     try {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
-      
+
       if (__DEV__) {
-        console.log(`[DataCleanup] Starting cleanup of events older than ${cutoffDate.toLocaleDateString()}`);
+        console.log(
+          `[DataCleanup] Starting cleanup of events older than ${cutoffDate.toLocaleDateString()}`
+        );
       }
 
       // Find old events
@@ -38,9 +39,9 @@ export class DataCleanupService {
         orderBy('eventTimestamp'),
         limit(50) // Process in batches to avoid memory issues
       );
-      
+
       const snapshot = await getDocs(q);
-      
+
       if (snapshot.empty) {
         if (__DEV__) console.log('[DataCleanup] No old events to clean up');
         return { eventsDeleted: 0, attendanceDeleted: 0 };
@@ -53,12 +54,12 @@ export class DataCleanupService {
       for (const eventDoc of snapshot.docs) {
         const eventId = eventDoc.id;
         const eventData = eventDoc.data();
-        
+
         // Delete attendance subcollection
         const attendanceRef = collection(db, 'events', eventId, 'attendance');
         const attendanceSnapshot = await getDocs(attendanceRef);
-        
-        attendanceSnapshot.docs.forEach(attendanceDoc => {
+
+        attendanceSnapshot.docs.forEach((attendanceDoc) => {
           batch.delete(attendanceDoc.ref);
           attendanceDeleted++;
         });
@@ -72,7 +73,7 @@ export class DataCleanupService {
           for (const userId of eventData.subscribers) {
             const userRef = doc(db, 'users', userId);
             batch.update(userRef, {
-              subscribedEvents: arrayRemove(eventId)
+              subscribedEvents: arrayRemove(eventId),
             });
           }
         }
@@ -81,11 +82,12 @@ export class DataCleanupService {
       await batch.commit();
 
       if (__DEV__) {
-        console.log(`[DataCleanup] Deleted ${eventsDeleted} events and ${attendanceDeleted} attendance records`);
+        console.log(
+          `[DataCleanup] Deleted ${eventsDeleted} events and ${attendanceDeleted} attendance records`
+        );
       }
 
       return { eventsDeleted, attendanceDeleted };
-      
     } catch (error) {
       console.error('[DataCleanup] Error cleaning up old events:', error);
       throw error;
@@ -101,7 +103,7 @@ export class DataCleanupService {
     try {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - archiveAfterDays);
-      
+
       const eventsRef = collection(db, 'events');
       const q = query(
         eventsRef,
@@ -109,21 +111,21 @@ export class DataCleanupService {
         where('archived', '!=', true), // Only non-archived events
         limit(25) // Process in smaller batches
       );
-      
+
       const snapshot = await getDocs(q);
-      
+
       if (snapshot.empty) return 0;
 
       const batch = writeBatch(db);
       let archivedCount = 0;
 
-      snapshot.docs.forEach(eventDoc => {
+      snapshot.docs.forEach((eventDoc) => {
         batch.update(eventDoc.ref, {
           archived: true,
           archivedAt: serverTimestamp(),
           // Remove from active queries by clearing subscribers array
           activeSubscribers: eventDoc.data().subscribers || [],
-          subscribers: [] // This removes from active event queries
+          subscribers: [], // This removes from active event queries
         });
         archivedCount++;
       });
@@ -135,7 +137,6 @@ export class DataCleanupService {
       }
 
       return archivedCount;
-      
     } catch (error) {
       console.error('[DataCleanup] Error archiving old events:', error);
       throw error;
@@ -151,29 +152,29 @@ export class DataCleanupService {
     try {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - inactiveDays);
-      
+
       const usersRef = collection(db, 'users');
       const q = query(
         usersRef,
         where('lastReliabilityUpdate', '<', cutoffDate),
         limit(20) // Small batches for inactive user cleanup
       );
-      
+
       const snapshot = await getDocs(q);
-      
+
       if (snapshot.empty) return 0;
 
       const batch = writeBatch(db);
       let cleanedCount = 0;
 
-      snapshot.docs.forEach(userDoc => {
+      snapshot.docs.forEach((userDoc) => {
         // Reset reliability cache data but keep core user info
         batch.update(userDoc.ref, {
           reliabilityMetrics: null,
           reliabilityStreaks: null,
           lastReliabilityUpdate: null,
           // Keep basic score for display
-          needsReliabilityRefresh: true
+          needsReliabilityRefresh: true,
         });
         cleanedCount++;
       });
@@ -181,11 +182,12 @@ export class DataCleanupService {
       await batch.commit();
 
       if (__DEV__) {
-        console.log(`[DataCleanup] Cleaned reliability cache for ${cleanedCount} inactive users`);
+        console.log(
+          `[DataCleanup] Cleaned reliability cache for ${cleanedCount} inactive users`
+        );
       }
 
       return cleanedCount;
-      
     } catch (error) {
       console.error('[DataCleanup] Error cleaning inactive user data:', error);
       throw error;
@@ -204,7 +206,7 @@ export class DataCleanupService {
       inactiveUserDays = 180,
       runArchival = true,
       runDeletion = false, // Default to false for safety
-      runUserCleanup = true
+      runUserCleanup = true,
     } = options;
 
     try {
@@ -217,13 +219,14 @@ export class DataCleanupService {
         deletedEvents: 0,
         deletedAttendance: 0,
         cleanedUsers: 0,
-        errors: []
+        errors: [],
       };
 
       // Archive old events first
       if (runArchival) {
         try {
-          results.archivedEvents = await this.archiveOldEvents(archiveAfterDays);
+          results.archivedEvents =
+            await this.archiveOldEvents(archiveAfterDays);
         } catch (error) {
           results.errors.push(`Archive error: ${error.message}`);
         }
@@ -243,7 +246,8 @@ export class DataCleanupService {
       // Clean inactive user data
       if (runUserCleanup) {
         try {
-          results.cleanedUsers = await this.cleanupInactiveUserData(inactiveUserDays);
+          results.cleanedUsers =
+            await this.cleanupInactiveUserData(inactiveUserDays);
         } catch (error) {
           results.errors.push(`User cleanup error: ${error.message}`);
         }
@@ -254,7 +258,6 @@ export class DataCleanupService {
       }
 
       return results;
-      
     } catch (error) {
       console.error('[DataCleanup] Error in full cleanup:', error);
       throw error;
@@ -268,18 +271,18 @@ export class DataCleanupService {
   static async getCleanupStats() {
     try {
       const now = new Date();
-      const ninetyDaysAgo = new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000));
-      const oneYearAgo = new Date(now.getTime() - (365 * 24 * 60 * 60 * 1000));
+      const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+      const oneYearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
 
       // Count old events
       const eventsRef = collection(db, 'events');
-      
+
       const oldEventsQuery = query(
         eventsRef,
         where('eventTimestamp', '<', ninetyDaysAgo),
         where('archived', '!=', true)
       );
-      
+
       const veryOldEventsQuery = query(
         eventsRef,
         where('eventTimestamp', '<', oneYearAgo)
@@ -287,23 +290,25 @@ export class DataCleanupService {
 
       const [oldEventsSnapshot, veryOldEventsSnapshot] = await Promise.all([
         getDocs(oldEventsQuery),
-        getDocs(veryOldEventsQuery)
+        getDocs(veryOldEventsQuery),
       ]);
 
       return {
         eventsToArchive: oldEventsSnapshot.size,
         eventsToDelete: veryOldEventsSnapshot.size,
         totalEvents: oldEventsSnapshot.size + veryOldEventsSnapshot.size,
-        recommendedAction: oldEventsSnapshot.size > 50 ? 'Run cleanup soon' : 'No immediate action needed'
+        recommendedAction:
+          oldEventsSnapshot.size > 50
+            ? 'Run cleanup soon'
+            : 'No immediate action needed',
       };
-      
     } catch (error) {
       console.error('[DataCleanup] Error getting cleanup stats:', error);
       return {
         eventsToArchive: 0,
         eventsToDelete: 0,
         totalEvents: 0,
-        recommendedAction: 'Error getting stats'
+        recommendedAction: 'Error getting stats',
       };
     }
   }

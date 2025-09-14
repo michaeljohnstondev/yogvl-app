@@ -36,15 +36,16 @@ const parsePhrases = (details) => {
 // Strip leading emojis for deduplication while preserving original text
 const normalizeTitle = (title) => {
   if (!title || typeof title !== 'string') return '';
-  
+
   // Remove leading emojis and trim
-  const emojiRegex = /^[\u{1F600}-\u{1F64F}]|^[\u{1F300}-\u{1F5FF}]|^[\u{1F680}-\u{1F6FF}]|^[\u{1F1E6}-\u{1F1FF}]|^[\u{2600}-\u{26FF}]|^[\u{2700}-\u{27BF}]|^\u{2764}|^\u{2049}|^\u{203C}|^[\u{1F900}-\u{1F9FF}]|^[\u{1FA70}-\u{1FAFF}]/u;
-  
+  const emojiRegex =
+    /^[\u{1F600}-\u{1F64F}]|^[\u{1F300}-\u{1F5FF}]|^[\u{1F680}-\u{1F6FF}]|^[\u{1F1E6}-\u{1F1FF}]|^[\u{2600}-\u{26FF}]|^[\u{2700}-\u{27BF}]|^\u{2764}|^\u{2049}|^\u{203C}|^[\u{1F900}-\u{1F9FF}]|^[\u{1FA70}-\u{1FAFF}]/u;
+
   let normalized = title.trim();
   while (emojiRegex.test(normalized)) {
     normalized = normalized.replace(emojiRegex, '').trim();
   }
-  
+
   return normalized;
 };
 
@@ -61,36 +62,43 @@ export const useSuggestions = (studioId = null) => {
   const loadSuggestions = useCallback(async () => {
     try {
       setIsLoading(true);
-      
+
       if (!studioId) {
         console.warn('No studioId provided to useSuggestions');
-        setSuggestions({ titles: [], locations: [], details: [], interests: [] });
+        setSuggestions({
+          titles: [],
+          locations: [],
+          details: [],
+          interests: [],
+        });
         return;
       }
-      
+
       const sixMonthsAgo = new Date();
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
       // Load both events and interests in parallel
       const [querySnapshot, studioInterests] = await Promise.all([
-        getDocs(query(
-          collection(db, 'studios', studioId, 'events'),
-          orderBy('createdAt', 'desc'),
-          limit(SUGGESTION_LIMITS.TOTAL_EVENTS)
-        )),
-        getStudioInterests(studioId)
+        getDocs(
+          query(
+            collection(db, 'studios', studioId, 'events'),
+            orderBy('createdAt', 'desc'),
+            limit(SUGGESTION_LIMITS.TOTAL_EVENTS)
+          )
+        ),
+        getStudioInterests(studioId),
       ]);
       const counts = { titles: {}, locations: {}, details: {} };
       const titleMap = {}; // Map normalized titles to original titles with emojis
 
       querySnapshot.docs.forEach((doc) => {
         const data = doc.data();
-        
+
         // Client-side filters to avoid composite index - only use recent events
         if (data.createdAt && data.createdAt.toDate() < sixMonthsAgo) {
           return;
         }
-        
+
         // Skip private events
         if (data.isPrivate === true) {
           return;
@@ -100,13 +108,14 @@ export const useSuggestions = (studioId = null) => {
         if (data.title?.trim()) {
           const originalTitle = data.title.trim();
           const normalizedTitle = normalizeTitle(originalTitle);
-          
+
           // Skip empty normalized titles
           if (!normalizedTitle) return;
-          
+
           // Count based on normalized title
-          counts.titles[normalizedTitle] = (counts.titles[normalizedTitle] || 0) + 1;
-          
+          counts.titles[normalizedTitle] =
+            (counts.titles[normalizedTitle] || 0) + 1;
+
           // Keep track of the best original title (prefer one with emoji if available)
           if (!titleMap[normalizedTitle] || originalTitle !== normalizedTitle) {
             titleMap[normalizedTitle] = originalTitle;
@@ -137,15 +146,19 @@ export const useSuggestions = (studioId = null) => {
       // Special handling for titles to map back to original titles with emojis
       const sortTitlesByCount = (countObj, titleMapObj, limit) =>
         Object.entries(countObj)
-          .map(([normalizedText, count]) => ({ 
+          .map(([normalizedText, count]) => ({
             text: titleMapObj[normalizedText] || normalizedText, // Use original title
-            count 
+            count,
           }))
           .sort((a, b) => b.count - a.count)
           .slice(0, limit);
 
       setSuggestions({
-        titles: sortTitlesByCount(counts.titles, titleMap, SUGGESTION_LIMITS.TITLES),
+        titles: sortTitlesByCount(
+          counts.titles,
+          titleMap,
+          SUGGESTION_LIMITS.TITLES
+        ),
         locations: sortByCount(counts.locations, SUGGESTION_LIMITS.LOCATIONS),
         details: sortByCount(counts.details, SUGGESTION_LIMITS.DETAILS),
         interests: studioInterests.slice(0, 15), // Top 15 interests
@@ -187,21 +200,32 @@ export const filterTitleSuggestions = (
 ) => {
   if (!input.trim()) {
     // Show top titles and top interests when no input
-    const topTitles = titleSuggestions.slice(0, Math.floor(limits.DISPLAY_DEFAULT * 0.7));
-    const topInterests = interestSuggestions.slice(0, Math.ceil(limits.DISPLAY_DEFAULT * 0.3));
+    const topTitles = titleSuggestions.slice(
+      0,
+      Math.floor(limits.DISPLAY_DEFAULT * 0.7)
+    );
+    const topInterests = interestSuggestions.slice(
+      0,
+      Math.ceil(limits.DISPLAY_DEFAULT * 0.3)
+    );
     return [...topTitles, ...topInterests];
   }
 
   const searchTerm = input.toLowerCase();
-  
+
   // Filter both titles and interests
-  const filteredTitles = titleSuggestions
-    .filter((item) => item.text.toLowerCase().includes(searchTerm));
-  
+  const filteredTitles = titleSuggestions.filter((item) =>
+    item.text.toLowerCase().includes(searchTerm)
+  );
+
   const filteredInterests = interestSuggestions
     .filter((item) => item.interest.toLowerCase().includes(searchTerm))
-    .map(item => ({ text: item.interest, count: item.count, type: 'interest' }));
-  
+    .map((item) => ({
+      text: item.interest,
+      count: item.count,
+      type: 'interest',
+    }));
+
   // Combine and limit results
   const combined = [...filteredTitles, ...filteredInterests];
   return combined.slice(0, limits.DISPLAY_MAX);

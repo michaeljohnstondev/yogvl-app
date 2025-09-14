@@ -7,7 +7,6 @@ import { db } from '../auth/services/firebase';
  * Service for managing custom notification templates that persist across events
  */
 class CustomTemplateService {
-  
   /**
    * Get saved custom templates for a user
    */
@@ -20,19 +19,25 @@ class CustomTemplateService {
 
       const userRef = doc(db, 'users', userId);
       const userDoc = await getDoc(userRef);
-      
+
       if (!userDoc.exists()) {
         console.log('[CustomTemplates] User document not found');
         return [];
       }
 
       const userData = userDoc.data();
-      const savedTemplates = userData?.userdata?.settings?.notifications?.customTemplates || [];
-      
-      console.log(`[CustomTemplates] Found ${savedTemplates.length} saved custom templates for user`);
+      const savedTemplates =
+        userData?.userdata?.settings?.notifications?.customTemplates || [];
+
+      console.log(
+        `[CustomTemplates] Found ${savedTemplates.length} saved custom templates for user`
+      );
       return savedTemplates;
     } catch (error) {
-      console.error('[CustomTemplates] Failed to get saved custom templates:', error);
+      console.error(
+        '[CustomTemplates] Failed to get saved custom templates:',
+        error
+      );
       return [];
     }
   }
@@ -54,8 +59,8 @@ class CustomTemplateService {
       }
 
       // Filter to only custom templates (not default ones)
-      const customTemplates = reminderTemplates.filter(template => 
-        template.id && template.id.startsWith('custom_')
+      const customTemplates = reminderTemplates.filter(
+        (template) => template.id && template.id.startsWith('custom_')
       );
 
       if (customTemplates.length === 0) {
@@ -65,16 +70,17 @@ class CustomTemplateService {
 
       // Get existing saved templates
       const existingSavedTemplates = await this.getSavedCustomTemplates(userId);
-      
+
       // Merge templates, avoiding duplicates based on amount and unit
       const mergedTemplates = [...existingSavedTemplates];
-      
+
       for (const newTemplate of customTemplates) {
-        const isDuplicate = mergedTemplates.some(existing => 
-          existing.amount === newTemplate.amount && 
-          existing.unit === newTemplate.unit
+        const isDuplicate = mergedTemplates.some(
+          (existing) =>
+            existing.amount === newTemplate.amount &&
+            existing.unit === newTemplate.unit
         );
-        
+
         if (!isDuplicate) {
           // Create a clean template object for persistence
           const templateToSave = {
@@ -83,11 +89,13 @@ class CustomTemplateService {
             unit: newTemplate.unit,
             label: newTemplate.label,
             enabled: true, // Always save as enabled for reuse
-            savedAt: new Date()
+            savedAt: new Date(),
           };
-          
+
           mergedTemplates.push(templateToSave);
-          console.log(`[CustomTemplates] Adding new custom template: ${templateToSave.label}`);
+          console.log(
+            `[CustomTemplates] Adding new custom template: ${templateToSave.label}`
+          );
         }
       }
 
@@ -95,13 +103,18 @@ class CustomTemplateService {
       const userRef = doc(db, 'users', userId);
       await updateDoc(userRef, {
         'userdata.settings.notifications.customTemplates': mergedTemplates,
-        'userdata.settings.lastUpdated': new Date()
+        'userdata.settings.lastUpdated': new Date(),
       });
 
-      console.log(`[CustomTemplates] Successfully saved ${customTemplates.length} custom templates (${mergedTemplates.length} total saved)`);
+      console.log(
+        `[CustomTemplates] Successfully saved ${customTemplates.length} custom templates (${mergedTemplates.length} total saved)`
+      );
       return true;
     } catch (error) {
-      console.error('[CustomTemplates] Failed to save custom templates:', error);
+      console.error(
+        '[CustomTemplates] Failed to save custom templates:',
+        error
+      );
       return false;
     }
   }
@@ -117,7 +130,9 @@ class CustomTemplateService {
       }
 
       const savedTemplates = await this.getSavedCustomTemplates(userId);
-      const updatedTemplates = savedTemplates.filter(template => template.id !== templateId);
+      const updatedTemplates = savedTemplates.filter(
+        (template) => template.id !== templateId
+      );
 
       if (updatedTemplates.length === savedTemplates.length) {
         console.log('[CustomTemplates] Template not found in saved templates');
@@ -127,13 +142,16 @@ class CustomTemplateService {
       const userRef = doc(db, 'users', userId);
       await updateDoc(userRef, {
         'userdata.settings.notifications.customTemplates': updatedTemplates,
-        'userdata.settings.lastUpdated': new Date()
+        'userdata.settings.lastUpdated': new Date(),
       });
 
       console.log(`[CustomTemplates] Removed custom template ${templateId}`);
       return true;
     } catch (error) {
-      console.error('[CustomTemplates] Failed to remove custom template:', error);
+      console.error(
+        '[CustomTemplates] Failed to remove custom template:',
+        error
+      );
       return false;
     }
   }
@@ -146,25 +164,54 @@ class CustomTemplateService {
     try {
       // Default templates
       const defaultTemplates = [
-        { id: '15min', amount: 15, unit: 'minutes', enabled: true, label: '15 min' },
-        { id: '1hour', amount: 1, unit: 'hours', enabled: true, label: '1 hour' },
+        {
+          id: '15min',
+          amount: 15,
+          unit: 'minutes',
+          enabled: true,
+          label: '15 min',
+        },
+        {
+          id: '1hour',
+          amount: 1,
+          unit: 'hours',
+          enabled: true,
+          label: '1 hour',
+        },
         { id: '1day', amount: 1, unit: 'days', enabled: false, label: '1 day' },
       ];
 
       // Get saved custom templates
       const savedCustomTemplates = await this.getSavedCustomTemplates(userId);
-      
+
       // Combine them
       const combinedTemplates = [...defaultTemplates, ...savedCustomTemplates];
-      
-      console.log(`[CustomTemplates] Combined ${defaultTemplates.length} default + ${savedCustomTemplates.length} custom templates`);
+
+      console.log(
+        `[CustomTemplates] Combined ${defaultTemplates.length} default + ${savedCustomTemplates.length} custom templates`
+      );
       return combinedTemplates;
     } catch (error) {
-      console.error('[CustomTemplates] Failed to get combined templates:', error);
+      console.error(
+        '[CustomTemplates] Failed to get combined templates:',
+        error
+      );
       // Return defaults on error
       return [
-        { id: '15min', amount: 15, unit: 'minutes', enabled: true, label: '15 min' },
-        { id: '1hour', amount: 1, unit: 'hours', enabled: true, label: '1 hour' },
+        {
+          id: '15min',
+          amount: 15,
+          unit: 'minutes',
+          enabled: true,
+          label: '15 min',
+        },
+        {
+          id: '1hour',
+          amount: 1,
+          unit: 'hours',
+          enabled: true,
+          label: '1 hour',
+        },
         { id: '1day', amount: 1, unit: 'days', enabled: false, label: '1 day' },
       ];
     }

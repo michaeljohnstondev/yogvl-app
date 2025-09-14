@@ -14,19 +14,22 @@ const PhoneContactsTab = ({
   setSearchQuery,
   localSelectedPhoneContacts,
   loadDeviceContacts,
-  
+
   // Selection
   togglePhoneContactSelection,
-  
+
   // UI state
   themeColor,
   themeBgColor,
   maxLimit,
   localSelectedUsers,
-  localSelectedContacts
+  localSelectedContacts,
 }) => {
   const filteredPhoneContacts = filterPhoneContacts(phoneContacts, searchQuery);
-  const totalSelected = localSelectedUsers.length + localSelectedContacts.length + localSelectedPhoneContacts.length;
+  const totalSelected =
+    localSelectedUsers.length +
+    localSelectedContacts.length +
+    localSelectedPhoneContacts.length;
   const hasReachedLimit = maxLimit && totalSelected >= maxLimit;
 
   if (loadingContacts) {
@@ -48,9 +51,11 @@ const PhoneContactsTab = ({
       />
       <View style={styles.itemsList}>
         {filteredPhoneContacts.map((item) => {
-          const isSelected = localSelectedPhoneContacts.some(c => c.id === item.id);
+          const isSelected = localSelectedPhoneContacts.some(
+            (c) => c.id === item.id
+          );
           const canSelect = !isSelected && !hasReachedLimit;
-          
+
           return (
             <View key={item.id}>
               <ContactListItem

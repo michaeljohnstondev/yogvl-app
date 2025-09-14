@@ -8,12 +8,20 @@ import VibeButton from '../base/VibeButton';
 /**
  * Modal to display ban information to users
  */
-export default function BannedUserModal({ visible, banStatus, onClose, onLogout }) {
-  
+export default function BannedUserModal({
+  visible,
+  banStatus,
+  onClose,
+  onLogout,
+}) {
   const formatDate = (timestamp) => {
     if (!timestamp || !timestamp.seconds) return 'Unknown';
     const date = new Date(timestamp.seconds * 1000);
-    return date.toLocaleDateString() + ' at ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    return (
+      date.toLocaleDateString() +
+      ' at ' +
+      date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    );
   };
 
   const getBanTitle = () => {
@@ -62,29 +70,35 @@ export default function BannedUserModal({ visible, banStatus, onClose, onLogout 
       <View style={styles.overlay}>
         <View style={styles.modal}>
           <Text style={styles.title}>{getBanTitle()}</Text>
-          
+
           <Text style={styles.message}>{getBanMessage()}</Text>
-          
+
           {banStatus.reason && (
             <View style={styles.reasonContainer}>
               <Text style={styles.reasonLabel}>Reason:</Text>
               <Text style={styles.reasonText}>{banStatus.reason}</Text>
             </View>
           )}
-          
+
           <View style={styles.detailsContainer}>
             <Text style={styles.detailLabel}>Ban Date:</Text>
-            <Text style={styles.detailText}>{formatDate(banStatus.issuedAt)}</Text>
-            
+            <Text style={styles.detailText}>
+              {formatDate(banStatus.issuedAt)}
+            </Text>
+
             {banStatus.type === 'temporary' && banStatus.expiresAt && (
               <>
                 <Text style={styles.detailLabel}>Expires:</Text>
-                <Text style={styles.detailText}>{formatDate(banStatus.expiresAt)}</Text>
-                
+                <Text style={styles.detailText}>
+                  {formatDate(banStatus.expiresAt)}
+                </Text>
+
                 {getTimeRemaining() && (
                   <>
                     <Text style={styles.detailLabel}>Time Remaining:</Text>
-                    <Text style={[styles.detailText, styles.timeRemaining]}>{getTimeRemaining()}</Text>
+                    <Text style={[styles.detailText, styles.timeRemaining]}>
+                      {getTimeRemaining()}
+                    </Text>
                   </>
                 )}
               </>
@@ -98,7 +112,7 @@ export default function BannedUserModal({ visible, banStatus, onClose, onLogout 
               variant="secondary"
               style={styles.closeButton}
             />
-            
+
             {onLogout && (
               <VibeButton
                 label="Sign Out"

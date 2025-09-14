@@ -5,7 +5,7 @@ export default StyleSheet.create({
   container: {
     flex: 1,
   },
-  
+
   // Header
   header: {
     flexDirection: 'row',
@@ -121,7 +121,7 @@ export default StyleSheet.create({
   searchInput: {
     marginBottom: 16,
   },
-  
+
   // Custom Groups
   groupContainer: {
     marginBottom: 16,
@@ -218,7 +218,7 @@ export default StyleSheet.create({
     fontWeight: '600',
     fontFamily: theme.fonts.main,
   },
-  
+
   itemsList: {
     gap: 8,
   },

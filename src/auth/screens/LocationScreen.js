@@ -40,7 +40,7 @@ export default function LocationScreen({ navigation }) {
   const [refreshingLocation, setRefreshingLocation] = useState(false);
   const [modalPreFill, setModalPreFill] = useState({ city: '', state: '' });
   const vibeAlert = useVibeAlert();
-  
+
   const user = auth.currentUser;
 
   useEffect(() => {
@@ -66,18 +66,31 @@ export default function LocationScreen({ navigation }) {
 
         // Check for pending studio selection from deep link
         try {
-          const pendingSelectionData = await AsyncStorage.getItem('pendingStudioSelection');
+          const pendingSelectionData = await AsyncStorage.getItem(
+            'pendingStudioSelection'
+          );
           if (pendingSelectionData) {
-            const { studioId, eventId, source } = JSON.parse(pendingSelectionData);
-            console.log('[LocationScreen] Found pending studio selection:', { studioId, eventId, source });
-            
+            const { studioId, eventId, source } =
+              JSON.parse(pendingSelectionData);
+            console.log('[LocationScreen] Found pending studio selection:', {
+              studioId,
+              eventId,
+              source,
+            });
+
             // Find the studio by ID
             const studio = await StudioService.getStudioById(studioId);
             if (studio) {
-              console.log('[LocationScreen] Auto-selecting studio from deep link:', studio.name);
-              console.log('[LocationScreen] Studio object from deep link:', { id: studio.id, name: studio.name });
+              console.log(
+                '[LocationScreen] Auto-selecting studio from deep link:',
+                studio.name
+              );
+              console.log('[LocationScreen] Studio object from deep link:', {
+                id: studio.id,
+                name: studio.name,
+              });
               setSelectedStudio(studio);
-              
+
               // Auto-confirm the studio selection
               setTimeout(() => {
                 handleConfirmStudio(studio, { eventId, source });
@@ -89,7 +102,10 @@ export default function LocationScreen({ navigation }) {
             }
           }
         } catch (error) {
-          console.error('[LocationScreen] Error checking pending studio selection:', error);
+          console.error(
+            '[LocationScreen] Error checking pending studio selection:',
+            error
+          );
         }
 
         // Request location permission
@@ -105,9 +121,9 @@ export default function LocationScreen({ navigation }) {
                 timeout: 12000, // Increased initial timeout
                 maximumAge: 60000, // Accept location up to 60 seconds old for initial load
               }),
-              new Promise((_, reject) => 
+              new Promise((_, reject) =>
                 setTimeout(() => reject(new Error('Location timeout')), 15000)
-              )
+              ),
             ]);
             setUserLocation(location.coords);
 
@@ -146,7 +162,10 @@ export default function LocationScreen({ navigation }) {
     initializeLocation();
   }, [user]);
 
-  const handleConfirmStudio = async (studioOverride = null, pendingData = null) => {
+  const handleConfirmStudio = async (
+    studioOverride = null,
+    pendingData = null
+  ) => {
     const studio = studioOverride || selectedStudio;
     if (!studio || !user) {
       vibeAlert.error('Error', 'Please select a studio first.');
@@ -180,15 +199,21 @@ export default function LocationScreen({ navigation }) {
     setSearchText(suggestion.displayName);
     setShowSuggestions(false);
     setSuggestions([]);
-    
+
     const studio = await StudioService.getStudioById(suggestion.studioId);
     if (studio) {
-      console.log('[LocationScreen] Studio selected from suggestion:', { id: studio.id, name: studio.name });
+      console.log('[LocationScreen] Studio selected from suggestion:', {
+        id: studio.id,
+        name: studio.name,
+      });
       setSelectedStudio(studio);
       // Switch to browse tab to show the selected studio clearly
       setSelectedTab('browse');
     } else {
-      console.warn('[LocationScreen] No studio found for suggestion:', suggestion.studioId);
+      console.warn(
+        '[LocationScreen] No studio found for suggestion:',
+        suggestion.studioId
+      );
     }
   };
 
@@ -200,8 +225,10 @@ export default function LocationScreen({ navigation }) {
 
     setSaving(true);
     try {
-      const studioMatch = await StudioService.generateStudioFromText(searchText.trim());
-      
+      const studioMatch = await StudioService.generateStudioFromText(
+        searchText.trim()
+      );
+
       if (studioMatch.studioId === 'unknown_location') {
         // Show option to request new studio
         vibeAlert.custom(
@@ -209,19 +236,22 @@ export default function LocationScreen({ navigation }) {
           `No studio found for "${searchText.trim()}". Would you like to request a new studio for this location?`,
           [
             { text: 'Cancel', style: 'cancel' },
-            { 
-              text: 'Request Studio', 
+            {
+              text: 'Request Studio',
               onPress: () => {
                 // Parse city/state from search text
-                const parts = searchText.trim().split(',').map(p => p.trim());
+                const parts = searchText
+                  .trim()
+                  .split(',')
+                  .map((p) => p.trim());
                 const cityName = parts[0] || '';
                 const stateName = parts[1] || '';
-                
+
                 // Open request modal with pre-filled data
                 setModalPreFill({ city: cityName, state: stateName });
                 setShowRequestModal(true);
-              }
-            }
+              },
+            },
           ]
         );
         setSaving(false);
@@ -230,10 +260,16 @@ export default function LocationScreen({ navigation }) {
 
       const studio = await StudioService.getStudioById(studioMatch.studioId);
       if (studio) {
-        console.log('[LocationScreen] Studio found from search:', { id: studio.id, name: studio.name });
+        console.log('[LocationScreen] Studio found from search:', {
+          id: studio.id,
+          name: studio.name,
+        });
         await saveStudioData(studio);
       } else {
-        console.warn('[LocationScreen] No studio found for search result:', studioMatch.studioId);
+        console.warn(
+          '[LocationScreen] No studio found for search result:',
+          studioMatch.studioId
+        );
         vibeAlert.error('Error', 'Studio not found. Please try again.');
         setSaving(false);
       }
@@ -252,7 +288,10 @@ export default function LocationScreen({ navigation }) {
 
     // Validate studio object
     if (!studio || !studio.id) {
-      vibeAlert.error('Error', 'Invalid studio data. Please try selecting a studio again.');
+      vibeAlert.error(
+        'Error',
+        'Invalid studio data. Please try selecting a studio again.'
+      );
       setSaving(false);
       return;
     }
@@ -263,7 +302,8 @@ export default function LocationScreen({ navigation }) {
       try {
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         if (userDoc.exists()) {
-          currentStudioId = userDoc.data()?.userdata?.studios?.default?.studioId;
+          currentStudioId =
+            userDoc.data()?.userdata?.studios?.default?.studioId;
         }
       } catch (error) {
         console.warn('Failed to get current studio ID:', error);
@@ -282,38 +322,50 @@ export default function LocationScreen({ navigation }) {
                 studioCity: studio.city,
                 studioState: studio.state,
               },
-              additional: [] // Array for future multiple studio support
-            }
-          }
+              additional: [], // Array for future multiple studio support
+            },
+          },
         },
         { merge: true }
       );
 
       // Switch user to new studio (handles removal from old + addition to new)
-      const switchResult = await switchUserStudio(user.uid, currentStudioId, studio.id);
+      const switchResult = await switchUserStudio(
+        user.uid,
+        currentStudioId,
+        studio.id
+      );
       if (!switchResult.success) {
         console.warn('Failed to switch user studios:', switchResult.error);
         // Continue anyway - user document was saved successfully
       }
 
-      console.log(`User ${user.uid} successfully switched to studio ${studio.id} from ${currentStudioId || 'none'}`);
-      
+      console.log(
+        `User ${user.uid} successfully switched to studio ${studio.id} from ${currentStudioId || 'none'}`
+      );
+
       // Handle pending event navigation or default to Home
       if (pendingData && pendingData.eventId) {
-        console.log('[LocationScreen] Navigating to pending event:', pendingData.eventId);
+        console.log(
+          '[LocationScreen] Navigating to pending event:',
+          pendingData.eventId
+        );
         // Clear the pending selection since we're handling it
         await AsyncStorage.removeItem('pendingStudioSelection');
-        
+
         // Navigate directly to the event
         navigation.navigate('EventDetail', {
           eventId: pendingData.eventId,
           studioId: studio.id,
-          source: pendingData.source || 'app-download-qr'
+          source: pendingData.source || 'app-download-qr',
         });
-        
+
         // Show success message about joining the event
         setTimeout(() => {
-          vibeAlert.success('Welcome!', `You've been added to ${studio.name}! Now you can join the event.`);
+          vibeAlert.success(
+            'Welcome!',
+            `You've been added to ${studio.name}! Now you can join the event.`
+          );
         }, 500);
       } else {
         // Navigate to Home screen
@@ -335,20 +387,22 @@ export default function LocationScreen({ navigation }) {
       console.log('[LocationScreen] Already refreshing, ignoring request');
       return;
     }
-    
+
     console.log('[LocationScreen] Starting location refresh...');
     setRefreshingLocation(true);
     setNearbyStudios([]);
-    
+
     // Safety timeout to prevent stuck refreshing state
     const refreshTimeout = setTimeout(() => {
-      console.warn('[LocationScreen] Refresh timeout reached, forcing state reset');
+      console.warn(
+        '[LocationScreen] Refresh timeout reached, forcing state reset'
+      );
       setRefreshingLocation(false);
     }, 30000); // 30 second timeout
-    
+
     try {
       console.log('[LocationScreen] Refreshing location and studios...');
-      
+
       // Re-request location permission and check system settings
       const { status } = await Location.requestForegroundPermissionsAsync();
       console.log('[LocationScreen] Permission status:', status);
@@ -359,13 +413,18 @@ export default function LocationScreen({ navigation }) {
 
       if (status === 'granted') {
         if (!locationServicesEnabled) {
-          console.error('[LocationScreen] Location services are disabled at system level');
-          vibeAlert.error('Location Disabled', 'Please enable location services in your device settings');
+          console.error(
+            '[LocationScreen] Location services are disabled at system level'
+          );
+          vibeAlert.error(
+            'Location Disabled',
+            'Please enable location services in your device settings'
+          );
           return;
         }
         // Try multiple location methods in order of reliability
         let location;
-        
+
         // Method 1: Try Google Geolocation API first (most reliable)
         try {
           const googleLocation = await GooglePlacesService.getCurrentLocation();
@@ -375,7 +434,7 @@ export default function LocationScreen({ navigation }) {
         } catch (googleError) {
           // Google API failed, continue to GPS
         }
-        
+
         // Method 2: Try device GPS if Google failed
         if (!location) {
           try {
@@ -385,21 +444,21 @@ export default function LocationScreen({ navigation }) {
                 timeout: 10000,
                 maximumAge: 30000,
               }),
-              new Promise((_, reject) => 
+              new Promise((_, reject) =>
                 setTimeout(() => reject(new Error('GPS timeout')), 10000)
-              )
+              ),
             ]);
             location = gpsResult;
           } catch (gpsError) {
             // GPS failed, continue to fallback
           }
         }
-        
+
         // Method 3: Use previous location as last resort
         if (!location && userLocation) {
           location = { coords: userLocation };
         }
-        
+
         // If all methods failed, throw error for final fallback
         if (!location) {
           throw new Error('All location methods failed');
@@ -414,7 +473,10 @@ export default function LocationScreen({ navigation }) {
         );
         setNearbyStudios(closest);
       } else {
-        vibeAlert.error('Permission Denied', 'Location permission is required to find nearby studios');
+        vibeAlert.error(
+          'Permission Denied',
+          'Location permission is required to find nearby studios'
+        );
       }
     } catch (error) {
       // Try to show all studios as fallback when location fails
@@ -457,7 +519,13 @@ export default function LocationScreen({ navigation }) {
           enableOnAndroid={true}
         >
           <View style={styles.headerRow}>
-            <Text style={[styles.title, styles.titleFlexible, theme.shadows.textGlow]}>
+            <Text
+              style={[
+                styles.title,
+                styles.titleFlexible,
+                theme.shadows.textGlow,
+              ]}
+            >
               Choose Your Studio
             </Text>
             {hasExistingStudio && (
@@ -509,13 +577,20 @@ export default function LocationScreen({ navigation }) {
                   <View style={styles.selectedStudioCard}>
                     <View style={styles.centerItemHeader}>
                       <View style={styles.centerItemInfo}>
-                        <Text style={styles.centerItemName}>{selectedStudio.name}</Text>
-                        <Text style={styles.centerItemLocation}>{selectedStudio.city}, {selectedStudio.state}</Text>
+                        <Text style={styles.centerItemName}>
+                          {selectedStudio.name}
+                        </Text>
+                        <Text style={styles.centerItemLocation}>
+                          {selectedStudio.city}, {selectedStudio.state}
+                        </Text>
                         {typeof selectedStudio.distance === 'number' ? (
-                          <Text style={styles.centerItemDistance}>{selectedStudio.distance.toFixed(1)} miles away</Text>
+                          <Text style={styles.centerItemDistance}>
+                            {selectedStudio.distance.toFixed(1)} miles away
+                          </Text>
                         ) : null}
                       </View>
-                      {(selectedStudio.memberCount && typeof selectedStudio.memberCount === 'number') ? (
+                      {selectedStudio.memberCount &&
+                      typeof selectedStudio.memberCount === 'number' ? (
                         <Text style={styles.centerItemMembers}>
                           👥 {selectedStudio.memberCount}
                         </Text>
@@ -554,14 +629,16 @@ export default function LocationScreen({ navigation }) {
                   {locationPermission === 'granted' ? (
                     <View style={styles.centersSection}>
                       <Text style={styles.sectionTitle}>
-                        {userLocation ? '📍 Studios Near Me' : '🏢 Available Studios'}
+                        {userLocation
+                          ? '📍 Studios Near Me'
+                          : '🏢 Available Studios'}
                       </Text>
                       {userLocation && (
                         <Text style={styles.sectionSubtitle}>
                           Showing studios within 100 miles
                         </Text>
                       )}
-                      
+
                       {nearbyStudios.length > 0 ? (
                         nearbyStudios.map((studio) => (
                           <TouchableOpacity
@@ -571,13 +648,20 @@ export default function LocationScreen({ navigation }) {
                           >
                             <View style={styles.centerItemHeader}>
                               <View style={styles.centerItemInfo}>
-                                <Text style={styles.centerItemName}>{studio.name}</Text>
-                                <Text style={styles.centerItemLocation}>{studio.city}, {studio.state}</Text>
+                                <Text style={styles.centerItemName}>
+                                  {studio.name}
+                                </Text>
+                                <Text style={styles.centerItemLocation}>
+                                  {studio.city}, {studio.state}
+                                </Text>
                                 {typeof studio.distance === 'number' ? (
-                                  <Text style={styles.centerItemDistance}>{studio.distance.toFixed(1)} miles away</Text>
+                                  <Text style={styles.centerItemDistance}>
+                                    {studio.distance.toFixed(1)} miles away
+                                  </Text>
                                 ) : null}
                               </View>
-                              {(studio.memberCount && typeof studio.memberCount === 'number') ? (
+                              {studio.memberCount &&
+                              typeof studio.memberCount === 'number' ? (
                                 <Text style={styles.centerItemMembers}>
                                   👥 {studio.memberCount}
                                 </Text>
@@ -587,25 +671,33 @@ export default function LocationScreen({ navigation }) {
                         ))
                       ) : refreshingLocation ? (
                         <View style={styles.loadingState}>
-                          <Text style={styles.loadingText}>🔄 Finding nearby studios...</Text>
+                          <Text style={styles.loadingText}>
+                            🔄 Finding nearby studios...
+                          </Text>
                         </View>
                       ) : (
                         <View style={styles.emptyState}>
-                          <Text style={styles.emptyStateText}>No studios found within 100 miles</Text>
-                          <Text style={styles.emptyStateSubtext}>Try refreshing or search by location</Text>
+                          <Text style={styles.emptyStateText}>
+                            No studios found within 100 miles
+                          </Text>
+                          <Text style={styles.emptyStateSubtext}>
+                            Try refreshing or search by location
+                          </Text>
                         </View>
                       )}
-                      
+
                       <TouchableOpacity
                         style={styles.refreshButtonBelow}
                         onPress={handleRefreshLocation}
                         disabled={refreshingLocation}
                       >
                         <Text style={styles.refreshButtonBelowText}>
-                          {refreshingLocation ? '🔄 Refreshing...' : '🔄 Refresh Studios'}
+                          {refreshingLocation
+                            ? '🔄 Refreshing...'
+                            : '🔄 Refresh Studios'}
                         </Text>
                       </TouchableOpacity>
-                      
+
                       <TouchableOpacity
                         style={styles.requestStudioButton}
                         onPress={() => {
@@ -628,16 +720,27 @@ export default function LocationScreen({ navigation }) {
                           disabled={refreshingLocation}
                         >
                           <Text style={styles.refreshButtonText}>
-                            {refreshingLocation ? '🔄 Refreshing...' : '📍 Try Again'}
+                            {refreshingLocation
+                              ? '🔄 Refreshing...'
+                              : '📍 Try Again'}
                           </Text>
                         </TouchableOpacity>
                       </View>
-                      <Text style={styles.sectionSubtitle}>Tap "Try Again" to enable location for personalized results</Text>
+                      <Text style={styles.sectionSubtitle}>
+                        Tap "Try Again" to enable location for personalized
+                        results
+                      </Text>
                     </View>
                   ) : (
                     <View style={styles.centersSection}>
-                      <Text style={styles.sectionTitle}>📍 Getting your location...</Text>
-                      <ActivityIndicator size="small" color={theme.colors.vibeBlue} style={{ marginTop: 10 }} />
+                      <Text style={styles.sectionTitle}>
+                        📍 Getting your location...
+                      </Text>
+                      <ActivityIndicator
+                        size="small"
+                        color={theme.colors.vibeBlue}
+                        style={{ marginTop: 10 }}
+                      />
                     </View>
                   )}
                 </>
@@ -654,13 +757,20 @@ export default function LocationScreen({ navigation }) {
                   <View style={styles.selectedStudioCard}>
                     <View style={styles.centerItemHeader}>
                       <View style={styles.centerItemInfo}>
-                        <Text style={styles.centerItemName}>{selectedStudio.name}</Text>
-                        <Text style={styles.centerItemLocation}>{selectedStudio.city}, {selectedStudio.state}</Text>
+                        <Text style={styles.centerItemName}>
+                          {selectedStudio.name}
+                        </Text>
+                        <Text style={styles.centerItemLocation}>
+                          {selectedStudio.city}, {selectedStudio.state}
+                        </Text>
                         {typeof selectedStudio.distance === 'number' ? (
-                          <Text style={styles.centerItemDistance}>{selectedStudio.distance.toFixed(1)} miles away</Text>
+                          <Text style={styles.centerItemDistance}>
+                            {selectedStudio.distance.toFixed(1)} miles away
+                          </Text>
                         ) : null}
                       </View>
-                      {(selectedStudio.memberCount && typeof selectedStudio.memberCount === 'number') ? (
+                      {selectedStudio.memberCount &&
+                      typeof selectedStudio.memberCount === 'number' ? (
                         <Text style={styles.centerItemMembers}>
                           👥 {selectedStudio.memberCount}
                         </Text>
@@ -698,9 +808,7 @@ export default function LocationScreen({ navigation }) {
                 </>
               ) : (
                 <View style={styles.searchCard}>
-                  <Text style={styles.searchTitle}>
-                    🔍 Search by Location
-                  </Text>
+                  <Text style={styles.searchTitle}>🔍 Search by Location</Text>
                   <Text style={styles.searchText}>
                     Enter your city to find the nearest studio.
                   </Text>
@@ -732,7 +840,12 @@ export default function LocationScreen({ navigation }) {
                           <Text style={styles.suggestionText}>
                             {suggestion.displayName}
                           </Text>
-                          <Text style={[styles.suggestionStatus, styles.activeStatus]}>
+                          <Text
+                            style={[
+                              styles.suggestionStatus,
+                              styles.activeStatus,
+                            ]}
+                          >
                             Active
                           </Text>
                         </TouchableOpacity>
@@ -749,8 +862,7 @@ export default function LocationScreen({ navigation }) {
                       colors={theme.colors.buttonGradient}
                       style={[
                         styles.button,
-                        (saving || !searchText.trim()) &&
-                          styles.buttonDisabled,
+                        (saving || !searchText.trim()) && styles.buttonDisabled,
                       ]}
                     >
                       <Text style={styles.buttonText}>
@@ -758,12 +870,15 @@ export default function LocationScreen({ navigation }) {
                       </Text>
                     </LinearGradient>
                   </TouchableOpacity>
-                  
+
                   <TouchableOpacity
                     style={styles.requestStudioButtonSearch}
                     onPress={() => {
                       // Pre-fill with search text if available
-                      const parts = searchText.trim().split(',').map(p => p.trim());
+                      const parts = searchText
+                        .trim()
+                        .split(',')
+                        .map((p) => p.trim());
                       const cityName = parts[0] || '';
                       const stateName = parts[1] || '';
                       setModalPreFill({ city: cityName, state: stateName });
@@ -778,10 +893,9 @@ export default function LocationScreen({ navigation }) {
               )}
             </View>
           )}
-
         </ScrollView>
       </KeyboardAvoidingView>
-      
+
       <RequestStudioModal
         visible={showRequestModal}
         onClose={() => setShowRequestModal(false)}

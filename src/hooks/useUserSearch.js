@@ -18,6 +18,6 @@ export const useUserSearch = (users) => {
     setSearchQuery,
     filteredUsers,
     hasResults: filteredUsers.length > 0,
-    hasSearch: searchQuery.trim().length > 0
+    hasSearch: searchQuery.trim().length > 0,
   };
 };

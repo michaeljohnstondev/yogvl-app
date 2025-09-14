@@ -13,7 +13,7 @@ export default function EventCard({
   isHostedByUser = false, // New prop to indicate if user is hosting
 }) {
   // Choose gradient colors based on hosting status
-  const gradientColors = isHostedByUser 
+  const gradientColors = isHostedByUser
     ? ['#FFD700', '#FF8C00'] // Yellow to orange gradient for hosted events
     : ['#00f2fe', '#4facfe']; // Cyan/blue gradient for regular events
 
@@ -33,17 +33,32 @@ export default function EventCard({
         <View style={styles.card}>
           {(eventTimestamp || utcDateTime) && (
             <Text style={styles.meta}>
-              {eventTimestamp 
-                ? FormatDate(eventTimestamp.toDate ? eventTimestamp.toDate() : eventTimestamp, Intl.DateTimeFormat().resolvedOptions().timeZone)
-                : FormatDate(utcDateTime, eventTimeZone)
-              }
+              {eventTimestamp
+                ? FormatDate(
+                    eventTimestamp.toDate
+                      ? eventTimestamp.toDate()
+                      : eventTimestamp,
+                    Intl.DateTimeFormat().resolvedOptions().timeZone
+                  )
+                : FormatDate(utcDateTime, eventTimeZone)}
             </Text>
           )}
-          <Text style={[styles.title, { fontSize: title && title.length > 20 ? 20 : 22 }]} numberOfLines={2} ellipsizeMode="tail">
+          <Text
+            style={[
+              styles.title,
+              { fontSize: title && title.length > 20 ? 20 : 22 },
+            ]}
+            numberOfLines={2}
+            ellipsizeMode="tail"
+          >
             {title}
           </Text>
           {location && (
-            <Text style={styles.location} numberOfLines={1} ellipsizeMode="tail">
+            <Text
+              style={styles.location}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
               {location}
             </Text>
           )}

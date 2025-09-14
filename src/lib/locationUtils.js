@@ -9,13 +9,13 @@ const PERSONAL_LOCATION_PATTERNS = [
   /friend'?s?\s+(house|place|apartment)/i,
   /parent'?s?\s+(house|place)/i,
   /(mom|dad|mother|father)'?s?\s+/i,
-  
+
   // Generic personal spaces
   /^\s*(home|house|apartment|apt|condo|dorm)\s*$/i,
-  
+
   // Street addresses without venue names (likely residential)
   /^\d+\s+\w+\s+(st|street|ave|avenue|rd|road|blvd|boulevard|ln|lane|dr|drive|ct|court|way|pl|place|cir|circle)\s*$/i,
-  
+
   // Personal indicators
   /^\s*(my|our)\s+/i,
 ];
@@ -27,9 +27,9 @@ const PERSONAL_LOCATION_PATTERNS = [
  */
 export const isPersonalLocation = (locationText) => {
   if (!locationText || typeof locationText !== 'string') return false;
-  
+
   const cleanText = locationText.trim();
-  return PERSONAL_LOCATION_PATTERNS.some(pattern => pattern.test(cleanText));
+  return PERSONAL_LOCATION_PATTERNS.some((pattern) => pattern.test(cleanText));
 };
 
 /**
@@ -50,15 +50,17 @@ export class LocationHandler {
     }
 
     const cleanText = locationText.trim();
-    
+
     // Skip auto-lookup for personal locations
     if (isPersonalLocation(cleanText)) {
-      console.log('[LocationHandler] Personal location detected, skipping auto-lookup');
-      return { 
-        success: true, 
-        location: cleanText, 
-        address: null, 
-        source: 'personal' 
+      console.log(
+        '[LocationHandler] Personal location detected, skipping auto-lookup'
+      );
+      return {
+        success: true,
+        location: cleanText,
+        address: null,
+        source: 'personal',
       };
     }
 
@@ -105,13 +107,13 @@ export class LocationHandler {
     // All strategies failed
     console.log('[LocationHandler] All location strategies failed');
     onError?.(new Error('Could not find address for this location'));
-    
+
     return {
       success: false,
       location: cleanText,
       address: null,
       source: 'manual',
-      error: 'No address found - please enter manually'
+      error: 'No address found - please enter manually',
     };
   }
 
@@ -122,16 +124,21 @@ export class LocationHandler {
    */
   static async tryGooglePlaces(locationText) {
     try {
-      const predictions = await GooglePlacesService.getAutocompletePredictions(locationText, {
-        types: 'establishment',
-        components: 'country:us'
-      });
+      const predictions = await GooglePlacesService.getAutocompletePredictions(
+        locationText,
+        {
+          types: 'establishment',
+          components: 'country:us',
+        }
+      );
 
       if (predictions && predictions.length > 0) {
         // Get details for the first (best) match
         const bestMatch = predictions[0];
-        const details = await GooglePlacesService.getPlaceDetails(bestMatch.placeId);
-        
+        const details = await GooglePlacesService.getPlaceDetails(
+          bestMatch.placeId
+        );
+
         if (details && details.address) {
           return {
             success: true,
@@ -139,7 +146,7 @@ export class LocationHandler {
             address: details.address,
             coordinates: details.location,
             source: 'google_places',
-            placeId: details.id
+            placeId: details.id,
           };
         }
       }
@@ -158,14 +165,14 @@ export class LocationHandler {
   static async tryFirebaseVenues(locationText) {
     try {
       const venueData = await VenueService.getVenueAddress(locationText);
-      
+
       if (venueData && venueData.address) {
         return {
           success: true,
           location: venueData.name,
           address: venueData.address,
           source: 'firebase_venues',
-          category: venueData.category
+          category: venueData.category,
         };
       }
     } catch (error) {
@@ -182,12 +189,14 @@ export class LocationHandler {
    */
   static async tryLocalDatabase(locationText) {
     // Import the local database from useSmartAutoComplete
-    const { searchLocations } = await import('../events/hooks/useSmartAutoComplete');
-    
+    const { searchLocations } = await import(
+      '../events/hooks/useSmartAutoComplete'
+    );
+
     try {
       // Create a temporary hook instance to access searchLocations
       const matches = []; // We'll implement this differently since we can't call hooks here
-      
+
       // For now, return false - this would need to be implemented differently
       // or we could extract the LOCATION_DATABASE to a separate file
       return { success: false };
@@ -209,12 +218,15 @@ export class LocationHandler {
     }
 
     const cleanAddress = address.trim();
-    
+
     // Basic validation: should have at least a number and street name
     const hasNumber = /\d/.test(cleanAddress);
-    const hasStreet = /\b(st|street|ave|avenue|rd|road|blvd|boulevard|ln|lane|dr|drive|ct|court|way|pl|place|cir|circle)\b/i.test(cleanAddress);
+    const hasStreet =
+      /\b(st|street|ave|avenue|rd|road|blvd|boulevard|ln|lane|dr|drive|ct|court|way|pl|place|cir|circle)\b/i.test(
+        cleanAddress
+      );
     const hasCity = cleanAddress.split(',').length >= 2; // At least "Street, City"
-    
+
     return hasNumber && (hasStreet || hasCity);
   }
 
@@ -225,7 +237,7 @@ export class LocationHandler {
    */
   static formatAddress(address) {
     if (!address) return '';
-    
+
     return address
       .trim()
       .replace(/\s+/g, ' ') // Remove extra spaces
@@ -242,19 +254,19 @@ export class LocationHandler {
     if (!address) return { city: null, state: null };
 
     const parts = address.split(',');
-    
+
     if (parts.length >= 2) {
       // Typical format: "Street, City, State ZIP"
       const cityPart = parts[parts.length - 2]?.trim();
       const statePart = parts[parts.length - 1]?.trim();
-      
+
       // Extract state (usually first 2 letters before ZIP)
       const stateMatch = statePart?.match(/([A-Z]{2})\s+\d/);
       const state = stateMatch ? stateMatch[1] : statePart?.substring(0, 2);
-      
+
       return {
         city: cityPart,
-        state: state
+        state: state,
       };
     }
 

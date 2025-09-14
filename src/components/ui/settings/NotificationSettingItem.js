@@ -1,22 +1,17 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  Switch,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, Switch, StyleSheet } from 'react-native';
 import theme from '../../../theme/themes';
 
 /**
  * Reusable notification setting item component
  * Extracted from NotificationSettingsScreen to eliminate code duplication
  */
-export default function NotificationSettingItem({ 
-  title, 
-  description, 
-  value, 
-  onToggle, 
-  isLast = false 
+export default function NotificationSettingItem({
+  title,
+  description,
+  value,
+  onToggle,
+  isLast = false,
 }) {
   return (
     <View style={[styles.settingItem, !isLast && styles.settingBorder]}>

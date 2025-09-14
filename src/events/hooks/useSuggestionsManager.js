@@ -1,20 +1,27 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { useSuggestions, filterTitleSuggestions } from './useSuggestions';
-import useSmartAutoComplete, { autoCompleteConfigs } from './useSmartAutoComplete';
+import useSmartAutoComplete, {
+  autoCompleteConfigs,
+} from './useSmartAutoComplete';
 import { getEmojiForText } from '../../lib/emojiUtils';
 
 const hasEmojiAtStart = (text) => {
   if (!text || typeof text !== 'string') return false;
-  
+
   const trimmed = text.trim();
   if (!trimmed) return false;
-  
-  const emojiRegex = /^[\u{1F600}-\u{1F64F}]|^[\u{1F300}-\u{1F5FF}]|^[\u{1F680}-\u{1F6FF}]|^[\u{1F1E6}-\u{1F1FF}]|^[\u{2600}-\u{26FF}]|^[\u{2700}-\u{27BF}]|^\u{2764}|^\u{2049}|^\u{203C}|^[\u{1F900}-\u{1F9FF}]|^[\u{1FA70}-\u{1FAFF}]/u;
-  
+
+  const emojiRegex =
+    /^[\u{1F600}-\u{1F64F}]|^[\u{1F300}-\u{1F5FF}]|^[\u{1F680}-\u{1F6FF}]|^[\u{1F1E6}-\u{1F1FF}]|^[\u{2600}-\u{26FF}]|^[\u{2700}-\u{27BF}]|^\u{2764}|^\u{2049}|^\u{203C}|^[\u{1F900}-\u{1F9FF}]|^[\u{1FA70}-\u{1FAFF}]/u;
+
   return emojiRegex.test(trimmed);
 };
 
-export const useSuggestionsManager = (updateField, appendToDetails, studioId = null) => {
+export const useSuggestionsManager = (
+  updateField,
+  appendToDetails,
+  studioId = null
+) => {
   // Initialize suggestions hook
   const { suggestions, isLoading, loadSuggestions } = useSuggestions(studioId);
 
@@ -52,19 +59,24 @@ export const useSuggestionsManager = (updateField, appendToDetails, studioId = n
   }, [loadSuggestions]);
 
   useEffect(() => {
-    if (suggestions.titles || suggestions.locations || suggestions.details || suggestions.interests) {
+    if (
+      suggestions.titles ||
+      suggestions.locations ||
+      suggestions.details ||
+      suggestions.interests
+    ) {
       // For titles, combine with interests using the new filter function
       const titleTexts = (suggestions.titles || []).map(
         (item) => item.text || item
       );
       const interestSuggestions = suggestions.interests || [];
-      
+
       // Create combined suggestions that include interests
       const combinedTitleSuggestions = [
         ...titleTexts,
-        ...interestSuggestions.map(item => item.interest)
+        ...interestSuggestions.map((item) => item.interest),
       ];
-      
+
       const locationTexts = (suggestions.locations || []).map(
         (item) => item.text || item
       );
@@ -122,12 +134,12 @@ export const useSuggestionsManager = (updateField, appendToDetails, studioId = n
           appendToDetails(suggestionText);
         } else {
           // Add emoji only if the suggestion doesn't already have one
-          const textWithEmoji = hasEmojiAtStart(suggestionText) 
-            ? suggestionText 
+          const textWithEmoji = hasEmojiAtStart(suggestionText)
+            ? suggestionText
             : `${getEmojiForText(suggestionText)} ${suggestionText}`;
           updateField(field, textWithEmoji);
         }
-        
+
         // Hide suggestions after selection for non-smart fields
         hideSuggestions(field);
       }
@@ -155,16 +167,16 @@ export const useSuggestionsManager = (updateField, appendToDetails, studioId = n
     // State
     suggestions,
     isLoading,
-    
+
     // Handlers
     handleInputChange,
     handleInputFocus,
     handleSuggestionSelect,
     hideSuggestions,
-    
+
     // Smart autocomplete data
     getFieldData,
-    
+
     // Actions
     loadSuggestions,
   };

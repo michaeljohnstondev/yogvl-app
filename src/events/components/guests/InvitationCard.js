@@ -1,18 +1,19 @@
 // FILE: components/guests/InvitationCard.js
 
 import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-} from 'react-native';
-import { acceptInvitation, declineInvitation } from '../../services/invitations';
+  acceptInvitation,
+  declineInvitation,
+} from '../../services/invitations';
 import { VibeButton } from '../../../components/ui';
 import theme from '../../../theme/themes';
 
-export default function InvitationCard({ invitation, currentUserId, onResponse }) {
+export default function InvitationCard({
+  invitation,
+  currentUserId,
+  onResponse,
+}) {
   const [isResponding, setIsResponding] = useState(false);
 
   // Handle accepting invitation
@@ -53,10 +54,18 @@ export default function InvitationCard({ invitation, currentUserId, onResponse }
               Alert.alert(
                 'Invitation Declined',
                 'You have declined this invitation.',
-                [{ text: 'OK', onPress: () => onResponse && onResponse('declined') }]
+                [
+                  {
+                    text: 'OK',
+                    onPress: () => onResponse && onResponse('declined'),
+                  },
+                ]
               );
             } catch (error) {
-              Alert.alert('Error', error.message || 'Failed to decline invitation');
+              Alert.alert(
+                'Error',
+                error.message || 'Failed to decline invitation'
+              );
             } finally {
               setIsResponding(false);
             }
@@ -68,7 +77,7 @@ export default function InvitationCard({ invitation, currentUserId, onResponse }
 
   const formatDate = (date) => {
     if (!date) return 'Date TBD';
-    
+
     const eventDate = date.toDate ? date.toDate() : new Date(date);
     return eventDate.toLocaleDateString('en-US', {
       weekday: 'short',
@@ -80,7 +89,7 @@ export default function InvitationCard({ invitation, currentUserId, onResponse }
 
   const formatTime = (date) => {
     if (!date) return 'Time TBD';
-    
+
     const eventDate = date.toDate ? date.toDate() : new Date(date);
     return eventDate.toLocaleTimeString('en-US', {
       hour: 'numeric',
@@ -117,17 +126,23 @@ export default function InvitationCard({ invitation, currentUserId, onResponse }
       <View style={styles.eventDetails}>
         <View style={styles.detailRow}>
           <Text style={styles.detailIcon}>📅</Text>
-          <Text style={styles.detailText}>{formatDate(eventData.eventTimestamp)}</Text>
+          <Text style={styles.detailText}>
+            {formatDate(eventData.eventTimestamp)}
+          </Text>
         </View>
-        
+
         <View style={styles.detailRow}>
           <Text style={styles.detailIcon}>⏰</Text>
-          <Text style={styles.detailText}>{formatTime(eventData.eventTimestamp)}</Text>
+          <Text style={styles.detailText}>
+            {formatTime(eventData.eventTimestamp)}
+          </Text>
         </View>
-        
+
         <View style={styles.detailRow}>
           <Text style={styles.detailIcon}>📍</Text>
-          <Text style={styles.detailText}>{eventData.location || 'Location TBD'}</Text>
+          <Text style={styles.detailText}>
+            {eventData.location || 'Location TBD'}
+          </Text>
         </View>
 
         {eventData.address && (
@@ -142,7 +157,9 @@ export default function InvitationCard({ invitation, currentUserId, onResponse }
       {hostData && (
         <View style={styles.hostInfo}>
           <Text style={styles.hostLabel}>Invited by:</Text>
-          <Text style={styles.hostName}>{hostData.displayName || hostData.email || 'Unknown Host'}</Text>
+          <Text style={styles.hostName}>
+            {hostData.displayName || hostData.email || 'Unknown Host'}
+          </Text>
         </View>
       )}
 

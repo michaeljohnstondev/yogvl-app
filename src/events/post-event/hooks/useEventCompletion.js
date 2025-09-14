@@ -30,13 +30,16 @@ export const useEventCompletion = (studioId, eventId, userId) => {
   const loadWrapUpData = async () => {
     try {
       setLoading(true);
-      const wrapUpData = await PostEventService.getEventWrapUpData(studioId, eventId, userId);
-      
+      const wrapUpData = await PostEventService.getEventWrapUpData(
+        studioId,
+        eventId,
+        userId
+      );
+
       setEventData(wrapUpData.event);
       setParticipants(wrapUpData.participants);
       setAttendance(wrapUpData.attendance);
       setUserStatus(wrapUpData.userStatus);
-
     } catch (error) {
       console.error('Error loading wrap-up data:', error);
       vibeAlert.error('Error', 'Failed to load event data');
@@ -54,19 +57,24 @@ export const useEventCompletion = (studioId, eventId, userId) => {
 
     try {
       setSubmitting(true);
-      
-      await PostEventService.completeEvent(studioId, eventId, userId, attendeeIds, noShowIds);
-      
+
+      await PostEventService.completeEvent(
+        studioId,
+        eventId,
+        userId,
+        attendeeIds,
+        noShowIds
+      );
+
       // Reload data to reflect completion
       await loadWrapUpData();
-      
+
       vibeAlert.success(
         'Event Completed!',
         `Event completed with ${attendeeIds.length} attendee${attendeeIds.length === 1 ? '' : 's'}.`
       );
-      
-      return true;
 
+      return true;
     } catch (error) {
       console.error('Error completing event:', error);
       vibeAlert.error('Error', error.message || 'Failed to complete event');
@@ -85,23 +93,27 @@ export const useEventCompletion = (studioId, eventId, userId) => {
 
     try {
       setSubmitting(true);
-      
-      await PostEventService.handleGuestAttendanceReport(studioId, eventId, userId, attended);
-      
+
+      await PostEventService.handleGuestAttendanceReport(
+        studioId,
+        eventId,
+        userId,
+        attended
+      );
+
       // Update local state
-      setUserStatus(prev => ({
+      setUserStatus((prev) => ({
         ...prev,
         hasReportedAttendance: attended ? 'attended' : 'missed',
       }));
-      
-      const message = attended 
+
+      const message = attended
         ? 'Thanks for confirming you attended!'
         : 'Thanks for letting us know you missed it.';
-        
-      vibeAlert.success('Thanks!', message);
-      
-      return true;
 
+      vibeAlert.success('Thanks!', message);
+
+      return true;
     } catch (error) {
       console.error('Error reporting attendance:', error);
       vibeAlert.error('Error', error.message || 'Failed to report attendance');
@@ -120,22 +132,27 @@ export const useEventCompletion = (studioId, eventId, userId) => {
 
     try {
       setSubmitting(true);
-      
-      await PostEventService.submitHostRating(studioId, eventId, eventData.createdBy, userId, rating);
-      
+
+      await PostEventService.submitHostRating(
+        studioId,
+        eventId,
+        eventData.createdBy,
+        userId,
+        rating
+      );
+
       // Update local state
-      setUserStatus(prev => ({
+      setUserStatus((prev) => ({
         ...prev,
         hasRatedHost: true,
       }));
-      
+
       vibeAlert.success(
         'Thank you!',
         `You rated the host ${rating} star${rating !== 1 ? 's' : ''}!`
       );
-      
-      return true;
 
+      return true;
     } catch (error) {
       console.error('Error submitting rating:', error);
       vibeAlert.error('Error', error.message || 'Failed to submit rating');
@@ -154,13 +171,15 @@ export const useEventCompletion = (studioId, eventId, userId) => {
 
     try {
       setSubmitting(true);
-      
-      await PostEventService.deleteEvent(studioId, eventId, userId);
-      
-      vibeAlert.success('Event Deleted', 'The event has been permanently deleted.');
-      
-      return true;
 
+      await PostEventService.deleteEvent(studioId, eventId, userId);
+
+      vibeAlert.success(
+        'Event Deleted',
+        'The event has been permanently deleted.'
+      );
+
+      return true;
     } catch (error) {
       console.error('Error deleting event:', error);
       vibeAlert.error('Error', error.message || 'Failed to delete event');
@@ -176,11 +195,11 @@ export const useEventCompletion = (studioId, eventId, userId) => {
     participants,
     attendance,
     userStatus,
-    
+
     // State
     loading,
     submitting,
-    
+
     // Actions
     completeEvent,
     reportAttendance,

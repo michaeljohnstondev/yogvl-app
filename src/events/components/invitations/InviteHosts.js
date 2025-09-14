@@ -12,7 +12,7 @@ import {
 import { VibeInput, VibeButton } from '../../../components/ui';
 import theme from '../../../theme/themes';
 
-export default function InviteHosts({ 
+export default function InviteHosts({
   onInviteUsers,
   onInviteContacts,
   onInvitePhoneContacts,
@@ -20,7 +20,7 @@ export default function InviteHosts({
   selectedContacts = [],
   selectedPhoneContacts = [],
   maxHosts = 10,
-  style 
+  style,
 }) {
   const [activeTab, setActiveTab] = useState('friends'); // 'friends', 'contacts', or 'phone'
   const [searchQuery, setSearchQuery] = useState('');
@@ -33,43 +33,73 @@ export default function InviteHosts({
     { id: '1', name: 'Alex Johnson', email: 'alex@example.com', avatar: '👤' },
     { id: '2', name: 'Sarah Chen', email: 'sarah@example.com', avatar: '👤' },
     { id: '3', name: 'Mike Wilson', email: 'mike@example.com', avatar: '👤' },
-    { id: '4', name: 'Jordan Smith', email: 'jordan@example.com', avatar: '👤' },
+    {
+      id: '4',
+      name: 'Jordan Smith',
+      email: 'jordan@example.com',
+      avatar: '👤',
+    },
   ]);
 
   const [localSelectedUsers, setLocalSelectedUsers] = useState(selectedUsers);
-  const [localSelectedContacts, setLocalSelectedContacts] = useState(selectedContacts);
-  const [localSelectedPhoneContacts, setLocalSelectedPhoneContacts] = useState(selectedPhoneContacts);
+  const [localSelectedContacts, setLocalSelectedContacts] =
+    useState(selectedContacts);
+  const [localSelectedPhoneContacts, setLocalSelectedPhoneContacts] = useState(
+    selectedPhoneContacts
+  );
 
   // Mock phone contacts for hosts
   const [phoneContacts] = useState([
-    { id: 'host_phone_1', name: 'Business Partner', phone: '(555) 123-9999', avatar: '👔' },
-    { id: 'host_phone_2', name: 'Team Lead Sarah', phone: '(555) 456-7890', avatar: '👩‍💼' },
-    { id: 'host_phone_3', name: 'Co-organizer Mike', phone: '(555) 789-0123', avatar: '👨‍💼' },
+    {
+      id: 'host_phone_1',
+      name: 'Business Partner',
+      phone: '(555) 123-9999',
+      avatar: '👔',
+    },
+    {
+      id: 'host_phone_2',
+      name: 'Team Lead Sarah',
+      phone: '(555) 456-7890',
+      avatar: '👩‍💼',
+    },
+    {
+      id: 'host_phone_3',
+      name: 'Co-organizer Mike',
+      phone: '(555) 789-0123',
+      avatar: '👨‍💼',
+    },
   ]);
 
   // Filter friends based on search query
-  const filteredFriends = friends.filter(friend =>
-    friend.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    friend.email.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredFriends = friends.filter(
+    (friend) =>
+      friend.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      friend.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const totalHosts = localSelectedUsers.length + localSelectedContacts.length + localSelectedPhoneContacts.length;
+  const totalHosts =
+    localSelectedUsers.length +
+    localSelectedContacts.length +
+    localSelectedPhoneContacts.length;
 
   // Handle user selection
   const toggleUserSelection = (user) => {
-    const isSelected = localSelectedUsers.some(u => u.id === user.id);
+    const isSelected = localSelectedUsers.some((u) => u.id === user.id);
     let updated;
-    
+
     if (isSelected) {
-      updated = localSelectedUsers.filter(u => u.id !== user.id);
+      updated = localSelectedUsers.filter((u) => u.id !== user.id);
     } else {
       if (totalHosts >= maxHosts) {
-        Alert.alert('Maximum Hosts Reached', `You can only add up to ${maxHosts} additional hosts.`);
+        Alert.alert(
+          'Maximum Hosts Reached',
+          `You can only add up to ${maxHosts} additional hosts.`
+        );
         return;
       }
       updated = [...localSelectedUsers, user];
     }
-    
+
     setLocalSelectedUsers(updated);
     onInviteUsers && onInviteUsers(updated);
   };
@@ -87,7 +117,10 @@ export default function InviteHosts({
     }
 
     if (totalHosts >= maxHosts) {
-      Alert.alert('Maximum Hosts Reached', `You can only add up to ${maxHosts} additional hosts.`);
+      Alert.alert(
+        'Maximum Hosts Reached',
+        `You can only add up to ${maxHosts} additional hosts.`
+      );
       return;
     }
 
@@ -113,29 +146,29 @@ export default function InviteHosts({
 
   // Remove contact
   const removeContact = (contactId) => {
-    const updated = localSelectedContacts.filter(c => c.id !== contactId);
+    const updated = localSelectedContacts.filter((c) => c.id !== contactId);
     setLocalSelectedContacts(updated);
     onInviteContacts && onInviteContacts(updated);
   };
 
   // Remove user
   const removeUser = (userId) => {
-    const updated = localSelectedUsers.filter(u => u.id !== userId);
+    const updated = localSelectedUsers.filter((u) => u.id !== userId);
     setLocalSelectedUsers(updated);
     onInviteUsers && onInviteUsers(updated);
   };
 
   // Render friend item
   const renderFriendItem = ({ item }) => {
-    const isSelected = localSelectedUsers.some(u => u.id === item.id);
+    const isSelected = localSelectedUsers.some((u) => u.id === item.id);
     const canSelect = !isSelected && totalHosts < maxHosts;
-    
+
     return (
       <TouchableOpacity
         style={[
-          styles.friendItem, 
+          styles.friendItem,
           isSelected && styles.selectedFriendItem,
-          !canSelect && !isSelected && styles.disabledFriendItem
+          !canSelect && !isSelected && styles.disabledFriendItem,
         ]}
         onPress={() => toggleUserSelection(item)}
         disabled={!canSelect && !isSelected}
@@ -149,7 +182,9 @@ export default function InviteHosts({
         </View>
         <View style={styles.selectionIndicator}>
           {isSelected && <Text style={styles.checkmark}>✓</Text>}
-          {!canSelect && !isSelected && <Text style={styles.maxReached}>Max</Text>}
+          {!canSelect && !isSelected && (
+            <Text style={styles.maxReached}>Max</Text>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -209,12 +244,12 @@ export default function InviteHosts({
     <View style={[styles.container, style]}>
       {/* Header */}
       <Text style={styles.title}>Add Co-Hosts</Text>
-      
+
       {/* Host limit indicator */}
       <Text style={styles.limitText}>
         {totalHosts} of {maxHosts} co-hosts added
       </Text>
-      
+
       {/* Tabs */}
       <View style={styles.tabContainer}>
         {renderTabButton('friends', 'App')}
@@ -237,9 +272,7 @@ export default function InviteHosts({
           <View style={styles.friendsList}>
             {filteredFriends.length > 0 ? (
               filteredFriends.map((item) => (
-                <View key={item.id}>
-                  {renderFriendItem({ item })}
-                </View>
+                <View key={item.id}>{renderFriendItem({ item })}</View>
               ))
             ) : (
               <Text style={styles.emptyText}>No users found</Text>
@@ -259,7 +292,7 @@ export default function InviteHosts({
               onChangeText={setContactName}
               style={styles.input}
             />
-            
+
             <VibeInput
               placeholder="Email address"
               value={contactEmail}
@@ -267,7 +300,7 @@ export default function InviteHosts({
               keyboardType="email-address"
               style={styles.input}
             />
-            
+
             <VibeInput
               placeholder="Phone number"
               value={contactPhone}
@@ -282,7 +315,7 @@ export default function InviteHosts({
               style={styles.addButton}
               disabled={totalHosts >= maxHosts}
             />
-            
+
             {totalHosts >= maxHosts && (
               <Text style={styles.maxReachedText}>
                 Maximum number of co-hosts reached
@@ -296,19 +329,15 @@ export default function InviteHosts({
       {(localSelectedUsers.length > 0 || localSelectedContacts.length > 0) && (
         <View style={styles.selectedHosts}>
           <Text style={styles.selectedTitle}>Co-Hosts:</Text>
-          
+
           {/* Selected Users */}
           {localSelectedUsers.map((item) => (
-            <View key={item.id}>
-              {renderSelectedUser({ item })}
-            </View>
+            <View key={item.id}>{renderSelectedUser({ item })}</View>
           ))}
-          
+
           {/* Selected Contacts */}
           {localSelectedContacts.map((item) => (
-            <View key={item.id}>
-              {renderContactItem({ item })}
-            </View>
+            <View key={item.id}>{renderContactItem({ item })}</View>
           ))}
         </View>
       )}

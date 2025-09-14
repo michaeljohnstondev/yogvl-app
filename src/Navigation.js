@@ -4,10 +4,7 @@ import { VibeLoadingScreen } from './components/ui/base';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as Linking from 'expo-linking';
-import {
-  getAuth,
-  onAuthStateChanged,
-} from 'firebase/auth';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, getDoc, doc, onSnapshot } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -57,7 +54,11 @@ export default function Navigation() {
 
   // Deep linking configuration
   const linking = {
-    prefixes: [Linking.createURL('/'), 'bvs-app://', 'https://bigvibestudios.com'],
+    prefixes: [
+      Linking.createURL('/'),
+      'bvs-app://',
+      'https://bigvibestudios.com',
+    ],
     config: {
       screens: {
         UserProfile: {
@@ -86,30 +87,36 @@ export default function Navigation() {
       // Handle pending deep links after authentication
       const handleDeepLink = async (url) => {
         if (!url) return;
-        
+
         console.log('[Navigation] Deep link received:', url);
-        
+
         // Parse URL to extract studio and event parameters for app download links
         try {
           const urlObj = new URL(url);
           if (urlObj.pathname === '/join') {
             const studioId = urlObj.searchParams.get('studio');
             const eventId = urlObj.searchParams.get('event');
-            
+
             if (studioId && eventId) {
               // Store the studio and event for after authentication/onboarding
-              await AsyncStorage.setItem('pendingStudioSelection', JSON.stringify({
-                studioId,
-                eventId,
-                source: 'app-download-qr'
-              }));
-              console.log('[Navigation] Stored pending studio/event selection:', { studioId, eventId });
+              await AsyncStorage.setItem(
+                'pendingStudioSelection',
+                JSON.stringify({
+                  studioId,
+                  eventId,
+                  source: 'app-download-qr',
+                })
+              );
+              console.log(
+                '[Navigation] Stored pending studio/event selection:',
+                { studioId, eventId }
+              );
             }
           }
         } catch (error) {
           console.log('[Navigation] Error parsing deep link URL:', error);
         }
-        
+
         // Store the deep link for after authentication
         if (!user) {
           await AsyncStorage.setItem('pendingDeepLink', url);
@@ -148,10 +155,12 @@ export default function Navigation() {
               await fcmService.initialize();
             }
             fcmService.setNavigationRef(navigationRef.current);
-            
+
             // Register FCM token for authenticated user
             if (user?.uid) {
-              const tokenRegistered = await fcmService.registerTokenForUser(user.uid);
+              const tokenRegistered = await fcmService.registerTokenForUser(
+                user.uid
+              );
               if (!tokenRegistered) {
                 console.warn('[Navigation] Failed to register push token');
               }
@@ -159,7 +168,6 @@ export default function Navigation() {
           } catch (fcmError) {
             console.error('[Navigation] FCM setup failed:', fcmError);
           }
-
         } catch (error) {
           console.error('Error fetching user data:', error);
           setUserData(null);
@@ -216,19 +224,20 @@ export default function Navigation() {
   useEffect(() => {
     const handlePendingDeepLink = async () => {
       if (!user || !userData || userDataLoading) return;
-      
-      const userStatus = UserDataCleanupService.getUserCompletionStatus(userData);
+
+      const userStatus =
+        UserDataCleanupService.getUserCompletionStatus(userData);
       if (!userStatus.hasContactInfo || !userStatus.hasLocation) return;
-      
+
       try {
         const pendingLink = await AsyncStorage.getItem('pendingDeepLink');
         if (!pendingLink) return;
-        
+
         console.log('[Navigation] Processing pending deep link:', pendingLink);
-        
+
         // Clear the pending link
         await AsyncStorage.removeItem('pendingDeepLink');
-        
+
         // Parse and navigate to the deep link
         if (pendingLink.includes('/user/')) {
           const userId = pendingLink.split('/user/')[1];
@@ -239,14 +248,16 @@ export default function Navigation() {
           const inviteCode = pendingLink.split('/invite/')[1];
           if (inviteCode && navigationRef.current) {
             // Find event by invite code and navigate
-            const { findEventByInviteCode } = await import('./services/inviteCodeService');
+            const { findEventByInviteCode } = await import(
+              './services/inviteCodeService'
+            );
             const result = await findEventByInviteCode(inviteCode);
-            
+
             if (result) {
               navigationRef.current.navigate('EventDetail', {
                 eventId: result.eventId,
                 studioId: result.studioId,
-                inviteCode: inviteCode
+                inviteCode: inviteCode,
               });
             }
           }
@@ -256,30 +267,36 @@ export default function Navigation() {
             const urlObj = new URL(pendingLink);
             const studioId = urlObj.searchParams.get('studio');
             const eventId = urlObj.searchParams.get('event');
-            
+
             if (studioId && eventId && navigationRef.current) {
-              console.log('[Navigation] Navigating to event from app download link:', { studioId, eventId });
+              console.log(
+                '[Navigation] Navigating to event from app download link:',
+                { studioId, eventId }
+              );
               navigationRef.current.navigate('EventDetail', {
                 eventId: eventId,
                 studioId: studioId,
-                source: 'app-download-qr'
+                source: 'app-download-qr',
               });
             }
           } catch (error) {
-            console.error('[Navigation] Error parsing app download link:', error);
+            console.error(
+              '[Navigation] Error parsing app download link:',
+              error
+            );
           }
         }
       } catch (error) {
         console.error('[Navigation] Error handling pending deep link:', error);
       }
     };
-    
+
     handlePendingDeepLink();
   }, [user, userData, userDataLoading]);
 
   if (loading) {
     return (
-      <VibeLoadingScreen 
+      <VibeLoadingScreen
         loadingText="Initializing app..."
         showBranding={true}
       />
@@ -288,155 +305,122 @@ export default function Navigation() {
 
   // Get user completion status based on actual data
   const userStatus = UserDataCleanupService.getUserCompletionStatus(userData);
-  
+
   // Basic navigation state logging (no sensitive data)
   if (__DEV__) {
-    console.log('[Navigation] Auth state:', user ? 'authenticated' : 'unauthenticated');
-    console.log('[Navigation] Contact info:', userStatus.hasContactInfo ? 'complete' : 'missing');
-    console.log('[Navigation] Location:', userStatus.hasLocation ? 'set' : 'missing');
+    console.log(
+      '[Navigation] Auth state:',
+      user ? 'authenticated' : 'unauthenticated'
+    );
+    console.log(
+      '[Navigation] Contact info:',
+      userStatus.hasContactInfo ? 'complete' : 'missing'
+    );
+    console.log(
+      '[Navigation] Location:',
+      userStatus.hasLocation ? 'set' : 'missing'
+    );
   }
 
   return (
     <AuthProvider user={user} userData={userData}>
       <RealtimeNotificationsProvider>
         <NavigationContainer ref={navigationRef} linking={linking}>
-        {!user ? (
-          <Stack.Navigator
-            initialRouteName="Landing"
-            screenOptions={{ 
-              headerShown: false,
-              contentStyle: { backgroundColor: 'transparent' }
-            }}
-          >
-            <Stack.Screen
-              name="Landing"
-              component={LandingScreen}
-            />
-          </Stack.Navigator>
-        ) : userDataLoading ? (
-          <VibeLoadingScreen 
-            loadingText="Loading your profile..."
-            showBranding={false}
-          />
-        ) : userData === null || !userStatus.hasContactInfo ? (
-          <Stack.Navigator
-            initialRouteName="ContactInfo"
-            screenOptions={{ 
-              headerShown: false,
-              contentStyle: { backgroundColor: 'transparent' }
-            }}
-          >
-            <Stack.Screen
-              name="ContactInfo"
-              component={ContactInfoScreen}
-            />
-          </Stack.Navigator>
-        ) : !userStatus.hasLocation ? (
-          <Stack.Navigator
-            initialRouteName="Location"
-            screenOptions={{ 
-              headerShown: false,
-              contentStyle: { backgroundColor: 'transparent' }
-            }}
-          >
-            <Stack.Screen
-              name="Location"
-              component={LocationScreen}
-            />
-          </Stack.Navigator>
-        ) : (
-          <Stack.Navigator
-            initialRouteName="Home"
-            screenOptions={{ 
-              headerShown: false,
-              contentStyle: { backgroundColor: 'transparent' }
-            }}
-          >
-            <Stack.Screen
-              name="Home"
-              component={HomeScreen}
-            />
-            <Stack.Screen
-              name="CreateEvent"
-              component={CreateEventScreen}
-            />
-            <Stack.Screen
-              name="EventNotificationSettings"
-              component={EventNotificationSettingsScreen}
-            />
-            <Stack.Screen
-              name="EventDetail"
-              component={EventDetailScreen}
-            />
-            <Stack.Screen
-              name="EditEvent"
-              component={EditEventScreen}
-            />
-            <Stack.Screen
-              name="InviteGuests"
-              component={InviteGuestsScreen}
-            />
-            <Stack.Screen
-              name="Invitations"
-              component={InvitationsScreen}
-            />
-            <Stack.Screen
-              name="EventAttendance"
-              component={AttendanceScreen}
-            />
-            <Stack.Screen
-              name="Notifications"
-              component={NotificationsScreen}
-            />
-            <Stack.Screen
-              name="Invite"
-              component={InviteScreen}
-              options={{
+          {!user ? (
+            <Stack.Navigator
+              initialRouteName="Landing"
+              screenOptions={{
                 headerShown: false,
-                gestureEnabled: true,
+                contentStyle: { backgroundColor: 'transparent' },
               }}
+            >
+              <Stack.Screen name="Landing" component={LandingScreen} />
+            </Stack.Navigator>
+          ) : userDataLoading ? (
+            <VibeLoadingScreen
+              loadingText="Loading your profile..."
+              showBranding={false}
             />
-            <Stack.Screen
-              name="Location"
-              component={LocationScreen}
-            />
-            <Stack.Screen
-              name="UserProfile"
-              component={UserProfileScreen}
-            />
-            <Stack.Screen
-              name="SocialList"
-              component={SocialListScreen}
-              options={{
-                title: 'Social List',
+          ) : userData === null || !userStatus.hasContactInfo ? (
+            <Stack.Navigator
+              initialRouteName="ContactInfo"
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: 'transparent' },
               }}
-            />
-            <Stack.Screen
-              name="Privacy"
-              component={PrivacySettingsScreen}
-            />
-            <Stack.Screen
-              name="NotificationSettings"
-              component={NotificationSettingsScreen}
-            />
-            <Stack.Screen
-              name="Interests"
-              component={InterestsScreen}
-            />
-            <Stack.Screen
-              name="Admin"
-              component={AdminScreen}
-            />
-            <Stack.Screen
-              name="HostProfile"
-              component={HostProfileScreen}
-            />
-            <Stack.Screen
-              name="MessageBoard"
-              component={MessageBoardScreen}
-            />
-          </Stack.Navigator>
-        )}
+            >
+              <Stack.Screen name="ContactInfo" component={ContactInfoScreen} />
+            </Stack.Navigator>
+          ) : !userStatus.hasLocation ? (
+            <Stack.Navigator
+              initialRouteName="Location"
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: 'transparent' },
+              }}
+            >
+              <Stack.Screen name="Location" component={LocationScreen} />
+            </Stack.Navigator>
+          ) : (
+            <Stack.Navigator
+              initialRouteName="Home"
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: 'transparent' },
+              }}
+            >
+              <Stack.Screen name="Home" component={HomeScreen} />
+              <Stack.Screen name="CreateEvent" component={CreateEventScreen} />
+              <Stack.Screen
+                name="EventNotificationSettings"
+                component={EventNotificationSettingsScreen}
+              />
+              <Stack.Screen name="EventDetail" component={EventDetailScreen} />
+              <Stack.Screen name="EditEvent" component={EditEventScreen} />
+              <Stack.Screen
+                name="InviteGuests"
+                component={InviteGuestsScreen}
+              />
+              <Stack.Screen name="Invitations" component={InvitationsScreen} />
+              <Stack.Screen
+                name="EventAttendance"
+                component={AttendanceScreen}
+              />
+              <Stack.Screen
+                name="Notifications"
+                component={NotificationsScreen}
+              />
+              <Stack.Screen
+                name="Invite"
+                component={InviteScreen}
+                options={{
+                  headerShown: false,
+                  gestureEnabled: true,
+                }}
+              />
+              <Stack.Screen name="Location" component={LocationScreen} />
+              <Stack.Screen name="UserProfile" component={UserProfileScreen} />
+              <Stack.Screen
+                name="SocialList"
+                component={SocialListScreen}
+                options={{
+                  title: 'Social List',
+                }}
+              />
+              <Stack.Screen name="Privacy" component={PrivacySettingsScreen} />
+              <Stack.Screen
+                name="NotificationSettings"
+                component={NotificationSettingsScreen}
+              />
+              <Stack.Screen name="Interests" component={InterestsScreen} />
+              <Stack.Screen name="Admin" component={AdminScreen} />
+              <Stack.Screen name="HostProfile" component={HostProfileScreen} />
+              <Stack.Screen
+                name="MessageBoard"
+                component={MessageBoardScreen}
+              />
+            </Stack.Navigator>
+          )}
         </NavigationContainer>
       </RealtimeNotificationsProvider>
     </AuthProvider>

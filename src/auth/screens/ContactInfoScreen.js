@@ -10,13 +10,16 @@ import {
 import {
   VibeInput,
   VibeButton,
-  VibeLoadingScreen
+  VibeLoadingScreen,
 } from '../../components/ui/base';
 import { useVibeAlert } from '../../components/ui/base/VibeAlertContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
-import { getDefaultUserSettings, getDefaultUserMetrics } from '../../services/defaultUserSettings';
+import {
+  getDefaultUserSettings,
+  getDefaultUserMetrics,
+} from '../../services/defaultUserSettings';
 import theme from '../../theme/themes';
 
 export default function ContactInfoScreen({ navigation }) {
@@ -63,9 +66,17 @@ export default function ContactInfoScreen({ navigation }) {
   }, [user]);
 
   const handleSubmit = async () => {
-    if (!firstName || (typeof firstName !== 'string') || !firstName.trim() || 
-        !lastName || (typeof lastName !== 'string') || !lastName.trim() || 
-        !phoneNumber || (typeof phoneNumber !== 'string') || !phoneNumber.trim()) {
+    if (
+      !firstName ||
+      typeof firstName !== 'string' ||
+      !firstName.trim() ||
+      !lastName ||
+      typeof lastName !== 'string' ||
+      !lastName.trim() ||
+      !phoneNumber ||
+      typeof phoneNumber !== 'string' ||
+      !phoneNumber.trim()
+    ) {
       vibeAlert.warning(
         'Missing info',
         'Please enter your first name, last name, and phone number.'
@@ -91,7 +102,7 @@ export default function ContactInfoScreen({ navigation }) {
       const docRef = doc(db, 'users', user.uid);
       const snap = await getDoc(docRef);
       const existingData = snap.exists() ? snap.data() : {};
-      
+
       // Save contact info to user profile in userdata structure
       await setDoc(
         doc(db, 'users', user.uid),
@@ -105,10 +116,12 @@ export default function ContactInfoScreen({ navigation }) {
               displayName: `${firstName.trim()} ${lastName.trim()}`,
             },
             metadata: {
-              createdAt: existingData?.userdata?.metadata?.createdAt || new Date(),
+              createdAt:
+                existingData?.userdata?.metadata?.createdAt || new Date(),
               updatedAt: new Date(),
             },
-            settings: existingData?.userdata?.settings || getDefaultUserSettings(),
+            settings:
+              existingData?.userdata?.settings || getDefaultUserSettings(),
             metrics: existingData?.userdata?.metrics || getDefaultUserMetrics(),
           },
           uid: user.uid,
@@ -120,22 +133,37 @@ export default function ContactInfoScreen({ navigation }) {
 
       // Check for and link any phone invitations to this user
       try {
-        const { linkPhoneInvitationsToUser } = await import('../../events/services/invitations');
-        const linkResult = await linkPhoneInvitationsToUser(phoneNumber.trim(), user.uid);
-        
+        const { linkPhoneInvitationsToUser } = await import(
+          '../../events/services/invitations'
+        );
+        const linkResult = await linkPhoneInvitationsToUser(
+          phoneNumber.trim(),
+          user.uid
+        );
+
         if (linkResult.linkedCount > 0) {
-          console.log(`Linked ${linkResult.linkedCount} phone invitations to user`);
+          console.log(
+            `Linked ${linkResult.linkedCount} phone invitations to user`
+          );
         }
 
         // Also check for and auto-subscribe to events they were invited to by phone
         try {
-          const { autoSubscribeToInvitedEvents } = await import('../../services/phoneAccessService');
-          const autoSubResult = await autoSubscribeToInvitedEvents(user.uid, phoneNumber.trim());
-          
+          const { autoSubscribeToInvitedEvents } = await import(
+            '../../services/phoneAccessService'
+          );
+          const autoSubResult = await autoSubscribeToInvitedEvents(
+            user.uid,
+            phoneNumber.trim()
+          );
+
           if (autoSubResult.subscribedEvents.length > 0) {
-            console.log(`Auto-subscribed to ${autoSubResult.subscribedEvents.length} events based on phone`);
-            
-            const totalFound = linkResult.linkedCount + autoSubResult.subscribedEvents.length;
+            console.log(
+              `Auto-subscribed to ${autoSubResult.subscribedEvents.length} events based on phone`
+            );
+
+            const totalFound =
+              linkResult.linkedCount + autoSubResult.subscribedEvents.length;
             vibeAlert.success(
               'Events Found!',
               `Welcome! We found ${totalFound} event${totalFound > 1 ? 's' : ''} you were invited to. Check them out!`
@@ -147,7 +175,10 @@ export default function ContactInfoScreen({ navigation }) {
             );
           }
         } catch (autoSubError) {
-          console.warn('Error auto-subscribing to invited events:', autoSubError);
+          console.warn(
+            'Error auto-subscribing to invited events:',
+            autoSubError
+          );
           // Still show invitation linking message if that worked
           if (linkResult.linkedCount > 0) {
             vibeAlert.success(
@@ -173,7 +204,7 @@ export default function ContactInfoScreen({ navigation }) {
 
   if (loading) {
     return (
-      <VibeLoadingScreen 
+      <VibeLoadingScreen
         loadingText="Loading your profile..."
         showBranding={false}
       />
@@ -181,7 +212,7 @@ export default function ContactInfoScreen({ navigation }) {
   }
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.keyboardContainer}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
@@ -189,7 +220,7 @@ export default function ContactInfoScreen({ navigation }) {
         colors={theme.colors.backgroundGradient}
         style={StyleSheet.absoluteFillObject}
       />
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContainer}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -198,7 +229,9 @@ export default function ContactInfoScreen({ navigation }) {
           <Text style={[styles.title, theme.shadows.textGlow]}>
             Complete Your Profile
           </Text>
-          <Text style={styles.subtitle}>Help others find and connect with you</Text>
+          <Text style={styles.subtitle}>
+            Help others find and connect with you
+          </Text>
 
           <Text style={styles.label}>First Name</Text>
           <VibeInput

@@ -21,7 +21,7 @@ import { blockingService } from './blockingService';
 
 /**
  * DATABASE STRUCTURE:
- * 
+ *
  * /users/{userId}/following/{targetUserId}
  * {
  *   id: string,
@@ -35,7 +35,7 @@ import { blockingService } from './blockingService';
  *     avatar?: string
  *   }
  * }
- * 
+ *
  * /users/{userId}/followers/{followerId}
  * {
  *   id: string,
@@ -49,7 +49,7 @@ import { blockingService } from './blockingService';
  *     avatar?: string
  *   }
  * }
- * 
+ *
  * /users/{userId} (updated with counts)
  * {
  *   ...existing fields,
@@ -67,15 +67,15 @@ const pendingOperations = new Map();
  */
 export const followUser = async (followerId, targetUserId, followerData) => {
   const operationKey = `${followerId}-${targetUserId}`;
-  
+
   // Check if operation is already in progress
   if (pendingOperations.has(operationKey)) {
     throw new Error('Follow operation already in progress');
   }
-  
+
   try {
     pendingOperations.set(operationKey, 'following');
-    
+
     if (followerId === targetUserId) {
       throw new Error('Cannot follow yourself');
     }
@@ -87,9 +87,14 @@ export const followUser = async (followerId, targetUserId, followerData) => {
     }
 
     // Check if users are blocked and unblock if necessary
-    const blockStatus = await blockingService.isBlocked(followerId, targetUserId);
+    const blockStatus = await blockingService.isBlocked(
+      followerId,
+      targetUserId
+    );
     if (blockStatus.isBlocked) {
-      console.log(`[followService] Unblocking user ${targetUserId} before following`);
+      console.log(
+        `[followService] Unblocking user ${targetUserId} before following`
+      );
       await blockingService.unblockUser(followerId, targetUserId);
     }
 
@@ -103,18 +108,27 @@ export const followUser = async (followerId, targetUserId, followerData) => {
     const batch = writeBatch(db);
 
     // Create following relationship
-    const followingRef = doc(db, 'users', followerId, 'following', targetUserId);
+    const followingRef = doc(
+      db,
+      'users',
+      followerId,
+      'following',
+      targetUserId
+    );
     batch.set(followingRef, {
       id: targetUserId,
       userId: followerId,
       targetUserId,
       createdAt: Timestamp.now(),
       targetData: {
-        firstName: targetUserData?.userdata?.contactInfo?.firstName || 'Unknown',
+        firstName:
+          targetUserData?.userdata?.contactInfo?.firstName || 'Unknown',
         lastName: targetUserData?.userdata?.contactInfo?.lastName || '',
-        displayName: `${targetUserData?.userdata?.contactInfo?.firstName || ''} ${targetUserData?.userdata?.contactInfo?.lastName || ''}`.trim() || 'Unknown User',
-        avatar: null // TODO: Add avatar system later
-      }
+        displayName:
+          `${targetUserData?.userdata?.contactInfo?.firstName || ''} ${targetUserData?.userdata?.contactInfo?.lastName || ''}`.trim() ||
+          'Unknown User',
+        avatar: null, // TODO: Add avatar system later
+      },
     });
 
     // Create follower relationship
@@ -127,39 +141,49 @@ export const followUser = async (followerId, targetUserId, followerData) => {
       followerData: {
         firstName: followerData?.userdata?.contactInfo?.firstName || 'Unknown',
         lastName: followerData?.userdata?.contactInfo?.lastName || '',
-        displayName: `${followerData?.userdata?.contactInfo?.firstName || ''} ${followerData?.userdata?.contactInfo?.lastName || ''}`.trim() || 'Unknown User',
-        avatar: null
-      }
+        displayName:
+          `${followerData?.userdata?.contactInfo?.firstName || ''} ${followerData?.userdata?.contactInfo?.lastName || ''}`.trim() ||
+          'Unknown User',
+        avatar: null,
+      },
     });
 
     // Update follower's following count
     const followerUserRef = doc(db, 'users', followerId);
     batch.update(followerUserRef, {
       'userdata.followingCount': increment(1),
-      'userdata.lastUpdated': Timestamp.now()
+      'userdata.lastUpdated': Timestamp.now(),
     });
 
     // Update target's follower count
     const targetUserRef = doc(db, 'users', targetUserId);
     batch.update(targetUserRef, {
       'userdata.followerCount': increment(1),
-      'userdata.lastUpdated': Timestamp.now()
+      'userdata.lastUpdated': Timestamp.now(),
     });
 
     await batch.commit();
 
     // Send notification (import dynamically to avoid circular deps)
     try {
-      console.log(`[followUser] Sending follow notification from ${followerId} to ${targetUserId}`);
+      console.log(
+        `[followUser] Sending follow notification from ${followerId} to ${targetUserId}`
+      );
       const { notifyNewFollower } = await import('./notifications');
       const notificationResult = await notifyNewFollower({
         targetUserId,
         followerId,
-        followerName: `${followerData?.userdata?.contactInfo?.firstName || ''} ${followerData?.userdata?.contactInfo?.lastName || ''}`.trim() || followerData?.userdata?.contactInfo?.displayName || 'Someone'
+        followerName:
+          `${followerData?.userdata?.contactInfo?.firstName || ''} ${followerData?.userdata?.contactInfo?.lastName || ''}`.trim() ||
+          followerData?.userdata?.contactInfo?.displayName ||
+          'Someone',
       });
       console.log(`[followUser] Notification result:`, notificationResult);
     } catch (notificationError) {
-      console.warn(`[followUser] Follow successful but notification failed:`, notificationError);
+      console.warn(
+        `[followUser] Follow successful but notification failed:`,
+        notificationError
+      );
     }
 
     return { success: true };
@@ -177,15 +201,15 @@ export const followUser = async (followerId, targetUserId, followerData) => {
  */
 export const unfollowUser = async (followerId, targetUserId) => {
   const operationKey = `${followerId}-${targetUserId}`;
-  
+
   // Check if operation is already in progress
   if (pendingOperations.has(operationKey)) {
     throw new Error('Unfollow operation already in progress');
   }
-  
+
   try {
     pendingOperations.set(operationKey, 'unfollowing');
-    
+
     // Check if following (within the pending operation)
     const isFollowing = await checkIfFollowing(followerId, targetUserId);
     if (!isFollowing) {
@@ -195,7 +219,13 @@ export const unfollowUser = async (followerId, targetUserId) => {
     const batch = writeBatch(db);
 
     // Remove following relationship
-    const followingRef = doc(db, 'users', followerId, 'following', targetUserId);
+    const followingRef = doc(
+      db,
+      'users',
+      followerId,
+      'following',
+      targetUserId
+    );
     batch.delete(followingRef);
 
     // Remove follower relationship
@@ -206,14 +236,14 @@ export const unfollowUser = async (followerId, targetUserId) => {
     const followerUserRef = doc(db, 'users', followerId);
     batch.update(followerUserRef, {
       'userdata.followingCount': increment(-1),
-      'userdata.lastUpdated': Timestamp.now()
+      'userdata.lastUpdated': Timestamp.now(),
     });
 
     // Update target's follower count
     const targetUserRef = doc(db, 'users', targetUserId);
     batch.update(targetUserRef, {
       'userdata.followerCount': increment(-1),
-      'userdata.lastUpdated': Timestamp.now()
+      'userdata.lastUpdated': Timestamp.now(),
     });
 
     await batch.commit();
@@ -232,7 +262,13 @@ export const unfollowUser = async (followerId, targetUserId) => {
  */
 export const checkIfFollowing = async (followerId, targetUserId) => {
   try {
-    const followingRef = doc(db, 'users', followerId, 'following', targetUserId);
+    const followingRef = doc(
+      db,
+      'users',
+      followerId,
+      'following',
+      targetUserId
+    );
     const followingDoc = await getDoc(followingRef);
     return followingDoc.exists();
   } catch (error) {
@@ -248,7 +284,7 @@ export const checkIfMutualFollows = async (userId1, userId2) => {
   try {
     const [following, followedBy] = await Promise.all([
       checkIfFollowing(userId1, userId2),
-      checkIfFollowing(userId2, userId1)
+      checkIfFollowing(userId2, userId1),
     ]);
     return following && followedBy;
   } catch (error) {
@@ -263,12 +299,16 @@ export const checkIfMutualFollows = async (userId1, userId2) => {
 export const getFollowers = async (userId, limitCount = 50) => {
   try {
     const followersRef = collection(db, 'users', userId, 'followers');
-    const q = query(followersRef, orderBy('createdAt', 'desc'), limit(limitCount));
+    const q = query(
+      followersRef,
+      orderBy('createdAt', 'desc'),
+      limit(limitCount)
+    );
     const snapshot = await getDocs(q);
-    
-    return snapshot.docs.map(doc => ({
+
+    return snapshot.docs.map((doc) => ({
       id: doc.id,
-      ...doc.data()
+      ...doc.data(),
     }));
   } catch (error) {
     console.error('Error getting followers:', error);
@@ -282,12 +322,16 @@ export const getFollowers = async (userId, limitCount = 50) => {
 export const getFollowing = async (userId, limitCount = 50) => {
   try {
     const followingRef = collection(db, 'users', userId, 'following');
-    const q = query(followingRef, orderBy('createdAt', 'desc'), limit(limitCount));
+    const q = query(
+      followingRef,
+      orderBy('createdAt', 'desc'),
+      limit(limitCount)
+    );
     const snapshot = await getDocs(q);
-    
-    return snapshot.docs.map(doc => ({
+
+    return snapshot.docs.map((doc) => ({
       id: doc.id,
-      ...doc.data()
+      ...doc.data(),
     }));
   } catch (error) {
     console.error('Error getting following:', error);
@@ -301,19 +345,19 @@ export const getFollowing = async (userId, limitCount = 50) => {
 export const getMutualFollows = async (userId, limitCount = 50) => {
   try {
     const following = await getFollowing(userId, limitCount);
-    const targetUserIds = following.map(f => f.targetUserId);
-    
+    const targetUserIds = following.map((f) => f.targetUserId);
+
     if (targetUserIds.length === 0) {
       return [];
     }
-    
+
     // Batch check all follow relationships in parallel instead of sequential for loop
-    const followBackPromises = targetUserIds.map(targetId => 
+    const followBackPromises = targetUserIds.map((targetId) =>
       getDoc(doc(db, 'users', targetId, 'followers', userId))
     );
-    
+
     const followBackResults = await Promise.all(followBackPromises);
-    
+
     const mutualFollows = [];
     following.forEach((followedUser, index) => {
       if (followBackResults[index].exists()) {
@@ -321,7 +365,7 @@ export const getMutualFollows = async (userId, limitCount = 50) => {
           id: followedUser.targetUserId,
           ...followedUser.targetData,
           isMutual: true,
-          followedAt: followedUser.createdAt
+          followedAt: followedUser.createdAt,
         });
       }
     });
@@ -341,7 +385,7 @@ export const getFollowStats = async (userId) => {
     // Get actual counts from subcollections for accuracy
     const [followingSnapshot, followersSnapshot] = await Promise.all([
       getDocs(collection(db, 'users', userId, 'following')),
-      getDocs(collection(db, 'users', userId, 'followers'))
+      getDocs(collection(db, 'users', userId, 'followers')),
     ]);
 
     const followingCount = followingSnapshot.size;
@@ -354,7 +398,7 @@ export const getFollowStats = async (userId) => {
     return {
       followingCount,
       followerCount,
-      mutualCount
+      mutualCount,
     };
   } catch (error) {
     console.error('Error getting follow stats:', error);
@@ -365,24 +409,28 @@ export const getFollowStats = async (userId) => {
 /**
  * Get suggested users to follow (based on mutual connections, same studio, etc.)
  */
-export const getSuggestedFollows = async (userId, userStudio, limitCount = 10) => {
+export const getSuggestedFollows = async (
+  userId,
+  userStudio,
+  limitCount = 10
+) => {
   try {
     // Get users from same studio who we're not following
     const { getStudioUsers } = await import('./userService');
     const studioUsers = await getStudioUsers(userId, userStudio);
-    
+
     // Get who we're already following
     const following = await getFollowing(userId, 100);
-    const followingIds = new Set(following.map(f => f.targetUserId));
+    const followingIds = new Set(following.map((f) => f.targetUserId));
 
     // Filter out users we're already following
     const suggestions = studioUsers
-      .filter(user => !followingIds.has(user.id))
+      .filter((user) => !followingIds.has(user.id))
       .slice(0, limitCount)
-      .map(user => ({
+      .map((user) => ({
         ...user,
         reason: 'Same studio',
-        category: 'studio_members'
+        category: 'studio_members',
       }));
 
     return suggestions;
@@ -395,15 +443,19 @@ export const getSuggestedFollows = async (userId, userStudio, limitCount = 10) =
 /**
  * Batch follow multiple users (useful for migration)
  */
-export const batchFollowUsers = async (followerId, targetUserIds, followerData) => {
+export const batchFollowUsers = async (
+  followerId,
+  targetUserIds,
+  followerData
+) => {
   try {
     const results = [];
-    
+
     // Process in small batches to avoid overwhelming Firestore
     const batchSize = 5;
     for (let i = 0; i < targetUserIds.length; i += batchSize) {
       const batch = targetUserIds.slice(i, i + batchSize);
-      
+
       const batchPromises = batch.map(async (targetUserId) => {
         try {
           await followUser(followerId, targetUserId, followerData);
@@ -415,10 +467,10 @@ export const batchFollowUsers = async (followerId, targetUserIds, followerData) 
 
       const batchResults = await Promise.all(batchPromises);
       results.push(...batchResults);
-      
+
       // Small delay between batches
       if (i + batchSize < targetUserIds.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
 
@@ -435,22 +487,26 @@ export const batchFollowUsers = async (followerId, targetUserIds, followerData) 
 export const migrateFriendsToFollows = async (userId, userData) => {
   try {
     console.log(`[followService] Starting migration for user ${userId}`);
-    
+
     // Get existing friends from old system
     const { getFriends } = await import('./friendService');
     const existingFriends = await getFriends(userId);
-    
+
     if (existingFriends.length === 0) {
-      console.log(`[followService] No existing friends to migrate for user ${userId}`);
+      console.log(
+        `[followService] No existing friends to migrate for user ${userId}`
+      );
       return { success: true, migratedCount: 0 };
     }
 
-    console.log(`[followService] Migrating ${existingFriends.length} friends to follows`);
-    
+    console.log(
+      `[followService] Migrating ${existingFriends.length} friends to follows`
+    );
+
     // Convert each friend relationship to mutual follows
-    const friendIds = existingFriends.map(friend => friend.id);
+    const friendIds = existingFriends.map((friend) => friend.id);
     const results = await batchFollowUsers(userId, friendIds, userData);
-    
+
     // Also follow back (make them mutual)
     const followBackResults = [];
     for (const friendId of friendIds) {
@@ -462,19 +518,25 @@ export const migrateFriendsToFollows = async (userId, userData) => {
           followBackResults.push({ userId: friendId, success: true });
         }
       } catch (error) {
-        followBackResults.push({ userId: friendId, success: false, error: error.message });
+        followBackResults.push({
+          userId: friendId,
+          success: false,
+          error: error.message,
+        });
       }
     }
 
-    const successCount = results.filter(r => r.success).length;
-    
-    console.log(`[followService] Migration completed: ${successCount}/${existingFriends.length} successful`);
-    
+    const successCount = results.filter((r) => r.success).length;
+
+    console.log(
+      `[followService] Migration completed: ${successCount}/${existingFriends.length} successful`
+    );
+
     return {
       success: true,
       migratedCount: successCount,
       results,
-      followBackResults
+      followBackResults,
     };
   } catch (error) {
     console.error('Error migrating friends to follows:', error);
@@ -488,8 +550,8 @@ export const migrateFriendsToFollows = async (userId, userData) => {
 export const getFollowersList = async (userId) => {
   try {
     const followers = await getFollowers(userId);
-    const userIds = followers.map(f => f.followerId);
-    
+    const userIds = followers.map((f) => f.followerId);
+
     // Get full user data
     const userPromises = userIds.map(async (id) => {
       try {
@@ -508,7 +570,7 @@ export const getFollowersList = async (userId) => {
       }
       return null;
     });
-    
+
     const users = await Promise.all(userPromises);
     return users.filter(Boolean);
   } catch (error) {
@@ -523,8 +585,8 @@ export const getFollowersList = async (userId) => {
 export const getFollowingList = async (userId) => {
   try {
     const following = await getFollowing(userId);
-    const userIds = following.map(f => f.targetUserId);
-    
+    const userIds = following.map((f) => f.targetUserId);
+
     // Get full user data
     const userPromises = userIds.map(async (id) => {
       try {
@@ -542,7 +604,7 @@ export const getFollowingList = async (userId) => {
       }
       return null;
     });
-    
+
     const users = await Promise.all(userPromises);
     return users.filter(Boolean);
   } catch (error) {
@@ -557,8 +619,8 @@ export const getFollowingList = async (userId) => {
 export const getMutualFriendsList = async (userId) => {
   try {
     const mutualFollows = await getMutualFollows(userId);
-    const userIds = mutualFollows.map(f => f.id);
-    
+    const userIds = mutualFollows.map((f) => f.id);
+
     // Get full user data
     const userPromises = userIds.map(async (id) => {
       try {
@@ -577,7 +639,7 @@ export const getMutualFriendsList = async (userId) => {
       }
       return null;
     });
-    
+
     const users = await Promise.all(userPromises);
     return users.filter(Boolean);
   } catch (error) {
@@ -592,16 +654,16 @@ export const getMutualFriendsList = async (userId) => {
 export const getFollowStatus = async (followerId, targetUserId) => {
   try {
     const isFollowing = await checkIfFollowing(followerId, targetUserId);
-    return { 
+    return {
       isFollowing,
-      success: true 
+      success: true,
     };
   } catch (error) {
     console.error('Error getting follow status:', error);
-    return { 
-      isFollowing: false, 
-      success: false, 
-      error: error.message 
+    return {
+      isFollowing: false,
+      success: false,
+      error: error.message,
     };
   }
 };
@@ -610,21 +672,24 @@ export const getFollowStatus = async (followerId, targetUserId) => {
  * OPTIMIZED: Get complete relationship status between two users (follow + block status)
  * Combines multiple checks into single efficient operation
  */
-export const getUserRelationshipStatus = async (currentUserId, targetUserId) => {
+export const getUserRelationshipStatus = async (
+  currentUserId,
+  targetUserId
+) => {
   try {
     // Batch the essential document reads
     const [followingDoc, currentUserDoc, targetUserDoc] = await Promise.all([
       getDoc(doc(db, 'users', currentUserId, 'following', targetUserId)),
       getDoc(doc(db, 'users', currentUserId)),
-      getDoc(doc(db, 'users', targetUserId))
+      getDoc(doc(db, 'users', targetUserId)),
     ]);
 
     if (!currentUserDoc.exists() || !targetUserDoc.exists()) {
-      return { 
-        isFollowing: false, 
-        isBlocked: false, 
-        isBlockedBy: false, 
-        error: 'User not found' 
+      return {
+        isFollowing: false,
+        isBlocked: false,
+        isBlockedBy: false,
+        error: 'User not found',
       };
     }
 
@@ -634,17 +699,18 @@ export const getUserRelationshipStatus = async (currentUserId, targetUserId) => 
     return {
       isFollowing: followingDoc.exists(),
       isBlocked: currentUserData.blockedUsers?.includes(targetUserId) || false,
-      isBlockedBy: targetUserData.blockedUsers?.includes(currentUserId) || false,
-      success: true
+      isBlockedBy:
+        targetUserData.blockedUsers?.includes(currentUserId) || false,
+      success: true,
     };
   } catch (error) {
     console.error('Error getting relationship status:', error);
-    return { 
-      isFollowing: false, 
-      isBlocked: false, 
-      isBlockedBy: false, 
+    return {
+      isFollowing: false,
+      isBlocked: false,
+      isBlockedBy: false,
       error: error.message,
-      success: false 
+      success: false,
     };
   }
 };

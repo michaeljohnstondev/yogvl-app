@@ -11,8 +11,9 @@ admin.initializeApp();
  * Handle comment notifications triggered from the app
  * This implements the batching logic: first comment instant, rest batched
  */
-exports.onCommentNotificationTrigger = functions.firestore
-  .onDocumentCreated('notificationTriggers/{triggerId}', async (event) => {
+exports.onCommentNotificationTrigger = functions.firestore.onDocumentCreated(
+  'notificationTriggers/{triggerId}',
+  async (event) => {
     const triggerData = event.data.data();
     const { triggerId } = event.params;
 
@@ -27,7 +28,14 @@ exports.onCommentNotificationTrigger = functions.firestore
         processedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
-      const { hostId, eventId, comment, commenter, eventTitle, isFirstComment } = triggerData;
+      const {
+        hostId,
+        eventId,
+        comment,
+        commenter,
+        eventTitle,
+        isFirstComment,
+      } = triggerData;
 
       // Get host's notification preferences
       const hostDoc = await admin.firestore().doc(`users/${hostId}`).get();
@@ -37,8 +45,9 @@ exports.onCommentNotificationTrigger = functions.firestore
       }
 
       const hostData = hostDoc.data();
-      const hostingPrefs = hostData?.userdata?.settings?.notifications?.hosting || {};
-      
+      const hostingPrefs =
+        hostData?.userdata?.settings?.notifications?.hosting || {};
+
       // Check if host wants comment notifications
       if (!hostingPrefs.enabled || !hostingPrefs.newComments) {
         console.log('Host has comment notifications disabled');
@@ -78,31 +87,39 @@ exports.onCommentNotificationTrigger = functions.firestore
         };
 
         await admin.messaging().send(message);
-        console.log(`Comment notification sent to host ${hostId} for event ${eventId}`);
+        console.log(
+          `Comment notification sent to host ${hostId} for event ${eventId}`
+        );
       } else {
-        console.log(`Batched comment notification for event ${eventId} (no push sent)`);
+        console.log(
+          `Batched comment notification for event ${eventId} (no push sent)`
+        );
       }
 
       // Clean up processed trigger after a delay
       setTimeout(async () => {
         try {
-          await admin.firestore().doc(`notificationTriggers/${triggerId}`).delete();
+          await admin
+            .firestore()
+            .doc(`notificationTriggers/${triggerId}`)
+            .delete();
         } catch (error) {
           console.error('Error cleaning up trigger document:', error);
         }
       }, 60000); // Delete after 1 minute
-
     } catch (error) {
       console.error('Error processing comment notification trigger:', error);
     }
-  });
+  }
+);
 
 /**
  * Send push notification when someone joins an event
  * Triggered when a user is added to an event's subscribers array
  */
-exports.onEventJoin = functions.firestore
-  .onDocumentWritten('studios/{studioId}/events/{eventId}', async (event) => {
+exports.onEventJoin = functions.firestore.onDocumentWritten(
+  'studios/{studioId}/events/{eventId}',
+  async (event) => {
     const { data, params } = event;
     const { studioId, eventId } = params;
 
@@ -118,8 +135,10 @@ exports.onEventJoin = functions.firestore
     if (afterSubscribers.length <= beforeSubscribers.length) return; // No new subscribers
 
     // Find new subscribers
-    const newSubscribers = afterSubscribers.filter(sub => !beforeSubscribers.includes(sub));
-    
+    const newSubscribers = afterSubscribers.filter(
+      (sub) => !beforeSubscribers.includes(sub)
+    );
+
     if (newSubscribers.length === 0) return;
 
     // Get host notification preferences
@@ -130,7 +149,8 @@ exports.onEventJoin = functions.firestore
     if (!hostDoc.exists) return;
 
     const hostData = hostDoc.data();
-    const hostingPrefs = hostData?.userdata?.settings?.notifications?.hosting || {};
+    const hostingPrefs =
+      hostData?.userdata?.settings?.notifications?.hosting || {};
 
     // Check if host wants join notifications
     if (!hostingPrefs.enabled || !hostingPrefs.notifyOnJoin) {
@@ -148,10 +168,14 @@ exports.onEventJoin = functions.firestore
     // Get new subscriber names
     const subscriberNames = [];
     for (const subscriberId of newSubscribers) {
-      const userDoc = await admin.firestore().doc(`users/${subscriberId}`).get();
+      const userDoc = await admin
+        .firestore()
+        .doc(`users/${subscriberId}`)
+        .get();
       if (userDoc.exists) {
         const userData = userDoc.data();
-        const firstName = userData?.userdata?.contactInfo?.firstName || 'Someone';
+        const firstName =
+          userData?.userdata?.contactInfo?.firstName || 'Someone';
         subscriberNames.push(firstName);
       }
     }
@@ -182,17 +206,21 @@ exports.onEventJoin = functions.firestore
 
     try {
       await admin.messaging().send(message);
-      console.log(`Join notification sent to host ${hostId} for event ${eventId}`);
+      console.log(
+        `Join notification sent to host ${hostId} for event ${eventId}`
+      );
     } catch (error) {
       console.error('Error sending join notification:', error);
     }
-  });
+  }
+);
 
 /**
  * Send push notification when someone leaves an event
  */
-exports.onEventLeave = functions.firestore
-  .onDocumentWritten('studios/{studioId}/events/{eventId}', async (event) => {
+exports.onEventLeave = functions.firestore.onDocumentWritten(
+  'studios/{studioId}/events/{eventId}',
+  async (event) => {
     const { data, params } = event;
     const { studioId, eventId } = params;
 
@@ -208,8 +236,10 @@ exports.onEventLeave = functions.firestore
     if (afterSubscribers.length >= beforeSubscribers.length) return; // No one left
 
     // Find who left
-    const leftSubscribers = beforeSubscribers.filter(sub => !afterSubscribers.includes(sub));
-    
+    const leftSubscribers = beforeSubscribers.filter(
+      (sub) => !afterSubscribers.includes(sub)
+    );
+
     if (leftSubscribers.length === 0) return;
 
     // Get host notification preferences
@@ -220,7 +250,8 @@ exports.onEventLeave = functions.firestore
     if (!hostDoc.exists) return;
 
     const hostData = hostDoc.data();
-    const hostingPrefs = hostData?.userdata?.settings?.notifications?.hosting || {};
+    const hostingPrefs =
+      hostData?.userdata?.settings?.notifications?.hosting || {};
 
     // Check if host wants leave notifications
     if (!hostingPrefs.enabled || !hostingPrefs.notifyOnLeave) {
@@ -241,7 +272,8 @@ exports.onEventLeave = functions.firestore
       const userDoc = await admin.firestore().doc(`users/${leftUserId}`).get();
       if (userDoc.exists) {
         const userData = userDoc.data();
-        const firstName = userData?.userdata?.contactInfo?.firstName || 'Someone';
+        const firstName =
+          userData?.userdata?.contactInfo?.firstName || 'Someone';
         leftNames.push(firstName);
       }
     }
@@ -272,17 +304,21 @@ exports.onEventLeave = functions.firestore
 
     try {
       await admin.messaging().send(message);
-      console.log(`Leave notification sent to host ${hostId} for event ${eventId}`);
+      console.log(
+        `Leave notification sent to host ${hostId} for event ${eventId}`
+      );
     } catch (error) {
       console.error('Error sending leave notification:', error);
     }
-  });
+  }
+);
 
 /**
  * Send notifications when event details change
  */
-exports.onEventUpdate = functions.firestore
-  .onDocumentUpdated('studios/{studioId}/events/{eventId}', async (event) => {
+exports.onEventUpdate = functions.firestore.onDocumentUpdated(
+  'studios/{studioId}/events/{eventId}',
+  async (event) => {
     const { data, params } = event;
     const { studioId, eventId } = params;
 
@@ -291,7 +327,7 @@ exports.onEventUpdate = functions.firestore
 
     // Check what changed
     const importantChanges = [];
-    
+
     if (beforeData.title !== afterData.title) {
       importantChanges.push('title');
     }
@@ -320,12 +356,16 @@ exports.onEventUpdate = functions.firestore
       // Skip the host (they made the change)
       if (subscriberId === (afterData.hostId || afterData.createdBy)) continue;
 
-      const userDoc = await admin.firestore().doc(`users/${subscriberId}`).get();
+      const userDoc = await admin
+        .firestore()
+        .doc(`users/${subscriberId}`)
+        .get();
       if (!userDoc.exists) continue;
 
       const userData = userDoc.data();
-      const attendingPrefs = userData?.userdata?.settings?.notifications?.attending || {};
-      
+      const attendingPrefs =
+        userData?.userdata?.settings?.notifications?.attending || {};
+
       // Check if user wants host change notifications
       if (!attendingPrefs.hostChanges) continue;
 
@@ -380,25 +420,30 @@ exports.onEventUpdate = functions.firestore
 
     try {
       const results = await admin.messaging().sendAll(messages);
-      console.log(`Event update notifications sent: ${results.successCount}/${messages.length}`);
+      console.log(
+        `Event update notifications sent: ${results.successCount}/${messages.length}`
+      );
     } catch (error) {
       console.error('Error sending event update notifications:', error);
     }
-  });
+  }
+);
 
 /**
  * Scheduled function to send event reminder notifications
  * Runs every 5 minutes to check for reminders that need to be sent
  */
-exports.sendEventReminders = functions.scheduler
-  .onSchedule('*/5 * * * *', async (context) => {
+exports.sendEventReminders = functions.scheduler.onSchedule(
+  '*/5 * * * *',
+  async (context) => {
     console.log('Checking for reminders that need to be sent...');
-    
+
     const now = admin.firestore.Timestamp.now();
-    
+
     try {
       // Query reminders that are due and not yet sent
-      const remindersQuery = await admin.firestore()
+      const remindersQuery = await admin
+        .firestore()
         .collection('reminders')
         .where('reminderTime', '<=', now)
         .where('sent', '==', false)
@@ -412,18 +457,21 @@ exports.sendEventReminders = functions.scheduler
       }
 
       // Group reminders by user to batch fetch user data
-      const userIds = [...new Set(remindersQuery.docs.map(doc => doc.data().userId))];
+      const userIds = [
+        ...new Set(remindersQuery.docs.map((doc) => doc.data().userId)),
+      ];
       const userDataMap = new Map();
-      
+
       // Batch fetch user data (max 10 at a time for whereIn)
       for (let i = 0; i < userIds.length; i += 10) {
         const batchUserIds = userIds.slice(i, i + 10);
-        const userQuery = await admin.firestore()
+        const userQuery = await admin
+          .firestore()
           .collection('users')
           .where(admin.firestore.FieldPath.documentId(), 'in', batchUserIds)
           .get();
-        
-        userQuery.docs.forEach(userDoc => {
+
+        userQuery.docs.forEach((userDoc) => {
           userDataMap.set(userDoc.id, userDoc.data());
         });
       }
@@ -434,8 +482,16 @@ exports.sendEventReminders = functions.scheduler
 
       for (const reminderDoc of remindersQuery.docs) {
         const reminderData = reminderDoc.data();
-        const { userId, eventTitle, eventDateTime, isHost, reminderType, customAmount, customUnit } = reminderData;
-        
+        const {
+          userId,
+          eventTitle,
+          eventDateTime,
+          isHost,
+          reminderType,
+          customAmount,
+          customUnit,
+        } = reminderData;
+
         const userData = userDataMap.get(userId);
         if (!userData) {
           // Mark as sent even if user not found to avoid retry
@@ -453,7 +509,8 @@ exports.sendEventReminders = functions.scheduler
         // Create notification message
         let timeText = '';
         if (reminderType === 'custom') {
-          const unitText = customAmount === 1 ? customUnit.slice(0, -1) : customUnit;
+          const unitText =
+            customAmount === 1 ? customUnit.slice(0, -1) : customUnit;
           timeText = `in ${customAmount} ${unitText}`;
         } else {
           switch (reminderType) {
@@ -474,8 +531,12 @@ exports.sendEventReminders = functions.scheduler
         notifications.push({
           token: fcmToken,
           notification: {
-            title: isHost ? `Your event starts ${timeText}!` : `Event starting ${timeText}!`,
-            body: isHost ? `"${eventTitle}" starts ${timeText}` : `"${eventTitle}" is starting ${timeText}`,
+            title: isHost
+              ? `Your event starts ${timeText}!`
+              : `Event starting ${timeText}!`,
+            body: isHost
+              ? `"${eventTitle}" starts ${timeText}`
+              : `"${eventTitle}" is starting ${timeText}`,
           },
           data: {
             type: 'event_reminder',
@@ -500,7 +561,9 @@ exports.sendEventReminders = functions.scheduler
       if (notifications.length > 0) {
         try {
           const results = await admin.messaging().sendAll(notifications);
-          console.log(`Reminder notifications sent: ${results.successCount}/${notifications.length}`);
+          console.log(
+            `Reminder notifications sent: ${results.successCount}/${notifications.length}`
+          );
         } catch (error) {
           console.error('Error sending reminder notifications:', error);
         }
@@ -508,41 +571,48 @@ exports.sendEventReminders = functions.scheduler
 
       // Mark all reminders as sent
       const batch = admin.firestore().batch();
-      remindersToMarkSent.forEach(reminderRef => {
-        batch.update(reminderRef, { 
-          sent: true, 
-          sentAt: admin.firestore.Timestamp.now() 
+      remindersToMarkSent.forEach((reminderRef) => {
+        batch.update(reminderRef, {
+          sent: true,
+          sentAt: admin.firestore.Timestamp.now(),
         });
       });
-      
+
       if (remindersToMarkSent.length > 0) {
         await batch.commit();
         console.log(`Marked ${remindersToMarkSent.length} reminders as sent`);
       }
-
     } catch (error) {
       console.error('Error in sendEventReminders:', error);
     }
-  });
+  }
+);
 
 /**
  * Scheduled function to cleanup old reminders
  * Runs daily to remove old sent reminders and orphaned reminders
  */
-exports.cleanupReminders = functions.scheduler
-  .onSchedule('0 2 * * *', async (context) => { // Runs daily at 2 AM UTC
+exports.cleanupReminders = functions.scheduler.onSchedule(
+  '0 2 * * *',
+  async (context) => {
+    // Runs daily at 2 AM UTC
     console.log('Starting reminder cleanup...');
-    
+
     const now = admin.firestore.Timestamp.now();
-    const sevenDaysAgo = admin.firestore.Timestamp.fromMillis(now.toMillis() - (7 * 24 * 60 * 60 * 1000));
-    const oneDayAgo = admin.firestore.Timestamp.fromMillis(now.toMillis() - (24 * 60 * 60 * 1000));
-    
+    const sevenDaysAgo = admin.firestore.Timestamp.fromMillis(
+      now.toMillis() - 7 * 24 * 60 * 60 * 1000
+    );
+    const oneDayAgo = admin.firestore.Timestamp.fromMillis(
+      now.toMillis() - 24 * 60 * 60 * 1000
+    );
+
     try {
       let totalDeleted = 0;
 
       // 1. Delete old sent reminders (older than 7 days)
       console.log('Cleaning up old sent reminders...');
-      const oldSentQuery = await admin.firestore()
+      const oldSentQuery = await admin
+        .firestore()
         .collection('reminders')
         .where('sent', '==', true)
         .where('sentAt', '<', sevenDaysAgo)
@@ -551,7 +621,7 @@ exports.cleanupReminders = functions.scheduler
 
       if (oldSentQuery.docs.length > 0) {
         const batch1 = admin.firestore().batch();
-        oldSentQuery.docs.forEach(doc => {
+        oldSentQuery.docs.forEach((doc) => {
           batch1.delete(doc.ref);
         });
         await batch1.commit();
@@ -561,7 +631,8 @@ exports.cleanupReminders = functions.scheduler
 
       // 2. Delete reminders for past events (events that happened more than 1 day ago)
       console.log('Cleaning up reminders for past events...');
-      const pastEventRemindersQuery = await admin.firestore()
+      const pastEventRemindersQuery = await admin
+        .firestore()
         .collection('reminders')
         .where('eventDateTime', '<', oneDayAgo)
         .limit(500)
@@ -569,18 +640,23 @@ exports.cleanupReminders = functions.scheduler
 
       if (pastEventRemindersQuery.docs.length > 0) {
         const batch2 = admin.firestore().batch();
-        pastEventRemindersQuery.docs.forEach(doc => {
+        pastEventRemindersQuery.docs.forEach((doc) => {
           batch2.delete(doc.ref);
         });
         await batch2.commit();
         totalDeleted += pastEventRemindersQuery.docs.length;
-        console.log(`Deleted ${pastEventRemindersQuery.docs.length} reminders for past events`);
+        console.log(
+          `Deleted ${pastEventRemindersQuery.docs.length} reminders for past events`
+        );
       }
 
       // 3. Delete unsent reminders that are more than 1 hour past their reminder time
       console.log('Cleaning up missed reminders...');
-      const oneHourAgo = admin.firestore.Timestamp.fromMillis(now.toMillis() - (60 * 60 * 1000));
-      const missedRemindersQuery = await admin.firestore()
+      const oneHourAgo = admin.firestore.Timestamp.fromMillis(
+        now.toMillis() - 60 * 60 * 1000
+      );
+      const missedRemindersQuery = await admin
+        .firestore()
         .collection('reminders')
         .where('sent', '==', false)
         .where('reminderTime', '<', oneHourAgo)
@@ -589,26 +665,29 @@ exports.cleanupReminders = functions.scheduler
 
       if (missedRemindersQuery.docs.length > 0) {
         const batch3 = admin.firestore().batch();
-        missedRemindersQuery.docs.forEach(doc => {
+        missedRemindersQuery.docs.forEach((doc) => {
           batch3.delete(doc.ref);
         });
         await batch3.commit();
         totalDeleted += missedRemindersQuery.docs.length;
-        console.log(`Deleted ${missedRemindersQuery.docs.length} missed reminders`);
+        console.log(
+          `Deleted ${missedRemindersQuery.docs.length} missed reminders`
+        );
       }
 
       console.log(`Reminder cleanup completed. Total deleted: ${totalDeleted}`);
-      
     } catch (error) {
       console.error('Error in cleanupReminders:', error);
     }
-  });
+  }
+);
 
 /**
  * Send notification when someone sends a friend request
  */
-exports.onFriendRequest = functions.firestore
-  .onDocumentCreated('users/{userId}/friendRequests/{requestId}', async (event) => {
+exports.onFriendRequest = functions.firestore.onDocumentCreated(
+  'users/{userId}/friendRequests/{requestId}',
+  async (event) => {
     const requestData = event.data.data();
     const { userId } = event.params;
 
@@ -621,8 +700,9 @@ exports.onFriendRequest = functions.firestore
       }
 
       const recipientData = recipientDoc.data();
-      const appPrefs = recipientData?.userdata?.settings?.notifications?.app || {};
-      
+      const appPrefs =
+        recipientData?.userdata?.settings?.notifications?.app || {};
+
       // Check if recipient wants friend request notifications
       if (!appPrefs.friendAdded) {
         console.log('Recipient has friend request notifications disabled');
@@ -637,14 +717,20 @@ exports.onFriendRequest = functions.firestore
       }
 
       // Get sender info
-      const senderDoc = await admin.firestore().doc(`users/${requestData.senderId}`).get();
+      const senderDoc = await admin
+        .firestore()
+        .doc(`users/${requestData.senderId}`)
+        .get();
       if (!senderDoc.exists) {
         console.log('Sender document not found');
         return;
       }
 
       const senderData = senderDoc.data();
-      const senderName = senderData?.userdata?.contactInfo?.firstName || senderData?.userdata?.contactInfo?.displayName || 'Someone';
+      const senderName =
+        senderData?.userdata?.contactInfo?.firstName ||
+        senderData?.userdata?.contactInfo?.displayName ||
+        'Someone';
 
       const message = {
         token: recipientToken,
@@ -669,18 +755,21 @@ exports.onFriendRequest = functions.firestore
       };
 
       await admin.messaging().send(message);
-      console.log(`Friend request notification sent to ${userId} from ${requestData.senderId}`);
-
+      console.log(
+        `Friend request notification sent to ${userId} from ${requestData.senderId}`
+      );
     } catch (error) {
       console.error('Error processing friend request notification:', error);
     }
-  });
+  }
+);
 
 /**
  * Send notification when someone accepts a friend request
  */
-exports.onFriendAccepted = functions.firestore
-  .onDocumentUpdated('users/{userId}/friendRequests/{requestId}', async (change) => {
+exports.onFriendAccepted = functions.firestore.onDocumentUpdated(
+  'users/{userId}/friendRequests/{requestId}',
+  async (change) => {
     const before = change.before.data();
     const after = change.after.data();
     const { userId } = change.params;
@@ -689,15 +778,19 @@ exports.onFriendAccepted = functions.firestore
     if (before.status === 'pending' && after.status === 'accepted') {
       try {
         // Get sender's notification preferences (original requester)
-        const senderDoc = await admin.firestore().doc(`users/${after.senderId}`).get();
+        const senderDoc = await admin
+          .firestore()
+          .doc(`users/${after.senderId}`)
+          .get();
         if (!senderDoc.exists) {
           console.log('Sender document not found');
           return;
         }
 
         const senderData = senderDoc.data();
-        const appPrefs = senderData?.userdata?.settings?.notifications?.app || {};
-        
+        const appPrefs =
+          senderData?.userdata?.settings?.notifications?.app || {};
+
         // Check if sender wants friend acceptance notifications
         if (!appPrefs.friendFollowed) {
           console.log('Sender has friend acceptance notifications disabled');
@@ -712,14 +805,20 @@ exports.onFriendAccepted = functions.firestore
         }
 
         // Get accepter info
-        const accepterDoc = await admin.firestore().doc(`users/${userId}`).get();
+        const accepterDoc = await admin
+          .firestore()
+          .doc(`users/${userId}`)
+          .get();
         if (!accepterDoc.exists) {
           console.log('Accepter document not found');
           return;
         }
 
         const accepterData = accepterDoc.data();
-        const accepterName = accepterData?.userdata?.contactInfo?.firstName || accepterData?.userdata?.contactInfo?.displayName || 'Someone';
+        const accepterName =
+          accepterData?.userdata?.contactInfo?.firstName ||
+          accepterData?.userdata?.contactInfo?.displayName ||
+          'Someone';
 
         const message = {
           token: senderToken,
@@ -744,19 +843,25 @@ exports.onFriendAccepted = functions.firestore
         };
 
         await admin.messaging().send(message);
-        console.log(`Friend acceptance notification sent to ${after.senderId} from ${userId}`);
-
+        console.log(
+          `Friend acceptance notification sent to ${after.senderId} from ${userId}`
+        );
       } catch (error) {
-        console.error('Error processing friend acceptance notification:', error);
+        console.error(
+          'Error processing friend acceptance notification:',
+          error
+        );
       }
     }
-  });
+  }
+);
 
 /**
  * Send notification when someone is invited as a cohost
  */
-exports.onCohostInvitation = functions.firestore
-  .onDocumentCreated('users/{userId}/cohostInvitations/{invitationId}', async (event) => {
+exports.onCohostInvitation = functions.firestore.onDocumentCreated(
+  'users/{userId}/cohostInvitations/{invitationId}',
+  async (event) => {
     const invitationData = event.data.data();
     const { userId } = event.params;
 
@@ -769,8 +874,9 @@ exports.onCohostInvitation = functions.firestore
       }
 
       const recipientData = recipientDoc.data();
-      const appPrefs = recipientData?.userdata?.settings?.notifications?.app || {};
-      
+      const appPrefs =
+        recipientData?.userdata?.settings?.notifications?.app || {};
+
       // Check if recipient wants cohost invitation notifications
       if (!appPrefs.pushNotifications) {
         console.log('Recipient has push notifications disabled');
@@ -785,23 +891,32 @@ exports.onCohostInvitation = functions.firestore
       }
 
       // Get event info
-      const eventDoc = await admin.firestore().doc(`events/${invitationData.eventId}`).get();
+      const eventDoc = await admin
+        .firestore()
+        .doc(`events/${invitationData.eventId}`)
+        .get();
       if (!eventDoc.exists) {
         console.log('Event document not found');
         return;
       }
 
       const eventData = eventDoc.data();
-      
+
       // Get inviter info
-      const inviterDoc = await admin.firestore().doc(`users/${invitationData.inviterId}`).get();
+      const inviterDoc = await admin
+        .firestore()
+        .doc(`users/${invitationData.inviterId}`)
+        .get();
       if (!inviterDoc.exists) {
         console.log('Inviter document not found');
         return;
       }
 
       const inviterData = inviterDoc.data();
-      const inviterName = inviterData?.userdata?.contactInfo?.firstName || inviterData?.userdata?.contactInfo?.displayName || 'Someone';
+      const inviterName =
+        inviterData?.userdata?.contactInfo?.firstName ||
+        inviterData?.userdata?.contactInfo?.displayName ||
+        'Someone';
 
       const message = {
         token: recipientToken,
@@ -826,19 +941,22 @@ exports.onCohostInvitation = functions.firestore
       };
 
       await admin.messaging().send(message);
-      console.log(`Cohost invitation notification sent to ${userId} for event ${invitationData.eventId}`);
-
+      console.log(
+        `Cohost invitation notification sent to ${userId} for event ${invitationData.eventId}`
+      );
     } catch (error) {
       console.error('Error processing cohost invitation notification:', error);
     }
-  });
+  }
+);
 
 /**
  * Handle admin notification triggers
  * This sends push notifications for admin messages, warnings, strikes, etc.
  */
-exports.onAdminNotificationTrigger = functions.firestore
-  .onDocumentCreated('notificationTriggers/{triggerId}', async (event) => {
+exports.onAdminNotificationTrigger = functions.firestore.onDocumentCreated(
+  'notificationTriggers/{triggerId}',
+  async (event) => {
     const triggerData = event.data.data();
     const { triggerId } = event.params;
 
@@ -870,7 +988,8 @@ exports.onAdminNotificationTrigger = functions.firestore
       }
 
       // Determine notification sound and behavior based on type and priority
-      const isHighPriority = priority === 'high' || ['warning', 'strike'].includes(subType);
+      const isHighPriority =
+        priority === 'high' || ['warning', 'strike'].includes(subType);
       const sound = isHighPriority ? 'default' : false;
 
       const fcmMessage = {
@@ -913,32 +1032,39 @@ exports.onAdminNotificationTrigger = functions.firestore
       // Clean up processed trigger after a delay
       setTimeout(async () => {
         try {
-          await admin.firestore().doc(`notificationTriggers/${triggerId}`).delete();
+          await admin
+            .firestore()
+            .doc(`notificationTriggers/${triggerId}`)
+            .delete();
         } catch (error) {
           console.error('Error cleaning up admin trigger document:', error);
         }
       }, 60000); // Delete after 1 minute
-
     } catch (error) {
       console.error('Error processing admin notification trigger:', error);
     }
-  });
+  }
+);
 
 /**
  * Scheduled function to process pending scheduled notifications
  * Runs every 2 minutes to check for scheduled notifications that need to be sent
  * This replaces the client-side background processor to improve battery life
  */
-exports.processScheduledNotifications = functions.scheduler
-  .onSchedule('*/2 * * * *', async (context) => {
+exports.processScheduledNotifications = functions.scheduler.onSchedule(
+  '*/2 * * * *',
+  async (context) => {
     console.log('Processing pending scheduled notifications...');
-    
+
     const now = admin.firestore.Timestamp.now();
-    const cutoffTime = admin.firestore.Timestamp.fromMillis(now.toMillis() + (5 * 60 * 1000)); // 5 minutes buffer
-    
+    const cutoffTime = admin.firestore.Timestamp.fromMillis(
+      now.toMillis() + 5 * 60 * 1000
+    ); // 5 minutes buffer
+
     try {
       // Query for notifications that should be sent now
-      const q = admin.firestore()
+      const q = admin
+        .firestore()
         .collection('scheduledNotifications')
         .where('status', '==', 'pending')
         .where('scheduledFor', '<=', cutoffTime)
@@ -946,24 +1072,26 @@ exports.processScheduledNotifications = functions.scheduler
         .limit(50); // Process in batches
 
       const snapshot = await q.get();
-      
+
       if (snapshot.empty) {
         console.log('No pending scheduled notifications to process');
         return;
       }
 
       console.log(`Found ${snapshot.size} scheduled notifications to process`);
-      
+
       const results = [];
       const batch = admin.firestore().batch();
 
       for (const notificationDoc of snapshot.docs) {
         const notification = notificationDoc.data();
-        
+
         try {
           // Check if event still exists and hasn't been cancelled
           if (notification.eventId) {
-            const isEventValid = await validateEventForNotification(notification.eventId);
+            const isEventValid = await validateEventForNotification(
+              notification.eventId
+            );
             if (!isEventValid) {
               // Cancel notification - event no longer exists or was cancelled
               batch.update(notificationDoc.ref, {
@@ -971,13 +1099,20 @@ exports.processScheduledNotifications = functions.scheduler
                 cancelledAt: admin.firestore.Timestamp.now(),
                 cancelReason: 'Event no longer valid',
               });
-              results.push({ id: notification.id, status: 'cancelled', reason: 'Event invalid' });
+              results.push({
+                id: notification.id,
+                status: 'cancelled',
+                reason: 'Event invalid',
+              });
               continue;
             }
           }
 
           // Get user data and FCM token
-          const userDoc = await admin.firestore().doc(`users/${notification.userId}`).get();
+          const userDoc = await admin
+            .firestore()
+            .doc(`users/${notification.userId}`)
+            .get();
           if (!userDoc.exists) {
             batch.update(notificationDoc.ref, {
               status: 'failed',
@@ -985,7 +1120,11 @@ exports.processScheduledNotifications = functions.scheduler
               lastAttemptAt: admin.firestore.Timestamp.now(),
               failureReason: 'User not found',
             });
-            results.push({ id: notification.id, status: 'failed', reason: 'User not found' });
+            results.push({
+              id: notification.id,
+              status: 'failed',
+              reason: 'User not found',
+            });
             continue;
           }
 
@@ -998,7 +1137,11 @@ exports.processScheduledNotifications = functions.scheduler
               lastAttemptAt: admin.firestore.Timestamp.now(),
               failureReason: 'No FCM token',
             });
-            results.push({ id: notification.id, status: 'failed', reason: 'No FCM token' });
+            results.push({
+              id: notification.id,
+              status: 'failed',
+              reason: 'No FCM token',
+            });
             continue;
           }
 
@@ -1032,16 +1175,22 @@ exports.processScheduledNotifications = functions.scheduler
             sentAt: admin.firestore.Timestamp.now(),
           });
           results.push({ id: notification.id, status: 'sent' });
-
         } catch (error) {
-          console.error(`Error processing scheduled notification ${notification.id}:`, error);
+          console.error(
+            `Error processing scheduled notification ${notification.id}:`,
+            error
+          );
           batch.update(notificationDoc.ref, {
             status: 'failed',
             attempts: notification.attempts + 1,
             lastAttemptAt: admin.firestore.Timestamp.now(),
             failureReason: error.message,
           });
-          results.push({ id: notification.id, status: 'failed', reason: error.message });
+          results.push({
+            id: notification.id,
+            status: 'failed',
+            reason: error.message,
+          });
         }
       }
 
@@ -1054,11 +1203,11 @@ exports.processScheduledNotifications = functions.scheduler
         processedCount: results.length,
         results,
       };
-
     } catch (error) {
       console.error('Error processing scheduled notifications:', error);
     }
-  });
+  }
+);
 
 /**
  * Helper function to validate if an event is still valid for notifications
@@ -1067,24 +1216,26 @@ async function validateEventForNotification(eventId) {
   try {
     // Check if event exists in the events collection
     const eventDoc = await admin.firestore().doc(`events/${eventId}`).get();
-    
+
     if (!eventDoc.exists) {
       return false;
     }
-    
+
     const eventData = eventDoc.data();
-    
+
     // Check if event is cancelled
     if (eventData.cancelled) {
       return false;
     }
-    
+
     // Check if event is in the past
-    const eventTime = eventData.eventTimestamp.toDate ? eventData.eventTimestamp.toDate() : new Date(eventData.eventTimestamp);
+    const eventTime = eventData.eventTimestamp.toDate
+      ? eventData.eventTimestamp.toDate()
+      : new Date(eventData.eventTimestamp);
     if (eventTime < new Date()) {
       return false;
     }
-    
+
     return true;
   } catch (error) {
     console.error('Error validating event:', error);
@@ -1096,12 +1247,16 @@ async function validateEventForNotification(eventId) {
  * Handle client push notification triggers
  * This handles push notifications triggered from the client-side notification service
  */
-exports.onClientPushNotificationTrigger = functions.firestore
-  .onDocumentCreated('notificationTriggers/{triggerId}', async (event) => {
+exports.onClientPushNotificationTrigger = functions.firestore.onDocumentCreated(
+  'notificationTriggers/{triggerId}',
+  async (event) => {
     const triggerData = event.data.data();
     const { triggerId } = event.params;
 
-    if (triggerData.type !== 'client_push_notification' || triggerData.processed) {
+    if (
+      triggerData.type !== 'client_push_notification' ||
+      triggerData.processed
+    ) {
       return;
     }
 
@@ -1147,23 +1302,30 @@ exports.onClientPushNotificationTrigger = functions.firestore
       // Clean up processed trigger after a delay
       setTimeout(async () => {
         try {
-          await admin.firestore().doc(`notificationTriggers/${triggerId}`).delete();
+          await admin
+            .firestore()
+            .doc(`notificationTriggers/${triggerId}`)
+            .delete();
         } catch (error) {
           console.error('Error cleaning up client trigger document:', error);
         }
       }, 60000); // Delete after 1 minute
-
     } catch (error) {
-      console.error('Error processing client push notification trigger:', error);
+      console.error(
+        'Error processing client push notification trigger:',
+        error
+      );
     }
-  });
+  }
+);
 
 /**
  * Handle ban notification triggers
  * This sends push notifications when users are banned
  */
-exports.onBanNotificationTrigger = functions.firestore
-  .onDocumentCreated('notificationTriggers/{triggerId}', async (event) => {
+exports.onBanNotificationTrigger = functions.firestore.onDocumentCreated(
+  'notificationTriggers/{triggerId}',
+  async (event) => {
     const triggerData = event.data.data();
     const { triggerId } = event.params;
 
@@ -1234,13 +1396,16 @@ exports.onBanNotificationTrigger = functions.firestore
       // Clean up processed trigger after a delay
       setTimeout(async () => {
         try {
-          await admin.firestore().doc(`notificationTriggers/${triggerId}`).delete();
+          await admin
+            .firestore()
+            .doc(`notificationTriggers/${triggerId}`)
+            .delete();
         } catch (error) {
           console.error('Error cleaning up ban trigger document:', error);
         }
       }, 60000); // Delete after 1 minute
-
     } catch (error) {
       console.error('Error processing ban notification trigger:', error);
     }
-  });
+  }
+);

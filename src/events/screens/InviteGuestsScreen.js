@@ -18,11 +18,10 @@ import theme from '../../theme/themes';
 export default function InviteGuestsScreen({ navigation, route }) {
   const { eventId, eventTitle, inviteCode, studioId } = route.params;
   const { currentUserId, userData } = useAuth();
-  
+
   // UI State
   const [activeTab, setActiveTab] = useState('invite'); // 'invite' or 'manage'
-  
-  
+
   // Existing Invitations
   const [invitations, setInvitations] = useState([]);
   const [isLoadingInvitations, setIsLoadingInvitations] = useState(false);
@@ -36,7 +35,7 @@ export default function InviteGuestsScreen({ navigation, route }) {
 
   const loadInvitations = useCallback(async () => {
     if (!eventId) return;
-    
+
     setIsLoadingInvitations(true);
     try {
       const eventInvitations = await getEventInvitations(eventId);
@@ -49,27 +48,34 @@ export default function InviteGuestsScreen({ navigation, route }) {
     }
   }, [eventId]);
 
-
-
-
   // Format invitation status
   const getStatusColor = (status) => {
     switch (status) {
-      case 'pending': return theme.colors.vibeYellow;
-      case 'accepted': return theme.colors.vibeGreen;
-      case 'declined': return theme.colors.vibeRed;
-      case 'expired': return theme.colors.gray;
-      default: return theme.colors.gray;
+      case 'pending':
+        return theme.colors.vibeYellow;
+      case 'accepted':
+        return theme.colors.vibeGreen;
+      case 'declined':
+        return theme.colors.vibeRed;
+      case 'expired':
+        return theme.colors.gray;
+      default:
+        return theme.colors.gray;
     }
   };
 
   const getStatusText = (status) => {
     switch (status) {
-      case 'pending': return 'Pending';
-      case 'accepted': return 'Accepted';
-      case 'declined': return 'Declined';
-      case 'expired': return 'Expired';
-      default: return 'Unknown';
+      case 'pending':
+        return 'Pending';
+      case 'accepted':
+        return 'Accepted';
+      case 'declined':
+        return 'Declined';
+      case 'expired':
+        return 'Expired';
+      default:
+        return 'Unknown';
     }
   };
 
@@ -90,12 +96,16 @@ export default function InviteGuestsScreen({ navigation, route }) {
           <Text style={styles.invitationMessage}>"{item.message}"</Text>
         )}
       </View>
-      <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
+      <View
+        style={[
+          styles.statusBadge,
+          { backgroundColor: getStatusColor(item.status) },
+        ]}
+      >
         <Text style={styles.statusText}>{getStatusText(item.status)}</Text>
       </View>
     </View>
   );
-
 
   return (
     <VibeScreen
@@ -109,7 +119,12 @@ export default function InviteGuestsScreen({ navigation, route }) {
           style={[styles.tab, activeTab === 'invite' && styles.activeTab]}
           onPress={() => setActiveTab('invite')}
         >
-          <Text style={[styles.tabText, activeTab === 'invite' && styles.activeTabText]}>
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'invite' && styles.activeTabText,
+            ]}
+          >
             Send Invites
           </Text>
         </TouchableOpacity>
@@ -117,7 +132,12 @@ export default function InviteGuestsScreen({ navigation, route }) {
           style={[styles.tab, activeTab === 'manage' && styles.activeTab]}
           onPress={() => setActiveTab('manage')}
         >
-          <Text style={[styles.tabText, activeTab === 'manage' && styles.activeTabText]}>
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'manage' && styles.activeTabText,
+            ]}
+          >
             Manage Invites
           </Text>
         </TouchableOpacity>
@@ -126,11 +146,10 @@ export default function InviteGuestsScreen({ navigation, route }) {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {activeTab === 'invite' ? (
           <>
-
             {/* QR Code Section */}
             <View style={styles.qrContainer}>
               <Text style={styles.sectionTitle}>Share with QR Codes</Text>
-              
+
               {/* Event QR Code for App Users */}
               {inviteCode && (
                 <View style={styles.qrSection}>
@@ -146,7 +165,7 @@ export default function InviteGuestsScreen({ navigation, route }) {
                   </Text>
                 </View>
               )}
-              
+
               {/* App Download QR Code for New Users */}
               {studioId && (
                 <View style={styles.qrSection}>
@@ -163,15 +182,16 @@ export default function InviteGuestsScreen({ navigation, route }) {
                 </View>
               )}
             </View>
-
-
           </>
         ) : (
           // Manage Invitations Tab
           <View style={styles.manageContainer}>
             <View style={styles.manageHeader}>
               <Text style={styles.sectionTitle}>Sent Invitations</Text>
-              <TouchableOpacity onPress={loadInvitations} disabled={isLoadingInvitations}>
+              <TouchableOpacity
+                onPress={loadInvitations}
+                disabled={isLoadingInvitations}
+              >
                 <Text style={styles.refreshText}>🔄 Refresh</Text>
               </TouchableOpacity>
             </View>
@@ -188,7 +208,8 @@ export default function InviteGuestsScreen({ navigation, route }) {
               />
             ) : (
               <Text style={styles.noInvitationsText}>
-                No invitations sent yet. Use the "Send Invites" tab to invite guests!
+                No invitations sent yet. Use the "Send Invites" tab to invite
+                guests!
               </Text>
             )}
           </View>

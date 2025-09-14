@@ -3,12 +3,12 @@ import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import theme from '../../../theme/themes';
 
-const QRCodeGenerator = ({ 
+const QRCodeGenerator = ({
   type = 'user', // 'user', 'event', or 'app-download'
   data, // userId, inviteCode, or {studioId, eventId} for app-download
   size = 200,
   showShareButton = true,
-  onShare = null
+  onShare = null,
 }) => {
   const generateDeepLink = () => {
     switch (type) {
@@ -43,7 +43,7 @@ const QRCodeGenerator = ({
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{getTitle()}</Text>
-      
+
       <View style={styles.qrContainer}>
         <QRCode
           value={qrValue}
@@ -55,20 +55,17 @@ const QRCodeGenerator = ({
       </View>
 
       <Text style={styles.instructions}>
-        {type === 'user' 
+        {type === 'user'
           ? 'Scan this QR code to follow my profile'
-          : type === 'event' 
-          ? 'Scan this QR code to join the event'
-          : type === 'app-download'
-          ? 'New to Big Vibe Studios? Scan to download the app and join this event!'
-          : 'Scan this QR code to connect'}
+          : type === 'event'
+            ? 'Scan this QR code to join the event'
+            : type === 'app-download'
+              ? 'New to Big Vibe Studios? Scan to download the app and join this event!'
+              : 'Scan this QR code to connect'}
       </Text>
 
       {showShareButton && (
-        <TouchableOpacity 
-          style={styles.shareButton}
-          onPress={onShare}
-        >
+        <TouchableOpacity style={styles.shareButton} onPress={onShare}>
           <Text style={styles.shareText}>Share QR Code</Text>
         </TouchableOpacity>
       )}

@@ -7,7 +7,9 @@ import ScheduledNotificationService from '../services/scheduledNotifications';
 export const useScheduledNotifications = () => {
   const [isProcessorRunning, setIsProcessorRunning] = useState(false);
   const [processingStats, setProcessingStats] = useState(null);
-  const [userScheduledNotifications, setUserScheduledNotifications] = useState([]);
+  const [userScheduledNotifications, setUserScheduledNotifications] = useState(
+    []
+  );
   const [loading, setLoading] = useState(false);
   const processorCleanup = useRef(null);
   const { currentUserId } = useAuth();
@@ -22,7 +24,8 @@ export const useScheduledNotifications = () => {
     }
 
     try {
-      processorCleanup.current = ScheduledNotificationService.startBackgroundProcessor();
+      processorCleanup.current =
+        ScheduledNotificationService.startBackgroundProcessor();
       setIsProcessorRunning(true);
       console.log('✅ Scheduled notification processor started');
     } catch (error) {
@@ -48,14 +51,21 @@ export const useScheduledNotifications = () => {
   const scheduleEventReminders = async (eventData) => {
     try {
       setLoading(true);
-      const result = await ScheduledNotificationService.scheduleEventReminders(eventData);
-      console.log(`📅 Scheduled ${result.scheduledCount} event reminders for "${eventData.title}"`);
-      
+      const result =
+        await ScheduledNotificationService.scheduleEventReminders(eventData);
+      console.log(
+        `📅 Scheduled ${result.scheduledCount} event reminders for "${eventData.title}"`
+      );
+
       // Refresh user notifications if this user is involved
-      if (currentUserId && (eventData.subscribers?.includes(currentUserId) || eventData.createdBy === currentUserId)) {
+      if (
+        currentUserId &&
+        (eventData.subscribers?.includes(currentUserId) ||
+          eventData.createdBy === currentUserId)
+      ) {
         await loadUserScheduledNotifications();
       }
-      
+
       return result;
     } catch (error) {
       console.error('Error scheduling event reminders:', error);
@@ -68,17 +78,26 @@ export const useScheduledNotifications = () => {
   /**
    * Cancel notifications for an event
    */
-  const cancelEventNotifications = async (eventId, reason = 'Event cancelled') => {
+  const cancelEventNotifications = async (
+    eventId,
+    reason = 'Event cancelled'
+  ) => {
     try {
       setLoading(true);
-      const result = await ScheduledNotificationService.cancelEventNotifications(eventId, reason);
-      console.log(`❌ Cancelled ${result.cancelledCount} notifications for event ${eventId}`);
-      
+      const result =
+        await ScheduledNotificationService.cancelEventNotifications(
+          eventId,
+          reason
+        );
+      console.log(
+        `❌ Cancelled ${result.cancelledCount} notifications for event ${eventId}`
+      );
+
       // Refresh user notifications
       if (currentUserId) {
         await loadUserScheduledNotifications();
       }
-      
+
       return result;
     } catch (error) {
       console.error('Error cancelling event notifications:', error);
@@ -94,15 +113,18 @@ export const useScheduledNotifications = () => {
   const processPendingNotifications = async () => {
     try {
       setLoading(true);
-      const result = await ScheduledNotificationService.processPendingNotifications();
+      const result =
+        await ScheduledNotificationService.processPendingNotifications();
       setProcessingStats(result);
-      console.log(`🔄 Processed ${result.processedCount} scheduled notifications`);
-      
+      console.log(
+        `🔄 Processed ${result.processedCount} scheduled notifications`
+      );
+
       // Refresh user notifications
       if (currentUserId) {
         await loadUserScheduledNotifications();
       }
-      
+
       return result;
     } catch (error) {
       console.error('Error processing notifications:', error);
@@ -120,7 +142,11 @@ export const useScheduledNotifications = () => {
 
     try {
       setLoading(true);
-      const notifications = await ScheduledNotificationService.getUserScheduledNotifications(currentUserId, includeSent);
+      const notifications =
+        await ScheduledNotificationService.getUserScheduledNotifications(
+          currentUserId,
+          includeSent
+        );
       setUserScheduledNotifications(notifications);
       return notifications;
     } catch (error) {
@@ -137,14 +163,17 @@ export const useScheduledNotifications = () => {
   const scheduleCustomNotification = async (notificationData) => {
     try {
       setLoading(true);
-      const scheduleId = await ScheduledNotificationService.scheduleNotification(notificationData);
+      const scheduleId =
+        await ScheduledNotificationService.scheduleNotification(
+          notificationData
+        );
       console.log(`📝 Scheduled custom notification: ${scheduleId}`);
-      
+
       // Refresh user notifications
       if (currentUserId) {
         await loadUserScheduledNotifications();
       }
-      
+
       return scheduleId;
     } catch (error) {
       console.error('Error scheduling custom notification:', error);
@@ -159,8 +188,13 @@ export const useScheduledNotifications = () => {
    */
   const cleanupOldNotifications = async (olderThanDays = 30) => {
     try {
-      const result = await ScheduledNotificationService.cleanupOldNotifications(olderThanDays);
-      console.log(`🧹 Cleaned up ${result.deletedCount} old scheduled notifications`);
+      const result =
+        await ScheduledNotificationService.cleanupOldNotifications(
+          olderThanDays
+        );
+      console.log(
+        `🧹 Cleaned up ${result.deletedCount} old scheduled notifications`
+      );
       return result;
     } catch (error) {
       console.error('Error cleaning up notifications:', error);
@@ -207,10 +241,13 @@ export const useScheduledNotifications = () => {
     cleanupOldNotifications,
 
     // Computed values
-    pendingCount: userScheduledNotifications.filter(n => n.status === 'pending').length,
-    sentCount: userScheduledNotifications.filter(n => n.status === 'sent').length,
+    pendingCount: userScheduledNotifications.filter(
+      (n) => n.status === 'pending'
+    ).length,
+    sentCount: userScheduledNotifications.filter((n) => n.status === 'sent')
+      .length,
     upcomingReminders: userScheduledNotifications
-      .filter(n => n.status === 'pending' && n.scheduledFor > new Date())
+      .filter((n) => n.status === 'pending' && n.scheduledFor > new Date())
       .sort((a, b) => a.scheduledFor - b.scheduledFor)
       .slice(0, 5), // Next 5 upcoming
   };

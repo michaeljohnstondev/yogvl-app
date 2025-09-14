@@ -81,12 +81,12 @@ export const useTemplateManager = (userId) => {
           name: name.trim(),
           payload: formData, // full form snapshot
         };
-        
+
         await saveToStorage(template);
 
         // Don't refresh templates immediately - causes form clearing
         // Templates will refresh on next modal open
-        
+
         return { success: true, name: name.trim() };
       } catch (err) {
         console.error('Error saving template:', err);

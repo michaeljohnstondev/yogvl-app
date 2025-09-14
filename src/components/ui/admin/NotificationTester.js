@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Alert, ScrollView } from 'react-native';
 import VibeButton from '../base/VibeButton';
 import fcmService from '../../../services/fcmServiceWrapper';
-import { 
-  notifyNewFollower, 
+import {
+  notifyNewFollower,
   notifyGuestInvitation,
   notifyCohostInvitation,
-  notifyHostOfEventJoin
+  notifyHostOfEventJoin,
 } from '../../../services/notifications';
 import { useAuth } from '../../../auth/AuthContext';
 import theme from '../../../theme/themes';
@@ -18,12 +18,12 @@ export default function NotificationTester() {
   const [permissionStatus, setPermissionStatus] = useState(null);
   const [pushToken, setPushToken] = useState(null);
   const { currentUserId, user } = useAuth();
-  const { 
-    processPendingNotifications, 
-    userScheduledNotifications, 
+  const {
+    processPendingNotifications,
+    userScheduledNotifications,
     scheduleCustomNotification,
     upcomingReminders,
-    pendingCount 
+    pendingCount,
   } = useScheduledNotifications();
 
   const testNotificationSetup = async () => {
@@ -50,7 +50,10 @@ export default function NotificationTester() {
       console.log('🎫 Push Token:', token?.substring(0, 50) + '...');
 
       if (!token) {
-        Alert.alert('Error', 'Failed to get push token. Are you on a physical device?');
+        Alert.alert(
+          'Error',
+          'Failed to get push token. Are you on a physical device?'
+        );
         setTesting(false);
         return;
       }
@@ -59,9 +62,12 @@ export default function NotificationTester() {
       if (currentUserId) {
         const registered = await fcmService.registerTokenForUser(currentUserId);
         console.log('📝 Token Registered:', registered);
-        
+
         if (!registered) {
-          Alert.alert('Error', 'Failed to register push token with user account.');
+          Alert.alert(
+            'Error',
+            'Failed to register push token with user account.'
+          );
           setTesting(false);
           return;
         }
@@ -79,11 +85,10 @@ export default function NotificationTester() {
         'Check the notification that should have appeared. If you see it, push notifications are working correctly!',
         [{ text: 'Great!' }]
       );
-
     } catch (error) {
       console.error('❌ Notification test failed:', error);
       Alert.alert(
-        'Test Failed', 
+        'Test Failed',
         `Error: ${error.message}. Check console for details.`
       );
     } finally {
@@ -103,84 +108,87 @@ export default function NotificationTester() {
         follow: {
           title: 'New Follower! 👥',
           body: 'TestUser123 started following you',
-          data: { 
-            type: 'follow_notification', 
+          data: {
+            type: 'follow_notification',
             userId: 'test_user_123',
-            screen: 'UserProfile'
-          }
+            screen: 'UserProfile',
+          },
         },
         mutual_follow: {
-          title: 'You\'re Now Friends! 🤝',
+          title: "You're Now Friends! 🤝",
           body: 'You and TestUser123 are now following each other',
-          data: { 
-            type: 'mutual_follow', 
+          data: {
+            type: 'mutual_follow',
             userId: 'test_user_123',
-            screen: 'UserProfile'
-          }
+            screen: 'UserProfile',
+          },
         },
         event_reminder: {
           title: 'Event Starting Soon! ⏰',
           body: 'Your event "Test Party" starts in 15 minutes',
-          data: { 
-            type: 'event_reminder', 
+          data: {
+            type: 'event_reminder',
             eventId: 'test_event_123',
-            screen: 'EventDetail'
-          }
+            screen: 'EventDetail',
+          },
         },
         event_updated: {
           title: 'Event Updated 📝',
           body: 'Host updated details for "Test Party"',
-          data: { 
-            type: 'event_updated', 
+          data: {
+            type: 'event_updated',
             eventId: 'test_event_123',
-            screen: 'EventDetail'
-          }
+            screen: 'EventDetail',
+          },
         },
         invitation_received: {
           title: 'Event Invitation! 🎉',
           body: 'You\'re invited to "Test Party" by TestHost',
-          data: { 
-            type: 'invitation_received', 
+          data: {
+            type: 'invitation_received',
             eventId: 'test_event_123',
-            screen: 'EventDetail'
-          }
+            screen: 'EventDetail',
+          },
         },
         event_comment: {
           title: 'New Comment 💬',
           body: 'TestUser123 commented on "Test Party"',
-          data: { 
-            type: 'event_comment', 
+          data: {
+            type: 'event_comment',
             eventId: 'test_event_123',
-            screen: 'EventDetail'
-          }
+            screen: 'EventDetail',
+          },
         },
         default: {
           title: 'Big Vibe Studios 🎊',
           body: 'This is a general app notification test',
-          data: { 
-            type: 'general', 
-            screen: 'Home'
-          }
+          data: {
+            type: 'general',
+            screen: 'Home',
+          },
         },
         quick_test: {
           title: 'Background Test! 📱',
           body: 'Close the app now and this should appear in your notification tray',
-          data: { 
-            type: 'general', 
-            screen: 'Home'
-          }
-        }
+          data: {
+            type: 'general',
+            screen: 'Home',
+          },
+        },
       };
 
       const notif = testNotifications[type];
-      await fcmService.sendLocalNotification(notif.title, notif.body, notif.data);
+      await fcmService.sendLocalNotification(
+        notif.title,
+        notif.body,
+        notif.data
+      );
 
       Alert.alert(
         'Test Sent!',
         `${notif.title} notification sent. Check if you received it!`,
         [{ text: 'Great!' }]
       );
-
     } catch (error) {
       console.error(`[NotificationTester] ${type} test failed:`, error);
       Alert.alert('Test Failed', `Error: ${error.message}`);
@@ -193,7 +201,10 @@ export default function NotificationTester() {
     setTestingType('scheduled_reminder');
     try {
       if (!currentUserId) {
-        Alert.alert('Error', 'You must be logged in to test scheduled notifications.');
+        Alert.alert(
+          'Error',
+          'You must be logged in to test scheduled notifications.'
+        );
         return;
       }
 
@@ -205,12 +216,13 @@ export default function NotificationTester() {
         userId: currentUserId,
         type: 'event_reminder',
         title: 'Test Event Reminder! ⏰',
-        message: 'This scheduled reminder should appear in your notification tray!',
-        data: { 
+        message:
+          'This scheduled reminder should appear in your notification tray!',
+        data: {
           type: 'event_reminder',
           eventId: 'test_event_123',
           screen: 'EventDetail',
-          isTest: true
+          isTest: true,
         },
         scheduledFor: reminderTime,
       });
@@ -219,18 +231,22 @@ export default function NotificationTester() {
         'Scheduled!',
         `Test reminder scheduled for ${reminderTime.toLocaleTimeString()}. CLOSE THE APP NOW - notification should appear in 10 seconds!`,
         [
-          { 
-            text: 'Close App Now!', 
+          {
+            text: 'Close App Now!',
             onPress: () => {
               // Give user time to close the app
-              console.log('[NotificationTester] User should close app now for best testing');
-            }
-          }
+              console.log(
+                '[NotificationTester] User should close app now for best testing'
+              );
+            },
+          },
         ]
       );
-
     } catch (error) {
-      console.error('[NotificationTester] Scheduled reminder test failed:', error);
+      console.error(
+        '[NotificationTester] Scheduled reminder test failed:',
+        error
+      );
       Alert.alert('Test Failed', `Error: ${error.message}`);
     } finally {
       setTestingType(null);
@@ -258,7 +274,10 @@ export default function NotificationTester() {
     setTestingType('real_notifications');
     try {
       if (!currentUserId) {
-        Alert.alert('Error', 'You must be logged in to test real notifications.');
+        Alert.alert(
+          'Error',
+          'You must be logged in to test real notifications.'
+        );
         return;
       }
 
@@ -269,7 +288,7 @@ export default function NotificationTester() {
       const followerResult = await notifyNewFollower({
         targetUserId: currentUserId,
         followerId: 'test_follower_123',
-        followerName: 'Test Friend'
+        followerName: 'Test Friend',
       });
       console.log('✅ Follower notification result:', followerResult);
 
@@ -281,7 +300,7 @@ export default function NotificationTester() {
         inviterName: 'Test Host',
         eventId: 'test_event_789',
         eventTitle: 'Test Party Event',
-        invitationId: 'test_invitation_101'
+        invitationId: 'test_invitation_101',
       });
       console.log('✅ Guest invitation result:', guestResult);
 
@@ -293,21 +312,24 @@ export default function NotificationTester() {
         inviterName: 'Test Host',
         eventId: 'test_event_789',
         eventTitle: 'Test Party Event',
-        invitationId: 'test_cohost_102'
+        invitationId: 'test_cohost_102',
       });
       console.log('✅ Cohost invitation result:', cohostResult);
 
-      const successCount = [followerResult, guestResult, cohostResult]
-        .filter(r => r.success).length;
+      const successCount = [followerResult, guestResult, cohostResult].filter(
+        (r) => r.success
+      ).length;
 
       Alert.alert(
         'Real Notification Test Complete!',
         `Sent ${successCount}/3 notifications successfully. Check your notifications and console for details.`,
         [{ text: 'Great!' }]
       );
-
     } catch (error) {
-      console.error('[NotificationTester] Real notification test failed:', error);
+      console.error(
+        '[NotificationTester] Real notification test failed:',
+        error
+      );
       Alert.alert('Test Failed', `Error: ${error.message}`);
     } finally {
       setTestingType(null);
@@ -319,20 +341,39 @@ export default function NotificationTester() {
     { key: 'event_reminder', label: '⏰ Event Reminder', color: '#FF6B35' },
     { key: 'event_updated', label: '📝 Event Updated', color: '#FF6B35' },
     { key: 'event_comment', label: '💬 Event Comment', color: '#FF6B35' },
-    { key: 'invitation_received', label: '🎉 Invitation', color: theme.colors.vibeGreen },
+    {
+      key: 'invitation_received',
+      label: '🎉 Invitation',
+      color: theme.colors.vibeGreen,
+    },
     { key: 'follow', label: '👥 New Follower', color: theme.colors.vibePink },
-    { key: 'mutual_follow', label: '🤝 Now Friends', color: theme.colors.vibeGreen },
+    {
+      key: 'mutual_follow',
+      label: '🤝 Now Friends',
+      color: theme.colors.vibeGreen,
+    },
   ];
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <Text style={styles.title}>🔔 Push Notification Tester</Text>
-      
+
       {permissionStatus && (
         <View style={styles.statusContainer}>
           <Text style={styles.statusTitle}>Permission Status:</Text>
-          <Text style={[styles.statusText, { color: permissionStatus.granted ? theme.colors.vibeGreen : theme.colors.vibePink }]}>
-            {permissionStatus.granted ? '✅ Granted' : `❌ ${permissionStatus.status}`}
+          <Text
+            style={[
+              styles.statusText,
+              {
+                color: permissionStatus.granted
+                  ? theme.colors.vibeGreen
+                  : theme.colors.vibePink,
+              },
+            ]}
+          >
+            {permissionStatus.granted
+              ? '✅ Granted'
+              : `❌ ${permissionStatus.status}`}
           </Text>
         </View>
       )}
@@ -340,9 +381,7 @@ export default function NotificationTester() {
       {pushToken && (
         <View style={styles.statusContainer}>
           <Text style={styles.statusTitle}>Push Token:</Text>
-          <Text style={styles.tokenText}>
-            {pushToken.substring(0, 30)}...
-          </Text>
+          <Text style={styles.tokenText}>{pushToken.substring(0, 30)}...</Text>
         </View>
       )}
 
@@ -355,73 +394,100 @@ export default function NotificationTester() {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Test Notification Types:</Text>
-        
+
         {notificationTypes.map((type) => (
           <VibeButton
             key={type.key}
             label={testingType === type.key ? 'Sending...' : type.label}
             onPress={() => testSpecificNotification(type.key)}
             disabled={testingType === type.key}
-            style={[
-              styles.typeButton, 
-              { backgroundColor: type.color }
-            ]}
+            style={[styles.typeButton, { backgroundColor: type.color }]}
           />
         ))}
       </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Scheduled Event Reminders:</Text>
-        
+
         {pendingCount > 0 && (
           <View style={styles.statusContainer}>
             <Text style={styles.statusTitle}>Pending Reminders:</Text>
-            <Text style={[styles.statusText, { color: theme.colors.vibeGreen }]}>
+            <Text
+              style={[styles.statusText, { color: theme.colors.vibeGreen }]}
+            >
               {pendingCount} scheduled
             </Text>
             {upcomingReminders.slice(0, 3).map((reminder, index) => (
               <Text key={index} style={styles.reminderText}>
-                • {reminder.title} at {reminder.scheduledFor.toLocaleTimeString()}
+                • {reminder.title} at{' '}
+                {reminder.scheduledFor.toLocaleTimeString()}
               </Text>
             ))}
           </View>
         )}
 
         <VibeButton
-          label={testingType === 'scheduled_reminder' ? 'Scheduling...' : '⏰ Test Scheduled Reminder (10 sec)'}
+          label={
+            testingType === 'scheduled_reminder'
+              ? 'Scheduling...'
+              : '⏰ Test Scheduled Reminder (10 sec)'
+          }
           onPress={testScheduledReminder}
           disabled={testingType === 'scheduled_reminder'}
           style={[styles.typeButton, { backgroundColor: '#FF6B35' }]}
         />
 
         <VibeButton
-          label={testingType === 'quick_test' ? 'Sending...' : '📱 Test Background (Close App After)'}
+          label={
+            testingType === 'quick_test'
+              ? 'Sending...'
+              : '📱 Test Background (Close App After)'
+          }
           onPress={() => testSpecificNotification('quick_test')}
           disabled={testingType === 'quick_test'}
-          style={[styles.typeButton, { backgroundColor: theme.colors.vibePink }]}
+          style={[
+            styles.typeButton,
+            { backgroundColor: theme.colors.vibePink },
+          ]}
         />
 
         <VibeButton
-          label={testingType === 'process_pending' ? 'Processing...' : '🔄 Process Pending Notifications'}
+          label={
+            testingType === 'process_pending'
+              ? 'Processing...'
+              : '🔄 Process Pending Notifications'
+          }
           onPress={testProcessPending}
           disabled={testingType === 'process_pending'}
-          style={[styles.typeButton, { backgroundColor: theme.colors.vibeGreen }]}
+          style={[
+            styles.typeButton,
+            { backgroundColor: theme.colors.vibeGreen },
+          ]}
         />
 
         <VibeButton
-          label={testingType === 'real_notifications' ? 'Testing...' : '🧪 Test Real Notification Functions'}
+          label={
+            testingType === 'real_notifications'
+              ? 'Testing...'
+              : '🧪 Test Real Notification Functions'
+          }
           onPress={testRealNotifications}
           disabled={testingType === 'real_notifications'}
-          style={[styles.typeButton, { backgroundColor: theme.colors.vibePink }]}
+          style={[
+            styles.typeButton,
+            { backgroundColor: theme.colors.vibePink },
+          ]}
         />
       </View>
 
       <Text style={styles.note}>
-        🔧 Setup Test: Checks permissions, gets token, registers with your account
+        🔧 Setup Test: Checks permissions, gets token, registers with your
+        account
         {'\n\n'}
-        📱 Notification Tests: Send different notification types with deep linking
-        {'\n\n'}
-        ⏰ Scheduled Tests: Test automatic event reminders & background processing
+        📱 Notification Tests: Send different notification types with deep
+        linking
+        {'\n\n'}⏰ Scheduled Tests: Test automatic event reminders & background
+        processing
         {'\n\n'}
         Tap notifications to test navigation to different screens!
       </Text>

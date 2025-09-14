@@ -52,18 +52,23 @@ export default function InvitationsScreen({ navigation }) {
   }, [loadInvitations]);
 
   // Handle invitation response
-  const handleInvitationResponse = useCallback((response) => {
-    // Refresh the list after responding
-    loadInvitations();
-  }, [loadInvitations]);
+  const handleInvitationResponse = useCallback(
+    (response) => {
+      // Refresh the list after responding
+      loadInvitations();
+    },
+    [loadInvitations]
+  );
 
   // Filter invitations based on active filter
-  const filteredInvitations = invitations.filter(invitation => {
+  const filteredInvitations = invitations.filter((invitation) => {
     switch (activeFilter) {
       case 'pending':
         return invitation.status === 'pending';
       case 'responded':
-        return invitation.status === 'accepted' || invitation.status === 'declined';
+        return (
+          invitation.status === 'accepted' || invitation.status === 'declined'
+        );
       case 'all':
       default:
         return true;
@@ -71,9 +76,11 @@ export default function InvitationsScreen({ navigation }) {
   });
 
   // Get counts for filter tabs
-  const pendingCount = invitations.filter(inv => inv.status === 'pending').length;
-  const respondedCount = invitations.filter(inv => 
-    inv.status === 'accepted' || inv.status === 'declined'
+  const pendingCount = invitations.filter(
+    (inv) => inv.status === 'pending'
+  ).length;
+  const respondedCount = invitations.filter(
+    (inv) => inv.status === 'accepted' || inv.status === 'declined'
   ).length;
 
   // Render filter button
@@ -105,14 +112,17 @@ export default function InvitationsScreen({ navigation }) {
     let message = '';
     switch (activeFilter) {
       case 'pending':
-        message = "No pending invitations.\nWhen someone invites you to an event, it will appear here.";
+        message =
+          'No pending invitations.\nWhen someone invites you to an event, it will appear here.';
         break;
       case 'responded':
-        message = "No responded invitations.\nInvitations you've accepted or declined will appear here.";
+        message =
+          "No responded invitations.\nInvitations you've accepted or declined will appear here.";
         break;
       case 'all':
       default:
-        message = "No invitations yet.\nWhen someone invites you to an event, it will appear here.";
+        message =
+          'No invitations yet.\nWhen someone invites you to an event, it will appear here.';
         break;
     }
 

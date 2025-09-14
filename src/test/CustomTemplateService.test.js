@@ -15,14 +15,21 @@ const mockFirebase = {
         settings: {
           notifications: {
             customTemplates: [
-              { id: 'custom_123', amount: 30, unit: 'minutes', label: '30 min', enabled: true, savedAt: new Date() }
-            ]
-          }
-        }
-      }
-    })
+              {
+                id: 'custom_123',
+                amount: 30,
+                unit: 'minutes',
+                label: '30 min',
+                enabled: true,
+                savedAt: new Date(),
+              },
+            ],
+          },
+        },
+      },
+    }),
   }),
-  updateDoc: async () => console.log('Mock updateDoc called')
+  updateDoc: async () => console.log('Mock updateDoc called'),
 };
 
 // Test template validation
@@ -31,7 +38,7 @@ const testTemplate = {
   amount: 45,
   unit: 'minutes',
   label: '45 min',
-  enabled: true
+  enabled: true,
 };
 
 console.log('Test template:', testTemplate);

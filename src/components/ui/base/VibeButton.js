@@ -7,17 +7,17 @@ import theme from '../../../theme/themes';
  * VibeButton with variants:
  * - default: transparent fill with gradient border
  * - toggle: toggle-style button with color parameter
- * Usage: 
+ * Usage:
  * <VibeButton label="Click Me" onPress={...} />
  * <VibeButton label="Toggle" onPress={...} variant="toggle" color="purple" />
  */
-export default function VibeButton({ 
-  label, 
-  onPress, 
-  style, 
-  textStyle, 
-  variant = "default", 
-  color = "blue" 
+export default function VibeButton({
+  label,
+  onPress,
+  style,
+  textStyle,
+  variant = 'default',
+  color = 'blue',
 }) {
   // Get color values based on color parameter
   const getColorValues = (colorName) => {
@@ -38,7 +38,7 @@ export default function VibeButton({
     return colorMap[colorName] || theme.colors.vibeBlue;
   };
 
-  if (variant === "toggle") {
+  if (variant === 'toggle') {
     const themeColor = getColorValues(color);
     return (
       <Pressable
@@ -47,14 +47,10 @@ export default function VibeButton({
           styles.toggleButton,
           { borderColor: themeColor },
           { opacity: pressed ? 0.8 : 1 },
-          style
+          style,
         ]}
       >
-        <Text style={[
-          styles.toggleText,
-          { color: themeColor },
-          textStyle
-        ]}>
+        <Text style={[styles.toggleText, { color: themeColor }, textStyle]}>
           {label}
         </Text>
       </Pressable>
@@ -101,7 +97,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontFamily: theme.fonts.main,
   },
-  
+
   // Toggle variant styles
   toggleButton: {
     borderWidth: 2,

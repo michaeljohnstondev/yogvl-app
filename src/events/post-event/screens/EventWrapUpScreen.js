@@ -22,12 +22,13 @@ const EventWrapUpScreen = ({ navigation, route }) => {
   const { eventId, studioId: routeStudioId } = route.params;
   const { currentUserId, userData } = useAuth();
   const vibeAlert = useVibeAlert();
-  
+
   // Use studioId from route, or fallback to user's default studio
-  const studioId = routeStudioId || userData?.userdata?.studios?.default?.studioId;
-  
+  const studioId =
+    routeStudioId || userData?.userdata?.studios?.default?.studioId;
+
   const [showAttendanceTracker, setShowAttendanceTracker] = useState(false);
-  
+
   // Main event completion hook
   const {
     eventData,
@@ -45,8 +46,8 @@ const EventWrapUpScreen = ({ navigation, route }) => {
 
   // Attendance tracking hook (for hosts)
   const attendanceTracking = useAttendanceTracking(
-    studioId, 
-    eventId, 
+    studioId,
+    eventId,
     participants
   );
 
@@ -72,7 +73,7 @@ const EventWrapUpScreen = ({ navigation, route }) => {
 
   const handleCompleteEvent = async () => {
     const validation = attendanceTracking.validateAttendance();
-    
+
     if (!validation.valid) {
       vibeAlert.error('Cannot Complete Event', validation.message);
       return;
@@ -80,26 +81,26 @@ const EventWrapUpScreen = ({ navigation, route }) => {
 
     const { attendeeIds, noShowIds } = attendanceTracking.getAttendanceLists();
     const stats = attendanceTracking.getAttendanceStats();
-    
+
     const confirmMessage = `Complete event with ${stats.attended} attendee${stats.attended === 1 ? '' : 's'}${
-      stats.noShows > 0 ? ` and ${stats.noShows} no-show${stats.noShows === 1 ? '' : 's'}` : ''
+      stats.noShows > 0
+        ? ` and ${stats.noShows} no-show${stats.noShows === 1 ? '' : 's'}`
+        : ''
     }?`;
 
-    vibeAlert.confirm(
-      'Complete Event',
-      confirmMessage,
-      async () => {
-        const success = await completeEvent(attendeeIds, noShowIds);
-        if (success) {
-          setShowAttendanceTracker(false);
-        }
+    vibeAlert.confirm('Complete Event', confirmMessage, async () => {
+      const success = await completeEvent(attendeeIds, noShowIds);
+      if (success) {
+        setShowAttendanceTracker(false);
       }
-    );
+    });
   };
 
   const getScreenTitle = () => {
     if (userStatus.isHost) {
-      return eventData.status === 'completed' ? 'Event Completed' : 'Complete Event';
+      return eventData.status === 'completed'
+        ? 'Event Completed'
+        : 'Complete Event';
     }
     return 'Event Recap';
   };
@@ -109,18 +110,22 @@ const EventWrapUpScreen = ({ navigation, route }) => {
       case 'casual':
         return {
           title: '🌊 How was the event?',
-          description: 'Let us know if you made it - no worries if you missed it!',
+          description:
+            'Let us know if you made it - no worries if you missed it!',
           icon: '🌊',
           color: theme.colors.vibeBlue,
-          impactNote: 'This is a casual event - no impact on your reliability score.'
+          impactNote:
+            'This is a casual event - no impact on your reliability score.',
         };
       case 'strict':
         return {
           title: '🎯 Confirm your attendance',
-          description: 'Please confirm if you attended - this affects reliability scores.',
+          description:
+            'Please confirm if you attended - this affects reliability scores.',
           icon: '🎯',
           color: theme.colors.vibeOrange,
-          impactNote: 'This is a strict event - attendance affects your reliability score.'
+          impactNote:
+            'This is a strict event - attendance affects your reliability score.',
         };
       default:
         return {
@@ -128,7 +133,7 @@ const EventWrapUpScreen = ({ navigation, route }) => {
           description: 'How was the event?',
           icon: '📋',
           color: theme.colors.vibeBlue,
-          impactNote: ''
+          impactNote: '',
         };
     }
   };
@@ -137,15 +142,19 @@ const EventWrapUpScreen = ({ navigation, route }) => {
   if (userStatus.isHost) {
     return (
       <VibeScreen title={getScreenTitle()}>
-        <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.container}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.content}>
             {/* Event Header */}
             <View style={styles.headerCard}>
               <Text style={styles.eventTitle}>{eventData.title}</Text>
               <Text style={styles.eventSubtitle}>
-                {participants.length} participant{participants.length === 1 ? '' : 's'}
+                {participants.length} participant
+                {participants.length === 1 ? '' : 's'}
               </Text>
-              
+
               {eventData.status === 'completed' ? (
                 <View style={styles.completedBadge}>
                   <Text style={styles.completedIcon}>✅</Text>
@@ -153,10 +162,9 @@ const EventWrapUpScreen = ({ navigation, route }) => {
                 </View>
               ) : eventData.trackAttendance ? (
                 <Text style={styles.attendanceNote}>
-                  {eventData.attendanceType === 'casual' 
+                  {eventData.attendanceType === 'casual'
                     ? '🌊 Casual event - optional attendance tracking'
-                    : '🎯 Strict event - attendance affects reliability scores'
-                  }
+                    : '🎯 Strict event - attendance affects reliability scores'}
                 </Text>
               ) : (
                 <Text style={styles.noTrackingNote}>
@@ -170,7 +178,9 @@ const EventWrapUpScreen = ({ navigation, route }) => {
               <View style={styles.attendanceSection}>
                 <TouchableOpacity
                   style={styles.trackAttendanceButton}
-                  onPress={() => setShowAttendanceTracker(!showAttendanceTracker)}
+                  onPress={() =>
+                    setShowAttendanceTracker(!showAttendanceTracker)
+                  }
                 >
                   <Text style={styles.trackAttendanceText}>
                     {showAttendanceTracker ? 'Hide' : 'Track'} Attendance
@@ -198,15 +208,21 @@ const EventWrapUpScreen = ({ navigation, route }) => {
                 <Text style={styles.statsTitle}>Final Attendance</Text>
                 <View style={styles.statsGrid}>
                   <View style={styles.statItem}>
-                    <Text style={styles.statValue}>{attendance.stats.attendedCount}</Text>
+                    <Text style={styles.statValue}>
+                      {attendance.stats.attendedCount}
+                    </Text>
                     <Text style={styles.statLabel}>Attended</Text>
                   </View>
                   <View style={styles.statItem}>
-                    <Text style={styles.statValue}>{attendance.stats.noShowCount}</Text>
+                    <Text style={styles.statValue}>
+                      {attendance.stats.noShowCount}
+                    </Text>
                     <Text style={styles.statLabel}>No Shows</Text>
                   </View>
                   <View style={styles.statItem}>
-                    <Text style={styles.statValue}>{Math.round(attendance.stats.attendanceRate)}%</Text>
+                    <Text style={styles.statValue}>
+                      {Math.round(attendance.stats.attendanceRate)}%
+                    </Text>
                     <Text style={styles.statLabel}>Rate</Text>
                   </View>
                 </View>
@@ -230,7 +246,7 @@ const EventWrapUpScreen = ({ navigation, route }) => {
                 variant="outline"
                 style={styles.navButton}
               />
-              
+
               <VibeButton
                 label="BACK TO HOME"
                 onPress={() => navigation.navigate('Home')}
@@ -246,29 +262,34 @@ const EventWrapUpScreen = ({ navigation, route }) => {
 
   // GUEST VIEW - Attendance reporting and host rating
   const attendanceInfo = getAttendanceTypeInfo();
-  
+
   return (
     <VibeScreen title={attendanceInfo.title}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
           {/* Event Header */}
-          <View style={[styles.headerCard, { borderLeftColor: attendanceInfo.color }]}>
+          <View
+            style={[
+              styles.headerCard,
+              { borderLeftColor: attendanceInfo.color },
+            ]}
+          >
             <Text style={styles.eventTitle}>{eventData.title}</Text>
             <Text style={styles.attendanceDescription}>
               {attendanceInfo.icon} {attendanceInfo.description}
             </Text>
             {attendanceInfo.impactNote && (
-              <Text style={styles.impactNote}>
-                {attendanceInfo.impactNote}
-              </Text>
+              <Text style={styles.impactNote}>{attendanceInfo.impactNote}</Text>
             )}
           </View>
 
           {/* Attendance Reporting */}
           {eventData.trackAttendance && !userStatus.hasReportedAttendance && (
             <View style={styles.attendanceReporting}>
-              <Text style={styles.reportingTitle}>Did you attend this event?</Text>
-              
+              <Text style={styles.reportingTitle}>
+                Did you attend this event?
+              </Text>
+
               <View style={styles.reportingButtons}>
                 <TouchableOpacity
                   style={[styles.reportingButton, styles.attendedButton]}
@@ -286,7 +307,9 @@ const EventWrapUpScreen = ({ navigation, route }) => {
                   disabled={submitting}
                 >
                   <Text style={styles.reportingIcon}>😔</Text>
-                  <Text style={styles.reportingButtonText}>Couldn't make it</Text>
+                  <Text style={styles.reportingButtonText}>
+                    Couldn't make it
+                  </Text>
                   <Text style={styles.reportingSubtext}>I had to miss it</Text>
                 </TouchableOpacity>
               </View>
@@ -296,52 +319,57 @@ const EventWrapUpScreen = ({ navigation, route }) => {
           {/* Attendance Reported Status */}
           {userStatus.hasReportedAttendance && (
             <View style={styles.reportedStatus}>
-              <View style={[
-                styles.reportedBadge,
-                userStatus.hasReportedAttendance === 'attended' 
-                  ? styles.reportedAttended 
-                  : styles.reportedMissed
-              ]}>
+              <View
+                style={[
+                  styles.reportedBadge,
+                  userStatus.hasReportedAttendance === 'attended'
+                    ? styles.reportedAttended
+                    : styles.reportedMissed,
+                ]}
+              >
                 <Text style={styles.reportedIcon}>
-                  {userStatus.hasReportedAttendance === 'attended' ? '✅' : '❌'}
+                  {userStatus.hasReportedAttendance === 'attended'
+                    ? '✅'
+                    : '❌'}
                 </Text>
                 <Text style={styles.reportedText}>
                   {userStatus.hasReportedAttendance === 'attended'
                     ? 'You marked that you attended'
-                    : 'You marked that you missed it'
-                  }
+                    : 'You marked that you missed it'}
                 </Text>
               </View>
             </View>
           )}
 
           {/* Host Rating */}
-          {userStatus.canRateHost && userStatus.hasReportedAttendance === 'attended' && !userStatus.hasRatedHost && (
-            <View style={styles.ratingSection}>
-              <Text style={styles.ratingSectionTitle}>Rate the host</Text>
-              <Text style={styles.ratingDescription}>
-                How was your experience with the host?
-              </Text>
-              
-              <View style={styles.starRating}>
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <TouchableOpacity
-                    key={star}
-                    style={styles.starButton}
-                    onPress={() => submitHostRating(star)}
-                    disabled={submitting}
-                  >
-                    <Text style={styles.starText}>⭐</Text>
-                  </TouchableOpacity>
-                ))}
+          {userStatus.canRateHost &&
+            userStatus.hasReportedAttendance === 'attended' &&
+            !userStatus.hasRatedHost && (
+              <View style={styles.ratingSection}>
+                <Text style={styles.ratingSectionTitle}>Rate the host</Text>
+                <Text style={styles.ratingDescription}>
+                  How was your experience with the host?
+                </Text>
+
+                <View style={styles.starRating}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <TouchableOpacity
+                      key={star}
+                      style={styles.starButton}
+                      onPress={() => submitHostRating(star)}
+                      disabled={submitting}
+                    >
+                      <Text style={styles.starText}>⭐</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <View style={styles.ratingLabels}>
+                  <Text style={styles.ratingLabel}>Poor</Text>
+                  <Text style={styles.ratingLabel}>Excellent</Text>
+                </View>
               </View>
-              
-              <View style={styles.ratingLabels}>
-                <Text style={styles.ratingLabel}>Poor</Text>
-                <Text style={styles.ratingLabel}>Excellent</Text>
-              </View>
-            </View>
-          )}
+            )}
 
           {/* Participants List */}
           <PostEventActions
@@ -359,7 +387,7 @@ const EventWrapUpScreen = ({ navigation, route }) => {
               variant="outline"
               style={styles.navButton}
             />
-            
+
             <VibeButton
               label="BACK TO HOME"
               onPress={() => navigation.navigate('Home')}
@@ -394,7 +422,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 50,
   },
-  
+
   // Header Styles
   headerCard: {
     backgroundColor: theme.colors.vibeBackgroundBlue,
@@ -439,7 +467,7 @@ const styles = StyleSheet.create({
     color: theme.colors.gray,
     marginTop: 8,
   },
-  
+
   // Completed Badge
   completedBadge: {
     flexDirection: 'row',

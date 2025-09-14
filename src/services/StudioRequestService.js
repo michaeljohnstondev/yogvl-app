@@ -27,48 +27,64 @@ export class StudioRequestService {
    * @param {string} userId - User ID of requester
    * @returns {Promise<Object>} Result object
    */
-  static async requestNewStudio(cityName, stateName, country = 'USA', reason = '', userId) {
+  static async requestNewStudio(
+    cityName,
+    stateName,
+    country = 'USA',
+    reason = '',
+    userId
+  ) {
     try {
       const normalizedCity = cityName.trim().toLowerCase();
       const normalizedState = stateName.trim().toUpperCase();
-      
+
       console.log('[StudioRequestService] Requesting studio for:', {
         cityName,
         stateName,
         country,
-        userId
+        userId,
       });
 
       // Check if this city already has an approved studio
-      const existingStudio = await this.checkExistingStudio(cityName, stateName);
+      const existingStudio = await this.checkExistingStudio(
+        cityName,
+        stateName
+      );
       if (existingStudio) {
         return {
           success: false,
           type: 'studio_exists',
           message: `A studio already exists for ${cityName}, ${stateName}`,
-          existingStudio
+          existingStudio,
         };
       }
 
       // Check if there's already a pending request for this city
-      const existingRequest = await this.checkExistingRequest(cityName, stateName);
+      const existingRequest = await this.checkExistingRequest(
+        cityName,
+        stateName
+      );
       if (existingRequest) {
         // Increment the request counter
         await this.incrementRequestCount(existingRequest.id);
-        
+
         return {
           success: false,
           type: 'request_exists',
           message: `A request already exists for ${cityName}, ${stateName}. We've noted your interest!`,
           existingRequest: {
             ...existingRequest,
-            requestCount: existingRequest.requestCount + 1
-          }
+            requestCount: existingRequest.requestCount + 1,
+          },
         };
       }
 
       // Create unique request ID
-      const requestId = `${normalizedCity}_${normalizedState}_${Date.now()}`.replace(/[^a-z0-9_]/g, '_');
+      const requestId =
+        `${normalizedCity}_${normalizedState}_${Date.now()}`.replace(
+          /[^a-z0-9_]/g,
+          '_'
+        );
 
       // Create new studio request
       const requestData = {
@@ -89,25 +105,30 @@ export class StudioRequestService {
         mergedInto: null,
       };
 
-      await setDoc(doc(db, 'admin/studioRequests/requests', requestId), requestData);
+      await setDoc(
+        doc(db, 'admin/studioRequests/requests', requestId),
+        requestData
+      );
 
-      console.log('[StudioRequestService] Studio request created successfully:', requestId);
-      
+      console.log(
+        '[StudioRequestService] Studio request created successfully:',
+        requestId
+      );
+
       return {
         success: true,
         type: 'request_created',
         message: `Request submitted for ${cityName}, ${stateName}. You'll be notified when it's approved!`,
         requestId,
-        requestData
+        requestData,
       };
-
     } catch (error) {
       console.error('[StudioRequestService] Error requesting studio:', error);
       return {
         success: false,
         type: 'error',
         message: 'Failed to submit studio request. Please try again.',
-        error: error.message
+        error: error.message,
       };
     }
   }
@@ -131,18 +152,23 @@ export class StudioRequestService {
       );
 
       const snapshot = await getDocs(q);
-      
+
       for (const doc of snapshot.docs) {
         const studio = doc.data();
-        if (studio.city?.toLowerCase() === normalizedCity && 
-            studio.state?.toLowerCase() === normalizedState) {
+        if (
+          studio.city?.toLowerCase() === normalizedCity &&
+          studio.state?.toLowerCase() === normalizedState
+        ) {
           return { id: doc.id, ...studio };
         }
       }
 
       return null;
     } catch (error) {
-      console.error('[StudioRequestService] Error checking existing studio:', error);
+      console.error(
+        '[StudioRequestService] Error checking existing studio:',
+        error
+      );
       return null;
     }
   }
@@ -168,7 +194,7 @@ export class StudioRequestService {
       );
 
       const snapshot = await getDocs(q);
-      
+
       if (!snapshot.empty) {
         const doc = snapshot.docs[0];
         return { id: doc.id, ...doc.data() };
@@ -176,7 +202,10 @@ export class StudioRequestService {
 
       return null;
     } catch (error) {
-      console.error('[StudioRequestService] Error checking existing request:', error);
+      console.error(
+        '[StudioRequestService] Error checking existing request:',
+        error
+      );
       return null;
     }
   }
@@ -193,7 +222,10 @@ export class StudioRequestService {
         lastRequestedAt: serverTimestamp(),
       });
     } catch (error) {
-      console.error('[StudioRequestService] Error incrementing request count:', error);
+      console.error(
+        '[StudioRequestService] Error incrementing request count:',
+        error
+      );
     }
   }
 
@@ -204,10 +236,7 @@ export class StudioRequestService {
   static async getPendingRequests() {
     try {
       const requestsRef = collection(db, 'admin/studioRequests/requests');
-      const q = query(
-        requestsRef,
-        where('status', '==', 'pending')
-      );
+      const q = query(requestsRef, where('status', '==', 'pending'));
 
       const snapshot = await getDocs(q);
       const requests = [];
@@ -215,14 +244,21 @@ export class StudioRequestService {
       snapshot.forEach((doc) => {
         requests.push({
           id: doc.id,
-          ...doc.data()
+          ...doc.data(),
         });
       });
 
-      console.log('[StudioRequestService] Retrieved', requests.length, 'pending requests');
+      console.log(
+        '[StudioRequestService] Retrieved',
+        requests.length,
+        'pending requests'
+      );
       return requests;
     } catch (error) {
-      console.error('[StudioRequestService] Error getting pending requests:', error);
+      console.error(
+        '[StudioRequestService] Error getting pending requests:',
+        error
+      );
       return [];
     }
   }
@@ -234,11 +270,7 @@ export class StudioRequestService {
   static async getAllRequests() {
     try {
       const requestsRef = collection(db, 'admin/studioRequests/requests');
-      const q = query(
-        requestsRef,
-        orderBy('requestedAt', 'desc'),
-        limit(100)
-      );
+      const q = query(requestsRef, orderBy('requestedAt', 'desc'), limit(100));
 
       const snapshot = await getDocs(q);
       const requests = [];
@@ -246,13 +278,16 @@ export class StudioRequestService {
       snapshot.forEach((doc) => {
         requests.push({
           id: doc.id,
-          ...doc.data()
+          ...doc.data(),
         });
       });
 
       return requests;
     } catch (error) {
-      console.error('[StudioRequestService] Error getting all requests:', error);
+      console.error(
+        '[StudioRequestService] Error getting all requests:',
+        error
+      );
       return [];
     }
   }
@@ -266,43 +301,45 @@ export class StudioRequestService {
    */
   static async getCoordinatesForCity(city, state, country = 'USA') {
     console.log('[StudioRequestService] Starting getCoordinatesForCity');
-    
+
     const query = `${city}, ${state}, ${country}`;
     console.log('[StudioRequestService] Geocoding address:', query);
-    
+
     try {
       // Try to import expo-location the same way LocationScreen does
       const Location = require('expo-location');
       console.log('[StudioRequestService] Location imported successfully');
-      
+
       // Request permissions
       console.log('[StudioRequestService] Requesting location permissions...');
       const { status } = await Location.requestForegroundPermissionsAsync();
       console.log('[StudioRequestService] Permission status:', status);
-      
+
       if (status !== 'granted') {
         console.warn('[StudioRequestService] Location permission denied');
         return null;
       }
-      
+
       // Try geocoding
       console.log('[StudioRequestService] Calling geocodeAsync...');
       const results = await Location.geocodeAsync(query);
       console.log('[StudioRequestService] Geocoding results:', results);
-      
+
       if (results && results.length > 0) {
         const result = results[0];
         const coordinates = {
           lat: result.latitude,
-          lng: result.longitude
+          lng: result.longitude,
         };
-        console.log('[StudioRequestService] Geocoding successful:', coordinates);
+        console.log(
+          '[StudioRequestService] Geocoding successful:',
+          coordinates
+        );
         return coordinates;
       } else {
         console.log('[StudioRequestService] No geocoding results found');
         return null;
       }
-      
     } catch (error) {
       console.error('[StudioRequestService] Geocoding error:', error.message);
       return null;
@@ -318,28 +355,39 @@ export class StudioRequestService {
    */
   static async approveStudioRequest(requestId, adminId, customStudioData = {}) {
     try {
-      console.log('[StudioRequestService] Approving studio request:', requestId);
+      console.log(
+        '[StudioRequestService] Approving studio request:',
+        requestId
+      );
 
       // Get the request data
-      const requestDoc = await getDoc(doc(db, 'admin/studioRequests/requests', requestId));
+      const requestDoc = await getDoc(
+        doc(db, 'admin/studioRequests/requests', requestId)
+      );
       if (!requestDoc.exists()) {
         throw new Error('Request not found');
       }
 
       const requestData = requestDoc.data();
-      
+
       // Use custom data or fallback to request data
       const finalCityName = customStudioData.city || requestData.cityName;
       const finalStateName = customStudioData.state || requestData.stateName;
       const finalCountry = customStudioData.country || requestData.country;
-      
+
       // Generate unique studio ID (use custom or normalized from final data)
-      const studioId = customStudioData.id || `${finalCityName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${finalStateName.toUpperCase()}`;
-      
+      const studioId =
+        customStudioData.id ||
+        `${finalCityName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${finalStateName.toUpperCase()}`;
+
       // Get coordinates for the city (use custom coordinates or geocode)
       let coordinates = customStudioData.coordinates;
       if (!coordinates) {
-        coordinates = await this.getCoordinatesForCity(finalCityName, finalStateName, finalCountry);
+        coordinates = await this.getCoordinatesForCity(
+          finalCityName,
+          finalStateName,
+          finalCountry
+        );
       }
 
       // Create the studio in the studios collection
@@ -349,16 +397,31 @@ export class StudioRequestService {
         city: finalCityName,
         state: finalStateName,
         country: finalCountry,
-        region: customStudioData.region || this.getRegionFromState(finalStateName),
+        region:
+          customStudioData.region || this.getRegionFromState(finalStateName),
         status: customStudioData.status || 'active',
-        isActive: customStudioData.isActive !== undefined ? customStudioData.isActive : true,
+        isActive:
+          customStudioData.isActive !== undefined
+            ? customStudioData.isActive
+            : true,
         createdAt: serverTimestamp(),
         // Add coordinates if available
         ...(coordinates && { coordinates }),
         // Merge any other custom studio data
         ...Object.fromEntries(
-          Object.entries(customStudioData).filter(([key]) => 
-            !['id', 'name', 'city', 'state', 'country', 'region', 'status', 'isActive', 'coordinates'].includes(key)
+          Object.entries(customStudioData).filter(
+            ([key]) =>
+              ![
+                'id',
+                'name',
+                'city',
+                'state',
+                'country',
+                'region',
+                'status',
+                'isActive',
+                'coordinates',
+              ].includes(key)
           )
         ),
       };
@@ -373,21 +436,26 @@ export class StudioRequestService {
         createdStudioId: studioId,
       });
 
-      console.log('[StudioRequestService] Studio approved and created:', studioId);
+      console.log(
+        '[StudioRequestService] Studio approved and created:',
+        studioId
+      );
 
       return {
         success: true,
         studioId,
         studio: newStudio,
-        message: `Studio created for ${requestData.cityName}, ${requestData.stateName}`
+        message: `Studio created for ${requestData.cityName}, ${requestData.stateName}`,
       };
-
     } catch (error) {
-      console.error('[StudioRequestService] Error approving studio request:', error);
+      console.error(
+        '[StudioRequestService] Error approving studio request:',
+        error
+      );
       return {
         success: false,
         error: error.message,
-        message: 'Failed to approve studio request'
+        message: 'Failed to approve studio request',
       };
     }
   }
@@ -401,7 +469,10 @@ export class StudioRequestService {
    */
   static async rejectStudioRequest(requestId, adminId, reason = '') {
     try {
-      console.log('[StudioRequestService] Rejecting studio request:', requestId);
+      console.log(
+        '[StudioRequestService] Rejecting studio request:',
+        requestId
+      );
 
       await updateDoc(doc(db, 'admin/studioRequests/requests', requestId), {
         status: 'rejected',
@@ -412,15 +483,17 @@ export class StudioRequestService {
 
       return {
         success: true,
-        message: 'Studio request rejected'
+        message: 'Studio request rejected',
       };
-
     } catch (error) {
-      console.error('[StudioRequestService] Error rejecting studio request:', error);
+      console.error(
+        '[StudioRequestService] Error rejecting studio request:',
+        error
+      );
       return {
         success: false,
         error: error.message,
-        message: 'Failed to reject studio request'
+        message: 'Failed to reject studio request',
       };
     }
   }
@@ -433,31 +506,67 @@ export class StudioRequestService {
   static getRegionFromState(state) {
     const stateToRegion = {
       // Northeast
-      'MA': 'Northeast', 'ME': 'Northeast', 'NH': 'Northeast', 'VT': 'Northeast',
-      'RI': 'Northeast', 'CT': 'Northeast', 'NY': 'Northeast', 'NJ': 'Northeast',
-      'PA': 'Northeast',
-      
+      MA: 'Northeast',
+      ME: 'Northeast',
+      NH: 'Northeast',
+      VT: 'Northeast',
+      RI: 'Northeast',
+      CT: 'Northeast',
+      NY: 'Northeast',
+      NJ: 'Northeast',
+      PA: 'Northeast',
+
       // Southeast
-      'FL': 'Southeast', 'GA': 'Southeast', 'SC': 'Southeast', 'NC': 'Southeast',
-      'VA': 'Southeast', 'WV': 'Southeast', 'KY': 'Southeast', 'TN': 'Southeast',
-      'AL': 'Southeast', 'MS': 'Southeast', 'AR': 'Southeast', 'LA': 'Southeast',
-      'DC': 'Southeast', 'MD': 'Southeast', 'DE': 'Southeast',
-      
+      FL: 'Southeast',
+      GA: 'Southeast',
+      SC: 'Southeast',
+      NC: 'Southeast',
+      VA: 'Southeast',
+      WV: 'Southeast',
+      KY: 'Southeast',
+      TN: 'Southeast',
+      AL: 'Southeast',
+      MS: 'Southeast',
+      AR: 'Southeast',
+      LA: 'Southeast',
+      DC: 'Southeast',
+      MD: 'Southeast',
+      DE: 'Southeast',
+
       // Midwest
-      'OH': 'Midwest', 'MI': 'Midwest', 'IN': 'Midwest', 'IL': 'Midwest',
-      'WI': 'Midwest', 'MN': 'Midwest', 'IA': 'Midwest', 'MO': 'Midwest',
-      'ND': 'Midwest', 'SD': 'Midwest', 'NE': 'Midwest', 'KS': 'Midwest',
-      
+      OH: 'Midwest',
+      MI: 'Midwest',
+      IN: 'Midwest',
+      IL: 'Midwest',
+      WI: 'Midwest',
+      MN: 'Midwest',
+      IA: 'Midwest',
+      MO: 'Midwest',
+      ND: 'Midwest',
+      SD: 'Midwest',
+      NE: 'Midwest',
+      KS: 'Midwest',
+
       // Southwest
-      'TX': 'Southwest', 'OK': 'Southwest', 'NM': 'Southwest', 'AZ': 'Southwest',
-      'NV': 'Southwest', 'UT': 'Southwest', 'CO': 'Southwest',
-      
+      TX: 'Southwest',
+      OK: 'Southwest',
+      NM: 'Southwest',
+      AZ: 'Southwest',
+      NV: 'Southwest',
+      UT: 'Southwest',
+      CO: 'Southwest',
+
       // West Coast
-      'CA': 'West Coast', 'OR': 'West Coast', 'WA': 'West Coast',
-      'AK': 'West Coast', 'HI': 'West Coast',
-      
+      CA: 'West Coast',
+      OR: 'West Coast',
+      WA: 'West Coast',
+      AK: 'West Coast',
+      HI: 'West Coast',
+
       // Mountain West
-      'ID': 'Mountain West', 'MT': 'Mountain West', 'WY': 'Mountain West',
+      ID: 'Mountain West',
+      MT: 'Mountain West',
+      WY: 'Mountain West',
     };
 
     return stateToRegion[state.toUpperCase()] || 'Other';
@@ -480,17 +589,24 @@ export class StudioRequestService {
       }
 
       const currentData = studioDoc.data();
-      
+
       // If coordinates are being updated manually, don't geocode
       let coordinates = updateData.coordinates || currentData.coordinates;
-      
+
       // If location changed but no manual coordinates provided, geocode
-      if ((updateData.city || updateData.state || updateData.country) && !updateData.coordinates) {
+      if (
+        (updateData.city || updateData.state || updateData.country) &&
+        !updateData.coordinates
+      ) {
         const city = updateData.city || currentData.city;
         const state = updateData.state || currentData.state;
         const country = updateData.country || currentData.country;
-        
-        const geoCoordinates = await this.getCoordinatesForCity(city, state, country);
+
+        const geoCoordinates = await this.getCoordinatesForCity(
+          city,
+          state,
+          country
+        );
         if (geoCoordinates) {
           coordinates = geoCoordinates;
         }
@@ -506,20 +622,22 @@ export class StudioRequestService {
       // Update the studio
       await updateDoc(doc(db, 'studios', studioId), finalUpdateData);
 
-      console.log('[StudioRequestService] Studio updated successfully:', studioId);
+      console.log(
+        '[StudioRequestService] Studio updated successfully:',
+        studioId
+      );
 
       return {
         success: true,
         studioId,
-        message: 'Studio updated successfully'
+        message: 'Studio updated successfully',
       };
-
     } catch (error) {
       console.error('[StudioRequestService] Error updating studio:', error);
       return {
         success: false,
         error: error.message,
-        message: 'Failed to update studio'
+        message: 'Failed to update studio',
       };
     }
   }
@@ -535,13 +653,16 @@ export class StudioRequestService {
       if (!studioDoc.exists()) {
         return null;
       }
-      
+
       return {
         id: studioDoc.id,
-        ...studioDoc.data()
+        ...studioDoc.data(),
       };
     } catch (error) {
-      console.error('[StudioRequestService] Error getting studio for edit:', error);
+      console.error(
+        '[StudioRequestService] Error getting studio for edit:',
+        error
+      );
       return null;
     }
   }
@@ -562,14 +683,17 @@ export class StudioRequestService {
 
       return {
         success: true,
-        message: `Studio ${isActive ? 'activated' : 'deactivated'} successfully`
+        message: `Studio ${isActive ? 'activated' : 'deactivated'} successfully`,
       };
     } catch (error) {
-      console.error('[StudioRequestService] Error toggling studio status:', error);
+      console.error(
+        '[StudioRequestService] Error toggling studio status:',
+        error
+      );
       return {
         success: false,
         error: error.message,
-        message: 'Failed to update studio status'
+        message: 'Failed to update studio status',
       };
     }
   }

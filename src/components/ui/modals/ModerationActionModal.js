@@ -1,14 +1,14 @@
 // FILE: components/ui/ModerationActionModal.js - Modal for Moderation Actions with Custom Messages
 
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  Modal, 
-  TouchableOpacity, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  TouchableOpacity,
   TextInput,
-  ScrollView 
+  ScrollView,
 } from 'react-native';
 import theme from '../../../theme/themes';
 import VibeButton from '../base/VibeButton';
@@ -16,40 +16,46 @@ import VibeButton from '../base/VibeButton';
 /**
  * Modal for taking moderation actions with custom admin messages
  */
-export default function ModerationActionModal({ 
-  visible, 
-  report, 
-  action, 
-  onConfirm, 
-  onCancel 
+export default function ModerationActionModal({
+  visible,
+  report,
+  action,
+  onConfirm,
+  onCancel,
 }) {
   const [customMessage, setCustomMessage] = useState('');
-  
+
   const getActionDetails = () => {
     switch (action) {
       case 'warning':
         return {
           title: '⚠️ Issue Warning',
           color: theme.colors.vibeBlue,
-          description: 'Send a warning to the user. They will see your message when they open the app.',
-          placeholder: 'e.g., "Please keep comments respectful" or "Event descriptions should be family-friendly"',
-          defaultMessage: `Warning: ${report?.reason || 'Policy violation'}`
+          description:
+            'Send a warning to the user. They will see your message when they open the app.',
+          placeholder:
+            'e.g., "Please keep comments respectful" or "Event descriptions should be family-friendly"',
+          defaultMessage: `Warning: ${report?.reason || 'Policy violation'}`,
         };
       case 'strike':
         return {
           title: '🟡 Issue Strike',
           color: theme.colors.vibeYellow,
-          description: 'Issue a formal strike (expires in 6 months). User will be notified.',
-          placeholder: 'e.g., "Strike for inappropriate content - please review our community guidelines"',
-          defaultMessage: `Strike issued: ${report?.reason || 'Policy violation'}`
+          description:
+            'Issue a formal strike (expires in 6 months). User will be notified.',
+          placeholder:
+            'e.g., "Strike for inappropriate content - please review our community guidelines"',
+          defaultMessage: `Strike issued: ${report?.reason || 'Policy violation'}`,
         };
       case 'temp_ban':
         return {
           title: '🔒 Temporary Ban (7 days)',
           color: theme.colors.vibeOrange,
-          description: 'Ban user for 7 days. They will be unable to use the app.',
-          placeholder: 'e.g., "7-day ban for repeated violations. Please read our community guidelines."',
-          defaultMessage: `Temporary ban: ${report?.reason || 'Policy violation'}`
+          description:
+            'Ban user for 7 days. They will be unable to use the app.',
+          placeholder:
+            'e.g., "7-day ban for repeated violations. Please read our community guidelines."',
+          defaultMessage: `Temporary ban: ${report?.reason || 'Policy violation'}`,
         };
       case 'perm_ban':
         return {
@@ -57,7 +63,7 @@ export default function ModerationActionModal({
           color: theme.colors.vibeRed,
           description: 'Permanently ban user from the platform.',
           placeholder: 'e.g., "Permanent ban for severe policy violations."',
-          defaultMessage: `Permanent ban: ${report?.reason || 'Severe policy violation'}`
+          defaultMessage: `Permanent ban: ${report?.reason || 'Severe policy violation'}`,
         };
       case 'dismiss':
         return {
@@ -65,7 +71,7 @@ export default function ModerationActionModal({
           color: theme.colors.gray,
           description: 'Delete this report without taking action.',
           placeholder: 'Optional reason for dismissal (internal use)',
-          defaultMessage: 'Report dismissed - no violation found'
+          defaultMessage: 'Report dismissed - no violation found',
         };
       default:
         return {
@@ -73,7 +79,7 @@ export default function ModerationActionModal({
           color: theme.colors.vibeBlue,
           description: 'Take moderation action',
           placeholder: 'Enter message...',
-          defaultMessage: report?.reason || ''
+          defaultMessage: report?.reason || '',
         };
     }
   };
@@ -94,9 +100,10 @@ export default function ModerationActionModal({
   }
 
   const actionDetails = getActionDetails();
-  const targetName = report.type === 'user' 
-    ? report.reportedUser?.reportedInfo?.name 
-    : report.reportedEvent?.eventData?.title;
+  const targetName =
+    report.type === 'user'
+      ? report.reportedUser?.reportedInfo?.name
+      : report.reportedEvent?.eventData?.title;
 
   return (
     <Modal
@@ -111,29 +118,32 @@ export default function ModerationActionModal({
             <Text style={[styles.title, { color: actionDetails.color }]}>
               {actionDetails.title}
             </Text>
-            
-            <Text style={styles.description}>
-              {actionDetails.description}
-            </Text>
+
+            <Text style={styles.description}>{actionDetails.description}</Text>
 
             {/* Report Details */}
             <View style={styles.reportDetails}>
               <Text style={styles.reportLabel}>Target:</Text>
               <Text style={styles.reportText}>
-                {report.type === 'user' ? '👤 ' : '📅 '}{targetName || 'Unknown'}
+                {report.type === 'user' ? '👤 ' : '📅 '}
+                {targetName || 'Unknown'}
               </Text>
-              
+
               <Text style={styles.reportLabel}>Original Report:</Text>
               <Text style={styles.reportText}>{report.reason}</Text>
-              
+
               <Text style={styles.reportLabel}>Reporter:</Text>
-              <Text style={styles.reportText}>{report.reporterInfo?.name || 'Unknown'}</Text>
+              <Text style={styles.reportText}>
+                {report.reporterInfo?.name || 'Unknown'}
+              </Text>
             </View>
 
             {/* Custom Message Input */}
             <View style={styles.messageSection}>
               <Text style={styles.messageLabel}>
-                {action === 'dismiss' ? 'Internal Notes (Optional):' : 'Message to User:'}
+                {action === 'dismiss'
+                  ? 'Internal Notes (Optional):'
+                  : 'Message to User:'}
               </Text>
               <TextInput
                 style={styles.messageInput}
@@ -171,14 +181,24 @@ export default function ModerationActionModal({
               variant="secondary"
               style={styles.cancelButton}
             />
-            
+
             <VibeButton
-              label={action === 'dismiss' ? 'Dismiss Report' : `Confirm ${actionDetails.title.split(' ')[1]}`}
+              label={
+                action === 'dismiss'
+                  ? 'Dismiss Report'
+                  : `Confirm ${actionDetails.title.split(' ')[1]}`
+              }
               onPress={handleConfirm}
               variant="primary"
-              color={actionDetails.color === theme.colors.vibeYellow ? 'yellow' : 
-                    actionDetails.color === theme.colors.vibeOrange ? 'orange' :
-                    actionDetails.color === theme.colors.vibeRed ? 'red' : 'blue'}
+              color={
+                actionDetails.color === theme.colors.vibeYellow
+                  ? 'yellow'
+                  : actionDetails.color === theme.colors.vibeOrange
+                    ? 'orange'
+                    : actionDetails.color === theme.colors.vibeRed
+                      ? 'red'
+                      : 'blue'
+              }
               style={styles.confirmButton}
             />
           </View>

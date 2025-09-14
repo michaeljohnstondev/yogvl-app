@@ -3,12 +3,12 @@ import { View, Text, StyleSheet } from 'react-native';
 import CloseButton from '../buttons/CloseButton';
 import theme from '../../../theme/themes';
 
-const ScreenHeader = ({ 
-  title, 
-  count, 
-  onClose, 
+const ScreenHeader = ({
+  title,
+  count,
+  onClose,
   showBorder = true,
-  showCloseButton = true 
+  showCloseButton = true,
 }) => {
   const displayTitle = count !== undefined ? `${title} (${count})` : title;
 
@@ -19,11 +19,9 @@ const ScreenHeader = ({
       ) : (
         <View style={styles.headerSpacer} />
       )}
-      
-      <Text style={styles.title}>
-        {displayTitle}
-      </Text>
-      
+
+      <Text style={styles.title}>{displayTitle}</Text>
+
       <View style={styles.headerSpacer} />
     </View>
   );

@@ -21,7 +21,7 @@ export default function UserAvatar({ userId, size = 32, style }) {
       try {
         const userRef = doc(db, 'users', userId);
         const userSnap = await getDoc(userRef);
-        
+
         if (userSnap.exists()) {
           setUserData(userSnap.data());
         }
@@ -37,16 +37,19 @@ export default function UserAvatar({ userId, size = 32, style }) {
 
   if (loading) {
     return (
-      <View style={[styles.avatarContainer, { width: size, height: size }, style]}>
+      <View
+        style={[styles.avatarContainer, { width: size, height: size }, style]}
+      >
         <View style={[styles.placeholder, { width: size, height: size }]} />
       </View>
     );
   }
 
   const contactInfo = userData?.userdata?.contactInfo || {};
-  const displayName = contactInfo.firstName && contactInfo.lastName 
-    ? `${contactInfo.firstName} ${contactInfo.lastName}`
-    : contactInfo.firstName || contactInfo.email || 'User';
+  const displayName =
+    contactInfo.firstName && contactInfo.lastName
+      ? `${contactInfo.firstName} ${contactInfo.lastName}`
+      : contactInfo.firstName || contactInfo.email || 'User';
 
   // Get initials
   const getInitials = (name) => {
@@ -61,10 +64,15 @@ export default function UserAvatar({ userId, size = 32, style }) {
   const initials = getInitials(displayName);
 
   return (
-    <View style={[styles.avatarContainer, { width: size, height: size }, style]}>
+    <View
+      style={[styles.avatarContainer, { width: size, height: size }, style]}
+    >
       <LinearGradient
         colors={[theme.colors.vibeBlue, theme.colors.vibeCyan]}
-        style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]}
+        style={[
+          styles.avatar,
+          { width: size, height: size, borderRadius: size / 2 },
+        ]}
       >
         <Text style={[styles.initials, { fontSize: size * 0.4 }]}>
           {initials}

@@ -74,7 +74,10 @@ export const useComments = (eventId) => {
     }
 
     // Check if current user is creator or cohost
-    if (eventData.createdBy === currentUserId || (eventData.cohosts && eventData.cohosts.includes(currentUserId))) {
+    if (
+      eventData.createdBy === currentUserId ||
+      (eventData.cohosts && eventData.cohosts.includes(currentUserId))
+    ) {
       return 'host';
     }
 
@@ -88,7 +91,10 @@ export const useComments = (eventId) => {
       return;
     }
 
-    const commentsRef = collection(db, `studios/${studioId}/events/${eventId}/comments`);
+    const commentsRef = collection(
+      db,
+      `studios/${studioId}/events/${eventId}/comments`
+    );
     const q = query(commentsRef, orderBy('timestamp', 'desc'));
 
     const unsubscribe = onSnapshot(
@@ -109,17 +115,25 @@ export const useComments = (eventId) => {
         if (currentUserId && commentsData.length > 0) {
           try {
             // Get all unique user IDs from comments
-            const commentUserIds = [...new Set(commentsData.map(comment => comment.userId))];
-            
+            const commentUserIds = [
+              ...new Set(commentsData.map((comment) => comment.userId)),
+            ];
+
             // Filter out blocked users
-            const allowedUserIds = await blockingService.filterBlockedUsers(currentUserId, commentUserIds);
-            
+            const allowedUserIds = await blockingService.filterBlockedUsers(
+              currentUserId,
+              commentUserIds
+            );
+
             // Filter comments to only include allowed users
-            filteredComments = commentsData.filter(comment => 
+            filteredComments = commentsData.filter((comment) =>
               allowedUserIds.includes(comment.userId)
             );
           } catch (error) {
-            console.error('[useComments] Error filtering blocked users:', error);
+            console.error(
+              '[useComments] Error filtering blocked users:',
+              error
+            );
             // On error, show all comments to avoid breaking the UI
           }
         }
@@ -141,7 +155,7 @@ export const useComments = (eventId) => {
   /**
    * Add a new comment
    */
-  const addComment = async (content) => {
+  const addComment = async (content, parentCommentId = null) => {
     if (!currentUserId || !eventId) {
       console.log('Missing currentUserId or eventId');
       setError('You must be logged in to comment');
@@ -160,15 +174,25 @@ export const useComments = (eventId) => {
     setError(null);
 
     try {
-      const commentsRef = collection(db, `studios/${studioId}/events/${eventId}/comments`);
+      const commentsRef = collection(
+        db,
+        `studios/${studioId}/events/${eventId}/comments`
+      );
+
+      // Calculate thread level if this is a reply
+      let level = 0;
+      if (parentCommentId) {
+        const parentComment = comments.find((c) => c.id === parentCommentId);
+        level = parentComment ? (parentComment.level || 0) + 1 : 1;
+      }
 
       const commentData = {
         userId: currentUserId,
         userName: getDisplayName(),
         content: content.trim(),
         timestamp: serverTimestamp(),
-        parentCommentId: null,
-        level: 0,
+        parentCommentId: parentCommentId,
+        level: level,
         // Store the current user's role at comment creation time
         userRole: getCurrentUserRole(),
       };
@@ -205,7 +229,11 @@ export const useComments = (eventId) => {
     }
 
     try {
-      const commentRef = doc(db, `studios/${studioId}/events/${eventId}/comments`, commentId);
+      const commentRef = doc(
+        db,
+        `studios/${studioId}/events/${eventId}/comments`,
+        commentId
+      );
       await deleteDoc(commentRef);
       return true;
     } catch (err) {

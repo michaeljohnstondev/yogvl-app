@@ -17,9 +17,9 @@ import theme from '../../theme/themes';
 
 const { width: screenWidth } = Dimensions.get('window');
 
-export default function NotificationItem({ 
-  notification, 
-  onPress, 
+export default function NotificationItem({
+  notification,
+  onPress,
   onDelete,
   showActions = true,
   onAcceptFriendRequest,
@@ -32,7 +32,7 @@ export default function NotificationItem({
   onJoinEventFromNotification,
   onViewEventFromNotification,
   currentUserId,
-  userData
+  userData,
 }) {
   const vibeAlert = useVibeAlert();
   const translateX = useRef(new Animated.Value(0)).current;
@@ -42,7 +42,10 @@ export default function NotificationItem({
     PanResponder.create({
       onMoveShouldSetPanResponder: (evt, gestureState) => {
         // Only respond to horizontal gestures
-        return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 10;
+        return (
+          Math.abs(gestureState.dx) > Math.abs(gestureState.dy) &&
+          Math.abs(gestureState.dx) > 10
+        );
       },
       onPanResponderGrant: () => {
         // Store the current offset when gesture starts
@@ -94,7 +97,6 @@ export default function NotificationItem({
     }
   };
 
-
   const handleDelete = async () => {
     Alert.alert(
       'Delete Notification',
@@ -124,16 +126,19 @@ export default function NotificationItem({
           Alert.alert('Error', 'Unable to complete action');
           return;
         }
-        
+
         // Import follow service and follow the user
         const { followUser } = await import('../../services/followService');
-        
+
         console.log('[NotificationItem] Following user:', action.params.userId);
-        
+
         await followUser(currentUserId, action.params.userId, userData);
-        
-        vibeAlert.success('Following', `You are now following ${notification.data.followerName}! ✨`);
-        
+
+        vibeAlert.success(
+          'Following',
+          `You are now following ${notification.data.followerName}! ✨`
+        );
+
         // Delete notification immediately after successful follow (no confirmation dialog)
         try {
           await deleteNotification(notification.id, notification.userId);
@@ -145,13 +150,19 @@ export default function NotificationItem({
     } catch (error) {
       console.error('Error handling notification action:', error);
       if (error.message === 'Already following this user') {
-        vibeAlert.info('Already Following', `You are already following ${notification.data.followerName}.`);
+        vibeAlert.info(
+          'Already Following',
+          `You are already following ${notification.data.followerName}.`
+        );
         // Delete notification immediately since it's no longer relevant
         try {
           await deleteNotification(notification.id, notification.userId);
           onDelete && onDelete(notification.id);
         } catch (deleteError) {
-          console.error('Failed to delete already-following notification:', deleteError);
+          console.error(
+            'Failed to delete already-following notification:',
+            deleteError
+          );
         }
       } else {
         vibeAlert.error('Error', 'Failed to follow user. Please try again.');
@@ -167,24 +178,32 @@ export default function NotificationItem({
           onJoinEventFromNotification(notification);
         } else {
           // Fallback: directly accept the event invitation
-          const { acceptInvitation } = await import('../../events/services/invitations');
-          
+          const { acceptInvitation } = await import(
+            '../../events/services/invitations'
+          );
+
           await acceptInvitation(
-            action.params.invitationId, 
-            currentUserId, 
+            action.params.invitationId,
+            currentUserId,
             action.params.studioId || notification.data.studioId
           );
-          
-          vibeAlert.success('Joined Event!', `You're now attending "${notification.data.eventTitle}"! 🎉`);
-          
+
+          vibeAlert.success(
+            'Joined Event!',
+            `You're now attending "${notification.data.eventTitle}"! 🎉`
+          );
+
           // Delete notification immediately after successful join (no confirmation dialog)
           try {
             await deleteNotification(notification.id, notification.userId);
             onDelete && onDelete(notification.id);
           } catch (error) {
-            console.error('Failed to delete event invitation notification:', error);
+            console.error(
+              'Failed to delete event invitation notification:',
+              error
+            );
           }
-          
+
           // Optionally navigate to event detail
           if (onPress) {
             setTimeout(() => {
@@ -192,7 +211,6 @@ export default function NotificationItem({
             }, 500);
           }
         }
-        
       } else if (action.action === 'view_event') {
         // Use the parent handler if provided, otherwise handle directly
         if (onViewEventFromNotification) {
@@ -202,23 +220,34 @@ export default function NotificationItem({
           if (onPress) {
             onPress(notification);
           }
-          
         }
       }
     } catch (error) {
       console.error('Error handling notification action:', error);
-      
-      if (error.message === 'You are already attending this event' || error.message.includes('already attending')) {
-        vibeAlert.info('Already Joined', `You're already attending "${notification.data.eventTitle || 'this event'}".`);
+
+      if (
+        error.message === 'You are already attending this event' ||
+        error.message.includes('already attending')
+      ) {
+        vibeAlert.info(
+          'Already Joined',
+          `You're already attending "${notification.data.eventTitle || 'this event'}".`
+        );
         // Delete notification immediately since it's no longer relevant
         try {
           await deleteNotification(notification.id, notification.userId);
           onDelete && onDelete(notification.id);
         } catch (deleteError) {
-          console.error('Failed to delete already-attending notification:', deleteError);
+          console.error(
+            'Failed to delete already-attending notification:',
+            deleteError
+          );
         }
       } else {
-        vibeAlert.error('Error', 'Unable to complete action. Please try again.');
+        vibeAlert.error(
+          'Error',
+          'Unable to complete action. Please try again.'
+        );
       }
     }
   };
@@ -245,33 +274,55 @@ export default function NotificationItem({
 
   const getTypeIcon = (type) => {
     switch (type) {
-      case 'invitation_received': return '📬';
-      case 'invitation_accepted': return '✅';
-      case 'invitation_declined': return '❌';
-      case 'event_joined': return '🎉';
-      case 'event_left': return '👋';
-      case 'event_updated': return '✏️';
-      case 'event_cancelled': return '🚫';
-      case 'event_reminder': return '⏰';
-      case 'new_follower': return '👥';
-      case 'friend_request': return '👤'; // DEPRECATED
-      case 'friend_accepted': return '🤝'; // DEPRECATED
-      case 'cohost_invitation': return '🎭';
-      case 'cohost_accepted': return '⭐';
-      case 'guest_invitation': return '🎉';
-      case 'guest_accepted': return '🎊';
-      case 'system': return 'ℹ️';
-      default: return '📝';
+      case 'invitation_received':
+        return '📬';
+      case 'invitation_accepted':
+        return '✅';
+      case 'invitation_declined':
+        return '❌';
+      case 'event_joined':
+        return '🎉';
+      case 'event_left':
+        return '👋';
+      case 'event_updated':
+        return '✏️';
+      case 'event_cancelled':
+        return '🚫';
+      case 'event_reminder':
+        return '⏰';
+      case 'new_follower':
+        return '👥';
+      case 'friend_request':
+        return '👤'; // DEPRECATED
+      case 'friend_accepted':
+        return '🤝'; // DEPRECATED
+      case 'cohost_invitation':
+        return '🎭';
+      case 'cohost_accepted':
+        return '⭐';
+      case 'guest_invitation':
+        return '🎉';
+      case 'guest_accepted':
+        return '🎊';
+      case 'system':
+        return 'ℹ️';
+      default:
+        return '📝';
     }
   };
 
   const getPriorityColor = (priority) => {
     switch (priority) {
-      case 'urgent': return theme.colors.vibeRed;
-      case 'high': return theme.colors.vibeOrange;
-      case 'normal': return theme.colors.vibeBlue;
-      case 'low': return theme.colors.gray;
-      default: return theme.colors.vibeBlue;
+      case 'urgent':
+        return theme.colors.vibeRed;
+      case 'high':
+        return theme.colors.vibeOrange;
+      case 'normal':
+        return theme.colors.vibeBlue;
+      case 'low':
+        return theme.colors.gray;
+      default:
+        return theme.colors.vibeBlue;
     }
   };
 
@@ -286,7 +337,7 @@ export default function NotificationItem({
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
-    
+
     return date.toLocaleDateString();
   };
 
@@ -319,17 +370,17 @@ export default function NotificationItem({
           <View style={styles.content}>
             <View style={styles.header}>
               <View style={styles.titleRow}>
-                <Text style={styles.typeIcon}>{getTypeIcon(notification.type)}</Text>
-                <Text style={styles.title}>
-                  {notification.title}
+                <Text style={styles.typeIcon}>
+                  {getTypeIcon(notification.type)}
                 </Text>
+                <Text style={styles.title}>{notification.title}</Text>
               </View>
-              <Text style={styles.time}>{formatTime(notification.createdAt)}</Text>
+              <Text style={styles.time}>
+                {formatTime(notification.createdAt)}
+              </Text>
             </View>
 
-            <Text style={styles.message}>
-              {notification.message}
-            </Text>
+            <Text style={styles.message}>{notification.message}</Text>
 
             {/* Action buttons */}
             {showActions && (
@@ -347,69 +398,93 @@ export default function NotificationItem({
                       style={[styles.actionButton, styles.declineButton]}
                       onPress={handleDeclineFriendRequest}
                     >
-                      <Text style={[styles.actionText, styles.declineText]}>Decline</Text>
+                      <Text style={[styles.actionText, styles.declineText]}>
+                        Decline
+                      </Text>
                     </TouchableOpacity>
                   </>
                 )}
-                
+
                 {/* New follower actions */}
-                {notification.type === 'new_follower' && (
-                  console.log('[NotificationItem] New follower notification data:', notification.data) || 
-                  notification.data?.actions
-                ) && (
-                  <>
-                    {notification.data.actions.map((action) => (
-                      <TouchableOpacity
-                        key={action.id}
-                        style={[styles.actionButton, styles.followBackButton]}
-                        onPress={() => handleActionPress(action)}
-                      >
-                        <Text style={[styles.actionText, styles.followBackText]}>{action.label}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </>
-                )}
+                {notification.type === 'new_follower' &&
+                  (console.log(
+                    '[NotificationItem] New follower notification data:',
+                    notification.data
+                  ) ||
+                    notification.data?.actions) && (
+                    <>
+                      {notification.data.actions.map((action) => (
+                        <TouchableOpacity
+                          key={action.id}
+                          style={[styles.actionButton, styles.followBackButton]}
+                          onPress={() => handleActionPress(action)}
+                        >
+                          <Text
+                            style={[styles.actionText, styles.followBackText]}
+                          >
+                            {action.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </>
+                  )}
 
                 {/* Guest invitation actions - using new action system */}
-                {notification.type === 'invitation_received' && notification.actions && (
-                  <>
-                    {notification.actions.map((action) => (
-                      <TouchableOpacity
-                        key={action.id}
-                        style={[
-                          styles.actionButton, 
-                          action.action === 'accept_invitation' ? styles.acceptButton : styles.viewButton
-                        ]}
-                        onPress={() => handleNotificationAction(action)}
-                      >
-                        <Text style={[
-                          styles.actionText,
-                          action.action === 'view_event' ? styles.viewText : null
-                        ]}>
-                          {action.title}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </>
-                )}
+                {notification.type === 'invitation_received' &&
+                  notification.actions && (
+                    <>
+                      {notification.actions.map((action) => (
+                        <TouchableOpacity
+                          key={action.id}
+                          style={[
+                            styles.actionButton,
+                            action.action === 'accept_invitation'
+                              ? styles.acceptButton
+                              : styles.viewButton,
+                          ]}
+                          onPress={() => handleNotificationAction(action)}
+                        >
+                          <Text
+                            style={[
+                              styles.actionText,
+                              action.action === 'view_event'
+                                ? styles.viewText
+                                : null,
+                            ]}
+                          >
+                            {action.title}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </>
+                  )}
 
                 {/* Legacy guest invitation actions (fallback for old notifications) */}
-                {notification.type === 'invitation_received' && !notification.actions && (
-                  <>
-                    <TouchableOpacity
-                      style={[styles.actionButton, styles.acceptButton]}
-                      onPress={() => onAcceptGuestInvitation && onAcceptGuestInvitation(notification)}
-                    >
-                      <Text style={styles.actionText}>Accept</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.actionButton, styles.declineButton]}
-                      onPress={() => onDeclineGuestInvitation && onDeclineGuestInvitation(notification)}
-                    >
-                      <Text style={[styles.actionText, styles.declineText]}>Decline</Text>
-                    </TouchableOpacity>
-                  </>
-                )}
+                {notification.type === 'invitation_received' &&
+                  !notification.actions && (
+                    <>
+                      <TouchableOpacity
+                        style={[styles.actionButton, styles.acceptButton]}
+                        onPress={() =>
+                          onAcceptGuestInvitation &&
+                          onAcceptGuestInvitation(notification)
+                        }
+                      >
+                        <Text style={styles.actionText}>Accept</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.actionButton, styles.declineButton]}
+                        onPress={() =>
+                          onDeclineGuestInvitation &&
+                          onDeclineGuestInvitation(notification)
+                        }
+                      >
+                        <Text style={[styles.actionText, styles.declineText]}>
+                          Decline
+                        </Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
 
                 {/* Cohost invitation actions */}
                 {notification.type === 'cohost_invitation' && (
@@ -424,7 +499,9 @@ export default function NotificationItem({
                       style={[styles.actionButton, styles.declineButton]}
                       onPress={() => onDeclineCohostInvitation(notification)}
                     >
-                      <Text style={[styles.actionText, styles.declineText]}>Decline</Text>
+                      <Text style={[styles.actionText, styles.declineText]}>
+                        Decline
+                      </Text>
                     </TouchableOpacity>
                   </>
                 )}
@@ -434,23 +511,29 @@ export default function NotificationItem({
                   <>
                     <TouchableOpacity
                       style={[styles.actionButton, styles.acceptButton]}
-                      onPress={() => onAcceptGuestInvitation && onAcceptGuestInvitation(notification)}
+                      onPress={() =>
+                        onAcceptGuestInvitation &&
+                        onAcceptGuestInvitation(notification)
+                      }
                     >
                       <Text style={styles.actionText}>Accept</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.actionButton, styles.declineButton]}
-                      onPress={() => onDeclineGuestInvitation && onDeclineGuestInvitation(notification)}
+                      onPress={() =>
+                        onDeclineGuestInvitation &&
+                        onDeclineGuestInvitation(notification)
+                      }
                     >
-                      <Text style={[styles.actionText, styles.declineText]}>Decline</Text>
+                      <Text style={[styles.actionText, styles.declineText]}>
+                        Decline
+                      </Text>
                     </TouchableOpacity>
                   </>
                 )}
-
               </View>
             )}
           </View>
-
         </TouchableOpacity>
       </Animated.View>
     </View>

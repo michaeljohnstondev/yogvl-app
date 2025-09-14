@@ -16,16 +16,16 @@ import { followUser, unfollowUser } from '../../../services/followService';
 import { VibeButton } from '../../../components/ui';
 import theme from '../../../theme/themes';
 
-const PostEventActions = ({ 
-  participants, 
-  userStatus, 
-  eventData, 
+const PostEventActions = ({
+  participants,
+  userStatus,
+  eventData,
   onDeleteEvent,
-  submitting 
+  submitting,
 }) => {
   const { currentUserId, userData } = useAuth();
   const vibeAlert = useVibeAlert();
-  
+
   const [followingStatus, setFollowingStatus] = useState({});
   const [mutualFollowStatus, setMutualFollowStatus] = useState({});
   const [loadingFollows, setLoadingFollows] = useState(true);
@@ -40,35 +40,38 @@ const PostEventActions = ({
   const loadFollowStatuses = async () => {
     try {
       setLoadingFollows(true);
-      
+
       const followStatusPromises = participants.map(async (user) => {
         if (user.id === currentUserId) return [user.id, false, false]; // Can't follow yourself
-        
+
         // Check if I follow them
-        const followingDoc = await getDoc(doc(db, 'users', currentUserId, 'following', user.id));
+        const followingDoc = await getDoc(
+          doc(db, 'users', currentUserId, 'following', user.id)
+        );
         const iFollowThem = followingDoc.exists();
-        
+
         // Check if they follow me
-        const followerDoc = await getDoc(doc(db, 'users', currentUserId, 'followers', user.id));
+        const followerDoc = await getDoc(
+          doc(db, 'users', currentUserId, 'followers', user.id)
+        );
         const theyFollowMe = followerDoc.exists();
-        
+
         const isMutualFriend = iFollowThem && theyFollowMe;
-        
+
         return [user.id, iFollowThem, isMutualFriend];
       });
 
       const followStatusResults = await Promise.all(followStatusPromises);
       const followStatusMap = {};
       const mutualFollowMap = {};
-      
+
       followStatusResults.forEach(([userId, isFollowing, isMutual]) => {
         followStatusMap[userId] = isFollowing;
         mutualFollowMap[userId] = isMutual;
       });
-      
+
       setFollowingStatus(followStatusMap);
       setMutualFollowStatus(mutualFollowMap);
-      
     } catch (error) {
       console.error('Error loading follow statuses:', error);
     } finally {
@@ -80,30 +83,40 @@ const PostEventActions = ({
     if (targetUserId === currentUserId) return;
 
     try {
-      const targetUser = participants.find(user => user.id === targetUserId);
-      const userName = targetUser?.userdata?.contactInfo?.firstName || 
-                      targetUser?.userdata?.contactInfo?.displayName || 'user';
+      const targetUser = participants.find((user) => user.id === targetUserId);
+      const userName =
+        targetUser?.userdata?.contactInfo?.firstName ||
+        targetUser?.userdata?.contactInfo?.displayName ||
+        'user';
       const isCurrentlyFollowing = followingStatus[targetUserId];
-      
+
       if (isCurrentlyFollowing) {
         await unfollowUser(currentUserId, targetUserId);
-        setFollowingStatus(prev => ({ ...prev, [targetUserId]: false }));
-        setMutualFollowStatus(prev => ({ ...prev, [targetUserId]: false }));
+        setFollowingStatus((prev) => ({ ...prev, [targetUserId]: false }));
+        setMutualFollowStatus((prev) => ({ ...prev, [targetUserId]: false }));
         vibeAlert.success('Unfollowed', `You have unfollowed ${userName}.`);
       } else {
         await followUser(currentUserId, targetUserId, userData);
-        setFollowingStatus(prev => ({ ...prev, [targetUserId]: true }));
+        setFollowingStatus((prev) => ({ ...prev, [targetUserId]: true }));
         // Check if it's now mutual (they were already following us)
-        const followerDoc = await getDoc(doc(db, 'users', currentUserId, 'followers', targetUserId));
+        const followerDoc = await getDoc(
+          doc(db, 'users', currentUserId, 'followers', targetUserId)
+        );
         const isMutual = followerDoc.exists();
-        setMutualFollowStatus(prev => ({ ...prev, [targetUserId]: isMutual }));
+        setMutualFollowStatus((prev) => ({
+          ...prev,
+          [targetUserId]: isMutual,
+        }));
         vibeAlert.success('Success', `You are now following ${userName}!`);
       }
     } catch (error) {
       console.error('Error toggling follow:', error);
-      const targetUser = participants.find(user => user.id === targetUserId);
+      const targetUser = participants.find((user) => user.id === targetUserId);
       const userName = targetUser?.userdata?.contactInfo?.firstName || 'user';
-      vibeAlert.error('Error', `Failed to ${followingStatus[targetUserId] ? 'unfollow' : 'follow'} ${userName}`);
+      vibeAlert.error(
+        'Error',
+        `Failed to ${followingStatus[targetUserId] ? 'unfollow' : 'follow'} ${userName}`
+      );
     }
   };
 
@@ -128,24 +141,23 @@ const PostEventActions = ({
     const isHost = item.id === eventData?.createdBy;
     const isFollowing = followingStatus[item.id];
     const isMutualFriend = mutualFollowStatus[item.id];
-    
-    const displayName = item.userdata.contactInfo.displayName || 
-                       item.userdata.contactInfo.firstName || 
-                       'Unknown User';
-    
+
+    const displayName =
+      item.userdata.contactInfo.displayName ||
+      item.userdata.contactInfo.firstName ||
+      'Unknown User';
+
     const avatarInitial = displayName.charAt(0).toUpperCase();
-    
+
     return (
-      <TouchableOpacity 
-        key={item.id} 
+      <TouchableOpacity
+        key={item.id}
         style={styles.participantItem}
         onPress={() => !isCurrentUser && handleToggleFollow(item.id)}
         disabled={isCurrentUser || loadingFollows}
       >
         <View style={styles.participantAvatar}>
-          <Text style={styles.participantAvatarText}>
-            {avatarInitial}
-          </Text>
+          <Text style={styles.participantAvatarText}>{avatarInitial}</Text>
           {isHost && (
             <View style={styles.hostBadge}>
               <Text style={styles.hostBadgeText}>H</Text>
@@ -159,16 +171,17 @@ const PostEventActions = ({
             {isHost && !isCurrentUser && ' (Host)'}
           </Text>
           {!isCurrentUser && (
-            <Text style={[
-              styles.participantFollow,
-              isFollowing && styles.participantFollowing
-            ]}>
-              {isMutualFriend 
+            <Text
+              style={[
+                styles.participantFollow,
+                isFollowing && styles.participantFollowing,
+              ]}
+            >
+              {isMutualFriend
                 ? 'Friend • Tap to unfollow'
-                : isFollowing 
-                  ? 'Following • Tap to unfollow' 
-                  : 'Tap to follow'
-              }
+                : isFollowing
+                  ? 'Following • Tap to unfollow'
+                  : 'Tap to follow'}
             </Text>
           )}
         </View>
@@ -185,12 +198,11 @@ const PostEventActions = ({
             Event Participants ({participants.length})
           </Text>
           <Text style={styles.participantsSubtitle}>
-            {userStatus.isHost 
+            {userStatus.isHost
               ? 'Connect with your guests'
-              : 'Connect with other attendees'
-            }
+              : 'Connect with other attendees'}
           </Text>
-          
+
           <FlatList
             data={participants}
             renderItem={renderParticipant}
@@ -205,7 +217,7 @@ const PostEventActions = ({
       {userStatus.isHost && eventData?.status === 'completed' && (
         <View style={styles.hostActions}>
           <Text style={styles.hostActionsTitle}>Event Management</Text>
-          
+
           <VibeButton
             label="DELETE EVENT"
             onPress={handleDeleteEvent}
@@ -213,7 +225,7 @@ const PostEventActions = ({
             disabled={submitting}
             style={styles.deleteButton}
           />
-          
+
           <Text style={styles.deleteNote}>
             This will permanently delete the event and all its data.
           </Text>
@@ -223,7 +235,7 @@ const PostEventActions = ({
       {/* Future Features Preview */}
       <View style={styles.futureSection}>
         <Text style={styles.futureSectionTitle}>Coming Soon</Text>
-        
+
         <View style={styles.futureFeature}>
           <Text style={styles.futureFeatureIcon}>⭐</Text>
           <View style={styles.futureFeatureContent}>

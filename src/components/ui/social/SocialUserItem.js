@@ -5,13 +5,13 @@ import FollowButton from '../buttons/FollowButton';
 import { getUserDisplayName } from '../../../lib/userUtils';
 import theme from '../../../theme/themes';
 
-const SocialUserItem = ({ 
-  user, 
-  currentUserId, 
-  onUserPress, 
-  onFollow, 
-  onUnfollow, 
-  isLoading = false 
+const SocialUserItem = ({
+  user,
+  currentUserId,
+  onUserPress,
+  onFollow,
+  onUnfollow,
+  isLoading = false,
 }) => {
   const isCurrentUser = user.id === currentUserId;
   const displayName = getUserDisplayName(user);
@@ -31,7 +31,7 @@ const SocialUserItem = ({
 
   return (
     <View style={styles.userItem}>
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.userInfo}
         onPress={handleUserPress}
         disabled={isCurrentUser}
@@ -46,7 +46,7 @@ const SocialUserItem = ({
           )}
         </View>
       </TouchableOpacity>
-      
+
       {!isCurrentUser && (
         <View style={styles.actionButton}>
           <FollowButton

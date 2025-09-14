@@ -22,26 +22,32 @@ export class StudioStatsService {
    */
   static async updateStudioMemberCount(studioId) {
     try {
-      Logger.service('StudioStats', `Updating member count for studio: ${studioId}`);
-      
+      Logger.service(
+        'StudioStats',
+        `Updating member count for studio: ${studioId}`
+      );
+
       // Query all users who belong to this studio
       const usersRef = collection(db, 'users');
       const q = query(
         usersRef,
         where('userdata.studios.default.studioId', '==', studioId)
       );
-      
+
       const snapshot = await getDocs(q);
       const memberCount = snapshot.size;
-      
+
       // Update studio document
       const studioRef = doc(db, 'studios', studioId);
       await updateDoc(studioRef, {
         memberCount,
         lastStatsUpdate: serverTimestamp(),
       });
-      
-      Logger.service('StudioStats', `Updated studio ${studioId} member count: ${memberCount}`);
+
+      Logger.service(
+        'StudioStats',
+        `Updated studio ${studioId} member count: ${memberCount}`
+      );
       return memberCount;
     } catch (error) {
       Logger.error('StudioStats', 'Failed to update member count', error);
@@ -56,26 +62,29 @@ export class StudioStatsService {
    */
   static async updateStudioEventCount(studioId) {
     try {
-      Logger.service('StudioStats', `Updating event count for studio: ${studioId}`);
-      
+      Logger.service(
+        'StudioStats',
+        `Updating event count for studio: ${studioId}`
+      );
+
       // Query all events in this studio
       const eventsRef = collection(db, 'events');
-      const q = query(
-        eventsRef,
-        where('studioId', '==', studioId)
-      );
-      
+      const q = query(eventsRef, where('studioId', '==', studioId));
+
       const snapshot = await getDocs(q);
       const eventCount = snapshot.size;
-      
+
       // Update studio document
       const studioRef = doc(db, 'studios', studioId);
       await updateDoc(studioRef, {
         eventCount,
         lastStatsUpdate: serverTimestamp(),
       });
-      
-      Logger.service('StudioStats', `Updated studio ${studioId} event count: ${eventCount}`);
+
+      Logger.service(
+        'StudioStats',
+        `Updated studio ${studioId} event count: ${eventCount}`
+      );
       return eventCount;
     } catch (error) {
       Logger.error('StudioStats', 'Failed to update event count', error);
@@ -90,13 +99,16 @@ export class StudioStatsService {
    */
   static async updateStudioStats(studioId) {
     try {
-      Logger.service('StudioStats', `Updating all stats for studio: ${studioId}`);
-      
+      Logger.service(
+        'StudioStats',
+        `Updating all stats for studio: ${studioId}`
+      );
+
       const [memberCount, eventCount] = await Promise.all([
         this.updateStudioMemberCount(studioId),
         this.updateStudioEventCount(studioId),
       ]);
-      
+
       return { memberCount, eventCount };
     } catch (error) {
       Logger.error('StudioStats', 'Failed to update studio stats', error);
@@ -111,43 +123,54 @@ export class StudioStatsService {
   static async updateAllStudioStats() {
     try {
       Logger.service('StudioStats', 'Starting stats update for all studios');
-      
+
       // Get all studios
       const studiosRef = collection(db, 'studios');
       const snapshot = await getDocs(studiosRef);
-      
+
       const results = [];
-      
+
       // Process studios in batches to avoid overwhelming Firestore
       const studios = snapshot.docs;
       const batchSize = 5;
-      
+
       for (let i = 0; i < studios.length; i += batchSize) {
         const batch = studios.slice(i, i + batchSize);
-        
+
         const batchPromises = batch.map(async (studioDoc) => {
           try {
             const studioId = studioDoc.id;
             const stats = await this.updateStudioStats(studioId);
             return { studioId, success: true, ...stats };
           } catch (error) {
-            Logger.error('StudioStats', `Failed to update stats for studio ${studioDoc.id}`, error);
-            return { studioId: studioDoc.id, success: false, error: error.message };
+            Logger.error(
+              'StudioStats',
+              `Failed to update stats for studio ${studioDoc.id}`,
+              error
+            );
+            return {
+              studioId: studioDoc.id,
+              success: false,
+              error: error.message,
+            };
           }
         });
-        
+
         const batchResults = await Promise.all(batchPromises);
         results.push(...batchResults);
-        
+
         // Small delay between batches
         if (i + batchSize < studios.length) {
-          await new Promise(resolve => setTimeout(resolve, 500));
+          await new Promise((resolve) => setTimeout(resolve, 500));
         }
       }
-      
-      const successCount = results.filter(r => r.success).length;
-      Logger.service('StudioStats', `Updated stats for ${successCount}/${studios.length} studios`);
-      
+
+      const successCount = results.filter((r) => r.success).length;
+      Logger.service(
+        'StudioStats',
+        `Updated stats for ${successCount}/${studios.length} studios`
+      );
+
       return results;
     } catch (error) {
       Logger.error('StudioStats', 'Failed to update all studio stats', error);
@@ -167,8 +190,11 @@ export class StudioStatsService {
         memberCount: increment(1),
         lastStatsUpdate: serverTimestamp(),
       });
-      
-      Logger.service('StudioStats', `Incremented member count for studio: ${studioId}`);
+
+      Logger.service(
+        'StudioStats',
+        `Incremented member count for studio: ${studioId}`
+      );
     } catch (error) {
       Logger.error('StudioStats', 'Failed to increment member count', error);
       // Fall back to recalculating
@@ -188,8 +214,11 @@ export class StudioStatsService {
         memberCount: increment(-1),
         lastStatsUpdate: serverTimestamp(),
       });
-      
-      Logger.service('StudioStats', `Decremented member count for studio: ${studioId}`);
+
+      Logger.service(
+        'StudioStats',
+        `Decremented member count for studio: ${studioId}`
+      );
     } catch (error) {
       Logger.error('StudioStats', 'Failed to decrement member count', error);
       // Fall back to recalculating
@@ -209,8 +238,11 @@ export class StudioStatsService {
         eventCount: increment(1),
         lastStatsUpdate: serverTimestamp(),
       });
-      
-      Logger.service('StudioStats', `Incremented event count for studio: ${studioId}`);
+
+      Logger.service(
+        'StudioStats',
+        `Incremented event count for studio: ${studioId}`
+      );
     } catch (error) {
       Logger.error('StudioStats', 'Failed to increment event count', error);
       // Fall back to recalculating
@@ -230,8 +262,11 @@ export class StudioStatsService {
         eventCount: increment(-1),
         lastStatsUpdate: serverTimestamp(),
       });
-      
-      Logger.service('StudioStats', `Decremented event count for studio: ${studioId}`);
+
+      Logger.service(
+        'StudioStats',
+        `Decremented event count for studio: ${studioId}`
+      );
     } catch (error) {
       Logger.error('StudioStats', 'Failed to decrement event count', error);
       // Fall back to recalculating
@@ -248,11 +283,11 @@ export class StudioStatsService {
     try {
       const studioRef = doc(db, 'studios', studioId);
       const studioDoc = await getDoc(studioRef);
-      
+
       if (!studioDoc.exists()) {
         throw new Error('Studio not found');
       }
-      
+
       const data = studioDoc.data();
       return {
         memberCount: data.memberCount || 0,
@@ -265,4 +300,3 @@ export class StudioStatsService {
     }
   }
 }
-

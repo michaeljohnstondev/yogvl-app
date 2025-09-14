@@ -30,13 +30,8 @@ export default function NotificationsScreen({ navigation }) {
   const vibeAlert = useVibeAlert();
 
   // Use shared real-time notifications context
-  const { 
-    notifications, 
-    unreadCount, 
-    isLoading, 
-    error, 
-    refreshNotifications 
-  } = useRealtimeNotificationsContext();
+  const { notifications, unreadCount, isLoading, error, refreshNotifications } =
+    useRealtimeNotificationsContext();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -56,58 +51,60 @@ export default function NotificationsScreen({ navigation }) {
   }, [refreshNotifications]);
 
   // Handle notification press (navigate to relevant screen)
-  const handleNotificationPress = useCallback((notification) => {
-    const { type, data } = notification;
+  const handleNotificationPress = useCallback(
+    (notification) => {
+      const { type, data } = notification;
 
-    try {
-      switch (type) {
-        case NOTIFICATION_TYPES.INVITATION_RECEIVED:
-        case NOTIFICATION_TYPES.COHOST_INVITATION:
-          // Navigate to event detail for both guest and cohost invitations
-          if (data.eventId) {
-            navigation.navigate('EventDetail', { eventId: data.eventId });
-          }
-          break;
-        case NOTIFICATION_TYPES.INVITATION_ACCEPTED:
-        case NOTIFICATION_TYPES.INVITATION_DECLINED:
-        case NOTIFICATION_TYPES.COHOST_ACCEPTED:
-          if (data.eventId) {
-            navigation.navigate('EventDetail', { eventId: data.eventId });
-          }
-          break;
-        case NOTIFICATION_TYPES.EVENT_JOINED:
-        case NOTIFICATION_TYPES.EVENT_LEFT:
-        case NOTIFICATION_TYPES.EVENT_UPDATED:
-        case NOTIFICATION_TYPES.EVENT_CANCELLED:
-        case NOTIFICATION_TYPES.EVENT_REMINDER:
-          if (data.eventId) {
-            navigation.navigate('EventDetail', { eventId: data.eventId });
-          }
-          break;
-        case NOTIFICATION_TYPES.ATTENDANCE_REMINDER:
-          if (data.eventId) {
-            navigation.navigate('EventAttendance', { 
-              eventId: data.eventId,
-              eventTitle: data.eventTitle || 'Event'
-            });
-          }
-          break;
-        case NOTIFICATION_TYPES.NEW_FOLLOWER:
-          // Navigate to the follower's profile or followers list
-          if (data.followerId) {
-            // For now, just mark as read. Later we can add profile navigation
-            console.log('Navigate to follower profile:', data.followerId);
-          }
-          break;
-        default:
-          // For system notifications or unknown types, just mark as read
-          break;
+      try {
+        switch (type) {
+          case NOTIFICATION_TYPES.INVITATION_RECEIVED:
+          case NOTIFICATION_TYPES.COHOST_INVITATION:
+            // Navigate to event detail for both guest and cohost invitations
+            if (data.eventId) {
+              navigation.navigate('EventDetail', { eventId: data.eventId });
+            }
+            break;
+          case NOTIFICATION_TYPES.INVITATION_ACCEPTED:
+          case NOTIFICATION_TYPES.INVITATION_DECLINED:
+          case NOTIFICATION_TYPES.COHOST_ACCEPTED:
+            if (data.eventId) {
+              navigation.navigate('EventDetail', { eventId: data.eventId });
+            }
+            break;
+          case NOTIFICATION_TYPES.EVENT_JOINED:
+          case NOTIFICATION_TYPES.EVENT_LEFT:
+          case NOTIFICATION_TYPES.EVENT_UPDATED:
+          case NOTIFICATION_TYPES.EVENT_CANCELLED:
+          case NOTIFICATION_TYPES.EVENT_REMINDER:
+            if (data.eventId) {
+              navigation.navigate('EventDetail', { eventId: data.eventId });
+            }
+            break;
+          case NOTIFICATION_TYPES.ATTENDANCE_REMINDER:
+            if (data.eventId) {
+              navigation.navigate('EventAttendance', {
+                eventId: data.eventId,
+                eventTitle: data.eventTitle || 'Event',
+              });
+            }
+            break;
+          case NOTIFICATION_TYPES.NEW_FOLLOWER:
+            // Navigate to the follower's profile or followers list
+            if (data.followerId) {
+              // For now, just mark as read. Later we can add profile navigation
+              console.log('Navigate to follower profile:', data.followerId);
+            }
+            break;
+          default:
+            // For system notifications or unknown types, just mark as read
+            break;
+        }
+      } catch (error) {
+        console.error('Error handling notification press:', error);
       }
-    } catch (error) {
-      console.error('Error handling notification press:', error);
-    }
-  }, [navigation]);
-
+    },
+    [navigation]
+  );
 
   // Handle notification delete
   const handleNotificationDelete = useCallback((notificationId) => {
@@ -117,181 +114,249 @@ export default function NotificationsScreen({ navigation }) {
   }, []);
 
   // Handle friend request acceptance
-  const handleAcceptFriendRequest = useCallback(async (notification) => {
-    try {
-      const { acceptFriendRequest } = await import('../services/friendService');
-      const { senderId } = notification.data;
-      
-      // Accept the friend request
-      await acceptFriendRequest(notification.id, currentUserId, senderId);
-      
-      // Delete notification after successful acceptance
-      await deleteNotification(notification.id, notification.userId);
-      handleNotificationDelete(notification.id);
-      
-      vibeAlert.success('Success', 'Friend request accepted! 🎉');
-    } catch (error) {
-      console.error('Error accepting friend request:', error);
-      vibeAlert.error('Error', 'Failed to accept friend request. Please try again.');
-    }
-  }, [currentUserId]);
+  const handleAcceptFriendRequest = useCallback(
+    async (notification) => {
+      try {
+        const { acceptFriendRequest } = await import(
+          '../services/friendService'
+        );
+        const { senderId } = notification.data;
+
+        // Accept the friend request
+        await acceptFriendRequest(notification.id, currentUserId, senderId);
+
+        // Delete notification after successful acceptance
+        await deleteNotification(notification.id, notification.userId);
+        handleNotificationDelete(notification.id);
+
+        vibeAlert.success('Success', 'Friend request accepted! 🎉');
+      } catch (error) {
+        console.error('Error accepting friend request:', error);
+        vibeAlert.error(
+          'Error',
+          'Failed to accept friend request. Please try again.'
+        );
+      }
+    },
+    [currentUserId]
+  );
 
   // Handle friend request decline
-  const handleDeclineFriendRequest = useCallback(async (notification) => {
-    try {
-      const { declineFriendRequest } = await import('../services/friendService');
-      const { senderId } = notification.data;
-      
-      // Decline the friend request
-      await declineFriendRequest(notification.id, currentUserId, senderId);
-      
-      // Delete notification after successful decline
-      await deleteNotification(notification.id, notification.userId);
-      handleNotificationDelete(notification.id);
-      
-      vibeAlert.info('Friend Request Declined', 'The friend request has been declined.');
-    } catch (error) {
-      console.error('Error declining friend request:', error);
-      vibeAlert.error('Error', 'Failed to decline friend request. Please try again.');
-    }
-  }, [currentUserId]);
+  const handleDeclineFriendRequest = useCallback(
+    async (notification) => {
+      try {
+        const { declineFriendRequest } = await import(
+          '../services/friendService'
+        );
+        const { senderId } = notification.data;
+
+        // Decline the friend request
+        await declineFriendRequest(notification.id, currentUserId, senderId);
+
+        // Delete notification after successful decline
+        await deleteNotification(notification.id, notification.userId);
+        handleNotificationDelete(notification.id);
+
+        vibeAlert.info(
+          'Friend Request Declined',
+          'The friend request has been declined.'
+        );
+      } catch (error) {
+        console.error('Error declining friend request:', error);
+        vibeAlert.error(
+          'Error',
+          'Failed to decline friend request. Please try again.'
+        );
+      }
+    },
+    [currentUserId]
+  );
 
   // Handle guest invitation acceptance
-  const handleAcceptGuestInvitation = useCallback(async (notification) => {
-    try {
-      const { invitationId, eventId, studioId } = notification.data;
-      
-      // Check if this is an event creation invitation (has studioId) or direct guest invitation
-      if (studioId && notification.actions) {
-        // Event creation invitation - use invitations.js system
-        const { acceptInvitation } = await import('../events/services/invitations');
-        await acceptInvitation(invitationId, currentUserId, studioId);
-      } else {
-        // Direct guest invitation - use friendService.js system  
-        const { acceptGuestInvitation } = await import('../services/friendService');
-        await acceptGuestInvitation(invitationId, currentUserId, eventId);
+  const handleAcceptGuestInvitation = useCallback(
+    async (notification) => {
+      try {
+        const { invitationId, eventId, studioId } = notification.data;
+
+        // Check if this is an event creation invitation (has studioId) or direct guest invitation
+        if (studioId && notification.actions) {
+          // Event creation invitation - use invitations.js system
+          const { acceptInvitation } = await import(
+            '../events/services/invitations'
+          );
+          await acceptInvitation(invitationId, currentUserId, studioId);
+        } else {
+          // Direct guest invitation - use friendService.js system
+          const { acceptGuestInvitation } = await import(
+            '../services/friendService'
+          );
+          await acceptGuestInvitation(invitationId, currentUserId, eventId);
+        }
+
+        // Delete notification after successful acceptance (no longer needed)
+        await deleteNotification(notification.id, notification.userId);
+        handleNotificationDelete(notification.id); // Update UI state
+
+        vibeAlert.success('Success', "You're attending this event! 🎉");
+      } catch (error) {
+        console.error('Error accepting guest invitation:', error);
+        vibeAlert.error(
+          'Error',
+          'Failed to accept invitation. Please try again.'
+        );
       }
-      
-      // Delete notification after successful acceptance (no longer needed)
-      await deleteNotification(notification.id, notification.userId);
-      handleNotificationDelete(notification.id); // Update UI state
-      
-      vibeAlert.success('Success', 'You\'re attending this event! 🎉');
-    } catch (error) {
-      console.error('Error accepting guest invitation:', error);
-      vibeAlert.error('Error', 'Failed to accept invitation. Please try again.');
-    }
-  }, [currentUserId]);
+    },
+    [currentUserId]
+  );
 
   // Handle guest invitation decline
-  const handleDeclineGuestInvitation = useCallback(async (notification) => {
-    try {
-      const { invitationId, studioId } = notification.data;
-      
-      // Check if this is an event creation invitation (has studioId) or direct guest invitation
-      if (studioId && notification.actions) {
-        // Event creation invitation - use invitations.js system
-        const { declineInvitation } = await import('../events/services/invitations');
-        await declineInvitation(invitationId, currentUserId);
-      } else {
-        // Direct guest invitation - use friendService.js system
-        const { declineGuestInvitation } = await import('../services/friendService');
-        await declineGuestInvitation(invitationId, currentUserId);
+  const handleDeclineGuestInvitation = useCallback(
+    async (notification) => {
+      try {
+        const { invitationId, studioId } = notification.data;
+
+        // Check if this is an event creation invitation (has studioId) or direct guest invitation
+        if (studioId && notification.actions) {
+          // Event creation invitation - use invitations.js system
+          const { declineInvitation } = await import(
+            '../events/services/invitations'
+          );
+          await declineInvitation(invitationId, currentUserId);
+        } else {
+          // Direct guest invitation - use friendService.js system
+          const { declineGuestInvitation } = await import(
+            '../services/friendService'
+          );
+          await declineGuestInvitation(invitationId, currentUserId);
+        }
+
+        // Delete notification after successful decline (no longer needed)
+        await deleteNotification(notification.id, notification.userId);
+        handleNotificationDelete(notification.id); // Update UI state
+
+        vibeAlert.info(
+          'Invitation Declined',
+          'You have declined the invitation.'
+        );
+      } catch (error) {
+        console.error('Error declining guest invitation:', error);
+        vibeAlert.error(
+          'Error',
+          'Failed to decline invitation. Please try again.'
+        );
       }
-      
-      // Delete notification after successful decline (no longer needed)
-      await deleteNotification(notification.id, notification.userId);
-      handleNotificationDelete(notification.id); // Update UI state
-      
-      vibeAlert.info('Invitation Declined', 'You have declined the invitation.');
-    } catch (error) {
-      console.error('Error declining guest invitation:', error);
-      vibeAlert.error('Error', 'Failed to decline invitation. Please try again.');
-    }
-  }, [currentUserId]);
+    },
+    [currentUserId]
+  );
 
   // Handle cohost invitation acceptance
-  const handleAcceptCohostInvitation = useCallback(async (notification) => {
-    try {
-      const { acceptCohostInvitation } = await import('../services/friendService');
-      const { invitationId, eventId } = notification.data;
-      
-      // Accept the cohost invitation
-      await acceptCohostInvitation(invitationId, currentUserId, eventId);
-      
-      // Delete notification after successful acceptance (no longer needed)
-      await deleteNotification(notification.id, notification.userId);
-      handleNotificationDelete(notification.id); // Update UI state
-      
-      vibeAlert.success('Success', 'You\'re now a co-host for this event! ⭐');
-    } catch (error) {
-      console.error('Error accepting cohost invitation:', error);
-      vibeAlert.error('Error', 'Failed to accept invitation. Please try again.');
-    }
-  }, [currentUserId]);
+  const handleAcceptCohostInvitation = useCallback(
+    async (notification) => {
+      try {
+        const { acceptCohostInvitation } = await import(
+          '../services/friendService'
+        );
+        const { invitationId, eventId } = notification.data;
+
+        // Accept the cohost invitation
+        await acceptCohostInvitation(invitationId, currentUserId, eventId);
+
+        // Delete notification after successful acceptance (no longer needed)
+        await deleteNotification(notification.id, notification.userId);
+        handleNotificationDelete(notification.id); // Update UI state
+
+        vibeAlert.success('Success', "You're now a co-host for this event! ⭐");
+      } catch (error) {
+        console.error('Error accepting cohost invitation:', error);
+        vibeAlert.error(
+          'Error',
+          'Failed to accept invitation. Please try again.'
+        );
+      }
+    },
+    [currentUserId]
+  );
 
   // Handle cohost invitation decline
-  const handleDeclineCohostInvitation = useCallback(async (notification) => {
-    try {
-      const { declineCohostInvitation } = await import('../services/friendService');
-      const { invitationId } = notification.data;
-      
-      // Decline the cohost invitation
-      await declineCohostInvitation(invitationId, currentUserId);
-      
-      // Delete notification after successful decline
-      await deleteNotification(notification.id, notification.userId);
-      handleNotificationDelete(notification.id);
-      
-      vibeAlert.info('Invitation Declined', 'You have declined the co-host invitation.');
-    } catch (error) {
-      console.error('Error declining cohost invitation:', error);
-      vibeAlert.error('Error', 'Failed to decline invitation. Please try again.');
-    }
-  }, [currentUserId]);
+  const handleDeclineCohostInvitation = useCallback(
+    async (notification) => {
+      try {
+        const { declineCohostInvitation } = await import(
+          '../services/friendService'
+        );
+        const { invitationId } = notification.data;
+
+        // Decline the cohost invitation
+        await declineCohostInvitation(invitationId, currentUserId);
+
+        // Delete notification after successful decline
+        await deleteNotification(notification.id, notification.userId);
+        handleNotificationDelete(notification.id);
+
+        vibeAlert.info(
+          'Invitation Declined',
+          'You have declined the co-host invitation.'
+        );
+      } catch (error) {
+        console.error('Error declining cohost invitation:', error);
+        vibeAlert.error(
+          'Error',
+          'Failed to decline invitation. Please try again.'
+        );
+      }
+    },
+    [currentUserId]
+  );
 
   // Handle direct join from notification action button
-  const handleJoinEventFromNotification = useCallback(async (notification) => {
-    try {
-      const { acceptInvitation } = await import('../events/services/invitations');
-      const { invitationId, eventTitle, studioId } = notification.data;
-      
-      // Directly accept the invitation with studio context
-      await acceptInvitation(invitationId, currentUserId, studioId);
-      
-      
-      vibeAlert.success('Joined Event!', `You're now attending "${eventTitle}"! 🎉`);
-      
-      // Optionally navigate to event detail after short delay
-      setTimeout(() => {
-        handleNotificationPress(notification);
-      }, 1500);
-      
-    } catch (error) {
-      console.error('Error joining event from notification:', error);
-      
-      if (error.message.includes('already')) {
-        vibeAlert.info('Already Joined', `You're already attending this event.`);
-      } else {
-        vibeAlert.error('Error', 'Unable to join event. Please try again.');
+  const handleJoinEventFromNotification = useCallback(
+    async (notification) => {
+      try {
+        const { acceptInvitation } = await import(
+          '../events/services/invitations'
+        );
+        const { invitationId, eventTitle, studioId } = notification.data;
+
+        // Directly accept the invitation with studio context
+        await acceptInvitation(invitationId, currentUserId, studioId);
+
+        vibeAlert.success(
+          'Joined Event!',
+          `You're now attending "${eventTitle}"! 🎉`
+        );
+
+        // Optionally navigate to event detail after short delay
+        setTimeout(() => {
+          handleNotificationPress(notification);
+        }, 1500);
+      } catch (error) {
+        console.error('Error joining event from notification:', error);
+
+        if (error.message.includes('already')) {
+          vibeAlert.info(
+            'Already Joined',
+            `You're already attending this event.`
+          );
+        } else {
+          vibeAlert.error('Error', 'Unable to join event. Please try again.');
+        }
       }
-    }
-  }, [currentUserId, handleNotificationPress]);
+    },
+    [currentUserId, handleNotificationPress]
+  );
 
   // Handle view event from notification action button
-  const handleViewEventFromNotification = useCallback(async (notification) => {
-    try {
-      // Navigate to event detail
-      handleNotificationPress(notification);
-      
-      
-    } catch (error) {
-      console.error('Error viewing event from notification:', error);
-    }
-  }, [handleNotificationPress]);
-
-
-
+  const handleViewEventFromNotification = useCallback(
+    async (notification) => {
+      try {
+        // Navigate to event detail
+        handleNotificationPress(notification);
+      } catch (error) {
+        console.error('Error viewing event from notification:', error);
+      }
+    },
+    [handleNotificationPress]
+  );
 
   // Render notification item
   const renderNotificationItem = ({ item }) => (
@@ -318,7 +383,10 @@ export default function NotificationsScreen({ navigation }) {
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyIcon}>🔔</Text>
-        <Text style={styles.emptyText}>No notifications yet.{'\n'}When you receive invitations or event updates, they'll appear here.</Text>
+        <Text style={styles.emptyText}>
+          No notifications yet.{'\n'}When you receive invitations or event
+          updates, they'll appear here.
+        </Text>
       </View>
     );
   };
@@ -333,7 +401,7 @@ export default function NotificationsScreen({ navigation }) {
           </View>
           <CloseButton onPress={() => navigation.goBack()} />
         </View>
-        
+
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading notifications...</Text>
         </View>
@@ -350,10 +418,8 @@ export default function NotificationsScreen({ navigation }) {
         </View>
         <CloseButton onPress={() => navigation.goBack()} />
       </View>
-      
+
       <View style={styles.content}>
-
-
         {/* Notifications list */}
         {notifications.length > 0 ? (
           <FlatList

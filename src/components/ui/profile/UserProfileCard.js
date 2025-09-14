@@ -1,10 +1,5 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import ReliabilityBadge from './ReliabilityBadge';
 import ReliabilityDetail from './ReliabilityDetail';
@@ -12,16 +7,21 @@ import ProfileAvatar from './ProfileAvatar';
 import { useReliability } from '../../../hooks/useReliability';
 import theme from '../../../theme/themes';
 
-export default function UserProfileCard({ userData, style, showDetails = true }) {
+export default function UserProfileCard({
+  userData,
+  style,
+  showDetails = true,
+}) {
   const [showReliabilityDetail, setShowReliabilityDetail] = useState(false);
   const { reliabilityData } = useReliability(userData);
 
   if (!userData) return null;
 
   const contactInfo = userData?.userdata?.contactInfo || {};
-  const displayName = contactInfo.firstName && contactInfo.lastName 
-    ? `${contactInfo.firstName} ${contactInfo.lastName}`
-    : contactInfo.email || userData.email || 'User';
+  const displayName =
+    contactInfo.firstName && contactInfo.lastName
+      ? `${contactInfo.firstName} ${contactInfo.lastName}`
+      : contactInfo.email || userData.email || 'User';
 
   return (
     <View style={[styles.container, style]}>
@@ -31,16 +31,14 @@ export default function UserProfileCard({ userData, style, showDetails = true })
       >
         {/* User Avatar & Basic Info */}
         <View style={styles.header}>
-          <ProfileAvatar 
-            userData={userData} 
-            size={60}
-            showBorder={true}
-          />
-          
+          <ProfileAvatar userData={userData} size={60} showBorder={true} />
+
           <View style={styles.userInfo}>
             <Text style={styles.userName}>{displayName}</Text>
-            <Text style={styles.userEmail}>{contactInfo.email || userData.email}</Text>
-            
+            <Text style={styles.userEmail}>
+              {contactInfo.email || userData.email}
+            </Text>
+
             {userData?.userdata?.studios?.default && (
               <Text style={styles.userLocation}>
                 🎵 {userData.userdata.studios.default.studioName}
@@ -53,10 +51,12 @@ export default function UserProfileCard({ userData, style, showDetails = true })
         <View style={styles.reliabilitySection}>
           <View style={styles.reliabilityHeader}>
             <Text style={styles.reliabilityTitle}>Reliability</Text>
-            <ReliabilityBadge 
+            <ReliabilityBadge
               userData={userData}
               size="medium"
-              onPress={showDetails ? () => setShowReliabilityDetail(true) : null}
+              onPress={
+                showDetails ? () => setShowReliabilityDetail(true) : null
+              }
             />
           </View>
 
@@ -68,16 +68,26 @@ export default function UserProfileCard({ userData, style, showDetails = true })
                 </Text>
                 <Text style={styles.quickStatLabel}>Events</Text>
               </View>
-              
+
               <View style={styles.quickStat}>
-                <Text style={[styles.quickStatValue, { color: theme.colors.vibeGreen }]}>
+                <Text
+                  style={[
+                    styles.quickStatValue,
+                    { color: theme.colors.vibeGreen },
+                  ]}
+                >
                   {reliabilityData.metrics.totalAttended || 0}
                 </Text>
                 <Text style={styles.quickStatLabel}>Attended</Text>
               </View>
-              
+
               <View style={styles.quickStat}>
-                <Text style={[styles.quickStatValue, { color: theme.colors.vibeBlue }]}>
+                <Text
+                  style={[
+                    styles.quickStatValue,
+                    { color: theme.colors.vibeBlue },
+                  ]}
+                >
                   {reliabilityData.streaks?.currentAttendanceStreak || 0}
                 </Text>
                 <Text style={styles.quickStatLabel}>Streak</Text>
@@ -90,7 +100,10 @@ export default function UserProfileCard({ userData, style, showDetails = true })
         {userData.userdata?.metadata?.createdAt && (
           <View style={styles.memberSince}>
             <Text style={styles.memberSinceText}>
-              Member since {new Date(userData.userdata.metadata.createdAt.toDate()).toLocaleDateString()}
+              Member since{' '}
+              {new Date(
+                userData.userdata.metadata.createdAt.toDate()
+              ).toLocaleDateString()}
             </Text>
           </View>
         )}

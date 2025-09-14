@@ -15,41 +15,52 @@ export default function PersonalNotifications({
   reminders = [],
   onUpdateReminders,
   eventDateTime,
-  title = "Event Reminders",
-  addButtonText = "Add Reminder",
-  emptyStateText = "No reminders set",
+  title = 'Event Reminders',
+  addButtonText = 'Add Reminder',
+  emptyStateText = 'No reminders set',
 }) {
   const [showAddModal, setShowAddModal] = useState(false);
 
-  const handleAddReminder = useCallback((newReminder) => {
-    const updatedReminders = [...reminders, {
-      id: Date.now().toString(),
-      ...newReminder,
-      createdAt: new Date().toISOString(),
-    }];
-    onUpdateReminders(updatedReminders);
-    setShowAddModal(false);
-  }, [reminders, onUpdateReminders]);
+  const handleAddReminder = useCallback(
+    (newReminder) => {
+      const updatedReminders = [
+        ...reminders,
+        {
+          id: Date.now().toString(),
+          ...newReminder,
+          createdAt: new Date().toISOString(),
+        },
+      ];
+      onUpdateReminders(updatedReminders);
+      setShowAddModal(false);
+    },
+    [reminders, onUpdateReminders]
+  );
 
-  const handleRemoveReminder = useCallback((reminderId) => {
-    const updatedReminders = reminders.filter(reminder => reminder.id !== reminderId);
-    onUpdateReminders(updatedReminders);
-  }, [reminders, onUpdateReminders]);
+  const handleRemoveReminder = useCallback(
+    (reminderId) => {
+      const updatedReminders = reminders.filter(
+        (reminder) => reminder.id !== reminderId
+      );
+      onUpdateReminders(updatedReminders);
+    },
+    [reminders, onUpdateReminders]
+  );
 
   const formatReminderTime = (reminder) => {
     if (reminder.timeType === 'relative') {
       const { amount, unit } = reminder.relativeTiming;
       const unitLabels = {
         minutes: amount === 1 ? 'minute' : 'minutes',
-        hours: amount === 1 ? 'hour' : 'hours', 
+        hours: amount === 1 ? 'hour' : 'hours',
         days: amount === 1 ? 'day' : 'days',
         weeks: amount === 1 ? 'week' : 'weeks',
       };
       return `${amount} ${unitLabels[unit]} before`;
     } else if (reminder.timeType === 'absolute' && reminder.absoluteTime) {
       const date = new Date(reminder.absoluteTime);
-      return date.toLocaleDateString([], { 
-        month: 'short', 
+      return date.toLocaleDateString([], {
+        month: 'short',
         day: 'numeric',
         hour: 'numeric',
         minute: '2-digit',
@@ -60,10 +71,14 @@ export default function PersonalNotifications({
 
   const getNotificationTypeIcon = (type) => {
     switch (type) {
-      case 'push': return '🔔';
-      case 'alarm': return '⏰';
-      case 'both': return '🔔⏰';
-      default: return '🔔';
+      case 'push':
+        return '🔔';
+      case 'alarm':
+        return '⏰';
+      case 'both':
+        return '🔔⏰';
+      default:
+        return '🔔';
     }
   };
 
@@ -79,12 +94,10 @@ export default function PersonalNotifications({
           </Text>
         </View>
         {reminder.label && (
-          <Text style={styles.reminderLabel}>
-            {reminder.label}
-          </Text>
+          <Text style={styles.reminderLabel}>{reminder.label}</Text>
         )}
       </View>
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.removeButton}
         onPress={() => handleRemoveReminder(reminder.id)}
       >
@@ -98,7 +111,7 @@ export default function PersonalNotifications({
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>{title}</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.addButton}
           onPress={() => setShowAddModal(true)}
         >
@@ -108,16 +121,17 @@ export default function PersonalNotifications({
 
       {/* Reminders List */}
       {reminders.length > 0 ? (
-        <ScrollView style={styles.remindersList} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.remindersList}
+          showsVerticalScrollIndicator={false}
+        >
           {reminders.map((reminder) => (
             <ReminderItem key={reminder.id} reminder={reminder} />
           ))}
         </ScrollView>
       ) : (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyStateText}>
-            {emptyStateText}
-          </Text>
+          <Text style={styles.emptyStateText}>{emptyStateText}</Text>
           <Text style={styles.emptyStateSubtext}>
             Tap "Add Reminder" to get notified before the event starts
           </Text>

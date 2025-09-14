@@ -1,22 +1,19 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { ReliabilityService } from '../../../services/ReliabilityService';
 import theme from '../../../theme/themes';
 
-export default function ReliabilityBadge({ 
-  userData, 
-  onPress, 
+export default function ReliabilityBadge({
+  userData,
+  onPress,
   size = 'medium', // 'small', 'medium', 'large'
   showLabel = true,
-  style 
+  style,
 }) {
-  const reliabilityData = ReliabilityService.getUserReliabilityDisplay(userData);
-  const { score, tier, displayText, shortDisplayText, isNewUser } = reliabilityData;
+  const reliabilityData =
+    ReliabilityService.getUserReliabilityDisplay(userData);
+  const { score, tier, displayText, shortDisplayText, isNewUser } =
+    reliabilityData;
 
   const sizes = {
     small: {
@@ -39,12 +36,14 @@ export default function ReliabilityBadge({
   const sizeStyle = sizes[size] || sizes.medium;
 
   const BadgeContent = () => (
-    <View style={[
-      styles.container, 
-      sizeStyle.container,
-      { backgroundColor: `${tier.color}20`, borderColor: tier.color },
-      style
-    ]}>
+    <View
+      style={[
+        styles.container,
+        sizeStyle.container,
+        { backgroundColor: `${tier.color}20`, borderColor: tier.color },
+        style,
+      ]}
+    >
       <Text style={[styles.score, sizeStyle.text, { color: tier.color }]}>
         {showLabel ? displayText : shortDisplayText}
       </Text>

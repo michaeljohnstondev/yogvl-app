@@ -22,11 +22,13 @@ const UserReliabilityCard = ({ userData, style }) => {
         </View>
 
         <View style={styles.statItem}>
-          <Text style={[
-            styles.statNumber, 
-            // Use the same color logic as the reliability status
-            { color: stats.reliabilityStatus.color }
-          ]}>
+          <Text
+            style={[
+              styles.statNumber,
+              // Use the same color logic as the reliability status
+              { color: stats.reliabilityStatus.color },
+            ]}
+          >
             {stats.noShows}
           </Text>
           <Text style={styles.statLabel}>No Shows</Text>

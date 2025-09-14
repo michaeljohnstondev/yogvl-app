@@ -1,10 +1,5 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ReliabilityService } from '../../../services/ReliabilityService';
 import ReliabilityBadge from './ReliabilityBadge';
@@ -15,7 +10,8 @@ export default function ReliabilityDetail({ userData, onClose }) {
     return null; // Don't render if no user data
   }
 
-  const reliabilityData = ReliabilityService.getUserReliabilityDisplay(userData);
+  const reliabilityData =
+    ReliabilityService.getUserReliabilityDisplay(userData);
   const { score, tier, metrics, streaks } = reliabilityData;
 
   // Debug logging to help troubleshoot
@@ -31,8 +27,8 @@ export default function ReliabilityDetail({ userData, onClose }) {
       tier: tier?.label,
       hasMetrics: !!metrics,
       totalRSVPs: metrics?.totalRSVPs,
-      totalAttended: metrics?.totalAttended
-    }
+      totalAttended: metrics?.totalAttended,
+    },
   });
 
   const StatRow = ({ label, value, color = theme.colors.textSecondary }) => (
@@ -44,12 +40,12 @@ export default function ReliabilityDetail({ userData, onClose }) {
 
   return (
     <View style={styles.overlay}>
-      <TouchableOpacity 
-        style={styles.backdrop} 
+      <TouchableOpacity
+        style={styles.backdrop}
         onPress={onClose}
         activeOpacity={1}
       />
-      
+
       <View style={styles.modal}>
         <LinearGradient
           colors={theme.colors.backgroundGradient}
@@ -66,9 +62,12 @@ export default function ReliabilityDetail({ userData, onClose }) {
           {/* User Info */}
           <View style={styles.userInfo}>
             <Text style={styles.userName}>
-              {userData?.userdata?.contactInfo?.firstName && userData?.userdata?.contactInfo?.lastName 
+              {userData?.userdata?.contactInfo?.firstName &&
+              userData?.userdata?.contactInfo?.lastName
                 ? `${userData.userdata.contactInfo.firstName} ${userData.userdata.contactInfo.lastName}`
-                : userData?.userdata?.contactInfo?.email || userData.email || 'User'}
+                : userData?.userdata?.contactInfo?.email ||
+                  userData.email ||
+                  'User'}
             </Text>
             <ReliabilityBadge userData={userData} size="large" />
           </View>
@@ -76,16 +75,25 @@ export default function ReliabilityDetail({ userData, onClose }) {
           {/* New User Welcome Message */}
           {reliabilityData.isNewUser && (
             <View style={styles.newUserSection}>
-              <Text style={styles.newUserTitle}>🎉 Welcome to Big Vibe Studios!</Text>
+              <Text style={styles.newUserTitle}>
+                🎉 Welcome to Big Vibe Studios!
+              </Text>
               <Text style={styles.newUserText}>
-                Your reliability score will be calculated after attending a few events. 
-                Start building your reputation by RSVPing and attending events!
+                Your reliability score will be calculated after attending a few
+                events. Start building your reputation by RSVPing and attending
+                events!
               </Text>
               <View style={styles.newUserTips}>
                 <Text style={styles.tipTitle}>💡 Build Your Reliability:</Text>
-                <Text style={styles.tipText}>• RSVP only when you can attend</Text>
-                <Text style={styles.tipText}>• Attend events you've committed to</Text>
-                <Text style={styles.tipText}>• Update your RSVP if plans change</Text>
+                <Text style={styles.tipText}>
+                  • RSVP only when you can attend
+                </Text>
+                <Text style={styles.tipText}>
+                  • Attend events you've committed to
+                </Text>
+                <Text style={styles.tipText}>
+                  • Update your RSVP if plans change
+                </Text>
               </View>
             </View>
           )}
@@ -94,45 +102,52 @@ export default function ReliabilityDetail({ userData, onClose }) {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>📊 Overall Statistics</Text>
             <View style={styles.statsGrid}>
-              <StatRow 
-                label="Total Events" 
-                value={metrics.totalRSVPs || 0} 
-              />
-              <StatRow 
-                label="Attended" 
+              <StatRow label="Total Events" value={metrics.totalRSVPs || 0} />
+              <StatRow
+                label="Attended"
                 value={metrics.totalAttended || 0}
                 color={theme.colors.vibeGreen}
               />
-              <StatRow 
-                label="No Shows" 
+              <StatRow
+                label="No Shows"
                 value={metrics.totalNoShows || 0}
                 color="#FF6B6B"
               />
-              <StatRow 
-                label="Attendance Rate" 
+              <StatRow
+                label="Attendance Rate"
                 value={`${metrics.attendanceRate || 100}%`}
-                color={metrics.attendanceRate >= 80 ? theme.colors.vibeGreen : '#FF9800'}
+                color={
+                  metrics.attendanceRate >= 80
+                    ? theme.colors.vibeGreen
+                    : '#FF9800'
+                }
               />
             </View>
           </View>
 
           {/* Recent Performance */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>📅 Recent Performance (30 days)</Text>
+            <Text style={styles.sectionTitle}>
+              📅 Recent Performance (30 days)
+            </Text>
             <View style={styles.statsGrid}>
-              <StatRow 
-                label="Recent Events" 
-                value={metrics.recentEvents || 0} 
+              <StatRow
+                label="Recent Events"
+                value={metrics.recentEvents || 0}
               />
-              <StatRow 
-                label="Recent Attended" 
+              <StatRow
+                label="Recent Attended"
                 value={metrics.recentAttended || 0}
                 color={theme.colors.vibeGreen}
               />
-              <StatRow 
-                label="Recent Rate" 
+              <StatRow
+                label="Recent Rate"
                 value={`${metrics.recentAttendanceRate || 100}%`}
-                color={metrics.recentAttendanceRate >= 80 ? theme.colors.vibeGreen : '#FF9800'}
+                color={
+                  metrics.recentAttendanceRate >= 80
+                    ? theme.colors.vibeGreen
+                    : '#FF9800'
+                }
               />
             </View>
           </View>
@@ -141,19 +156,19 @@ export default function ReliabilityDetail({ userData, onClose }) {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>🔥 Streaks & Patterns</Text>
             <View style={styles.statsGrid}>
-              <StatRow 
-                label="Current Attendance Streak" 
+              <StatRow
+                label="Current Attendance Streak"
                 value={streaks?.currentAttendanceStreak || 0}
                 color={theme.colors.vibeGreen}
               />
-              <StatRow 
-                label="Longest Attendance Streak" 
+              <StatRow
+                label="Longest Attendance Streak"
                 value={streaks?.longestAttendanceStreak || 0}
                 color={theme.colors.vibeBlue}
               />
               {streaks?.currentNoShowStreak > 0 && (
-                <StatRow 
-                  label="Current No-Show Streak" 
+                <StatRow
+                  label="Current No-Show Streak"
                   value={streaks?.currentNoShowStreak}
                   color="#FF6B6B"
                 />
@@ -165,11 +180,13 @@ export default function ReliabilityDetail({ userData, onClose }) {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>ℹ️ How Reliability Works</Text>
             <Text style={styles.explanationText}>
-              Reliability scores are calculated based on attendance rate, recent performance, 
-              and consistency. Factors include:
+              Reliability scores are calculated based on attendance rate, recent
+              performance, and consistency. Factors include:
             </Text>
             <Text style={styles.bulletPoint}>• Attendance vs no-shows</Text>
-            <Text style={styles.bulletPoint}>• Recent activity (weighted more heavily)</Text>
+            <Text style={styles.bulletPoint}>
+              • Recent activity (weighted more heavily)
+            </Text>
             <Text style={styles.bulletPoint}>• Consistency and streaks</Text>
             <Text style={styles.bulletPoint}>• Last-minute cancellations</Text>
           </View>

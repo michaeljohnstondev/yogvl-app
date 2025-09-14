@@ -7,7 +7,7 @@ const LOG_LEVELS = {
   WARN: 1,
   INFO: 2,
   DEBUG: 3,
-  VERBOSE: 4
+  VERBOSE: 4,
 };
 
 // Set log level based on environment
@@ -15,8 +15,16 @@ const CURRENT_LOG_LEVEL = __DEV__ ? LOG_LEVELS.DEBUG : LOG_LEVELS.WARN;
 
 // Sensitive data fields that should never be logged
 const SENSITIVE_FIELDS = [
-  'password', 'token', 'secret', 'key', 'auth',
-  'email', 'phone', 'address', 'ssn', 'credit'
+  'password',
+  'token',
+  'secret',
+  'key',
+  'auth',
+  'email',
+  'phone',
+  'address',
+  'ssn',
+  'credit',
 ];
 
 /**
@@ -39,8 +47,10 @@ const sanitizeData = (data) => {
   const sanitized = {};
   for (const [key, value] of Object.entries(data)) {
     const keyLower = key.toLowerCase();
-    const isSensitive = SENSITIVE_FIELDS.some(field => keyLower.includes(field));
-    
+    const isSensitive = SENSITIVE_FIELDS.some((field) =>
+      keyLower.includes(field)
+    );
+
     if (isSensitive) {
       sanitized[key] = '[REDACTED]';
     } else if (typeof value === 'object' && value !== null) {
@@ -49,7 +59,7 @@ const sanitizeData = (data) => {
       sanitized[key] = value;
     }
   }
-  
+
   return sanitized;
 };
 
@@ -59,12 +69,12 @@ const sanitizeData = (data) => {
 const formatMessage = (component, message, data = null) => {
   const timestamp = new Date().toISOString().substr(11, 12); // HH:mm:ss.sss
   let logMessage = `[${timestamp}] [${component}] ${message}`;
-  
+
   if (data) {
     const sanitizedData = sanitizeData(data);
     logMessage += ` ${JSON.stringify(sanitizedData)}`;
   }
-  
+
   return logMessage;
 };
 
@@ -141,7 +151,9 @@ export const Logger = {
    * Service operation logging
    */
   service: (serviceName, operation, result = null) => {
-    const logData = result ? { success: !!result, resultType: typeof result } : null;
+    const logData = result
+      ? { success: !!result, resultType: typeof result }
+      : null;
     Logger.debug(serviceName, operation, logData);
   },
 
@@ -152,7 +164,7 @@ export const Logger = {
     const data = { operation, collection, success };
     if (count !== null) data.count = count;
     Logger.debug('Database', `${operation} ${collection}`, data);
-  }
+  },
 };
 
 // Convenience exports for common use cases
@@ -161,9 +173,14 @@ export const logError = (component, message, error) => {
 };
 
 export const logUserAction = (action, userId = null) => {
-  Logger.userAction(action, userId ? { userId: `user_${userId.substr(0, 8)}` } : {});
+  Logger.userAction(
+    action,
+    userId ? { userId: `user_${userId.substr(0, 8)}` } : {}
+  );
 };
 
 export const logPerformance = (operation, duration) => {
-  Logger.info('Performance', `${operation} completed`, { duration: `${duration}ms` });
+  Logger.info('Performance', `${operation} completed`, {
+    duration: `${duration}ms`,
+  });
 };

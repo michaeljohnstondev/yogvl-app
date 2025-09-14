@@ -6,12 +6,14 @@ import theme from '../../../theme/themes';
  * Reusable CloseButton component for modals and back buttons
  * Usage: <CloseButton onPress={handleClose} /> or <CloseButton onPress={handleBack} children="←" />
  */
-export default function CloseButton({ onPress, style, textStyle, children = "✕" }) {
+export default function CloseButton({
+  onPress,
+  style,
+  textStyle,
+  children = '✕',
+}) {
   return (
-    <TouchableOpacity
-      style={[styles.closeButton, style]}
-      onPress={onPress}
-    >
+    <TouchableOpacity style={[styles.closeButton, style]} onPress={onPress}>
       <Text style={[styles.closeText, textStyle]}>{children}</Text>
     </TouchableOpacity>
   );

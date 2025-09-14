@@ -1,12 +1,12 @@
 // blockingService.js - User Blocking System
 
-import { 
-  doc, 
-  updateDoc, 
-  arrayUnion, 
-  arrayRemove, 
+import {
+  doc,
+  updateDoc,
+  arrayUnion,
+  arrayRemove,
   getDoc,
-  writeBatch
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 
@@ -14,7 +14,6 @@ import { db } from '../auth/services/firebase';
  * Service for handling user blocking functionality
  */
 class BlockingService {
-
   /**
    * Block a user and handle all side effects
    * @param {string} currentUserId - User doing the blocking
@@ -28,46 +27,71 @@ class BlockingService {
 
     try {
       const batch = writeBatch(db);
-      
+
       // Add to current user's blocked list
       const currentUserRef = doc(db, 'users', currentUserId);
       batch.update(currentUserRef, {
-        blockedUsers: arrayUnion(targetUserId)
+        blockedUsers: arrayUnion(targetUserId),
       });
-      
+
       // Add to target user's blockedBy list
       const targetUserRef = doc(db, 'users', targetUserId);
       batch.update(targetUserRef, {
-        blockedBy: arrayUnion(currentUserId)
+        blockedBy: arrayUnion(currentUserId),
       });
-      
+
       // Remove follow relationships in both directions
       // Current user unfollows target
       batch.update(currentUserRef, {
-        'userdata.social.following': arrayRemove(targetUserId)
+        'userdata.social.following': arrayRemove(targetUserId),
       });
-      
+
       // Target user unfollows current user
       batch.update(targetUserRef, {
-        'userdata.social.following': arrayRemove(currentUserId)
+        'userdata.social.following': arrayRemove(currentUserId),
       });
-      
+
       // Remove from followers subcollections
-      const currentUserFollowingRef = doc(db, 'users', currentUserId, 'following', targetUserId);
-      const currentUserFollowerRef = doc(db, 'users', currentUserId, 'followers', targetUserId);
-      const targetUserFollowingRef = doc(db, 'users', targetUserId, 'following', currentUserId);
-      const targetUserFollowerRef = doc(db, 'users', targetUserId, 'followers', currentUserId);
-      
+      const currentUserFollowingRef = doc(
+        db,
+        'users',
+        currentUserId,
+        'following',
+        targetUserId
+      );
+      const currentUserFollowerRef = doc(
+        db,
+        'users',
+        currentUserId,
+        'followers',
+        targetUserId
+      );
+      const targetUserFollowingRef = doc(
+        db,
+        'users',
+        targetUserId,
+        'following',
+        currentUserId
+      );
+      const targetUserFollowerRef = doc(
+        db,
+        'users',
+        targetUserId,
+        'followers',
+        currentUserId
+      );
+
       batch.delete(currentUserFollowingRef);
       batch.delete(currentUserFollowerRef);
       batch.delete(targetUserFollowingRef);
       batch.delete(targetUserFollowerRef);
 
       await batch.commit();
-      
-      console.log(`[BlockingService] User ${currentUserId} blocked ${targetUserId}`);
+
+      console.log(
+        `[BlockingService] User ${currentUserId} blocked ${targetUserId}`
+      );
       return { success: true };
-      
     } catch (error) {
       console.error('[BlockingService] Error blocking user:', error);
       return { success: false, error: error.message };
@@ -87,24 +111,25 @@ class BlockingService {
 
     try {
       const batch = writeBatch(db);
-      
+
       // Remove from current user's blocked list
       const currentUserRef = doc(db, 'users', currentUserId);
       batch.update(currentUserRef, {
-        blockedUsers: arrayRemove(targetUserId)
+        blockedUsers: arrayRemove(targetUserId),
       });
-      
+
       // Remove from target user's blockedBy list
       const targetUserRef = doc(db, 'users', targetUserId);
       batch.update(targetUserRef, {
-        blockedBy: arrayRemove(currentUserId)
+        blockedBy: arrayRemove(currentUserId),
       });
 
       await batch.commit();
-      
-      console.log(`[BlockingService] User ${currentUserId} unblocked ${targetUserId}`);
+
+      console.log(
+        `[BlockingService] User ${currentUserId} unblocked ${targetUserId}`
+      );
       return { success: true };
-      
     } catch (error) {
       console.error('[BlockingService] Error unblocking user:', error);
       return { success: false, error: error.message };
@@ -125,7 +150,7 @@ class BlockingService {
     try {
       const [currentUserDoc, targetUserDoc] = await Promise.all([
         getDoc(doc(db, 'users', currentUserId)),
-        getDoc(doc(db, 'users', targetUserId))
+        getDoc(doc(db, 'users', targetUserId)),
       ]);
 
       if (!currentUserDoc.exists() || !targetUserDoc.exists()) {
@@ -136,21 +161,22 @@ class BlockingService {
       const targetUserData = targetUserDoc.data();
 
       // Check if current user blocked target
-      const currentBlockedTarget = currentUserData.blockedUsers?.includes(targetUserId);
-      
+      const currentBlockedTarget =
+        currentUserData.blockedUsers?.includes(targetUserId);
+
       // Check if target user blocked current user
-      const targetBlockedCurrent = targetUserData.blockedUsers?.includes(currentUserId);
+      const targetBlockedCurrent =
+        targetUserData.blockedUsers?.includes(currentUserId);
 
       if (currentBlockedTarget) {
         return { isBlocked: true, blockedBy: 'current' };
       }
-      
+
       if (targetBlockedCurrent) {
         return { isBlocked: true, blockedBy: 'target' };
       }
 
       return { isBlocked: false };
-      
     } catch (error) {
       console.error('[BlockingService] Error checking block status:', error);
       return { isBlocked: false, error: error.message };
@@ -169,16 +195,15 @@ class BlockingService {
 
     try {
       const userDoc = await getDoc(doc(db, 'users', currentUserId));
-      
+
       if (!userDoc.exists()) {
         return { blockedUsers: [], error: 'User not found' };
       }
 
       const userData = userDoc.data();
       const blockedUsers = userData.blockedUsers || [];
-      
+
       return { blockedUsers };
-      
     } catch (error) {
       console.error('[BlockingService] Error getting blocked users:', error);
       return { blockedUsers: [], error: error.message };
@@ -196,7 +221,10 @@ class BlockingService {
       const result = await this.isBlocked(currentUserId, targetUserId);
       return result.isBlocked && result.blockedBy === 'target';
     } catch (error) {
-      console.error('[BlockingService] Error checking if blocked by user:', error);
+      console.error(
+        '[BlockingService] Error checking if blocked by user:',
+        error
+      );
       return false;
     }
   }
@@ -212,7 +240,10 @@ class BlockingService {
       const result = await this.isBlocked(currentUserId, targetUserId);
       return result.isBlocked && result.blockedBy === 'current';
     } catch (error) {
-      console.error('[BlockingService] Error checking if user is blocked:', error);
+      console.error(
+        '[BlockingService] Error checking if user is blocked:',
+        error
+      );
       return false;
     }
   }
@@ -240,10 +271,10 @@ class BlockingService {
       const blockedBy = currentUserData.blockedBy || [];
 
       // Filter out users that are blocked or have blocked current user
-      return userIds.filter(userId => 
-        !blockedUsers.includes(userId) && !blockedBy.includes(userId)
+      return userIds.filter(
+        (userId) =>
+          !blockedUsers.includes(userId) && !blockedBy.includes(userId)
       );
-
     } catch (error) {
       console.error('[BlockingService] Error filtering blocked users:', error);
       return userIds; // Return original list on error
@@ -259,11 +290,13 @@ class BlockingService {
    */
   async withBlockCheck(currentUserId, targetUserId, callback) {
     const blockStatus = await this.isBlocked(currentUserId, targetUserId);
-    
+
     if (blockStatus.isBlocked) {
-      throw new Error('This action cannot be completed due to user restrictions.');
+      throw new Error(
+        'This action cannot be completed due to user restrictions.'
+      );
     }
-    
+
     return await callback();
   }
 }

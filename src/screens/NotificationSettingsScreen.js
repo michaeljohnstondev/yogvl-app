@@ -22,42 +22,79 @@ import theme from '../theme/themes';
 
 function NotificationSettings({ navigation }) {
   const { userData, currentUserId } = useAuth();
-  
+
   // Current selected tab
   const [activeTab, setActiveTab] = useState('app');
   const scrollViewRef = useRef(null);
-  
+
   // App-level notification settings (aligned with DATABASE.md schema)
   const [appSettings, setAppSettings] = useState({
-    pushNotifications: userData?.userdata?.settings?.notifications?.app?.pushNotifications ?? true,
-    emailNotifications: userData?.userdata?.settings?.notifications?.app?.emailNotifications ?? true,
-    smsNotifications: userData?.userdata?.settings?.notifications?.app?.smsNotifications ?? false,
-    friendAdded: userData?.userdata?.settings?.notifications?.app?.friendAdded ?? true,
-    eventInvitations: userData?.userdata?.settings?.notifications?.app?.eventInvitations ?? true,
-    systemUpdates: userData?.userdata?.settings?.notifications?.app?.systemUpdates ?? true,
-    quietHours: userData?.userdata?.settings?.notifications?.app?.quietHours ?? false,
+    pushNotifications:
+      userData?.userdata?.settings?.notifications?.app?.pushNotifications ??
+      true,
+    emailNotifications:
+      userData?.userdata?.settings?.notifications?.app?.emailNotifications ??
+      true,
+    smsNotifications:
+      userData?.userdata?.settings?.notifications?.app?.smsNotifications ??
+      false,
+    friendAdded:
+      userData?.userdata?.settings?.notifications?.app?.friendAdded ?? true,
+    eventInvitations:
+      userData?.userdata?.settings?.notifications?.app?.eventInvitations ??
+      true,
+    systemUpdates:
+      userData?.userdata?.settings?.notifications?.app?.systemUpdates ?? true,
+    quietHours:
+      userData?.userdata?.settings?.notifications?.app?.quietHours ?? false,
   });
 
   // Hosting default notification settings (for events user creates)
   const [hostingSettings, setHostingSettings] = useState({
-    enabled: userData?.userdata?.settings?.notifications?.hosting?.enabled ?? true,
-    reminderTiming: userData?.userdata?.settings?.notifications?.hosting?.reminderTiming ?? '1hour',
-    notifyOnJoin: userData?.userdata?.settings?.notifications?.hosting?.notifyOnJoin ?? true,
-    notifyOnLeave: userData?.userdata?.settings?.notifications?.hosting?.notifyOnLeave ?? true,
-    sendDayBefore: userData?.userdata?.settings?.notifications?.hosting?.sendDayBefore ?? true,
-    newComments: userData?.userdata?.settings?.notifications?.hosting?.newComments ?? true,
-    reminderTemplates: userData?.userdata?.settings?.notifications?.hosting?.reminderTemplates ?? [],
+    enabled:
+      userData?.userdata?.settings?.notifications?.hosting?.enabled ?? true,
+    reminderTiming:
+      userData?.userdata?.settings?.notifications?.hosting?.reminderTiming ??
+      '1hour',
+    notifyOnJoin:
+      userData?.userdata?.settings?.notifications?.hosting?.notifyOnJoin ??
+      true,
+    notifyOnLeave:
+      userData?.userdata?.settings?.notifications?.hosting?.notifyOnLeave ??
+      true,
+    sendDayBefore:
+      userData?.userdata?.settings?.notifications?.hosting?.sendDayBefore ??
+      true,
+    newComments:
+      userData?.userdata?.settings?.notifications?.hosting?.newComments ?? true,
+    reminderTemplates:
+      userData?.userdata?.settings?.notifications?.hosting?.reminderTemplates ??
+      [],
   });
 
   // Attending default notification settings (for events user joins)
   const [attendingSettings, setAttendingSettings] = useState({
-    hostChanges: userData?.userdata?.settings?.notifications?.attending?.hostChanges ?? true,
-    eventReminders: userData?.userdata?.settings?.notifications?.attending?.eventReminders ?? true,
-    reminderTiming: userData?.userdata?.settings?.notifications?.attending?.reminderTiming ?? '1hour',
-    dayBeforeReminder: userData?.userdata?.settings?.notifications?.attending?.dayBeforeReminder ?? true,
-    hostComments: userData?.userdata?.settings?.notifications?.attending?.hostComments ?? true,
-    newComments: userData?.userdata?.settings?.notifications?.attending?.newComments ?? false,
-    reminderTemplates: userData?.userdata?.settings?.notifications?.attending?.reminderTemplates || [],
+    hostChanges:
+      userData?.userdata?.settings?.notifications?.attending?.hostChanges ??
+      true,
+    eventReminders:
+      userData?.userdata?.settings?.notifications?.attending?.eventReminders ??
+      true,
+    reminderTiming:
+      userData?.userdata?.settings?.notifications?.attending?.reminderTiming ??
+      '1hour',
+    dayBeforeReminder:
+      userData?.userdata?.settings?.notifications?.attending
+        ?.dayBeforeReminder ?? true,
+    hostComments:
+      userData?.userdata?.settings?.notifications?.attending?.hostComments ??
+      true,
+    newComments:
+      userData?.userdata?.settings?.notifications?.attending?.newComments ??
+      false,
+    reminderTemplates:
+      userData?.userdata?.settings?.notifications?.attending
+        ?.reminderTemplates || [],
   });
 
   const reminderOptions = [
@@ -68,33 +105,70 @@ function NotificationSettings({ navigation }) {
 
   // Initial settings for comparison (prevent unnecessary saves)
   const initialAppSettings = {
-    pushNotifications: userData?.userdata?.settings?.notifications?.app?.pushNotifications ?? true,
-    emailNotifications: userData?.userdata?.settings?.notifications?.app?.emailNotifications ?? true,
-    smsNotifications: userData?.userdata?.settings?.notifications?.app?.smsNotifications ?? false,
-    friendAdded: userData?.userdata?.settings?.notifications?.app?.friendAdded ?? true,
-    eventInvitations: userData?.userdata?.settings?.notifications?.app?.eventInvitations ?? true,
-    systemUpdates: userData?.userdata?.settings?.notifications?.app?.systemUpdates ?? true,
-    quietHours: userData?.userdata?.settings?.notifications?.app?.quietHours ?? false,
+    pushNotifications:
+      userData?.userdata?.settings?.notifications?.app?.pushNotifications ??
+      true,
+    emailNotifications:
+      userData?.userdata?.settings?.notifications?.app?.emailNotifications ??
+      true,
+    smsNotifications:
+      userData?.userdata?.settings?.notifications?.app?.smsNotifications ??
+      false,
+    friendAdded:
+      userData?.userdata?.settings?.notifications?.app?.friendAdded ?? true,
+    eventInvitations:
+      userData?.userdata?.settings?.notifications?.app?.eventInvitations ??
+      true,
+    systemUpdates:
+      userData?.userdata?.settings?.notifications?.app?.systemUpdates ?? true,
+    quietHours:
+      userData?.userdata?.settings?.notifications?.app?.quietHours ?? false,
   };
 
   const initialHostingSettings = {
-    enabled: userData?.userdata?.settings?.notifications?.hosting?.enabled ?? true,
-    reminderTiming: userData?.userdata?.settings?.notifications?.hosting?.reminderTiming ?? '1hour',
-    notifyOnJoin: userData?.userdata?.settings?.notifications?.hosting?.notifyOnJoin ?? true,
-    notifyOnLeave: userData?.userdata?.settings?.notifications?.hosting?.notifyOnLeave ?? true,
-    sendDayBefore: userData?.userdata?.settings?.notifications?.hosting?.sendDayBefore ?? true,
-    newComments: userData?.userdata?.settings?.notifications?.hosting?.newComments ?? true,
-    reminderTemplates: userData?.userdata?.settings?.notifications?.hosting?.reminderTemplates ?? [],
+    enabled:
+      userData?.userdata?.settings?.notifications?.hosting?.enabled ?? true,
+    reminderTiming:
+      userData?.userdata?.settings?.notifications?.hosting?.reminderTiming ??
+      '1hour',
+    notifyOnJoin:
+      userData?.userdata?.settings?.notifications?.hosting?.notifyOnJoin ??
+      true,
+    notifyOnLeave:
+      userData?.userdata?.settings?.notifications?.hosting?.notifyOnLeave ??
+      true,
+    sendDayBefore:
+      userData?.userdata?.settings?.notifications?.hosting?.sendDayBefore ??
+      true,
+    newComments:
+      userData?.userdata?.settings?.notifications?.hosting?.newComments ?? true,
+    reminderTemplates:
+      userData?.userdata?.settings?.notifications?.hosting?.reminderTemplates ??
+      [],
   };
 
   const initialAttendingSettings = {
-    hostChanges: userData?.userdata?.settings?.notifications?.attending?.hostChanges ?? true,
-    eventReminders: userData?.userdata?.settings?.notifications?.attending?.eventReminders ?? true,
-    reminderTiming: userData?.userdata?.settings?.notifications?.attending?.reminderTiming ?? '1hour',
-    dayBeforeReminder: userData?.userdata?.settings?.notifications?.attending?.dayBeforeReminder ?? true,
-    hostComments: userData?.userdata?.settings?.notifications?.attending?.hostComments ?? true,
-    newComments: userData?.userdata?.settings?.notifications?.attending?.newComments ?? false,
-    reminderTemplates: userData?.userdata?.settings?.notifications?.attending?.reminderTemplates || [],
+    hostChanges:
+      userData?.userdata?.settings?.notifications?.attending?.hostChanges ??
+      true,
+    eventReminders:
+      userData?.userdata?.settings?.notifications?.attending?.eventReminders ??
+      true,
+    reminderTiming:
+      userData?.userdata?.settings?.notifications?.attending?.reminderTiming ??
+      '1hour',
+    dayBeforeReminder:
+      userData?.userdata?.settings?.notifications?.attending
+        ?.dayBeforeReminder ?? true,
+    hostComments:
+      userData?.userdata?.settings?.notifications?.attending?.hostComments ??
+      true,
+    newComments:
+      userData?.userdata?.settings?.notifications?.attending?.newComments ??
+      false,
+    reminderTemplates:
+      userData?.userdata?.settings?.notifications?.attending
+        ?.reminderTemplates || [],
   };
 
   // Auto-save hooks with debouncing
@@ -121,27 +195,25 @@ function NotificationSettings({ navigation }) {
 
   // Toggle functions for each section
   const toggleAppSetting = (key) => {
-    setAppSettings(prev => ({
+    setAppSettings((prev) => ({
       ...prev,
-      [key]: !prev[key]
+      [key]: !prev[key],
     }));
   };
 
   const toggleHostingSetting = (key) => {
-    setHostingSettings(prev => ({
+    setHostingSettings((prev) => ({
       ...prev,
-      [key]: !prev[key]
+      [key]: !prev[key],
     }));
   };
 
   const updateHostingReminderTiming = (value) => {
-    setHostingSettings(prev => ({
+    setHostingSettings((prev) => ({
       ...prev,
-      reminderTiming: value
+      reminderTiming: value,
     }));
   };
-
-
 
   const tabOptions = [
     { label: 'App', value: 'app' },
@@ -152,9 +224,7 @@ function NotificationSettings({ navigation }) {
   return (
     <ScrollView ref={scrollViewRef} style={styles.container}>
       <View style={styles.header}>
-        <CloseButton 
-          onPress={() => navigation.goBack()}
-        />
+        <CloseButton onPress={() => navigation.goBack()} />
         <Text style={styles.headerTitle}>Notification Settings</Text>
       </View>
 
@@ -233,7 +303,6 @@ function NotificationSettings({ navigation }) {
               />
             </View>
           </View>
-
         </>
       )}
 
@@ -267,7 +336,6 @@ function NotificationSettings({ navigation }) {
           scrollViewRef={scrollViewRef}
         />
       )}
-
     </ScrollView>
   );
 }

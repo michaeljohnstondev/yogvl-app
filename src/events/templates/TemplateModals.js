@@ -7,7 +7,12 @@ import {
   StyleSheet,
   Alert,
 } from 'react-native';
-import { VibeModal, VibeInput, VibeButton, VibeSegmentedControl } from '../../components/ui';
+import {
+  VibeModal,
+  VibeInput,
+  VibeButton,
+  VibeSegmentedControl,
+} from '../../components/ui';
 import theme from '../../theme/themes';
 
 // Template Selection Modal
@@ -21,7 +26,7 @@ export const TemplateSelectionModal = ({
   onCreateTemplateFromPastEvent,
 }) => {
   const [activeTab, setActiveTab] = useState('templates');
-  
+
   return (
     <VibeModal
       visible={visible}
@@ -42,99 +47,106 @@ export const TemplateSelectionModal = ({
         />
       </View>
 
-      <ScrollView style={styles.templateList} showsVerticalScrollIndicator={false}>
-          {activeTab === 'templates' ? (
-            // Saved Templates Tab
-            templates.length === 0 ? (
-              <Text style={styles.emptyText}>
-                No templates saved yet. Create an event and save it as a template!
-              </Text>
-            ) : (
-              templates.map((template) => (
-                <View key={template.id} style={styles.templateItem}>
-                  <Pressable
-                    style={styles.templateContent}
-                    onPress={() => {
-                      onSelectTemplate(template);
-                      onClose();
-                    }}
-                  >
-                    {template.name !== template.title || !template.title || !template.location ? (
-                      <Text style={styles.templateName}>{template.name}</Text>
-                    ) : (
-                      <>
-                        <Text style={styles.templateName}>{template.title}</Text>
-                        <Text style={styles.templateLocation}>@ {template.location}</Text>
-                      </>
-                    )}
-                  </Pressable>
-
-                  <Pressable
-                    style={styles.deleteButton}
-                    onPress={() => {
-                      Alert.alert(
-                        'Delete Template',
-                        `Delete "${template.name}"?`,
-                        [
-                          { text: 'Cancel' },
-                          {
-                            text: 'Delete',
-                            style: 'destructive',
-                            onPress: () => onDeleteTemplate(template.id),
-                          },
-                        ]
-                      );
-                    }}
-                  >
-                    <Text style={styles.deleteButtonText}>🗑️</Text>
-                  </Pressable>
-                </View>
-              ))
-            )
+      <ScrollView
+        style={styles.templateList}
+        showsVerticalScrollIndicator={false}
+      >
+        {activeTab === 'templates' ? (
+          // Saved Templates Tab
+          templates.length === 0 ? (
+            <Text style={styles.emptyText}>
+              No templates saved yet. Create an event and save it as a template!
+            </Text>
           ) : (
-            // Past Events Tab
-            pastEvents.length === 0 ? (
-              <Text style={styles.emptyText}>
-                No past events found. Create and complete some events to use them as templates!
-              </Text>
-            ) : (
-              pastEvents.map((event) => (
-                <View key={event.id} style={styles.templateItem}>
-                  <Pressable
-                    style={styles.templateContent}
-                    onPress={() => {
-                      if (onCreateTemplateFromPastEvent) {
-                        onCreateTemplateFromPastEvent(event);
-                        onClose();
-                      }
-                    }}
-                  >
-                    <Text style={styles.templateName}>{event.title}</Text>
-                    <Text style={styles.templateLocation}>@ {event.location}</Text>
-                    <Text style={styles.pastEventDate}>
-                      {event.eventTimestamp ? 
-                        new Date(event.eventTimestamp.seconds * 1000).toLocaleDateString() :
-                        new Date(event.utcDateTime).toLocaleDateString()
-                      }
-                    </Text>
-                  </Pressable>
+            templates.map((template) => (
+              <View key={template.id} style={styles.templateItem}>
+                <Pressable
+                  style={styles.templateContent}
+                  onPress={() => {
+                    onSelectTemplate(template);
+                    onClose();
+                  }}
+                >
+                  {template.name !== template.title ||
+                  !template.title ||
+                  !template.location ? (
+                    <Text style={styles.templateName}>{template.name}</Text>
+                  ) : (
+                    <>
+                      <Text style={styles.templateName}>{template.title}</Text>
+                      <Text style={styles.templateLocation}>
+                        @ {template.location}
+                      </Text>
+                    </>
+                  )}
+                </Pressable>
 
-                  <Pressable
-                    style={styles.useTemplateButton}
-                    onPress={() => {
-                      if (onCreateTemplateFromPastEvent) {
-                        onCreateTemplateFromPastEvent(event);
-                        onClose();
-                      }
-                    }}
-                  >
-                    <Text style={styles.useTemplateButtonText}>📋</Text>
-                  </Pressable>
-                </View>
-              ))
-            )
-          )}
-        </ScrollView>
+                <Pressable
+                  style={styles.deleteButton}
+                  onPress={() => {
+                    Alert.alert(
+                      'Delete Template',
+                      `Delete "${template.name}"?`,
+                      [
+                        { text: 'Cancel' },
+                        {
+                          text: 'Delete',
+                          style: 'destructive',
+                          onPress: () => onDeleteTemplate(template.id),
+                        },
+                      ]
+                    );
+                  }}
+                >
+                  <Text style={styles.deleteButtonText}>🗑️</Text>
+                </Pressable>
+              </View>
+            ))
+          )
+        ) : // Past Events Tab
+        pastEvents.length === 0 ? (
+          <Text style={styles.emptyText}>
+            No past events found. Create and complete some events to use them as
+            templates!
+          </Text>
+        ) : (
+          pastEvents.map((event) => (
+            <View key={event.id} style={styles.templateItem}>
+              <Pressable
+                style={styles.templateContent}
+                onPress={() => {
+                  if (onCreateTemplateFromPastEvent) {
+                    onCreateTemplateFromPastEvent(event);
+                    onClose();
+                  }
+                }}
+              >
+                <Text style={styles.templateName}>{event.title}</Text>
+                <Text style={styles.templateLocation}>@ {event.location}</Text>
+                <Text style={styles.pastEventDate}>
+                  {event.eventTimestamp
+                    ? new Date(
+                        event.eventTimestamp.seconds * 1000
+                      ).toLocaleDateString()
+                    : new Date(event.utcDateTime).toLocaleDateString()}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.useTemplateButton}
+                onPress={() => {
+                  if (onCreateTemplateFromPastEvent) {
+                    onCreateTemplateFromPastEvent(event);
+                    onClose();
+                  }
+                }}
+              >
+                <Text style={styles.useTemplateButtonText}>📋</Text>
+              </Pressable>
+            </View>
+          ))
+        )}
+      </ScrollView>
     </VibeModal>
   );
 };
@@ -254,7 +266,7 @@ const styles = StyleSheet.create({
   saveButton: {
     marginTop: 20,
   },
-  
+
   // Past event specific styles
   pastEventDate: {
     fontSize: 12,

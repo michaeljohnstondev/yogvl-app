@@ -2,11 +2,17 @@ import React from 'react';
 import { Pressable, Text, StyleSheet } from 'react-native';
 import theme from '../../../theme/themes';
 
-export default function VibeButtonPlain({ label, onPress, style, textStyle, numberOfLines = 0 }) {
+export default function VibeButtonPlain({
+  label,
+  onPress,
+  style,
+  textStyle,
+  numberOfLines = 0,
+}) {
   return (
     <Pressable onPress={onPress} style={[styles.button, style]}>
-      <Text 
-        style={[styles.text, textStyle]} 
+      <Text
+        style={[styles.text, textStyle]}
         numberOfLines={numberOfLines || undefined}
       >
         {label}

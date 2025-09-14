@@ -7,14 +7,18 @@ const SelectedItem = ({ item, onRemove, showRole, isHostMode, themeColor }) => {
     console.warn('[SelectedItem] Invalid item passed:', item);
     return null;
   }
-  
+
   return (
     <View style={[styles.selectedItem, { borderColor: themeColor }]}>
       <View style={styles.selectedInfo}>
         <Text style={styles.selectedName}>{item.name || 'Unknown'}</Text>
         {item.email && <Text style={styles.selectedDetail}>{item.email}</Text>}
         {item.phone && <Text style={styles.selectedDetail}>{item.phone}</Text>}
-        {showRole && <Text style={[styles.roleText, { color: themeColor }]}>{item.role || (isHostMode ? 'Co-Host' : 'Guest')}</Text>}
+        {showRole && (
+          <Text style={[styles.roleText, { color: themeColor }]}>
+            {item.role || (isHostMode ? 'Co-Host' : 'Guest')}
+          </Text>
+        )}
       </View>
       <TouchableOpacity style={styles.removeButton} onPress={onRemove}>
         <Text style={styles.removeText}>✕</Text>
@@ -23,7 +27,7 @@ const SelectedItem = ({ item, onRemove, showRole, isHostMode, themeColor }) => {
   );
 };
 
-const SelectedItemsList = ({ 
+const SelectedItemsList = ({
   localSelectedUsers,
   localSelectedPhoneContacts,
   localSelectedContacts,
@@ -31,9 +35,12 @@ const SelectedItemsList = ({
   removePhoneContact,
   removeContact,
   isHostMode,
-  themeColor
+  themeColor,
 }) => {
-  const totalSelected = localSelectedUsers.length + localSelectedPhoneContacts.length + localSelectedContacts.length;
+  const totalSelected =
+    localSelectedUsers.length +
+    localSelectedPhoneContacts.length +
+    localSelectedContacts.length;
 
   if (totalSelected === 0) return null;
 
@@ -42,36 +49,36 @@ const SelectedItemsList = ({
       <Text style={styles.selectedTitle}>
         Selected {isHostMode ? 'Co-Hosts' : 'Guests'}:
       </Text>
-      
+
       {localSelectedUsers.map((item) => (
         <View key={item.id}>
-          <SelectedItem 
-            item={item} 
-            onRemove={() => removeUser(item.id)} 
+          <SelectedItem
+            item={item}
+            onRemove={() => removeUser(item.id)}
             showRole={isHostMode}
             isHostMode={isHostMode}
             themeColor={themeColor}
           />
         </View>
       ))}
-      
+
       {localSelectedPhoneContacts.map((item) => (
         <View key={item.id}>
-          <SelectedItem 
-            item={item} 
-            onRemove={() => removePhoneContact(item.id)} 
+          <SelectedItem
+            item={item}
+            onRemove={() => removePhoneContact(item.id)}
             showRole={isHostMode}
             isHostMode={isHostMode}
             themeColor={themeColor}
           />
         </View>
       ))}
-      
+
       {localSelectedContacts.map((item) => (
         <View key={item.id}>
-          <SelectedItem 
-            item={item} 
-            onRemove={() => removeContact(item.id)} 
+          <SelectedItem
+            item={item}
+            onRemove={() => removeContact(item.id)}
             showRole={isHostMode}
             isHostMode={isHostMode}
             themeColor={themeColor}

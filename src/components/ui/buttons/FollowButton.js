@@ -1,19 +1,25 @@
 import React from 'react';
-import { Pressable, View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import {
+  Pressable,
+  View,
+  Text,
+  ActivityIndicator,
+  StyleSheet,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import theme from '../../../theme/themes';
 
-const FollowButton = ({ 
-  isFollowing, 
-  isLoading, 
-  onFollow, 
+const FollowButton = ({
+  isFollowing,
+  isLoading,
+  onFollow,
   onUnfollow,
   disabled = false,
-  style 
+  style,
 }) => {
   const handlePress = () => {
     if (disabled || isLoading) return;
-    
+
     if (isFollowing) {
       onUnfollow();
     } else {
@@ -24,10 +30,7 @@ const FollowButton = ({
   if (isLoading) {
     return (
       <View style={[styles.loadingContainer, style]}>
-        <ActivityIndicator 
-          size="small" 
-          color={theme.colors.vibeBlue} 
-        />
+        <ActivityIndicator size="small" color={theme.colors.vibeBlue} />
         <Text style={styles.loadingText}>
           {isFollowing ? 'Unfollowing...' : 'Following...'}
         </Text>
@@ -42,8 +45,8 @@ const FollowButton = ({
         onPress={handlePress}
         disabled={disabled}
         style={({ pressed }) => [
-          { opacity: pressed ? 0.8 : (disabled ? 0.5 : 1) }, 
-          style
+          { opacity: pressed ? 0.8 : disabled ? 0.5 : 1 },
+          style,
         ]}
       >
         <LinearGradient
@@ -67,8 +70,8 @@ const FollowButton = ({
       disabled={disabled}
       style={({ pressed }) => [
         styles.unfollowButton,
-        { opacity: pressed ? 0.8 : (disabled ? 0.5 : 1) },
-        style
+        { opacity: pressed ? 0.8 : disabled ? 0.5 : 1 },
+        style,
       ]}
     >
       <Text style={styles.unfollowText}>Following</Text>
@@ -96,7 +99,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontFamily: theme.fonts.main,
   },
-  
+
   // Unfollow button (bordered style like VibeButton toggle)
   unfollowButton: {
     borderWidth: 2,
@@ -115,7 +118,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.main,
     textAlign: 'center',
   },
-  
+
   // Loading state
   loadingContainer: {
     flexDirection: 'row',

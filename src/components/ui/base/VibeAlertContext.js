@@ -1,10 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import theme from '../../../theme/themes';
 
 const VibeAlertContext = createContext();
@@ -20,7 +15,12 @@ export const useVibeAlert = () => {
 export const VibeAlertProvider = ({ children }) => {
   const [alert, setAlert] = useState(null);
 
-  const showAlert = (title, message, buttons = [{ text: 'OK' }], type = 'info') => {
+  const showAlert = (
+    title,
+    message,
+    buttons = [{ text: 'OK' }],
+    type = 'info'
+  ) => {
     console.log('🚨 Context showAlert called:', { title, message, type });
     setAlert({ title, message, buttons, type, visible: true });
   };
@@ -31,29 +31,50 @@ export const VibeAlertProvider = ({ children }) => {
   };
 
   const alertMethods = {
-    alert: (title, message, buttons) => showAlert(title, message, buttons, 'info'),
-    info: (title, message, buttons) => showAlert(title, message, buttons, 'info'),
-    success: (title, message, buttons) => showAlert(title, message, buttons, 'success'),
-    error: (title, message, buttons) => showAlert(title, message, buttons, 'error'),
-    warning: (title, message, buttons) => showAlert(title, message, buttons, 'warning'),
-    cyan: (title, message, buttons) => showAlert(title, message, buttons, 'cyan'),
-    turquoise: (title, message, buttons) => showAlert(title, message, buttons, 'turquoise'),
-    aqua: (title, message, buttons) => showAlert(title, message, buttons, 'aqua'),
-    teal: (title, message, buttons) => showAlert(title, message, buttons, 'teal'),
-    menu: (title, message, buttons) => showAlert(title, message, buttons, 'menu'),
-    redmenu: (title, message, buttons) => showAlert(title, message, buttons, 'redmenu'),
+    alert: (title, message, buttons) =>
+      showAlert(title, message, buttons, 'info'),
+    info: (title, message, buttons) =>
+      showAlert(title, message, buttons, 'info'),
+    success: (title, message, buttons) =>
+      showAlert(title, message, buttons, 'success'),
+    error: (title, message, buttons) =>
+      showAlert(title, message, buttons, 'error'),
+    warning: (title, message, buttons) =>
+      showAlert(title, message, buttons, 'warning'),
+    cyan: (title, message, buttons) =>
+      showAlert(title, message, buttons, 'cyan'),
+    turquoise: (title, message, buttons) =>
+      showAlert(title, message, buttons, 'turquoise'),
+    aqua: (title, message, buttons) =>
+      showAlert(title, message, buttons, 'aqua'),
+    teal: (title, message, buttons) =>
+      showAlert(title, message, buttons, 'teal'),
+    menu: (title, message, buttons) =>
+      showAlert(title, message, buttons, 'menu'),
+    redmenu: (title, message, buttons) =>
+      showAlert(title, message, buttons, 'redmenu'),
     confirm: (title, message, onConfirm, onCancel) => {
-      showAlert(title, message, [
-        { text: 'Cancel', onPress: onCancel },
-        { text: 'Confirm', onPress: onConfirm },
-      ], 'confirm');
+      showAlert(
+        title,
+        message,
+        [
+          { text: 'Cancel', onPress: onCancel },
+          { text: 'Confirm', onPress: onConfirm },
+        ],
+        'confirm'
+      );
     },
     subscribe: (title, message, onUseDefaults, onCustomize, onCancel) => {
-      showAlert(title, message, [
-        { text: 'Use Defaults', onPress: onUseDefaults, style: 'primary' },
-        { text: 'Customize', onPress: onCustomize, style: 'secondary' },
-        { text: 'Cancel', onPress: onCancel, style: 'cancel' },
-      ], 'subscribe');
+      showAlert(
+        title,
+        message,
+        [
+          { text: 'Use Defaults', onPress: onUseDefaults, style: 'primary' },
+          { text: 'Customize', onPress: onCustomize, style: 'secondary' },
+          { text: 'Cancel', onPress: onCancel, style: 'cancel' },
+        ],
+        'subscribe'
+      );
     },
   };
 
@@ -102,19 +123,39 @@ export const VibeAlertProvider = ({ children }) => {
       {alert && (
         <View style={styles.overlay}>
           <View style={styles.alertContainer}>
-            <View style={[styles.alertBox, { borderColor: getAlertColors(alert.type).border }]}>
+            <View
+              style={[
+                styles.alertBox,
+                { borderColor: getAlertColors(alert.type).border },
+              ]}
+            >
               <View style={styles.header}>
-                <Text style={styles.icon}>{getAlertColors(alert.type).icon}</Text>
-                <Text style={[styles.title, { color: getAlertColors(alert.type).border }]}>
+                <Text style={styles.icon}>
+                  {getAlertColors(alert.type).icon}
+                </Text>
+                <Text
+                  style={[
+                    styles.title,
+                    { color: getAlertColors(alert.type).border },
+                  ]}
+                >
                   {alert.title}
                 </Text>
               </View>
-              
+
               {alert.message ? (
                 <Text style={styles.message}>{alert.message}</Text>
               ) : null}
-              
-              <View style={[styles.buttonContainer, (alert.type === 'subscribe' || alert.type === 'menu' || alert.type === 'redmenu') && styles.subscribeButtonContainer]}>
+
+              <View
+                style={[
+                  styles.buttonContainer,
+                  (alert.type === 'subscribe' ||
+                    alert.type === 'menu' ||
+                    alert.type === 'redmenu') &&
+                    styles.subscribeButtonContainer,
+                ]}
+              >
                 {alert.buttons.map((button, index) => {
                   const isSubscribe = alert.type === 'subscribe';
                   const isMenu = alert.type === 'menu';
@@ -123,7 +164,7 @@ export const VibeAlertProvider = ({ children }) => {
                   const isSecondary = button.style === 'secondary';
                   const isCancel = button.style === 'cancel';
                   const isLastButton = index === alert.buttons.length - 1;
-                  
+
                   return (
                     <TouchableOpacity
                       key={`alert-button-${index}`}
@@ -137,23 +178,33 @@ export const VibeAlertProvider = ({ children }) => {
                         isPrimary && styles.primaryButton,
                         isSecondary && styles.secondaryButton,
                         isCancel && styles.cancelButton,
-                        !isSubscribe && !isMenu && !isRedMenu && { backgroundColor: getAlertColors(alert.type).border },
-                        isRedMenu && !isLastButton && { 
-                          backgroundColor: 'transparent', 
-                          borderColor: getAlertColors(alert.type).border,
-                          borderWidth: 2
-                        }
+                        !isSubscribe &&
+                          !isMenu &&
+                          !isRedMenu && {
+                            backgroundColor: getAlertColors(alert.type).border,
+                          },
+                        isRedMenu &&
+                          !isLastButton && {
+                            backgroundColor: 'transparent',
+                            borderColor: getAlertColors(alert.type).border,
+                            borderWidth: 2,
+                          },
                       ]}
                       onPress={() => handleButtonPress(button.onPress)}
                     >
-                      <Text style={[
-                        styles.buttonText,
-                        isSecondary && styles.secondaryButtonText,
-                        isCancel && styles.cancelButtonText,
-                        isMenu && isLastButton && styles.cancelButtonText,
-                        isRedMenu && isLastButton && styles.cancelButtonText,
-                        isRedMenu && !isLastButton && { color: getAlertColors(alert.type).border }
-                      ]}>
+                      <Text
+                        style={[
+                          styles.buttonText,
+                          isSecondary && styles.secondaryButtonText,
+                          isCancel && styles.cancelButtonText,
+                          isMenu && isLastButton && styles.cancelButtonText,
+                          isRedMenu && isLastButton && styles.cancelButtonText,
+                          isRedMenu &&
+                            !isLastButton && {
+                              color: getAlertColors(alert.type).border,
+                            },
+                        ]}
+                      >
                         {button.text}
                       </Text>
                     </TouchableOpacity>

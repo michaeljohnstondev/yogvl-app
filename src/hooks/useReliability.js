@@ -7,22 +7,27 @@ export const useReliability = (userData) => {
 
   useEffect(() => {
     if (userData) {
-      const displayData = ReliabilityService.getUserReliabilityDisplay(userData);
+      const displayData =
+        ReliabilityService.getUserReliabilityDisplay(userData);
       setReliabilityData(displayData);
     }
   }, [userData]);
 
   const refreshReliability = async (userId, studioId = null) => {
     if (!userId) return;
-    
+
     // Try to get studioId from userData if not provided
     if (!studioId && userData) {
       studioId = userData?.userdata?.studioId || userData?.studioId;
     }
-    
+
     try {
       setLoading(true);
-      const updatedData = await ReliabilityService.updateUserReliability(userId, false, studioId);
+      const updatedData = await ReliabilityService.updateUserReliability(
+        userId,
+        false,
+        studioId
+      );
       const displayData = ReliabilityService.getUserReliabilityDisplay({
         ...userData,
         userdata: {
@@ -35,9 +40,9 @@ export const useReliability = (userData) => {
               metrics: updatedData.metrics,
               streaks: updatedData.streaks,
               lastUpdated: updatedData.lastUpdated,
-            }
-          }
-        }
+            },
+          },
+        },
       });
       setReliabilityData(displayData);
       return updatedData;

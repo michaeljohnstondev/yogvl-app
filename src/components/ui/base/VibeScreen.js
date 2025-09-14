@@ -1,10 +1,10 @@
 /**
  * VibeScreen - Global app wrapper component
- * 
+ *
  * ⚠️  IMPORTANT: This component should ONLY be used once at the App.js level!
  * ⚠️  DO NOT wrap individual screens or components with VibeScreen
  * ⚠️  It provides global styling, status bar, and background for the entire app
- * 
+ *
  * Usage: Already implemented in App.js - do not use elsewhere
  */
 import React from 'react';
@@ -15,7 +15,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import theme from '../../../theme/themes';
 
-export default function VibeScreen({ children, edges = ['top', 'left', 'right'] }) {
+export default function VibeScreen({
+  children,
+  edges = ['top', 'left', 'right'],
+}) {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 1 }} edges={edges}>
@@ -30,4 +33,3 @@ export default function VibeScreen({ children, edges = ['top', 'left', 'right'] 
     </GestureHandlerRootView>
   );
 }
-

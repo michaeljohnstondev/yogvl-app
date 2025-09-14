@@ -14,7 +14,7 @@ const FilterSection = ({
   setSelectedInterests,
   eventTitle,
   themeColor,
-  themeBgColor
+  themeBgColor,
 }) => {
   const [suggestedInterests, setSuggestedInterests] = useState([]);
 
@@ -34,21 +34,21 @@ const FilterSection = ({
   }, [eventTitle, setSelectedInterests]);
 
   const toggleInterest = (interest) => {
-    setSelectedInterests(prev => 
+    setSelectedInterests((prev) =>
       prev.includes(interest)
-        ? prev.filter(i => i !== interest)
+        ? prev.filter((i) => i !== interest)
         : [...prev, interest]
     );
   };
 
   const toggleEventTitle = () => {
     if (!eventTitle) return;
-    
+
     const eventTitleAsInterest = eventTitle.toLowerCase().trim();
     if (eventTitleAsInterest) {
-      setSelectedInterests(prev => 
+      setSelectedInterests((prev) =>
         prev.includes(eventTitleAsInterest)
-          ? prev.filter(i => i !== eventTitleAsInterest)
+          ? prev.filter((i) => i !== eventTitleAsInterest)
           : [...prev, eventTitleAsInterest]
       );
     }
@@ -59,35 +59,66 @@ const FilterSection = ({
         <Text style={styles.filterLabel}>Show:</Text>
         <View style={styles.filterToggles}>
           <TouchableOpacity
-            style={[styles.filterToggle, showFavorites && { backgroundColor: themeBgColor, borderColor: themeColor }]}
+            style={[
+              styles.filterToggle,
+              showFavorites && {
+                backgroundColor: themeBgColor,
+                borderColor: themeColor,
+              },
+            ]}
             onPress={() => setShowFavorites(!showFavorites)}
           >
-            <Text style={[styles.filterToggleText, showFavorites && { color: themeColor }]}>
+            <Text
+              style={[
+                styles.filterToggleText,
+                showFavorites && { color: themeColor },
+              ]}
+            >
               ⭐ Favorites
             </Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
-            style={[styles.filterToggle, showFriends && { backgroundColor: themeBgColor, borderColor: themeColor }]}
+            style={[
+              styles.filterToggle,
+              showFriends && {
+                backgroundColor: themeBgColor,
+                borderColor: themeColor,
+              },
+            ]}
             onPress={() => setShowFriends(!showFriends)}
           >
-            <Text style={[styles.filterToggleText, showFriends && { color: themeColor }]}>
+            <Text
+              style={[
+                styles.filterToggleText,
+                showFriends && { color: themeColor },
+              ]}
+            >
               👫 Friends
             </Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
-            style={[styles.filterToggle, showLocalNode && { backgroundColor: themeBgColor, borderColor: themeColor }]}
+            style={[
+              styles.filterToggle,
+              showLocalNode && {
+                backgroundColor: themeBgColor,
+                borderColor: themeColor,
+              },
+            ]}
             onPress={() => setShowLocalNode(!showLocalNode)}
           >
-            <Text style={[styles.filterToggleText, showLocalNode && { color: themeColor }]}>
+            <Text
+              style={[
+                styles.filterToggleText,
+                showLocalNode && { color: themeColor },
+              ]}
+            >
               🌐 Local
             </Text>
           </TouchableOpacity>
         </View>
       </View>
-
-
     </View>
   );
 };

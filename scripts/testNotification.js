@@ -9,7 +9,7 @@ const expo = new Expo();
 async function sendTestNotification() {
   // Replace this with the actual Expo push token from your device
   const expoPushToken = 'ExponentPushToken[YOUR_DEVICE_TOKEN_HERE]';
-  
+
   // Check that all your push tokens appear to be valid Expo push tokens
   if (!Expo.isExpoPushToken(expoPushToken)) {
     console.error(`Push token ${expoPushToken} is not a valid Expo push token`);
@@ -23,9 +23,9 @@ async function sendTestNotification() {
       sound: 'default',
       title: 'Big Vibe Studios',
       body: '🎉 Push notifications are working!',
-      data: { 
+      data: {
         type: 'test',
-        screen: 'HomeScreen'
+        screen: 'HomeScreen',
       },
       channelId: 'default',
     },
@@ -34,9 +34,9 @@ async function sendTestNotification() {
       sound: 'default',
       title: 'Event Reminder',
       body: 'Your event "Studio Session" starts in 30 minutes',
-      data: { 
+      data: {
         type: 'event_reminder',
-        eventId: 'test-event-123'
+        eventId: 'test-event-123',
       },
       channelId: 'event-reminders',
     },
@@ -45,21 +45,21 @@ async function sendTestNotification() {
       sound: 'default',
       title: 'New Follower',
       body: 'John Doe started following you',
-      data: { 
+      data: {
         type: 'follow_notification',
-        userId: 'test-user-456'
+        userId: 'test-user-456',
       },
       channelId: 'social',
-    }
+    },
   ];
 
   try {
     console.log('Sending test notifications...');
-    
+
     // Send all notifications
     const chunks = expo.chunkPushNotifications(messages);
     const tickets = [];
-    
+
     for (let chunk of chunks) {
       try {
         const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
@@ -69,15 +69,14 @@ async function sendTestNotification() {
         console.error('Error sending chunk:', error);
       }
     }
-    
+
     console.log('All notifications sent!');
     console.log('Tickets:', tickets);
-    
+
     // Check receipts after a delay
     setTimeout(async () => {
       await checkReceipts(tickets);
     }, 5000);
-    
   } catch (error) {
     console.error('Error sending notifications:', error);
   }
@@ -85,7 +84,7 @@ async function sendTestNotification() {
 
 async function checkReceipts(tickets) {
   console.log('\nChecking receipts...');
-  
+
   const receiptIds = [];
   for (let ticket of tickets) {
     if (ticket.id) {
@@ -94,7 +93,7 @@ async function checkReceipts(tickets) {
   }
 
   const receiptIdChunks = expo.chunkPushNotificationReceiptIds(receiptIds);
-  
+
   for (let chunk of receiptIdChunks) {
     try {
       const receipts = await expo.getPushNotificationReceiptsAsync(chunk);
@@ -106,7 +105,10 @@ async function checkReceipts(tickets) {
         if (status === 'ok') {
           console.log(`✅ Notification ${receiptId} delivered successfully`);
         } else if (status === 'error') {
-          console.error(`❌ Error delivering notification ${receiptId}:`, message);
+          console.error(
+            `❌ Error delivering notification ${receiptId}:`,
+            message
+          );
           if (details && details.error) {
             console.error('Error details:', details.error);
           }
@@ -143,6 +145,10 @@ if (process.argv[2]) {
     console.error('Invalid Expo push token provided');
   }
 } else {
-  console.log('Provide your Expo push token as an argument to send test notifications');
-  console.log('Example: node scripts/testNotification.js ExponentPushToken[YOUR_TOKEN_HERE]');
+  console.log(
+    'Provide your Expo push token as an argument to send test notifications'
+  );
+  console.log(
+    'Example: node scripts/testNotification.js ExponentPushToken[YOUR_TOKEN_HERE]'
+  );
 }

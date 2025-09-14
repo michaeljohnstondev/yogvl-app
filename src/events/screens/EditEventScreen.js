@@ -23,34 +23,38 @@ import { useAuth } from '../../auth/AuthContext';
 export default function EditEventScreen({ navigation, route }) {
   const { currentUserId, userData } = useAuth();
   const vibeAlert = useVibeAlert();
-  
+
   // Get event data from route params
   const { eventId, eventData: routeEventData, studioId } = route.params || {};
-  
+
   // State for loaded event data (if not provided via params)
   const [loadedEventData, setLoadedEventData] = useState(null);
   const [isLoadingEventData, setIsLoadingEventData] = useState(false);
-  
+
   // Use event data from route params or loaded data
   const eventData = routeEventData || loadedEventData;
-  
+
   // Track if event was successfully updated to allow navigation
-  const [eventUpdatedSuccessfully, setEventUpdatedSuccessfully] = useState(false);
+  const [eventUpdatedSuccessfully, setEventUpdatedSuccessfully] =
+    useState(false);
 
   // Load event data if not provided via params
   useEffect(() => {
     if (!routeEventData && eventId && !isLoadingEventData) {
       setIsLoadingEventData(true);
-      
+
       const loadEventData = async () => {
         try {
           const { doc, getDoc } = await import('firebase/firestore');
           const { db } = await import('../../auth/services/firebase');
-          
-          const userStudioId = studioId || userData?.userdata?.studios?.default?.studioId || 'greenville_sc';
+
+          const userStudioId =
+            studioId ||
+            userData?.userdata?.studios?.default?.studioId ||
+            'greenville_sc';
           const eventRef = doc(db, `studios/${userStudioId}/events`, eventId);
           const eventSnap = await getDoc(eventRef);
-          
+
           if (eventSnap.exists()) {
             const data = eventSnap.data();
             setLoadedEventData(data);
@@ -66,60 +70,73 @@ export default function EditEventScreen({ navigation, route }) {
           setIsLoadingEventData(false);
         }
       };
-      
+
       loadEventData();
     }
-  }, [routeEventData, eventId, isLoadingEventData, studioId, userData, vibeAlert, navigation]);
+  }, [
+    routeEventData,
+    eventId,
+    isLoadingEventData,
+    studioId,
+    userData,
+    vibeAlert,
+    navigation,
+  ]);
 
   // Load current attendees and cohosts when event data is available
   useEffect(() => {
     if (eventData && !loadingCurrentUsers) {
       setLoadingCurrentUsers(true);
-      
+
       const loadCurrentUsers = async () => {
         try {
           const { doc, getDoc } = await import('firebase/firestore');
           const { db } = await import('../../auth/services/firebase');
-          
+
           const subscriberUserIds = eventData.subscribers || [];
           const cohostUserIds = eventData.cohosts || [];
-          
+
           // Make attendees and cohosts mutually exclusive
           // Attendees are subscribers who are NOT cohosts AND NOT the event creator
           const creatorId = eventData.createdBy;
-          const attendeeUserIds = subscriberUserIds.filter(userId => 
-            !cohostUserIds.includes(userId) && userId !== creatorId
+          const attendeeUserIds = subscriberUserIds.filter(
+            (userId) => !cohostUserIds.includes(userId) && userId !== creatorId
           );
-          
+
           // Load attendee user data (excluding cohosts)
           const attendeePromises = attendeeUserIds.map(async (userId) => {
             const userDoc = await getDoc(doc(db, 'users', userId));
             return userDoc.exists() ? { id: userId, ...userDoc.data() } : null;
           });
-          
+
           // Load cohost user data
           const cohostPromises = cohostUserIds.map(async (userId) => {
             const userDoc = await getDoc(doc(db, 'users', userId));
             return userDoc.exists() ? { id: userId, ...userDoc.data() } : null;
           });
-          
+
           const [attendeeUsers, cohostUsers] = await Promise.all([
             Promise.all(attendeePromises),
-            Promise.all(cohostPromises)
+            Promise.all(cohostPromises),
           ]);
-          
+
           // Filter out null values
           setCurrentAttendees(attendeeUsers.filter(Boolean));
           setCurrentCohosts(cohostUsers.filter(Boolean));
-          
-          console.log(`[EditEventScreen] Loaded ${attendeeUsers.filter(Boolean).length} attendees and ${cohostUsers.filter(Boolean).length} cohosts`);
+
+          console.log(
+            `[EditEventScreen] Loaded ${attendeeUsers.filter(Boolean).length} attendees and ${cohostUsers.filter(Boolean).length} cohosts`
+          );
         } catch (error) {
-          console.error('[EditEventScreen] Failed to load current users:', error);
+          console.error(
+            '[EditEventScreen] Failed to load current users:',
+            error
+          );
         } finally {
           setLoadingCurrentUsers(false);
         }
       };
-      
+
       loadCurrentUsers();
     }
   }, [eventData, loadingCurrentUsers]);
@@ -144,7 +161,10 @@ export default function EditEventScreen({ navigation, route }) {
       entryFee: eventData.entryFee || '',
       isPrivate: eventData.isPrivate || false,
       allowGuestInvites: eventData.allowGuestInvites || false,
-      showHostContact: eventData.showHostContact !== undefined ? eventData.showHostContact : true,
+      showHostContact:
+        eventData.showHostContact !== undefined
+          ? eventData.showHostContact
+          : true,
       hasRsvpDeadline: !!eventData.rsvpDeadline,
       whatsProvided: eventData.whatsProvided || '',
       whatToBring: eventData.whatToBring || '',
@@ -154,7 +174,8 @@ export default function EditEventScreen({ navigation, route }) {
       trackAttendance: eventData.trackAttendance || false,
       notificationSettings: {
         enabled: eventData.notificationSettings?.enabled ?? true,
-        reminderTiming: eventData.notificationSettings?.reminderTiming ?? '1hour',
+        reminderTiming:
+          eventData.notificationSettings?.reminderTiming ?? '1hour',
         notifyOnJoin: eventData.notificationSettings?.notifyOnJoin ?? true,
         notifyOnLeave: eventData.notificationSettings?.notifyOnLeave ?? true,
         sendReminders: eventData.notificationSettings?.sendReminders ?? true,
@@ -166,25 +187,31 @@ export default function EditEventScreen({ navigation, route }) {
 
     // Initialize selected contacts from existing event data
     stableSelectedContacts.current = eventData.invitedContacts || [];
-    
+
     // Initialize stable date/time values
     stableDateTimeRef.current = {
       event: {
-        value: eventData.eventTimestamp 
-          ? (eventData.eventTimestamp.toDate ? eventData.eventTimestamp.toDate() : new Date(eventData.eventTimestamp))
-          : (eventData.utcDateTime ? new Date(eventData.utcDateTime) : new Date()),
+        value: eventData.eventTimestamp
+          ? eventData.eventTimestamp.toDate
+            ? eventData.eventTimestamp.toDate()
+            : new Date(eventData.eventTimestamp)
+          : eventData.utcDateTime
+            ? new Date(eventData.utcDateTime)
+            : new Date(),
         selected: !!(eventData.eventTimestamp || eventData.utcDateTime),
         dateSelected: !!(eventData.eventTimestamp || eventData.utcDateTime),
         timeSelected: !!(eventData.eventTimestamp || eventData.utcDateTime),
       },
       rsvpDeadline: {
-        value: eventData.rsvpDeadline 
-          ? (eventData.rsvpDeadline.toDate ? eventData.rsvpDeadline.toDate() : new Date(eventData.rsvpDeadline))
+        value: eventData.rsvpDeadline
+          ? eventData.rsvpDeadline.toDate
+            ? eventData.rsvpDeadline.toDate()
+            : new Date(eventData.rsvpDeadline)
           : new Date(),
         selected: !!eventData.rsvpDeadline,
         dateSelected: !!eventData.rsvpDeadline,
         timeSelected: !!eventData.rsvpDeadline,
-      }
+      },
     };
   }
 
@@ -192,12 +219,14 @@ export default function EditEventScreen({ navigation, route }) {
   const [selectedTextContacts, setSelectedTextContacts] = useState(
     stableSelectedContacts.current
   );
-  
+
   // NEW invitation selections (for sending new invites) - start empty
   const [selectedGuestUsers, setSelectedGuestUsers] = useState([]);
   const [selectedGuestContacts, setSelectedGuestContacts] = useState([]);
-  const [selectedGuestPhoneContacts, setSelectedGuestPhoneContacts] = useState([]);
-  
+  const [selectedGuestPhoneContacts, setSelectedGuestPhoneContacts] = useState(
+    []
+  );
+
   // NEW co-host invitation selections (for sending new invites) - start empty
   const [selectedCohostUsers, setSelectedCohostUsers] = useState([]);
   const [selectedCohostContacts, setSelectedCohostContacts] = useState([]);
@@ -214,15 +243,22 @@ export default function EditEventScreen({ navigation, route }) {
 
   // Handle guest invitation selections from InviteScreen
   const handleGuestInvitationChange = useCallback((selections) => {
-    console.log('[EditEventScreen] Guest invitation selections received:', selections);
+    console.log(
+      '[EditEventScreen] Guest invitation selections received:',
+      selections
+    );
     if (selections.users) setSelectedGuestUsers(selections.users);
     if (selections.contacts) setSelectedGuestContacts(selections.contacts);
-    if (selections.phoneContacts) setSelectedGuestPhoneContacts(selections.phoneContacts);
+    if (selections.phoneContacts)
+      setSelectedGuestPhoneContacts(selections.phoneContacts);
   }, []);
 
   // Handle co-host invitation selections from InviteScreen
   const handleCohostInvitationChange = useCallback((selections) => {
-    console.log('[EditEventScreen] Co-host invitation selections received:', selections);
+    console.log(
+      '[EditEventScreen] Co-host invitation selections received:',
+      selections
+    );
     if (selections.users) setSelectedCohostUsers(selections.users);
     if (selections.contacts) setSelectedCohostContacts(selections.contacts);
   }, []);
@@ -285,8 +321,8 @@ export default function EditEventScreen({ navigation, route }) {
     getFieldData,
     loadSuggestions,
   } = useSuggestionsManager(
-    updateField, 
-    appendToDetails, 
+    updateField,
+    appendToDetails,
     userData?.userdata?.studios?.default?.studioId || 'greenville_sc'
   );
 
@@ -311,8 +347,10 @@ export default function EditEventScreen({ navigation, route }) {
       maxDate: 'event',
       initialValue: stableDateTimeValues?.rsvpDeadline?.value || new Date(),
       initialSelected: stableDateTimeValues?.rsvpDeadline?.selected || false,
-      initialDateSelected: stableDateTimeValues?.rsvpDeadline?.dateSelected || false,
-      initialTimeSelected: stableDateTimeValues?.rsvpDeadline?.timeSelected || false,
+      initialDateSelected:
+        stableDateTimeValues?.rsvpDeadline?.dateSelected || false,
+      initialTimeSelected:
+        stableDateTimeValues?.rsvpDeadline?.timeSelected || false,
     },
   };
 
@@ -340,39 +378,71 @@ export default function EditEventScreen({ navigation, route }) {
   // Check if form has meaningful changes from original event data
   const hasActualChanges = useCallback(() => {
     if (!eventData) return false;
-    
+
     // Check for changes in main fields
-    const hasTextChanges = formData.title.trim() !== (eventData.title || '').trim() || 
-                          formData.location.trim() !== (eventData.location || '').trim() || 
-                          formData.address.trim() !== (eventData.address || '').trim() || 
-                          formData.details.trim() !== (eventData.details || '').trim() || 
-                          formData.maxGuests.toString().trim() !== (eventData.maxGuests?.toString() || '').trim();
-    
+    const hasTextChanges =
+      formData.title.trim() !== (eventData.title || '').trim() ||
+      formData.location.trim() !== (eventData.location || '').trim() ||
+      formData.address.trim() !== (eventData.address || '').trim() ||
+      formData.details.trim() !== (eventData.details || '').trim() ||
+      formData.maxGuests.toString().trim() !==
+        (eventData.maxGuests?.toString() || '').trim();
+
     // Check for configuration changes
-    const hasConfigChanges = formData.hasFee !== (eventData.hasFee || false) || 
-                            formData.isPrivate !== (eventData.isPrivate || false) || 
-                            formData.allowGuestInvites !== (eventData.allowGuestInvites || false) ||
-                            formData.showHostContact !== (eventData.showHostContact !== undefined ? eventData.showHostContact : true) || 
-                            formData.hasRsvpDeadline !== !!eventData.rsvpDeadline ||
-                            formData.trackAttendance !== (eventData.trackAttendance || false) ||
-                            String(formData.entryFee || '').trim() !== String(eventData.entryFee || '').trim();
-    
+    const hasConfigChanges =
+      formData.hasFee !== (eventData.hasFee || false) ||
+      formData.isPrivate !== (eventData.isPrivate || false) ||
+      formData.allowGuestInvites !== (eventData.allowGuestInvites || false) ||
+      formData.showHostContact !==
+        (eventData.showHostContact !== undefined
+          ? eventData.showHostContact
+          : true) ||
+      formData.hasRsvpDeadline !== !!eventData.rsvpDeadline ||
+      formData.trackAttendance !== (eventData.trackAttendance || false) ||
+      String(formData.entryFee || '').trim() !==
+        String(eventData.entryFee || '').trim();
+
     // Check for invitation changes - only NEW invitations count as changes
     // (current attendees/cohosts are already saved, we only care about new invites)
-    const hasNewGuestInvitations = selectedGuestUsers.length > 0 || selectedGuestContacts.length > 0 || selectedGuestPhoneContacts.length > 0;
-    const hasNewCohostInvitations = selectedCohostUsers.length > 0 || selectedCohostContacts.length > 0;
-    
-    const hasInvitationChanges = hasNewGuestInvitations || hasNewCohostInvitations;
-    
+    const hasNewGuestInvitations =
+      selectedGuestUsers.length > 0 ||
+      selectedGuestContacts.length > 0 ||
+      selectedGuestPhoneContacts.length > 0;
+    const hasNewCohostInvitations =
+      selectedCohostUsers.length > 0 || selectedCohostContacts.length > 0;
+
+    const hasInvitationChanges =
+      hasNewGuestInvitations || hasNewCohostInvitations;
+
     // Check for date/time changes
-    const originalEventDate = eventData.eventTimestamp 
-      ? (eventData.eventTimestamp.toDate ? eventData.eventTimestamp.toDate().getTime() : new Date(eventData.eventTimestamp).getTime())
-      : (eventData.utcDateTime ? new Date(eventData.utcDateTime).getTime() : null);
-    const currentEventDate = dateTimeValues?.event?.value ? dateTimeValues.event.value.getTime() : null;
+    const originalEventDate = eventData.eventTimestamp
+      ? eventData.eventTimestamp.toDate
+        ? eventData.eventTimestamp.toDate().getTime()
+        : new Date(eventData.eventTimestamp).getTime()
+      : eventData.utcDateTime
+        ? new Date(eventData.utcDateTime).getTime()
+        : null;
+    const currentEventDate = dateTimeValues?.event?.value
+      ? dateTimeValues.event.value.getTime()
+      : null;
     const hasDateTimeChanges = originalEventDate !== currentEventDate;
-    
-    return hasTextChanges || hasConfigChanges || hasInvitationChanges || hasDateTimeChanges;
-  }, [formData, selectedGuestUsers, selectedGuestContacts, selectedGuestPhoneContacts, selectedCohostUsers, selectedCohostContacts, dateTimeValues, eventData]);
+
+    return (
+      hasTextChanges ||
+      hasConfigChanges ||
+      hasInvitationChanges ||
+      hasDateTimeChanges
+    );
+  }, [
+    formData,
+    selectedGuestUsers,
+    selectedGuestContacts,
+    selectedGuestPhoneContacts,
+    selectedCohostUsers,
+    selectedCohostContacts,
+    dateTimeValues,
+    eventData,
+  ]);
 
   // Handle back navigation (both hardware and header back button)
   const handleBackNavigation = useCallback(() => {
@@ -380,7 +450,7 @@ export default function EditEventScreen({ navigation, route }) {
     if (eventUpdatedSuccessfully) {
       return false;
     }
-    
+
     // Only show confirmation if user has made actual changes
     if (hasActualChanges()) {
       // Show confirmation dialog when form has changes
@@ -397,7 +467,7 @@ export default function EditEventScreen({ navigation, route }) {
       );
       return true; // Prevent navigation
     }
-    
+
     // Allow navigation when no meaningful changes
     return false;
   }, [eventUpdatedSuccessfully, hasActualChanges, vibeAlert, navigation]);
@@ -405,7 +475,10 @@ export default function EditEventScreen({ navigation, route }) {
   // Handle hardware back button
   useFocusEffect(
     useCallback(() => {
-      const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackNavigation);
+      const backHandler = BackHandler.addEventListener(
+        'hardwareBackPress',
+        handleBackNavigation
+      );
       return () => backHandler.remove();
     }, [handleBackNavigation])
   );
@@ -418,12 +491,12 @@ export default function EditEventScreen({ navigation, route }) {
         if (eventUpdatedSuccessfully) {
           return;
         }
-        
+
         // Only show confirmation if user has made actual changes
         if (hasActualChanges()) {
           // Prevent default behavior
           e.preventDefault();
-          
+
           // Show confirmation dialog
           vibeAlert.confirm(
             'Discard Changes?',
@@ -516,20 +589,28 @@ export default function EditEventScreen({ navigation, route }) {
         });
 
         // Apply date/time if present in template and valid
-        if ((templateFormData.date && templateFormData.date !== null) || (templateFormData.time && templateFormData.time !== null)) {
-          const templateDateTime = templateFormData.date || templateFormData.time;
-          
+        if (
+          (templateFormData.date && templateFormData.date !== null) ||
+          (templateFormData.time && templateFormData.time !== null)
+        ) {
+          const templateDateTime =
+            templateFormData.date || templateFormData.time;
+
           // Ensure templateDateTime is a valid Date object
-          const validTemplateDate = templateDateTime instanceof Date && !isNaN(templateDateTime) 
-            ? templateDateTime 
-            : new Date(templateDateTime);
-          
+          const validTemplateDate =
+            templateDateTime instanceof Date && !isNaN(templateDateTime)
+              ? templateDateTime
+              : new Date(templateDateTime);
+
           // If still invalid, skip template date/time
           if (isNaN(validTemplateDate)) {
-            console.warn('Invalid template date/time, skipping:', templateDateTime);
+            console.warn(
+              'Invalid template date/time, skipping:',
+              templateDateTime
+            );
             return;
           }
-          
+
           const now = new Date();
 
           // If template date is in the past, adjust it to be in the future
@@ -594,19 +675,19 @@ export default function EditEventScreen({ navigation, route }) {
 
   const handleSuccess = useCallback(() => {
     loadSuggestions();
-    
+
     // Set flag to allow navigation
     setEventUpdatedSuccessfully(true);
 
-    vibeAlert.aqua(
-      'Event Updated!',
-      'Your changes have been saved! 🌊',
-      [{ text: 'OK', onPress: () => {
+    vibeAlert.aqua('Event Updated!', 'Your changes have been saved! 🌊', [
+      {
+        text: 'OK',
+        onPress: () => {
           // Navigation should now work because eventUpdatedSuccessfully is true
           navigation.goBack();
-        }
-      }]
-    );
+        },
+      },
+    ]);
   }, [loadSuggestions, navigation]);
 
   const handleSubmit = useCallback(async () => {
@@ -618,7 +699,7 @@ export default function EditEventScreen({ navigation, route }) {
         phoneContacts: selectedGuestPhoneContacts,
         cohosts: selectedCohostUsers,
         textContacts: selectedTextContacts,
-        defaultMessage: formData.invitationMessage || ''
+        defaultMessage: formData.invitationMessage || '',
       };
 
       console.log(`[EditEventScreen] Selected invitations:`, {
@@ -627,7 +708,12 @@ export default function EditEventScreen({ navigation, route }) {
         phoneContacts: selectedGuestPhoneContacts.length,
         cohostUsers: selectedCohostUsers.length,
         textContacts: selectedTextContacts.length,
-        totalInvitations: selectedGuestUsers.length + selectedGuestContacts.length + selectedGuestPhoneContacts.length + selectedCohostUsers.length + selectedTextContacts.length
+        totalInvitations:
+          selectedGuestUsers.length +
+          selectedGuestContacts.length +
+          selectedGuestPhoneContacts.length +
+          selectedCohostUsers.length +
+          selectedTextContacts.length,
       });
 
       await submitEvent({
@@ -733,12 +819,21 @@ export default function EditEventScreen({ navigation, route }) {
         onGuestInvitationChange={handleGuestInvitationChange}
         onCohostInvitationChange={handleCohostInvitationChange}
         // Current invitation counts for UI display (current + new)
-        selectedGuestCount={currentAttendees.length + selectedGuestUsers.length + selectedGuestContacts.length + selectedGuestPhoneContacts.length}
-        selectedCohostCount={currentCohosts.length + selectedCohostUsers.length + selectedCohostContacts.length}
+        selectedGuestCount={
+          currentAttendees.length +
+          selectedGuestUsers.length +
+          selectedGuestContacts.length +
+          selectedGuestPhoneContacts.length
+        }
+        selectedCohostCount={
+          currentCohosts.length +
+          selectedCohostUsers.length +
+          selectedCohostContacts.length
+        }
         // Edit mode props
         isEditMode={true}
       />
-      
+
       {/* Template Selection Modal */}
       <TemplateSelectionModal
         visible={showSelectionModal}

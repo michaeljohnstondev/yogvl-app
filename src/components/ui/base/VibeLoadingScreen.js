@@ -2,11 +2,11 @@ import React from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import theme from '../../../theme/themes';
 
-export default function VibeLoadingScreen({ 
+export default function VibeLoadingScreen({
   loadingText = 'Loading...',
   showBranding = true,
   size = 'large',
-  color = theme.colors.vibeBlue || '#00C6FF'
+  color = theme.colors.vibeBlue || '#00C6FF',
 }) {
   return (
     <View style={styles.container}>
@@ -17,12 +17,9 @@ export default function VibeLoadingScreen({
           <Text style={styles.brandingText}>STUDIOS</Text>
         </View>
       )}
-      
+
       <View style={styles.loadingContainer}>
-        <ActivityIndicator 
-          size={size} 
-          color={color}
-        />
+        <ActivityIndicator size={size} color={color} />
         <Text style={styles.loadingText}>{loadingText}</Text>
       </View>
     </View>

@@ -2,22 +2,22 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import theme from '../../../theme/themes';
 
-export default function FriendsBucket({ 
-  title, 
-  memberCount = 0, 
-  isExpanded, 
-  onToggle, 
+export default function FriendsBucket({
+  title,
+  memberCount = 0,
+  isExpanded,
+  onToggle,
   children,
   disabled = false,
-  showMemberCount = false
+  showMemberCount = false,
 }) {
   return (
     <View style={styles.container}>
-      <Pressable 
+      <Pressable
         style={({ pressed }) => [
           styles.header,
           disabled && styles.disabledHeader,
-          { opacity: pressed ? 0.7 : 1 }
+          { opacity: pressed ? 0.7 : 1 },
         ]}
         onPress={() => {
           console.log('[FRIENDS BUCKET] onPress triggered, calling onToggle');
@@ -26,33 +26,24 @@ export default function FriendsBucket({
         disabled={disabled}
       >
         <View style={styles.titleContainer}>
-          <Text style={[
-            styles.title,
-            disabled && styles.disabledText
-          ]}>
+          <Text style={[styles.title, disabled && styles.disabledText]}>
             {title}
           </Text>
           {showMemberCount && (
-            <Text style={[
-              styles.memberCount,
-              disabled && styles.disabledText
-            ]}>
+            <Text style={[styles.memberCount, disabled && styles.disabledText]}>
               ({memberCount} {memberCount === 1 ? 'member' : 'members'})
             </Text>
           )}
         </View>
-        
-        <Text style={[
-          styles.arrow,
-          disabled && styles.disabledText
-        ]}>
+
+        <Text style={[styles.arrow, disabled && styles.disabledText]}>
           {isExpanded ? '▼' : '▶'}
         </Text>
       </Pressable>
 
       {isExpanded && !disabled && (
         <View style={styles.expandedContainer}>
-          <ScrollView 
+          <ScrollView
             style={styles.scrollableContent}
             showsVerticalScrollIndicator={true}
             nestedScrollEnabled={true}

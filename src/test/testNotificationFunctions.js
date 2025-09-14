@@ -8,7 +8,7 @@ import {
   notifyHostOfEventJoin,
   notifyHostOfEventLeave,
   notifyFriendRequest,
-  notifyFriendAccepted
+  notifyFriendAccepted,
 } from '../services/notifications';
 
 // Mock test data
@@ -22,62 +22,67 @@ const testData = {
 
 export const testNotificationFunctions = async () => {
   console.log('\n🧪 === NOTIFICATION FUNCTION TESTS ===\n');
-  
+
   const tests = [
     {
       name: 'Follow Notification',
-      test: () => notifyNewFollower({
-        targetUserId: testData.userId,
-        followerId: testData.followerId,
-        followerName: 'Test Follower'
-      })
+      test: () =>
+        notifyNewFollower({
+          targetUserId: testData.userId,
+          followerId: testData.followerId,
+          followerName: 'Test Follower',
+        }),
     },
     {
       name: 'Guest Invitation Notification',
-      test: () => notifyGuestInvitation({
-        recipientId: testData.userId,
-        inviterId: testData.followerId,
-        inviterName: 'Test Inviter',
-        eventId: testData.eventId,
-        eventTitle: testData.eventTitle,
-        invitationId: testData.invitationId
-      })
+      test: () =>
+        notifyGuestInvitation({
+          recipientId: testData.userId,
+          inviterId: testData.followerId,
+          inviterName: 'Test Inviter',
+          eventId: testData.eventId,
+          eventTitle: testData.eventTitle,
+          invitationId: testData.invitationId,
+        }),
     },
     {
-      name: 'Cohost Invitation Notification', 
-      test: () => notifyCohostInvitation({
-        recipientId: testData.userId,
-        inviterId: testData.followerId,
-        inviterName: 'Test Host',
-        eventId: testData.eventId,
-        eventTitle: testData.eventTitle,
-        invitationId: testData.invitationId
-      })
+      name: 'Cohost Invitation Notification',
+      test: () =>
+        notifyCohostInvitation({
+          recipientId: testData.userId,
+          inviterId: testData.followerId,
+          inviterName: 'Test Host',
+          eventId: testData.eventId,
+          eventTitle: testData.eventTitle,
+          invitationId: testData.invitationId,
+        }),
     },
     {
       name: 'Event Join Notification',
-      test: () => notifyHostOfEventJoin({
-        eventId: testData.eventId,
-        eventTitle: testData.eventTitle,
-        hostId: testData.userId,
-        joinedUserId: testData.followerId,
-        joinedUserName: 'Test Joiner'
-      })
+      test: () =>
+        notifyHostOfEventJoin({
+          eventId: testData.eventId,
+          eventTitle: testData.eventTitle,
+          hostId: testData.userId,
+          joinedUserId: testData.followerId,
+          joinedUserName: 'Test Joiner',
+        }),
     },
     {
       name: 'Event Leave Notification',
-      test: () => notifyHostOfEventLeave({
-        eventId: testData.eventId,
-        eventTitle: testData.eventTitle,
-        hostId: testData.userId,
-        leftUserId: testData.followerId,
-        leftUserName: 'Test Leaver'
-      })
-    }
+      test: () =>
+        notifyHostOfEventLeave({
+          eventId: testData.eventId,
+          eventTitle: testData.eventTitle,
+          hostId: testData.userId,
+          leftUserId: testData.followerId,
+          leftUserName: 'Test Leaver',
+        }),
+    },
   ];
-  
+
   const results = [];
-  
+
   for (const { name, test } of tests) {
     try {
       console.log(`\n🧪 Testing: ${name}`);
@@ -91,18 +96,18 @@ export const testNotificationFunctions = async () => {
       results.push({ name, success: false, error: error.message });
     }
   }
-  
+
   console.log('\n📊 === TEST SUMMARY ===');
-  const successCount = results.filter(r => r.success).length;
+  const successCount = results.filter((r) => r.success).length;
   console.log(`✅ Passed: ${successCount}/${results.length}`);
   console.log(`❌ Failed: ${results.length - successCount}/${results.length}`);
-  
+
   results.forEach(({ name, success, error }) => {
     if (!success) {
       console.log(`❌ ${name}: ${error}`);
     }
   });
-  
+
   return results;
 };
 
@@ -110,18 +115,20 @@ export const testNotificationFunctions = async () => {
 export const testUserNotificationPreferences = async (userId) => {
   try {
     console.log(`\n🔍 Testing user preferences for ${userId}`);
-    
+
     // Import FCM service to test preferences
     const { fcmService } = await import('../services/fcmServiceWrapper');
     const preferences = await fcmService.getUserNotificationPreferences(userId);
-    
+
     console.log('📋 User notification preferences:');
     console.log(JSON.stringify(preferences, null, 2));
-    
+
     // Check if push notifications are enabled
     const pushEnabled = preferences?.app?.pushNotifications !== false;
-    console.log(`📱 Push notifications enabled: ${pushEnabled ? '✅ YES' : '❌ NO'}`);
-    
+    console.log(
+      `📱 Push notifications enabled: ${pushEnabled ? '✅ YES' : '❌ NO'}`
+    );
+
     return preferences;
   } catch (error) {
     console.error('❌ Failed to get user preferences:', error);
@@ -133,24 +140,30 @@ export const testUserNotificationPreferences = async (userId) => {
 export const testPushTokenRegistration = async (userId) => {
   try {
     console.log(`\n🎫 Testing push token for user ${userId}`);
-    
+
     const { fcmService } = await import('../services/fcmServiceWrapper');
-    
+
     // Check current token
     const currentToken = fcmService.getCurrentToken();
-    console.log(`🎫 Current token: ${currentToken ? currentToken.substring(0, 30) + '...' : 'NONE'}`);
-    
+    console.log(
+      `🎫 Current token: ${currentToken ? currentToken.substring(0, 30) + '...' : 'NONE'}`
+    );
+
     // Get new token
     const token = await fcmService.getExpoPushToken();
-    console.log(`🎫 Fresh token: ${token ? token.substring(0, 30) + '...' : 'FAILED'}`);
-    
+    console.log(
+      `🎫 Fresh token: ${token ? token.substring(0, 30) + '...' : 'FAILED'}`
+    );
+
     // Test registration
     if (token) {
       const registered = await fcmService.registerTokenForUser(userId);
-      console.log(`📝 Token registration: ${registered ? '✅ SUCCESS' : '❌ FAILED'}`);
+      console.log(
+        `📝 Token registration: ${registered ? '✅ SUCCESS' : '❌ FAILED'}`
+      );
       return { token, registered };
     }
-    
+
     return { token: null, registered: false };
   } catch (error) {
     console.error('❌ Push token test failed:', error);
@@ -160,5 +173,5 @@ export const testPushTokenRegistration = async (userId) => {
 
 console.log('📋 Notification test functions loaded. Use:');
 console.log('   testNotificationFunctions()');
-console.log('   testUserNotificationPreferences(userId)'); 
+console.log('   testUserNotificationPreferences(userId)');
 console.log('   testPushTokenRegistration(userId)');

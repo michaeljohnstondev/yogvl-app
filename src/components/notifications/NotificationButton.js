@@ -6,7 +6,11 @@ import { useRealtimeNotificationsContext } from '../../contexts/RealtimeNotifica
 import NotificationBadge from './NotificationBadge';
 import theme from '../../theme/themes';
 
-const NotificationButton = React.memo(function NotificationButton({ onPress, style, iconComponent }) {
+const NotificationButton = React.memo(function NotificationButton({
+  onPress,
+  style,
+  iconComponent,
+}) {
   // Use shared real-time notifications context
   const { unreadCount } = useRealtimeNotificationsContext();
 

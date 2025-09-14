@@ -14,13 +14,16 @@ import theme from '../theme/themes';
 import { VibeButton } from '../components/ui/base';
 import { CloseButton } from '../components/ui/buttons';
 import { ModerationActionModal } from '../components/ui/modals';
-import { AdminNotificationTool, NotificationTester } from '../components/ui/admin';
-import { 
-  isGlobalAdmin, 
-  getAllReportsForGlobalAdmin, 
+import {
+  AdminNotificationTool,
+  NotificationTester,
+} from '../components/ui/admin';
+import {
+  isGlobalAdmin,
+  getAllReportsForGlobalAdmin,
   getReportStatsByStudio,
   updateReport,
-  getStudioOptions 
+  getStudioOptions,
 } from '../services/adminService';
 import { moderationService } from '../services/moderationService';
 import { VenueService } from '../services/VenueService';
@@ -28,26 +31,25 @@ import { StudioRequestService } from '../services/StudioRequestService';
 
 export default function AdminScreen({ navigation }) {
   const { userData, currentUserId } = useAuth();
-  
+
   // Reports management state
   const [reports, setReports] = useState([]);
   const [loadingReports, setLoadingReports] = useState(false);
   const [selectedStudioFilter, setSelectedStudioFilter] = useState('all');
   const [reportStats, setReportStats] = useState({});
   const [showReportsSection, setShowReportsSection] = useState(false);
-  
+
   // Moderation modal state
   const [showModerationModal, setShowModerationModal] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
   const [selectedAction, setSelectedAction] = useState(null);
-  
+
   // Tab state
   const [activeTab, setActiveTab] = useState('messages');
-  
+
   // Venue seeding state
   const [seedingVenues, setSeedingVenues] = useState(false);
-  
-  
+
   // Studio requests state
   const [studioRequests, setStudioRequests] = useState([]);
   const [loadingStudioRequests, setLoadingStudioRequests] = useState(false);
@@ -55,7 +57,7 @@ export default function AdminScreen({ navigation }) {
   const handleGoBack = () => {
     navigation.goBack();
   };
-  
+
   // Handle venue seeding
   const handleSeedVenues = async () => {
     setSeedingVenues(true);
@@ -78,7 +80,6 @@ export default function AdminScreen({ navigation }) {
     }
   };
 
-
   // Reports Management Functions
   const loadReports = async () => {
     if (!isGlobalAdmin(userData)) {
@@ -91,7 +92,9 @@ export default function AdminScreen({ navigation }) {
       const allReports = await getAllReportsForGlobalAdmin(100);
       setReports(allReports);
       setReportStats(getReportStatsByStudio(allReports));
-      console.log(`[AdminScreen] Loaded ${allReports.length} reports across all studios`);
+      console.log(
+        `[AdminScreen] Loaded ${allReports.length} reports across all studios`
+      );
     } catch (error) {
       console.error('[AdminScreen] Error loading reports:', error);
       Alert.alert('Error', 'Failed to load reports: ' + error.message);
@@ -110,44 +113,67 @@ export default function AdminScreen({ navigation }) {
     try {
       let result;
       let successMessage;
-      
+
       switch (selectedAction) {
         case 'warning':
-          result = await moderationService.issueWarning(selectedReport, currentUserId, customMessage);
+          result = await moderationService.issueWarning(
+            selectedReport,
+            currentUserId,
+            customMessage
+          );
           successMessage = 'Warning issued';
           break;
         case 'strike':
-          result = await moderationService.issueStrike(selectedReport, currentUserId, customMessage);
+          result = await moderationService.issueStrike(
+            selectedReport,
+            currentUserId,
+            customMessage
+          );
           successMessage = `Strike issued (${result.totalStrikes} total)`;
           break;
         case 'temp_ban':
-          result = await moderationService.issueTempBan(selectedReport, 7, customMessage, currentUserId); // 7 day temp ban
+          result = await moderationService.issueTempBan(
+            selectedReport,
+            7,
+            customMessage,
+            currentUserId
+          ); // 7 day temp ban
           successMessage = 'Temporary ban issued (7 days)';
           break;
         case 'perm_ban':
-          result = await moderationService.issuePermBan(selectedReport, customMessage, currentUserId);
+          result = await moderationService.issuePermBan(
+            selectedReport,
+            customMessage,
+            currentUserId
+          );
           successMessage = 'Permanent ban issued';
           break;
         case 'dismiss':
-          result = await moderationService.dismissReport(selectedReport, customMessage);
+          result = await moderationService.dismissReport(
+            selectedReport,
+            customMessage
+          );
           successMessage = 'Report dismissed';
           break;
         default:
           throw new Error('Invalid moderation action');
       }
-      
+
       // Close modal and reset state
       setShowModerationModal(false);
       setSelectedReport(null);
       setSelectedAction(null);
-      
+
       // Refresh reports
       await loadReports();
-      
+
       Alert.alert('Success', successMessage);
     } catch (error) {
       console.error('[AdminScreen] Error with moderation action:', error);
-      Alert.alert('Error', 'Failed to complete moderation action: ' + error.message);
+      Alert.alert(
+        'Error',
+        'Failed to complete moderation action: ' + error.message
+      );
     }
   };
 
@@ -161,13 +187,17 @@ export default function AdminScreen({ navigation }) {
     if (studioFilter === 'all') {
       return reports;
     }
-    return reports.filter(report => report.studioId === studioFilter);
+    return reports.filter((report) => report.studioId === studioFilter);
   };
 
   const formatReportDate = (timestamp) => {
     if (!timestamp || !timestamp.seconds) return 'Unknown';
     const date = new Date(timestamp.seconds * 1000);
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    return (
+      date.toLocaleDateString() +
+      ' ' +
+      date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    );
   };
 
   const handleViewReportedItem = (report) => {
@@ -176,62 +206,81 @@ export default function AdminScreen({ navigation }) {
       navigation.navigate('EventDetail', {
         eventId: report.reportedEvent.id,
         studioId: report.studioId,
-        fromAdmin: true
+        fromAdmin: true,
       });
     } else if (report.type === 'user' && report.reportedUser) {
       // Navigate to HostProfile screen to view user profile
       navigation.navigate('HostProfile', {
         hostId: report.reportedUser.id,
-        fromAdmin: true
+        fromAdmin: true,
       });
     }
   };
 
   const renderReportItem = ({ item: report }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.reportItem}
       onPress={() => handleViewReportedItem(report)}
       activeOpacity={0.7}
     >
       <View style={styles.reportHeader}>
-        <Text style={styles.reportType}>{report.type === 'user' ? 'User Report' : 'Event Report'}</Text>
+        <Text style={styles.reportType}>
+          {report.type === 'user' ? 'User Report' : 'Event Report'}
+        </Text>
         <Text style={styles.reportStudio}>{report.studioDisplayName}</Text>
       </View>
-      
+
       <View style={styles.reportContent}>
         <Text style={styles.reportReason}>Reason: {report.reason}</Text>
-        <Text style={styles.reportDate}>Reported: {formatReportDate(report.reportedAt)}</Text>
-        <Text style={styles.reportBy}>By: {report.reporterInfo?.name || 'Unknown'}</Text>
-        
+        <Text style={styles.reportDate}>
+          Reported: {formatReportDate(report.reportedAt)}
+        </Text>
+        <Text style={styles.reportBy}>
+          By: {report.reporterInfo?.name || 'Unknown'}
+        </Text>
+
         {report.type === 'user' && (
           <Text style={styles.reportTarget}>
             👤 {report.reportedUser?.reportedInfo?.name || 'Unknown User'}
           </Text>
         )}
-        
+
         {report.type === 'event' && (
           <>
             <Text style={styles.reportTarget}>
               📅 {report.reportedEvent?.eventData?.title || 'Unknown Event'}
             </Text>
             <Text style={styles.reportEventDetails}>
-              {report.reportedEvent?.eventData?.location} • {formatReportDate(report.reportedEvent?.eventData?.eventTimestamp)}
+              {report.reportedEvent?.eventData?.location} •{' '}
+              {formatReportDate(
+                report.reportedEvent?.eventData?.eventTimestamp
+              )}
             </Text>
           </>
         )}
-        
-        <Text style={styles.tapToView}>Tap to view {report.type === 'event' ? 'event' : 'profile'}</Text>
+
+        <Text style={styles.tapToView}>
+          Tap to view {report.type === 'event' ? 'event' : 'profile'}
+        </Text>
       </View>
-      
+
       <View style={styles.reportActions}>
-        <Text style={[styles.reportStatus, { color: getStatusColor(report.status) }]}>
+        <Text
+          style={[
+            styles.reportStatus,
+            { color: getStatusColor(report.status) },
+          ]}
+        >
           {report.status.toUpperCase()}
         </Text>
-        
+
         {report.status === 'pending' && (
           <View style={styles.reportButtons}>
-            <TouchableOpacity 
-              style={[styles.reportButton, { backgroundColor: theme.colors.vibeBlue }]}
+            <TouchableOpacity
+              style={[
+                styles.reportButton,
+                { backgroundColor: theme.colors.vibeBlue },
+              ]}
               onPress={(e) => {
                 e.stopPropagation();
                 openModerationModal(report, 'warning');
@@ -239,8 +288,11 @@ export default function AdminScreen({ navigation }) {
             >
               <Text style={styles.reportButtonText}>Warning</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.reportButton, { backgroundColor: theme.colors.vibeYellow }]}
+            <TouchableOpacity
+              style={[
+                styles.reportButton,
+                { backgroundColor: theme.colors.vibeYellow },
+              ]}
               onPress={(e) => {
                 e.stopPropagation();
                 openModerationModal(report, 'strike');
@@ -248,8 +300,11 @@ export default function AdminScreen({ navigation }) {
             >
               <Text style={styles.reportButtonText}>Strike</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.reportButton, { backgroundColor: theme.colors.vibeOrange }]}
+            <TouchableOpacity
+              style={[
+                styles.reportButton,
+                { backgroundColor: theme.colors.vibeOrange },
+              ]}
               onPress={(e) => {
                 e.stopPropagation();
                 openModerationModal(report, 'temp_ban');
@@ -257,8 +312,11 @@ export default function AdminScreen({ navigation }) {
             >
               <Text style={styles.reportButtonText}>Temp Ban</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.reportButton, { backgroundColor: theme.colors.vibeRed }]}
+            <TouchableOpacity
+              style={[
+                styles.reportButton,
+                { backgroundColor: theme.colors.vibeRed },
+              ]}
               onPress={(e) => {
                 e.stopPropagation();
                 openModerationModal(report, 'perm_ban');
@@ -266,8 +324,11 @@ export default function AdminScreen({ navigation }) {
             >
               <Text style={styles.reportButtonText}>Perm Ban</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.reportButton, { backgroundColor: theme.colors.gray }]}
+            <TouchableOpacity
+              style={[
+                styles.reportButton,
+                { backgroundColor: theme.colors.gray },
+              ]}
               onPress={(e) => {
                 e.stopPropagation();
                 openModerationModal(report, 'dismiss');
@@ -283,23 +344,35 @@ export default function AdminScreen({ navigation }) {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'pending': return theme.colors.vibePink;
-      case 'reviewed': return theme.colors.vibeBlue;
-      case 'resolved': return theme.colors.vibeGreen;
-      case 'dismissed': return theme.colors.gray;
-      default: return theme.colors.white;
+      case 'pending':
+        return theme.colors.vibePink;
+      case 'reviewed':
+        return theme.colors.vibeBlue;
+      case 'resolved':
+        return theme.colors.vibeGreen;
+      case 'dismissed':
+        return theme.colors.gray;
+      default:
+        return theme.colors.white;
     }
   };
 
   const getReportsSummary = () => {
-    const filteredReports = filterReportsByStudio(reports, selectedStudioFilter);
-    const pending = filteredReports.filter(r => r.status === 'pending').length;
+    const filteredReports = filterReportsByStudio(
+      reports,
+      selectedStudioFilter
+    );
+    const pending = filteredReports.filter(
+      (r) => r.status === 'pending'
+    ).length;
     const total = filteredReports.length;
-    
+
     if (selectedStudioFilter === 'all') {
       return `${total} total reports (${pending} pending) across all studios`;
     } else {
-      const studioName = getStudioOptions().find(s => s.id === selectedStudioFilter)?.displayName || 'Unknown Studio';
+      const studioName =
+        getStudioOptions().find((s) => s.id === selectedStudioFilter)
+          ?.displayName || 'Unknown Studio';
       return `${total} reports (${pending} pending) in ${studioName}`;
     }
   };
@@ -322,7 +395,10 @@ export default function AdminScreen({ navigation }) {
   // Handle studio request approval
   const handleApproveStudio = async (requestId) => {
     try {
-      const result = await StudioRequestService.approveStudioRequest(requestId, currentUserId);
+      const result = await StudioRequestService.approveStudioRequest(
+        requestId,
+        currentUserId
+      );
       if (result.success) {
         Alert.alert('Success', result.message);
         await loadStudioRequests();
@@ -338,7 +414,11 @@ export default function AdminScreen({ navigation }) {
   // Handle studio request rejection
   const handleRejectStudio = async (requestId, reason = '') => {
     try {
-      const result = await StudioRequestService.rejectStudioRequest(requestId, currentUserId, reason);
+      const result = await StudioRequestService.rejectStudioRequest(
+        requestId,
+        currentUserId,
+        reason
+      );
       if (result.success) {
         Alert.alert('Success', result.message);
         await loadStudioRequests();
@@ -357,11 +437,11 @@ export default function AdminScreen({ navigation }) {
       'Please provide a reason for rejection (optional):',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Reject', 
+        {
+          text: 'Reject',
           style: 'destructive',
-          onPress: (reason) => handleRejectStudio(requestId, reason || '')
-        }
+          onPress: (reason) => handleRejectStudio(requestId, reason || ''),
+        },
       ],
       'plain-text'
     );
@@ -386,7 +466,9 @@ export default function AdminScreen({ navigation }) {
         </View>
         <View style={styles.noAccessContainer}>
           <Text style={styles.noAccessText}>Access Denied</Text>
-          <Text style={styles.noAccessSubtext}>You don't have admin privileges.</Text>
+          <Text style={styles.noAccessSubtext}>
+            You don't have admin privileges.
+          </Text>
         </View>
       </View>
     );
@@ -403,12 +485,12 @@ export default function AdminScreen({ navigation }) {
       {showReportsSection && (
         <View>
           <Text style={styles.sectionTitle}>Reports Management</Text>
-          
+
           {/* Reports Summary */}
           <View style={styles.reportsSummary}>
             <Text style={styles.summaryText}>{getReportsSummary()}</Text>
             <VibeButton
-              label={loadingReports ? "Loading..." : "Refresh Reports"}
+              label={loadingReports ? 'Loading...' : 'Refresh Reports'}
               onPress={loadReports}
               variant="toggle"
               color="blue"
@@ -420,20 +502,28 @@ export default function AdminScreen({ navigation }) {
           {/* Studio Filter */}
           <View style={styles.filterContainer}>
             <Text style={styles.filterLabel}>Filter by Studio:</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScrollView}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.filterScrollView}
+            >
               {getStudioOptions().map((studio) => (
                 <TouchableOpacity
                   key={studio.id}
                   style={[
                     styles.filterButton,
-                    selectedStudioFilter === studio.id && styles.filterButtonActive
+                    selectedStudioFilter === studio.id &&
+                      styles.filterButtonActive,
                   ]}
                   onPress={() => setSelectedStudioFilter(studio.id)}
                 >
-                  <Text style={[
-                    styles.filterButtonText,
-                    selectedStudioFilter === studio.id && styles.filterButtonTextActive
-                  ]}>
+                  <Text
+                    style={[
+                      styles.filterButtonText,
+                      selectedStudioFilter === studio.id &&
+                        styles.filterButtonTextActive,
+                    ]}
+                  >
                     {studio.displayName}
                   </Text>
                 </TouchableOpacity>
@@ -457,7 +547,9 @@ export default function AdminScreen({ navigation }) {
 
     return (
       <Text style={styles.noReportsText}>
-        {selectedStudioFilter === 'all' ? 'No reports found across all studios' : 'No reports found for this studio'}
+        {selectedStudioFilter === 'all'
+          ? 'No reports found across all studios'
+          : 'No reports found for this studio'}
       </Text>
     );
   };
@@ -476,7 +568,12 @@ export default function AdminScreen({ navigation }) {
           style={[styles.tab, activeTab === 'messages' && styles.activeTab]}
           onPress={() => setActiveTab('messages')}
         >
-          <Text style={[styles.tabText, activeTab === 'messages' && styles.activeTabText]}>
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'messages' && styles.activeTabText,
+            ]}
+          >
             Messages
           </Text>
         </TouchableOpacity>
@@ -484,7 +581,12 @@ export default function AdminScreen({ navigation }) {
           style={[styles.tab, activeTab === 'reports' && styles.activeTab]}
           onPress={() => setActiveTab('reports')}
         >
-          <Text style={[styles.tabText, activeTab === 'reports' && styles.activeTabText]}>
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'reports' && styles.activeTabText,
+            ]}
+          >
             Reports
           </Text>
         </TouchableOpacity>
@@ -492,7 +594,12 @@ export default function AdminScreen({ navigation }) {
           style={[styles.tab, activeTab === 'studios' && styles.activeTab]}
           onPress={() => setActiveTab('studios')}
         >
-          <Text style={[styles.tabText, activeTab === 'studios' && styles.activeTabText]}>
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'studios' && styles.activeTabText,
+            ]}
+          >
             Studio Requests
           </Text>
         </TouchableOpacity>
@@ -500,7 +607,12 @@ export default function AdminScreen({ navigation }) {
           style={[styles.tab, activeTab === 'testing' && styles.activeTab]}
           onPress={() => setActiveTab('testing')}
         >
-          <Text style={[styles.tabText, activeTab === 'testing' && styles.activeTabText]}>
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'testing' && styles.activeTabText,
+            ]}
+          >
             Testing
           </Text>
         </TouchableOpacity>
@@ -508,7 +620,10 @@ export default function AdminScreen({ navigation }) {
 
       {/* Tab Content */}
       {activeTab === 'messages' ? (
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.contentContainer}
+        >
           {renderMessagesTab()}
         </ScrollView>
       ) : activeTab === 'reports' ? (
@@ -523,16 +638,19 @@ export default function AdminScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
         />
       ) : activeTab === 'studios' ? (
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.contentContainer}
+        >
           <View style={styles.tabContent}>
             <Text style={styles.sectionTitle}>Studio Requests</Text>
-            
+
             <View style={styles.reportsSummary}>
               <Text style={styles.summaryText}>
                 {studioRequests.length} pending studio requests
               </Text>
               <VibeButton
-                label={loadingStudioRequests ? "Loading..." : "Refresh"}
+                label={loadingStudioRequests ? 'Loading...' : 'Refresh'}
                 onPress={loadStudioRequests}
                 variant="toggle"
                 color="blue"
@@ -544,10 +662,14 @@ export default function AdminScreen({ navigation }) {
             {loadingStudioRequests ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={theme.colors.vibeBlue} />
-                <Text style={styles.loadingText}>Loading studio requests...</Text>
+                <Text style={styles.loadingText}>
+                  Loading studio requests...
+                </Text>
               </View>
             ) : studioRequests.length === 0 ? (
-              <Text style={styles.noReportsText}>No pending studio requests</Text>
+              <Text style={styles.noReportsText}>
+                No pending studio requests
+              </Text>
             ) : (
               studioRequests.map((request) => (
                 <View key={request.id} style={styles.studioRequestItem}>
@@ -556,10 +678,11 @@ export default function AdminScreen({ navigation }) {
                       {request.cityName}, {request.stateName}
                     </Text>
                     <Text style={styles.requestCount}>
-                      {request.requestCount} request{request.requestCount !== 1 ? 's' : ''}
+                      {request.requestCount} request
+                      {request.requestCount !== 1 ? 's' : ''}
                     </Text>
                   </View>
-                  
+
                   <View style={styles.requestDetails}>
                     <Text style={styles.requestDate}>
                       Requested: {formatReportDate(request.requestedAt)}
@@ -573,13 +696,19 @@ export default function AdminScreen({ navigation }) {
 
                   <View style={styles.requestActions}>
                     <TouchableOpacity
-                      style={[styles.requestButton, { backgroundColor: theme.colors.vibeGreen }]}
+                      style={[
+                        styles.requestButton,
+                        { backgroundColor: theme.colors.vibeGreen },
+                      ]}
                       onPress={() => handleApproveStudio(request.id)}
                     >
                       <Text style={styles.requestButtonText}>Approve</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={[styles.requestButton, { backgroundColor: theme.colors.vibeRed }]}
+                      style={[
+                        styles.requestButton,
+                        { backgroundColor: theme.colors.vibeRed },
+                      ]}
                       onPress={() => promptRejectReason(request.id)}
                     >
                       <Text style={styles.requestButtonText}>Reject</Text>
@@ -591,28 +720,35 @@ export default function AdminScreen({ navigation }) {
           </View>
         </ScrollView>
       ) : (
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.contentContainer}
+        >
           <NotificationTester />
-          
+
           {/* Venue Management Section */}
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionTitle}>Venue Management</Text>
             <Text style={styles.sectionDescription}>
-              Seed the database with popular Greenville venues for address auto-population.
+              Seed the database with popular Greenville venues for address
+              auto-population.
             </Text>
-            
+
             <VibeButton
-              label={seedingVenues ? "Seeding Venues..." : "Seed Greenville Venues"}
+              label={
+                seedingVenues ? 'Seeding Venues...' : 'Seed Greenville Venues'
+              }
               onPress={handleSeedVenues}
               variant="outline"
               color="green"
               disabled={seedingVenues}
               style={styles.seedButton}
             />
-            
+
             <Text style={styles.noteText}>
-              Note: This adds ~25 popular Greenville venues to the database. 
-              When users type these venue names in CreateEvent, the address will auto-populate.
+              Note: This adds ~25 popular Greenville venues to the database.
+              When users type these venue names in CreateEvent, the address will
+              auto-populate.
             </Text>
           </View>
         </ScrollView>

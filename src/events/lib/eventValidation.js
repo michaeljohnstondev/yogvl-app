@@ -38,7 +38,6 @@ export const validateUserCanJoinEvent = async (userData, event = null) => {
   return true;
 };
 
-
 /**
  * Get user permissions for an event
  * @param {string} currentUserId - Current user ID
@@ -66,7 +65,7 @@ export const getUserEventPermissions = (currentUserId, userData, event) => {
 
   return {
     canEdit: (isCreator || isCohost || isAdmin) && !isPast,
-    canManageAttendance: (isCreator || isCohost || isAdmin),
+    canManageAttendance: isCreator || isCohost || isAdmin,
     canDelete: isCreator || isAdmin, // Keep delete restricted to creator/admin only
     canViewSubscribers: isCreator || isCohost || isAdmin,
     isCreator,

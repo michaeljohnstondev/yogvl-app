@@ -4,37 +4,38 @@ import VibeInput from '../base/VibeInput';
 import FriendItem from './FriendItem';
 import theme from '../../../theme/themes';
 
-export default function FriendsList({ 
-  friends = [], 
-  selectedIds = [], 
-  onSelect, 
+export default function FriendsList({
+  friends = [],
+  selectedIds = [],
+  onSelect,
   maxSelections = 5,
-  searchPlaceholder = "Search friends...",
-  emptyMessage = "No friends found",
-  forceShowSearch = false
+  searchPlaceholder = 'Search friends...',
+  emptyMessage = 'No friends found',
+  forceShowSearch = false,
 }) {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Filter friends based on search query
   const filteredFriends = useMemo(() => {
     if (!searchQuery.trim()) return friends;
-    
+
     const query = searchQuery.toLowerCase();
-    return friends.filter(friend => 
-      friend.name?.toLowerCase().includes(query) ||
-      friend.email?.toLowerCase().includes(query) ||
-      friend.phone?.includes(query)
+    return friends.filter(
+      (friend) =>
+        friend.name?.toLowerCase().includes(query) ||
+        friend.email?.toLowerCase().includes(query) ||
+        friend.phone?.includes(query)
     );
   }, [friends, searchQuery]);
 
   const handleSelect = (friendId) => {
     const isCurrentlySelected = selectedIds.includes(friendId);
-    
+
     // If trying to select and already at max, don't allow
     if (!isCurrentlySelected && selectedIds.length >= maxSelections) {
       return;
     }
-    
+
     onSelect(friendId);
   };
 
@@ -71,7 +72,7 @@ export default function FriendsList({
             {searchQuery ? `No friends match "${searchQuery}"` : emptyMessage}
           </Text>
         ) : (
-          filteredFriends.map(friend => (
+          filteredFriends.map((friend) => (
             <FriendItem
               key={friend.id}
               friend={friend}

@@ -2,11 +2,11 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import theme from '../../../theme/themes';
 
-export default function FriendItem({ 
-  friend, 
-  isSelected, 
-  onSelect, 
-  disabled = false 
+export default function FriendItem({
+  friend,
+  isSelected,
+  onSelect,
+  disabled = false,
 }) {
   const handlePress = () => {
     if (!disabled) {
@@ -15,12 +15,12 @@ export default function FriendItem({
   };
 
   return (
-    <Pressable 
+    <Pressable
       style={({ pressed }) => [
         styles.container,
         isSelected && styles.selectedContainer,
         disabled && styles.disabledContainer,
-        { opacity: pressed ? 0.7 : 1 }
+        { opacity: pressed ? 0.7 : 1 },
       ]}
       onPress={handlePress}
       disabled={disabled}
@@ -30,33 +30,32 @@ export default function FriendItem({
           {friend.name?.charAt(0)?.toUpperCase() || '?'}
         </Text>
       </View>
-      
+
       <View style={styles.info}>
-        <Text style={[
-          styles.name,
-          isSelected && styles.selectedText,
-          disabled && styles.disabledText
-        ]}>
+        <Text
+          style={[
+            styles.name,
+            isSelected && styles.selectedText,
+            disabled && styles.disabledText,
+          ]}
+        >
           {friend.name || 'Unknown'}
         </Text>
         {(friend.email || friend.phone) && (
-          <Text style={[
-            styles.contact,
-            disabled && styles.disabledText
-          ]}>
+          <Text style={[styles.contact, disabled && styles.disabledText]}>
             {friend.email || friend.phone}
           </Text>
         )}
       </View>
 
-      <View style={[
-        styles.checkbox,
-        isSelected && styles.selectedCheckbox,
-        disabled && styles.disabledCheckbox
-      ]}>
-        {isSelected && (
-          <Text style={styles.checkmark}>✓</Text>
-        )}
+      <View
+        style={[
+          styles.checkbox,
+          isSelected && styles.selectedCheckbox,
+          disabled && styles.disabledCheckbox,
+        ]}
+      >
+        {isSelected && <Text style={styles.checkmark}>✓</Text>}
       </View>
     </Pressable>
   );

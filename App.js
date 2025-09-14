@@ -9,7 +9,7 @@ import { initializeNotificationServices } from './src/services/notificationInit'
 function AppWithNotifications() {
   // Initialize event end notification service
   useEventEndNotifications();
-  
+
   // Initialize push notifications
   useEffect(() => {
     const initializePushNotifications = async () => {
@@ -33,7 +33,7 @@ function AppWithNotifications() {
       fcmService.cleanup();
     };
   }, []);
-  
+
   return <Navigation />;
 }
 

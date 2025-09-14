@@ -1,14 +1,14 @@
 // FILE: services/reminderService.js - Reminder Management Service
 
-import { 
-  collection, 
-  doc, 
-  addDoc, 
-  query, 
-  where, 
-  getDocs, 
-  deleteDoc, 
-  Timestamp 
+import {
+  collection,
+  doc,
+  addDoc,
+  query,
+  where,
+  getDocs,
+  deleteDoc,
+  Timestamp,
 } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 
@@ -39,18 +39,24 @@ class ReminderService {
    * @param {Array} reminderTemplates - User's reminder templates
    * @param {boolean} isHost - Whether this user is the host
    */
-  async createRemindersForEvent(eventData, userId, reminderTemplates = [], isHost = false) {
+  async createRemindersForEvent(
+    eventData,
+    userId,
+    reminderTemplates = [],
+    isHost = false
+  ) {
     try {
       const { eventId, studioId, title, eventTimestamp } = eventData;
-      
+
       if (!eventId || !studioId || !eventTimestamp) {
         console.error('[ReminderService] Missing required event data');
         return false;
       }
 
-      const eventDateTime = eventTimestamp instanceof Timestamp 
-        ? eventTimestamp 
-        : Timestamp.fromDate(new Date(eventTimestamp));
+      const eventDateTime =
+        eventTimestamp instanceof Timestamp
+          ? eventTimestamp
+          : Timestamp.fromDate(new Date(eventTimestamp));
 
       const reminders = [];
 
@@ -58,7 +64,9 @@ class ReminderService {
       for (const template of reminderTemplates) {
         if (!template.enabled) continue;
 
-        const reminderTimeMs = eventDateTime.toMillis() - this.convertToMilliseconds(template.amount, template.unit);
+        const reminderTimeMs =
+          eventDateTime.toMillis() -
+          this.convertToMilliseconds(template.amount, template.unit);
         const reminderTime = Timestamp.fromMillis(reminderTimeMs);
 
         // Only create reminders for future times
@@ -76,7 +84,7 @@ class ReminderService {
             eventTitle: title,
             eventDateTime,
             isHost,
-            createdAt: Timestamp.now()
+            createdAt: Timestamp.now(),
           };
 
           reminders.push(reminderDoc);
@@ -84,15 +92,16 @@ class ReminderService {
       }
 
       // Batch create reminders
-      const reminderPromises = reminders.map(reminder => 
+      const reminderPromises = reminders.map((reminder) =>
         addDoc(collection(db, 'reminders'), reminder)
       );
 
       await Promise.all(reminderPromises);
-      
-      console.log(`[ReminderService] Created ${reminders.length} reminders for user ${userId}`);
-      return true;
 
+      console.log(
+        `[ReminderService] Created ${reminders.length} reminders for user ${userId}`
+      );
+      return true;
     } catch (error) {
       console.error('[ReminderService] Failed to create reminders:', error);
       return false;
@@ -105,16 +114,26 @@ class ReminderService {
    */
   async deleteRemindersForEvent(eventId) {
     try {
-      const q = query(collection(db, 'reminders'), where('eventId', '==', eventId));
+      const q = query(
+        collection(db, 'reminders'),
+        where('eventId', '==', eventId)
+      );
       const querySnapshot = await getDocs(q);
-      
-      const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
+
+      const deletePromises = querySnapshot.docs.map((doc) =>
+        deleteDoc(doc.ref)
+      );
       await Promise.all(deletePromises);
-      
-      console.log(`[ReminderService] Deleted ${querySnapshot.docs.length} reminders for event ${eventId}`);
+
+      console.log(
+        `[ReminderService] Deleted ${querySnapshot.docs.length} reminders for event ${eventId}`
+      );
       return true;
     } catch (error) {
-      console.error('[ReminderService] Failed to delete reminders for event:', error);
+      console.error(
+        '[ReminderService] Failed to delete reminders for event:',
+        error
+      );
       return false;
     }
   }
@@ -127,19 +146,26 @@ class ReminderService {
   async deleteRemindersForUser(eventId, userId) {
     try {
       const q = query(
-        collection(db, 'reminders'), 
+        collection(db, 'reminders'),
         where('eventId', '==', eventId),
         where('userId', '==', userId)
       );
       const querySnapshot = await getDocs(q);
-      
-      const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
+
+      const deletePromises = querySnapshot.docs.map((doc) =>
+        deleteDoc(doc.ref)
+      );
       await Promise.all(deletePromises);
-      
-      console.log(`[ReminderService] Deleted ${querySnapshot.docs.length} reminders for user ${userId} on event ${eventId}`);
+
+      console.log(
+        `[ReminderService] Deleted ${querySnapshot.docs.length} reminders for user ${userId} on event ${eventId}`
+      );
       return true;
     } catch (error) {
-      console.error('[ReminderService] Failed to delete reminders for user:', error);
+      console.error(
+        '[ReminderService] Failed to delete reminders for user:',
+        error
+      );
       return false;
     }
   }
@@ -150,22 +176,31 @@ class ReminderService {
    */
   async cleanupOldReminders(daysOld = 7) {
     try {
-      const cutoffTime = Timestamp.fromMillis(Date.now() - (daysOld * 24 * 60 * 60 * 1000));
-      
+      const cutoffTime = Timestamp.fromMillis(
+        Date.now() - daysOld * 24 * 60 * 60 * 1000
+      );
+
       const q = query(
         collection(db, 'reminders'),
         where('sent', '==', true),
         where('createdAt', '<', cutoffTime)
       );
-      
+
       const querySnapshot = await getDocs(q);
-      const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
+      const deletePromises = querySnapshot.docs.map((doc) =>
+        deleteDoc(doc.ref)
+      );
       await Promise.all(deletePromises);
-      
-      console.log(`[ReminderService] Cleaned up ${querySnapshot.docs.length} old reminders`);
+
+      console.log(
+        `[ReminderService] Cleaned up ${querySnapshot.docs.length} old reminders`
+      );
       return querySnapshot.docs.length;
     } catch (error) {
-      console.error('[ReminderService] Failed to cleanup old reminders:', error);
+      console.error(
+        '[ReminderService] Failed to cleanup old reminders:',
+        error
+      );
       return 0;
     }
   }
@@ -193,11 +228,11 @@ class ReminderService {
    */
   getReminderType(template) {
     const { amount, unit } = template;
-    
+
     if (amount === 15 && unit === 'minutes') return '15min';
     if (amount === 1 && unit === 'hours') return '1hour';
     if (amount === 1 && unit === 'days') return '1day';
-    
+
     return 'custom';
   }
 }

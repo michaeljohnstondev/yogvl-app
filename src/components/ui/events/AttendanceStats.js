@@ -1,9 +1,5 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import theme from '../../../theme/themes';
 
@@ -30,7 +26,7 @@ export default function AttendanceStats({ stats }) {
       style={styles.container}
     >
       <Text style={styles.title}>Attendance Overview</Text>
-      
+
       <View style={styles.statsGrid}>
         <StatCard
           title="RSVPs"
@@ -38,21 +34,21 @@ export default function AttendanceStats({ stats }) {
           color={theme.colors.vibeBlue || '#00C6FF'}
           icon="👥"
         />
-        
+
         <StatCard
           title="Attended"
           value={attendedCount}
           color={theme.colors.vibeGreen || '#00FF96'}
           icon="✅"
         />
-        
+
         <StatCard
           title="No Shows"
           value={noShowCount}
           color="#FF6B6B"
           icon="❌"
         />
-        
+
         <StatCard
           title="Pending"
           value={pendingCount}
@@ -64,11 +60,11 @@ export default function AttendanceStats({ stats }) {
       <View style={styles.attendanceRateContainer}>
         <Text style={styles.attendanceRateLabel}>Attendance Rate</Text>
         <View style={styles.attendanceRateBar}>
-          <View 
+          <View
             style={[
-              styles.attendanceRateFill, 
-              { width: `${Math.min(attendanceRate, 100)}%` }
-            ]} 
+              styles.attendanceRateFill,
+              { width: `${Math.min(attendanceRate, 100)}%` },
+            ]}
           />
         </View>
         <Text style={styles.attendanceRateText}>

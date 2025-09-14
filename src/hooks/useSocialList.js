@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
-import { getFollowingList, getFollowersList, getMutualFriendsList } from '../services/followService';
+import {
+  getFollowingList,
+  getFollowersList,
+  getMutualFriendsList,
+} from '../services/followService';
 import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
 
 export const useSocialList = (userId, listType) => {
@@ -20,7 +24,7 @@ export const useSocialList = (userId, listType) => {
 
     try {
       let userData = [];
-      
+
       switch (listType) {
         case 'friends':
           userData = await getMutualFriendsList(userId);
@@ -34,7 +38,7 @@ export const useSocialList = (userId, listType) => {
         default:
           throw new Error(`Invalid list type: ${listType}`);
       }
-      
+
       setUsers(userData);
     } catch (err) {
       console.error(`Error loading ${listType}:`, err);
@@ -55,6 +59,6 @@ export const useSocialList = (userId, listType) => {
     loading,
     error,
     loadUsers,
-    setUsers
+    setUsers,
   };
 };

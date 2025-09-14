@@ -25,13 +25,23 @@ import {
   ProfileSectionCard,
   ContactItem,
   UserStatsGrid,
-  ProfileActionButtons
+  ProfileActionButtons,
 } from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
-import { getFollowStats, getUserRelationshipStatus } from '../services/followService';
+import {
+  getFollowStats,
+  getUserRelationshipStatus,
+} from '../services/followService';
 import { useFollowActions } from '../hooks/useFollowActions';
-import { deleteUserAccount, getUserDeletionPreview } from '../services/userDeletionService';
-import { uploadProfilePicture, removeProfilePicture, hasProfilePicture } from '../services/profilePictureService';
+import {
+  deleteUserAccount,
+  getUserDeletionPreview,
+} from '../services/userDeletionService';
+import {
+  uploadProfilePicture,
+  removeProfilePicture,
+  hasProfilePicture,
+} from '../services/profilePictureService';
 import { blockingService } from '../services/blockingService';
 import { getVisibleContactInfo } from '../services/privacyService';
 import { reportUser } from '../services/reportingService';
@@ -45,22 +55,22 @@ import { styles } from './UserProfileScreen.styles';
 function UserProfile({ navigation, route }) {
   const { userData, logout, currentUserId } = useAuth();
   const vibeAlert = useVibeAlert();
-  
+
   // Check if viewing someone else's profile or own profile
   const targetUserId = route?.params?.userId || currentUserId;
   const isOwnProfile = targetUserId === currentUserId;
-  
+
   // Debug logging
   console.log('[UserProfile] Debug - currentUserId:', currentUserId);
   console.log('[UserProfile] Debug - targetUserId:', targetUserId);
   console.log('[UserProfile] Debug - isOwnProfile:', isOwnProfile);
   console.log('[UserProfile] Debug - route params:', route?.params);
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const [followStats, setFollowStats] = useState({
     followingCount: 0,
     followerCount: 0,
-    mutualCount: 0
+    mutualCount: 0,
   });
   const [loadingStats, setLoadingStats] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -73,12 +83,11 @@ function UserProfile({ navigation, route }) {
   const [isBlocked, setIsBlocked] = useState(false);
 
   // Use existing follow actions hook
-  const { handleFollow: followAction, handleUnfollow: unfollowAction, isActionLoading } = useFollowActions(
-    currentUserId, 
-    userData, 
-    loadFollowStats, 
-    null
-  );
+  const {
+    handleFollow: followAction,
+    handleUnfollow: unfollowAction,
+    isActionLoading,
+  } = useFollowActions(currentUserId, userData, loadFollowStats, null);
 
   // Wrapper functions to handle targetUserId
   const handleFollow = () => followAction(targetUserId);
@@ -93,8 +102,11 @@ function UserProfile({ navigation, route }) {
       'Are you sure you want to block this user? They will not be able to see your profile or invite you to events.',
       async () => {
         try {
-          const result = await blockingService.blockUser(currentUserId, targetUserId);
-          
+          const result = await blockingService.blockUser(
+            currentUserId,
+            targetUserId
+          );
+
           if (result.success) {
             setIsBlocked(true);
             vibeAlert.success('User Blocked', 'This user has been blocked');
@@ -110,16 +122,23 @@ function UserProfile({ navigation, route }) {
       }
     );
   };
-  
+
   // Use target user's data if viewing someone else, otherwise use current user's data
   const displayUserData = isOwnProfile ? userData : targetUserData;
-  const contactInfo = isOwnProfile ? (displayUserData?.userdata?.contactInfo || {}) : visibleContactInfo;
-  
+  const contactInfo = isOwnProfile
+    ? displayUserData?.userdata?.contactInfo || {}
+    : visibleContactInfo;
+
   const [editedData, setEditedData] = useState({
     firstName: contactInfo.firstName || '',
     lastName: contactInfo.lastName || '',
     email: contactInfo.email || displayUserData?.email || '',
-    phone: contactInfo.phone || contactInfo.phoneNumber || displayUserData?.phone || displayUserData?.phoneNumber || '',
+    phone:
+      contactInfo.phone ||
+      contactInfo.phoneNumber ||
+      displayUserData?.phone ||
+      displayUserData?.phoneNumber ||
+      '',
     bio: displayUserData?.bio || '',
     location: displayUserData?.location || '',
   });
@@ -149,9 +168,9 @@ function UserProfile({ navigation, route }) {
         'userdata.contactInfo.lastName': editedData.lastName.trim(),
         'userdata.contactInfo.email': editedData.email.trim(),
         'userdata.contactInfo.phone': editedData.phone.trim(),
-        'bio': editedData.bio.trim(),
-        'location': editedData.location.trim(),
-        'userdata.lastUpdated': new Date()
+        bio: editedData.bio.trim(),
+        location: editedData.location.trim(),
+        'userdata.lastUpdated': new Date(),
       };
 
       // Update the user document in Firestore
@@ -175,7 +194,7 @@ function UserProfile({ navigation, route }) {
       'Take Photo',
       'Choose from Library',
       ...(hasProfilePicture(userData) ? ['Remove Photo'] : []),
-      'Cancel'
+      'Cancel',
     ];
 
     if (Platform.OS === 'ios') {
@@ -197,23 +216,30 @@ function UserProfile({ navigation, route }) {
         }
       );
     } else {
-      vibeAlert.menu(
-        'Profile Picture',
-        'Choose an option',
-        [
-          { text: 'Take Photo', onPress: openCamera },
-          { text: 'Choose from Library', onPress: openImageLibrary },
-          ...(hasProfilePicture(userData) ? [{ text: 'Remove Photo', onPress: handleRemovePhoto, style: 'destructive' }] : []),
-          { text: 'Cancel', style: 'cancel' },
-        ]
-      );
+      vibeAlert.menu('Profile Picture', 'Choose an option', [
+        { text: 'Take Photo', onPress: openCamera },
+        { text: 'Choose from Library', onPress: openImageLibrary },
+        ...(hasProfilePicture(userData)
+          ? [
+              {
+                text: 'Remove Photo',
+                onPress: handleRemovePhoto,
+                style: 'destructive',
+              },
+            ]
+          : []),
+        { text: 'Cancel', style: 'cancel' },
+      ]);
     }
   };
 
   const openCamera = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      vibeAlert.error('Permission needed', 'Camera permission is required to take photos.');
+      vibeAlert.error(
+        'Permission needed',
+        'Camera permission is required to take photos.'
+      );
       return;
     }
 
@@ -232,7 +258,10 @@ function UserProfile({ navigation, route }) {
   const openImageLibrary = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      vibeAlert.error('Permission needed', 'Photo library permission is required to choose photos.');
+      vibeAlert.error(
+        'Permission needed',
+        'Photo library permission is required to choose photos.'
+      );
       return;
     }
 
@@ -257,13 +286,20 @@ function UserProfile({ navigation, route }) {
     setUploadingPhoto(true);
     try {
       console.log('Uploading image:', imageUri);
-      const result = await uploadProfilePicture(currentUserId, imageUri, userData);
+      const result = await uploadProfilePicture(
+        currentUserId,
+        imageUri,
+        userData
+      );
       if (result.success) {
         vibeAlert.success('Success', 'Profile picture updated!');
         // The UI will automatically update when the user data refreshes
       } else {
         console.error('Upload failed:', result.error);
-        vibeAlert.error('Error', result.error || 'Failed to update profile picture');
+        vibeAlert.error(
+          'Error',
+          result.error || 'Failed to update profile picture'
+        );
       }
     } catch (error) {
       console.error('Upload error:', error);
@@ -286,7 +322,10 @@ function UserProfile({ navigation, route }) {
             if (result.success) {
               vibeAlert.success('Success', 'Profile picture removed!');
             } else {
-              vibeAlert.error('Error', result.error || 'Failed to remove profile picture');
+              vibeAlert.error(
+                'Error',
+                result.error || 'Failed to remove profile picture'
+              );
             }
           } catch (error) {
             vibeAlert.error('Error', 'Failed to remove profile picture');
@@ -306,7 +345,6 @@ function UserProfile({ navigation, route }) {
     });
   };
 
-
   // Report user functionality
   const handleReportUser = () => {
     if (!targetUserData || !currentUserId) {
@@ -319,27 +357,27 @@ function UserProfile({ navigation, route }) {
       'Report User',
       'Select the reason for reporting this user:',
       [
-        { 
+        {
           text: 'Inappropriate Content',
-          onPress: () => submitUserReport('inappropriate_content')
+          onPress: () => submitUserReport('inappropriate_content'),
         },
-        { 
+        {
           text: 'Spam/Fake Profile',
-          onPress: () => submitUserReport('spam')
+          onPress: () => submitUserReport('spam'),
         },
-        { 
+        {
           text: 'Harassment/Bullying',
-          onPress: () => submitUserReport('harassment')
+          onPress: () => submitUserReport('harassment'),
         },
-        { 
+        {
           text: 'Other Violation',
-          onPress: () => submitUserReport('other')
+          onPress: () => submitUserReport('other'),
         },
-        { 
-          text: 'Cancel', 
+        {
+          text: 'Cancel',
           style: 'cancel',
-          onPress: () => {}
-        }
+          onPress: () => {},
+        },
       ]
     );
   };
@@ -347,7 +385,7 @@ function UserProfile({ navigation, route }) {
   const submitUserReport = async (reason) => {
     try {
       const result = await reportUser(currentUserId, targetUserId, reason);
-      
+
       if (result.success) {
         vibeAlert.success('Report Submitted', result.message);
       } else {
@@ -355,7 +393,10 @@ function UserProfile({ navigation, route }) {
       }
     } catch (error) {
       console.error('[UserProfile] Error reporting user:', error);
-      vibeAlert.error('Error', error.message || 'Failed to submit report. Please try again.');
+      vibeAlert.error(
+        'Error',
+        error.message || 'Failed to submit report. Please try again.'
+      );
     }
   };
 
@@ -376,14 +417,14 @@ function UserProfile({ navigation, route }) {
           style: 'destructive',
           onPress: showDeletionPreview,
         },
-      ],
+      ]
     );
   };
 
   const showDeletionPreview = async () => {
     try {
       const previewResult = await getUserDeletionPreview(currentUserId);
-      
+
       if (previewResult.error) {
         Alert.alert('Error', 'Unable to preview deletion details.');
         return;
@@ -395,10 +436,14 @@ function UserProfile({ navigation, route }) {
         `• ${preview.follows} follow relationships will be removed`,
         `• ${preview.notifications} notifications will be deleted`,
         `• ${preview.friendRequests} friend requests will be removed`,
-        preview.studios > 0 ? `• You will be removed from ${preview.studios} studio(s)` : '',
+        preview.studios > 0
+          ? `• You will be removed from ${preview.studios} studio(s)`
+          : '',
         '• All your comments and invitations will be deleted',
-        '• Your profile and account will be permanently removed'
-      ].filter(Boolean).join('\n');
+        '• Your profile and account will be permanently removed',
+      ]
+        .filter(Boolean)
+        .join('\n');
 
       // Final confirmation with details
       Alert.alert(
@@ -414,7 +459,7 @@ function UserProfile({ navigation, route }) {
             style: 'destructive',
             onPress: performAccountDeletion,
           },
-        ],
+        ]
       );
     } catch (error) {
       console.error('Error showing deletion preview:', error);
@@ -424,10 +469,10 @@ function UserProfile({ navigation, route }) {
 
   const performAccountDeletion = async () => {
     setIsDeleting(true);
-    
+
     try {
       const result = await deleteUserAccount(currentUserId, auth.currentUser);
-      
+
       if (result.success) {
         Alert.alert(
           'Account Deleted',
@@ -451,7 +496,8 @@ function UserProfile({ navigation, route }) {
     } catch (error) {
       Alert.alert(
         'Deletion Failed',
-        error.message || 'Unable to delete account. Please try again or contact support.',
+        error.message ||
+          'Unable to delete account. Please try again or contact support.',
         [{ text: 'OK' }]
       );
     } finally {
@@ -463,7 +509,7 @@ function UserProfile({ navigation, route }) {
   const loadFollowStats = async () => {
     const profileUserId = isOwnProfile ? currentUserId : targetUserId;
     if (!profileUserId) return;
-    
+
     setLoadingStats(true);
     try {
       const stats = await getFollowStats(profileUserId);
@@ -491,9 +537,12 @@ function UserProfile({ navigation, route }) {
         if (userSnap.exists()) {
           const userData = { id: userSnap.id, ...userSnap.data() };
           setTargetUserData(userData);
-          
+
           // Get visible contact info based on privacy settings
-          const visibleInfo = await getVisibleContactInfo(currentUserId, userData);
+          const visibleInfo = await getVisibleContactInfo(
+            currentUserId,
+            userData
+          );
           setVisibleContactInfo(visibleInfo);
         } else {
           vibeAlert.error('User Not Found', 'This user does not exist.');
@@ -519,7 +568,12 @@ function UserProfile({ navigation, route }) {
         firstName: contactInfo.firstName || '',
         lastName: contactInfo.lastName || '',
         email: contactInfo.email || displayUserData?.email || '',
-        phone: contactInfo.phone || contactInfo.phoneNumber || displayUserData?.phone || displayUserData?.phoneNumber || '',
+        phone:
+          contactInfo.phone ||
+          contactInfo.phoneNumber ||
+          displayUserData?.phone ||
+          displayUserData?.phoneNumber ||
+          '',
         bio: displayUserData?.bio || '',
         location: displayUserData?.location || '',
       });
@@ -537,25 +591,36 @@ function UserProfile({ navigation, route }) {
 
       try {
         // Single optimized call that gets follow + block status in 3 Firebase reads instead of 4-5
-        const relationshipStatus = await getUserRelationshipStatus(currentUserId, targetUserId);
-        
+        const relationshipStatus = await getUserRelationshipStatus(
+          currentUserId,
+          targetUserId
+        );
+
         if (!relationshipStatus.success) {
-          console.error('[UserProfile] Failed to get relationship status:', relationshipStatus.error);
+          console.error(
+            '[UserProfile] Failed to get relationship status:',
+            relationshipStatus.error
+          );
           return;
         }
-        
+
         setIsFollowing(relationshipStatus.isFollowing);
         setIsBlocked(relationshipStatus.isBlocked);
-        
+
         // Handle blocked by target user - redirect away from profile
         if (relationshipStatus.isBlockedBy) {
-          console.log('[UserProfile] Access denied - user is blocked by target');
+          console.log(
+            '[UserProfile] Access denied - user is blocked by target'
+          );
           vibeAlert.error('User Not Available', 'This user is not available.');
           setTimeout(() => navigation.goBack(), 1500);
           return;
         }
       } catch (error) {
-        console.error('[UserProfile] Error checking relationship status:', error);
+        console.error(
+          '[UserProfile] Error checking relationship status:',
+          error
+        );
       }
     };
 
@@ -564,20 +629,20 @@ function UserProfile({ navigation, route }) {
 
   const formatPhoneNumber = (phoneNumber) => {
     if (!phoneNumber) return null;
-    
+
     // Remove all non-digits
     const cleaned = phoneNumber.replace(/\D/g, '');
-    
+
     // Format US phone numbers (10 digits)
     if (cleaned.length === 10) {
       return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
     }
-    
+
     // Format US phone numbers with country code (11 digits starting with 1)
     if (cleaned.length === 11 && cleaned[0] === '1') {
       return `+1 (${cleaned.slice(1, 4)}) ${cleaned.slice(4, 7)}-${cleaned.slice(7)}`;
     }
-    
+
     // For other formats, just return the original
     return phoneNumber;
   };
@@ -594,13 +659,20 @@ function UserProfile({ navigation, route }) {
     }
   };
 
-
   // Show loading while fetching target user data
   if (!isOwnProfile && loadingUserData) {
     return (
       <View style={styles.container}>
-        <CloseButton onPress={() => navigation.goBack()} style={styles.closeButton} />
-        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <CloseButton
+          onPress={() => navigation.goBack()}
+          style={styles.closeButton}
+        />
+        <View
+          style={[
+            styles.container,
+            { justifyContent: 'center', alignItems: 'center' },
+          ]}
+        >
           <Text style={styles.loadingText}>Loading profile...</Text>
         </View>
       </View>
@@ -609,108 +681,128 @@ function UserProfile({ navigation, route }) {
 
   return (
     <View style={styles.container}>
-      
       {/* Main Profile Content */}
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-
-      {/* Top buttons row */}
-      <View style={styles.topButtonsRow}>
-        <CloseButton onPress={() => navigation.goBack()} style={styles.closeButton} />
-        {(() => {
-          const actionButtons = ProfileActionButtons({
-            isOwnProfile,
-            targetUserId,
-            currentUserId,
-            isEditing,
-            setIsEditing,
-            onReportUser: handleReportUser,
-          });
-          return actionButtons.topButtons;
-        })()}
-      </View>
-
-      {/* Centered Profile Picture */}
-      <View style={styles.profilePictureSection}>
-        <TouchableOpacity onPress={isOwnProfile ? handleProfilePicturePress : undefined}>
-          <ProfileAvatar 
-            userData={displayUserData} 
-            size={120}
-            isLoading={uploadingPhoto}
-            showBorder={true}
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Top buttons row */}
+        <View style={styles.topButtonsRow}>
+          <CloseButton
+            onPress={() => navigation.goBack()}
+            style={styles.closeButton}
           />
-        </TouchableOpacity>
-      </View>
+          {(() => {
+            const actionButtons = ProfileActionButtons({
+              isOwnProfile,
+              targetUserId,
+              currentUserId,
+              isEditing,
+              setIsEditing,
+              onReportUser: handleReportUser,
+            });
+            return actionButtons.topButtons;
+          })()}
+        </View>
 
-      {/* Profile Info Section */}
-      <View style={styles.profileInfoSection}>
-        <Text style={styles.joinDate}>
-          {formatJoinDate(displayUserData?.userdata?.metadata?.createdAt)}
-        </Text>
-        
-        {/* Only show reliability badge if user has been rated */}
-        {(displayUserData?.ratings?.stars?.length > 0 || displayUserData?.userdata?.metrics?.engagement?.totalRatings > 0) && (
-          <View style={styles.reliabilityContainer}>
-            <ReliabilityBadge 
-              userData={displayUserData} 
-              size="large"
+        {/* Centered Profile Picture */}
+        <View style={styles.profilePictureSection}>
+          <TouchableOpacity
+            onPress={isOwnProfile ? handleProfilePicturePress : undefined}
+          >
+            <ProfileAvatar
+              userData={displayUserData}
+              size={120}
+              isLoading={uploadingPhoto}
+              showBorder={true}
             />
-          </View>
-        )}
-      </View>
+          </TouchableOpacity>
+        </View>
 
-      {/* Bio Section - Only show if has content OR in edit mode */}
-      {(displayUserData?.bio || isEditing) && (
-        <ProfileSectionCard title="About Me">
-          {isEditing ? (
-            <VibeInput
-              placeholder="Tell others about yourself..."
-              value={editedData.bio}
-              onChangeText={(text) => setEditedData(prev => ({ ...prev, bio: text }))}
-              multiline
-              numberOfLines={4}
-              maxLength={300}
-              style={styles.bioInput}
-            />
-          ) : (
-            <Text style={styles.aboutText}>
-              {displayUserData?.bio}
-            </Text>
+        {/* Profile Info Section */}
+        <View style={styles.profileInfoSection}>
+          <Text style={styles.joinDate}>
+            {formatJoinDate(displayUserData?.userdata?.metadata?.createdAt)}
+          </Text>
+
+          {/* Only show reliability badge if user has been rated */}
+          {(displayUserData?.ratings?.stars?.length > 0 ||
+            displayUserData?.userdata?.metrics?.engagement?.totalRatings >
+              0) && (
+            <View style={styles.reliabilityContainer}>
+              <ReliabilityBadge userData={displayUserData} size="large" />
+            </View>
           )}
-        </ProfileSectionCard>
-      )}
+        </View>
 
-      {/* Contact Section */}
-      <ProfileSectionCard title="Contact Info">
+        {/* Bio Section - Only show if has content OR in edit mode */}
+        {(displayUserData?.bio || isEditing) && (
+          <ProfileSectionCard title="About Me">
+            {isEditing ? (
+              <VibeInput
+                placeholder="Tell others about yourself..."
+                value={editedData.bio}
+                onChangeText={(text) =>
+                  setEditedData((prev) => ({ ...prev, bio: text }))
+                }
+                multiline
+                numberOfLines={4}
+                maxLength={300}
+                style={styles.bioInput}
+              />
+            ) : (
+              <Text style={styles.aboutText}>{displayUserData?.bio}</Text>
+            )}
+          </ProfileSectionCard>
+        )}
+
+        {/* Contact Section */}
+        <ProfileSectionCard title="Contact Info">
           <ContactItem icon="👤">
             {isEditing ? (
               <View style={styles.nameEditContainer}>
                 <VibeInput
                   placeholder="First Name"
                   value={editedData.firstName}
-                  onChangeText={(text) => setEditedData(prev => ({ ...prev, firstName: text }))}
+                  onChangeText={(text) =>
+                    setEditedData((prev) => ({ ...prev, firstName: text }))
+                  }
                   style={styles.nameInput}
                 />
                 <VibeInput
                   placeholder="Last Name"
                   value={editedData.lastName}
-                  onChangeText={(text) => setEditedData(prev => ({ ...prev, lastName: text }))}
+                  onChangeText={(text) =>
+                    setEditedData((prev) => ({ ...prev, lastName: text }))
+                  }
                   style={styles.nameInput}
                 />
               </View>
             ) : (
               <Text style={styles.contactText}>
-                {contactInfo?.firstName && contactInfo?.lastName 
+                {contactInfo?.firstName && contactInfo?.lastName
                   ? `${contactInfo.firstName} ${contactInfo.lastName}`
-                  : contactInfo?.firstName || contactInfo?.lastName || contactInfo?.email?.split('@')[0] || displayUserData?.email?.split('@')[0] || 'User'}
+                  : contactInfo?.firstName ||
+                    contactInfo?.lastName ||
+                    contactInfo?.email?.split('@')[0] ||
+                    displayUserData?.email?.split('@')[0] ||
+                    'User'}
               </Text>
             )}
           </ContactItem>
-          {(isOwnProfile ? (displayUserData?.location || displayUserData?.userdata?.studios?.default?.studioName) : contactInfo?.location) && (
-            <ContactItem 
+          {(isOwnProfile
+            ? displayUserData?.location ||
+              displayUserData?.userdata?.studios?.default?.studioName
+            : contactInfo?.location) && (
+            <ContactItem
               icon="📍"
-              text={isOwnProfile 
-                ? (displayUserData?.location || displayUserData?.userdata?.studios?.default?.studioName || 'Not set')
-                : contactInfo?.location}
+              text={
+                isOwnProfile
+                  ? displayUserData?.location ||
+                    displayUserData?.userdata?.studios?.default?.studioName ||
+                    'Not set'
+                  : contactInfo?.location
+              }
             />
           )}
           {(isEditing || isOwnProfile || contactInfo?.phone) && (
@@ -719,14 +811,28 @@ function UserProfile({ navigation, route }) {
                 <VibeInput
                   placeholder="Phone number (required)"
                   value={editedData.phone}
-                  onChangeText={(text) => setEditedData(prev => ({ ...prev, phone: text }))}
+                  onChangeText={(text) =>
+                    setEditedData((prev) => ({ ...prev, phone: text }))
+                  }
                   style={styles.contactInput}
                   keyboardType="phone-pad"
                 />
               ) : (
-                <Text style={[styles.contactText, !contactInfo?.phone && isOwnProfile && styles.requiredMissing]}>
-                  {isOwnProfile 
-                    ? (formatPhoneNumber(contactInfo?.phone || contactInfo?.phoneNumber || displayUserData?.phone || displayUserData?.phoneNumber) || 'Required - Please add phone number')
+                <Text
+                  style={[
+                    styles.contactText,
+                    !contactInfo?.phone &&
+                      isOwnProfile &&
+                      styles.requiredMissing,
+                  ]}
+                >
+                  {isOwnProfile
+                    ? formatPhoneNumber(
+                        contactInfo?.phone ||
+                          contactInfo?.phoneNumber ||
+                          displayUserData?.phone ||
+                          displayUserData?.phoneNumber
+                      ) || 'Required - Please add phone number'
                     : formatPhoneNumber(contactInfo?.phone)}
                 </Text>
               )}
@@ -738,15 +844,17 @@ function UserProfile({ navigation, route }) {
                 <VibeInput
                   placeholder="Email address"
                   value={editedData.email}
-                  onChangeText={(text) => setEditedData(prev => ({ ...prev, email: text }))}
+                  onChangeText={(text) =>
+                    setEditedData((prev) => ({ ...prev, email: text }))
+                  }
                   style={styles.contactInput}
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />
               ) : (
                 <Text style={styles.contactText}>
-                  {isOwnProfile 
-                    ? (contactInfo?.email || displayUserData?.email || 'Not set')
+                  {isOwnProfile
+                    ? contactInfo?.email || displayUserData?.email || 'Not set'
                     : contactInfo?.email}
                 </Text>
               )}
@@ -754,124 +862,134 @@ function UserProfile({ navigation, route }) {
           )}
         </ProfileSectionCard>
 
+        {/* Activity Section */}
+        <ProfileSectionCard title="Events">
+          <UserStatsGrid
+            stats={[
+              {
+                value: displayUserData?.userdata?.metrics?.events?.created || 0,
+                label: 'Hosted',
+              },
+              {
+                value:
+                  displayUserData?.userdata?.metrics?.events?.attended || 0,
+                label: 'Attended',
+              },
+              {
+                value: displayUserData?.userdata?.metrics?.events?.noShows || 0,
+                label: 'No Shows',
+              },
+            ]}
+          />
+        </ProfileSectionCard>
 
-      {/* Activity Section */}
-      <ProfileSectionCard title="Events">
-        <UserStatsGrid 
-          stats={[
-            {
-              value: displayUserData?.userdata?.metrics?.events?.created || 0,
-              label: 'Hosted'
-            },
-            {
-              value: displayUserData?.userdata?.metrics?.events?.attended || 0,
-              label: 'Attended'
-            },
-            {
-              value: displayUserData?.userdata?.metrics?.events?.noShows || 0,
-              label: 'No Shows'
-            }
-          ]}
-        />
-      </ProfileSectionCard>
+        {/* Social Section */}
+        <ProfileSectionCard title="Social">
+          <UserStatsGrid
+            stats={[
+              {
+                value: loadingStats ? '...' : followStats.mutualCount,
+                label: 'Friends',
+                onPress: isOwnProfile
+                  ? () =>
+                      navigation.navigate('SocialList', {
+                        userId: currentUserId,
+                        type: 'friends',
+                        onStatsChange: loadFollowStats,
+                      })
+                  : undefined,
+              },
+              {
+                value: loadingStats ? '...' : followStats.followingCount,
+                label: 'Following',
+                onPress: isOwnProfile
+                  ? () =>
+                      navigation.navigate('SocialList', {
+                        userId: currentUserId,
+                        type: 'following',
+                        onStatsChange: loadFollowStats,
+                      })
+                  : undefined,
+              },
+              {
+                value: loadingStats ? '...' : followStats.followerCount,
+                label: 'Followers',
+                onPress: isOwnProfile
+                  ? () =>
+                      navigation.navigate('SocialList', {
+                        userId: currentUserId,
+                        type: 'followers',
+                        onStatsChange: loadFollowStats,
+                      })
+                  : undefined,
+              },
+            ]}
+            isOwnProfile={isOwnProfile}
+          />
+        </ProfileSectionCard>
 
-      {/* Social Section */}
-      <ProfileSectionCard title="Social">
-        <UserStatsGrid 
-          stats={[
-            {
-              value: loadingStats ? '...' : followStats.mutualCount,
-              label: 'Friends',
-              onPress: isOwnProfile ? () => navigation.navigate('SocialList', {
-                userId: currentUserId,
-                type: 'friends',
-                onStatsChange: loadFollowStats
-              }) : undefined
-            },
-            {
-              value: loadingStats ? '...' : followStats.followingCount,
-              label: 'Following',
-              onPress: isOwnProfile ? () => navigation.navigate('SocialList', {
-                userId: currentUserId,
-                type: 'following',
-                onStatsChange: loadFollowStats
-              }) : undefined
-            },
-            {
-              value: loadingStats ? '...' : followStats.followerCount,
-              label: 'Followers',
-              onPress: isOwnProfile ? () => navigation.navigate('SocialList', {
-                userId: currentUserId,
-                type: 'followers',
-                onStatsChange: loadFollowStats
-              }) : undefined
-            }
-          ]}
-          isOwnProfile={isOwnProfile}
-        />
-      </ProfileSectionCard>
-
-      {/* QR Code Section - Only for own profile */}
-      {isOwnProfile && (
-        <ProfileSectionCard title="Share Profile">
+        {/* QR Code Section - Only for own profile */}
+        {isOwnProfile && (
+          <ProfileSectionCard title="Share Profile">
             <QRCodeGenerator
               type="user"
               data={currentUserId}
               size={180}
               showShareButton={false}
             />
-        </ProfileSectionCard>
-      )}
+          </ProfileSectionCard>
+        )}
 
-      {/* Attendance Details */}
-      {displayUserData?.attendanceStats && (
-        <View style={styles.cardSection}>
-          <Text style={styles.sectionTitle}>Attendance Breakdown</Text>
-          <View style={styles.contactSection}>
-            <AttendanceStats stats={displayUserData.attendanceStats} />
+        {/* Attendance Details */}
+        {displayUserData?.attendanceStats && (
+          <View style={styles.cardSection}>
+            <Text style={styles.sectionTitle}>Attendance Breakdown</Text>
+            <View style={styles.contactSection}>
+              <AttendanceStats stats={displayUserData.attendanceStats} />
+            </View>
           </View>
-        </View>
-      )}
+        )}
 
-      {/* Bottom Action Buttons */}
-      {isEditing ? (
-        <View style={styles.buttonContainer}>
-          <VibeButton
-            label={isSaving ? "SAVING..." : "SAVE CHANGES"}
-            onPress={handleSave}
-            style={styles.saveButton}
-            disabled={isSaving}
-          />
-        </View>
-      ) : (
-        (() => {
-          const actionButtons = ProfileActionButtons({
-            isOwnProfile,
-            targetUserId,
-            currentUserId,
-            isEditing,
-            setIsEditing,
-            onReportUser: handleReportUser,
-            // Follow/block props
-            isFollowing,
-            isFollowLoading: followLoading,
-            onFollow: handleFollow,
-            onUnfollow: handleUnfollow,
-            isBlocked,
-            isBlockLoading: false, // Add if needed
-            onBlock: handleBlockUser,
-            onUnblock: handleBlockUser, // Same handler for now
-            // Own profile actions
-            onSettings: () => navigation.navigate('Settings'),
-            onNotificationSettings: () => navigation.navigate('Notifications'),
-            onPrivacySettings: () => navigation.navigate('Privacy'),
-            onLogout: handleLogout,
-            onDeleteAccount: handleDeleteAccount,
-          });
-          return actionButtons.bottomButtons;
-        })()
-      )}
-        </ScrollView>
+        {/* Bottom Action Buttons */}
+        {isEditing ? (
+          <View style={styles.buttonContainer}>
+            <VibeButton
+              label={isSaving ? 'SAVING...' : 'SAVE CHANGES'}
+              onPress={handleSave}
+              style={styles.saveButton}
+              disabled={isSaving}
+            />
+          </View>
+        ) : (
+          (() => {
+            const actionButtons = ProfileActionButtons({
+              isOwnProfile,
+              targetUserId,
+              currentUserId,
+              isEditing,
+              setIsEditing,
+              onReportUser: handleReportUser,
+              // Follow/block props
+              isFollowing,
+              isFollowLoading: followLoading,
+              onFollow: handleFollow,
+              onUnfollow: handleUnfollow,
+              isBlocked,
+              isBlockLoading: false, // Add if needed
+              onBlock: handleBlockUser,
+              onUnblock: handleBlockUser, // Same handler for now
+              // Own profile actions
+              onSettings: () => navigation.navigate('Settings'),
+              onNotificationSettings: () =>
+                navigation.navigate('Notifications'),
+              onPrivacySettings: () => navigation.navigate('Privacy'),
+              onLogout: handleLogout,
+              onDeleteAccount: handleDeleteAccount,
+            });
+            return actionButtons.bottomButtons;
+          })()
+        )}
+      </ScrollView>
     </View>
   );
 }

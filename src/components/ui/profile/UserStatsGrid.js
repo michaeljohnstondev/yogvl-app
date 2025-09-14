@@ -6,8 +6,9 @@ const UserStatsGrid = ({ stats, onStatPress, isOwnProfile = false }) => {
   return (
     <View style={styles.quickStats}>
       {stats.map((stat, index) => {
-        const StatComponent = stat.onPress && isOwnProfile ? TouchableOpacity : View;
-        
+        const StatComponent =
+          stat.onPress && isOwnProfile ? TouchableOpacity : View;
+
         return (
           <StatComponent
             key={index}

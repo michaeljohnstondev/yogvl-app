@@ -11,7 +11,7 @@ export const useEventEndNotifications = () => {
   // Use try-catch to handle case where AuthProvider isn't available yet
   let isAuthenticated = false;
   let currentUserId = null;
-  
+
   try {
     const authData = useAuth();
     isAuthenticated = authData.isAuthenticated;
@@ -26,11 +26,10 @@ export const useEventEndNotifications = () => {
   // Event end notifications moved to Cloud Functions for better performance
   useEffect(() => {
     if (isAuthenticated && currentUserId) {
-      
       // DISABLED - causes battery drain: Start periodic checks
       // cleanupRef.current = EventEndNotificationService.schedulePeriodicCheck();
       console.log('Event end notifications handled by Cloud Functions');
-      
+
       return () => {
         if (cleanupRef.current) {
           cleanupRef.current();
@@ -49,25 +48,33 @@ export const useEventEndNotifications = () => {
   // Handle app state changes (pause when app is backgrounded)
   useEffect(() => {
     const handleAppStateChange = (nextAppState) => {
-      
-      if (appStateRef.current.match(/inactive|background/) && nextAppState === 'active') {
+      if (
+        appStateRef.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
         // App has come to the foreground
         // DISABLED - event end notifications handled by Cloud Functions
         // if (isAuthenticated && currentUserId && !cleanupRef.current) {
         //   cleanupRef.current = EventEndNotificationService.schedulePeriodicCheck();
         // }
-      } else if (appStateRef.current === 'active' && nextAppState.match(/inactive|background/)) {
+      } else if (
+        appStateRef.current === 'active' &&
+        nextAppState.match(/inactive|background/)
+      ) {
         // App has gone to the background
         if (cleanupRef.current) {
           cleanupRef.current();
           cleanupRef.current = null;
         }
       }
-      
+
       appStateRef.current = nextAppState;
     };
 
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    const subscription = AppState.addEventListener(
+      'change',
+      handleAppStateChange
+    );
 
     return () => {
       subscription?.remove();
@@ -91,14 +98,16 @@ export const useEventEndNotifications = () => {
       }
       return Promise.resolve({ success: false, error: 'Not authenticated' });
     },
-    
+
     triggerForEvent: (eventId) => {
       if (isAuthenticated) {
-        return EventEndNotificationService.triggerAttendanceNotification(eventId);
+        return EventEndNotificationService.triggerAttendanceNotification(
+          eventId
+        );
       }
       return Promise.resolve({ success: false, error: 'Not authenticated' });
     },
-    
+
     isRunning: () => !!cleanupRef.current,
   };
 };

@@ -16,9 +16,16 @@ export const AuthProvider = ({ children, user, userData }) => {
     userData,
     currentUserId: user?.uid || null,
     isAuthenticated: !!user,
-    hasCompletedContactInfo: !!(userData?.userdata?.contactInfo?.firstName && userData?.userdata?.contactInfo?.lastName),
+    hasCompletedContactInfo: !!(
+      userData?.userdata?.contactInfo?.firstName &&
+      userData?.userdata?.contactInfo?.lastName
+    ),
     hasSelectedLocation: !!userData?.userdata?.studios?.default?.studioId,
-    hasCompletedOnboarding: !!(userData?.userdata?.contactInfo?.firstName && userData?.userdata?.contactInfo?.lastName && userData?.userdata?.studios?.default?.studioId),
+    hasCompletedOnboarding: !!(
+      userData?.userdata?.contactInfo?.firstName &&
+      userData?.userdata?.contactInfo?.lastName &&
+      userData?.userdata?.studios?.default?.studioId
+    ),
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

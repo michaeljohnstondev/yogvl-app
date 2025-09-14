@@ -9,7 +9,10 @@ function isFirebaseAvailable() {
     require('@react-native-firebase/messaging');
     return true;
   } catch (error) {
-    console.warn('[FCMWrapper] Firebase messaging not available:', error.message);
+    console.warn(
+      '[FCMWrapper] Firebase messaging not available:',
+      error.message
+    );
     return false;
   }
 }

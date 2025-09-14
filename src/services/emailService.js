@@ -2,13 +2,13 @@
 
 /**
  * Email Service Integration
- * 
+ *
  * This file provides a template for integrating with email services like:
  * - SendGrid
  * - AWS SES
  * - Mailgun
  * - Firebase Extensions (SendGrid, Mailgun)
- * 
+ *
  * Choose one based on your needs and implement the actual sending logic.
  */
 
@@ -25,7 +25,7 @@ export const EMAIL_TEMPLATES = {
  */
 const EMAIL_CONFIGS = {
   [EMAIL_TEMPLATES.INVITATION_RECEIVED]: {
-    subject: 'You\'re invited to {{eventTitle}}!',
+    subject: "You're invited to {{eventTitle}}!",
     template: 'invitation-received',
     priority: 'high',
   },
@@ -87,7 +87,6 @@ export const sendInvitationEmail = async ({
     // return await sendWithSendGrid(emailRequest);
     // return await sendWithAWSSES(emailRequest);
     // return await sendWithMailgun(emailRequest);
-
   } catch (error) {
     console.error('Error sending invitation email:', error);
     throw error;
@@ -124,7 +123,6 @@ export const sendEventUpdateEmail = async ({
     };
 
     return await sendWithFirebaseExtension(emailRequest);
-
   } catch (error) {
     console.error('Error sending event update email:', error);
     throw error;
@@ -162,7 +160,6 @@ export const sendEventReminderEmail = async ({
     };
 
     return await sendWithFirebaseExtension(emailRequest);
-
   } catch (error) {
     console.error('Error sending event reminder email:', error);
     throw error;
@@ -191,7 +188,6 @@ const sendWithFirebaseExtension = async (emailRequest) => {
 
     console.log('Email queued for delivery via Firebase Extension');
     return { success: true, provider: 'firebase-extension' };
-
   } catch (error) {
     console.error('Firebase Extension email error:', error);
     return { success: false, error: error.message };
@@ -210,7 +206,6 @@ const sendWithSendGrid = async (emailRequest) => {
 
     console.log('SendGrid email sent (placeholder)');
     return { success: true, provider: 'sendgrid' };
-
   } catch (error) {
     console.error('SendGrid email error:', error);
     return { success: false, error: error.message };
@@ -229,7 +224,6 @@ const sendWithAWSSES = async (emailRequest) => {
 
     console.log('AWS SES email sent (placeholder)');
     return { success: true, provider: 'aws-ses' };
-
   } catch (error) {
     console.error('AWS SES email error:', error);
     return { success: false, error: error.message };
@@ -250,7 +244,6 @@ const sendWithMailgun = async (emailRequest) => {
 
     console.log('Mailgun email sent (placeholder)');
     return { success: true, provider: 'mailgun' };
-
   } catch (error) {
     console.error('Mailgun email error:', error);
     return { success: false, error: error.message };
@@ -281,15 +274,19 @@ const formatEventTime = (timestamp) => {
 };
 
 const formatChanges = (changes) => {
-  return changes.map(change => `• ${change}`).join('\n');
+  return changes.map((change) => `• ${change}`).join('\n');
 };
 
 const getReminderText = (reminderType) => {
   switch (reminderType) {
-    case '24h': return 'tomorrow';
-    case '2h': return 'in 2 hours';
-    case '30m': return 'in 30 minutes';
-    default: return 'soon';
+    case '24h':
+      return 'tomorrow';
+    case '2h':
+      return 'in 2 hours';
+    case '30m':
+      return 'in 30 minutes';
+    default:
+      return 'soon';
   }
 };
 
@@ -368,21 +365,29 @@ const generateInvitationEmailHTML = (data) => {
               <span>${data.eventLocation}</span>
             </div>
             
-            ${data.eventAddress ? `
+            ${
+              data.eventAddress
+                ? `
             <div class="detail-row">
               <span class="detail-icon">🏠</span>
               <span>${data.eventAddress}</span>
             </div>
-            ` : ''}
+            `
+                : ''
+            }
             
             <p style="margin-top: 16px; line-height: 1.5;">${data.eventDescription}</p>
             
-            ${data.customMessage ? `
+            ${
+              data.customMessage
+                ? `
             <div style="background: #1a1a1a; border-left: 4px solid #00bfff; padding: 16px; margin-top: 16px; border-radius: 4px;">
               <strong>Personal message from ${data.hostName}:</strong>
               <p style="margin: 8px 0 0 0; font-style: italic;">"${data.customMessage}"</p>
             </div>
-            ` : ''}
+            `
+                : ''
+            }
           </div>
           
           <div class="buttons">

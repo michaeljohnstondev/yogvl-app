@@ -34,7 +34,7 @@ const CommentItem = ({ comment, onDelete }) => {
         }
       }
     };
-    
+
     fetchUserData();
   }, [comment.userId]);
 
@@ -123,8 +123,8 @@ const CommentItem = ({ comment, onDelete }) => {
           >
             <View style={styles.header}>
               <View style={styles.avatarWrapper}>
-                <ProfileAvatar 
-                  userData={commentUserData} 
+                <ProfileAvatar
+                  userData={commentUserData}
                   size={44}
                   showBorder={true}
                 />

@@ -1,14 +1,20 @@
 import React from 'react';
-import { Pressable, View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import {
+  Pressable,
+  View,
+  Text,
+  ActivityIndicator,
+  StyleSheet,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import theme from '../../../theme/themes';
 
-const BlockButton = ({ 
+const BlockButton = ({
   onPress,
   isLoading = false,
   disabled = false,
   style,
-  label = "Block User"
+  label = 'Block User',
 }) => {
   const handlePress = () => {
     if (disabled || isLoading) return;
@@ -18,10 +24,7 @@ const BlockButton = ({
   if (isLoading) {
     return (
       <View style={[styles.loadingContainer, style]}>
-        <ActivityIndicator 
-          size="small" 
-          color={theme.colors.vibeRed} 
-        />
+        <ActivityIndicator size="small" color={theme.colors.vibeRed} />
         <Text style={styles.loadingText}>Blocking...</Text>
       </View>
     );
@@ -32,8 +35,8 @@ const BlockButton = ({
       onPress={handlePress}
       disabled={disabled}
       style={({ pressed }) => [
-        { opacity: pressed ? 0.8 : (disabled ? 0.5 : 1) },
-        style
+        { opacity: pressed ? 0.8 : disabled ? 0.5 : 1 },
+        style,
       ]}
     >
       <LinearGradient
@@ -71,7 +74,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.main,
     textAlign: 'center',
   },
-  
+
   // Loading state
   loadingContainer: {
     flexDirection: 'row',

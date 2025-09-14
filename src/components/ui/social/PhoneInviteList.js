@@ -15,12 +15,12 @@ import theme from '../../../theme/themes';
 import VibeButton from '../base/VibeButton';
 import { useVibeAlert } from '../base/VibeAlertContext';
 
-export default function PhoneInviteList({ 
-  eventId, 
-  studioId, 
-  eventData, 
+export default function PhoneInviteList({
+  eventId,
+  studioId,
+  eventData,
   isHost = false,
-  onUpdate = null 
+  onUpdate = null,
 }) {
   const [loading, setLoading] = useState(true);
   const [invitedPhones, setInvitedPhones] = useState([]);
@@ -44,13 +44,13 @@ export default function PhoneInviteList({
 
   const formatPhoneNumber = (phone) => {
     if (!phone) return '';
-    
+
     // Format for display (e.g., +1234567890 -> +1 (234) 567-0890)
     if (phone.startsWith('+1') && phone.length === 12) {
       const digits = phone.substring(2);
       return `+1 (${digits.substring(0, 3)}) ${digits.substring(3, 6)}-${digits.substring(6)}`;
     }
-    
+
     return phone; // Return as-is if we can't format it
   };
 
@@ -68,14 +68,23 @@ export default function PhoneInviteList({
           onPress: async () => {
             setRemoving(phoneToRemove);
             try {
-              const { removePhoneFromEventAccess } = await import('../../services/phoneAccessService');
-              await removePhoneFromEventAccess(studioId, eventId, [phoneToRemove]);
-              
+              const { removePhoneFromEventAccess } = await import(
+                '../../services/phoneAccessService'
+              );
+              await removePhoneFromEventAccess(studioId, eventId, [
+                phoneToRemove,
+              ]);
+
               // Update local state
-              setInvitedPhones(prev => prev.filter(phone => phone !== phoneToRemove));
-              
-              vibeAlert.success('Removed', 'Phone number removed from invite list');
-              
+              setInvitedPhones((prev) =>
+                prev.filter((phone) => phone !== phoneToRemove)
+              );
+
+              vibeAlert.success(
+                'Removed',
+                'Phone number removed from invite list'
+              );
+
               // Notify parent component
               if (onUpdate) {
                 onUpdate();
@@ -122,7 +131,8 @@ export default function PhoneInviteList({
       <View style={styles.header}>
         <Text style={styles.title}>Phone Invitations</Text>
         <Text style={styles.subtitle}>
-          {invitedPhones.length} phone number{invitedPhones.length > 1 ? 's' : ''} invited
+          {invitedPhones.length} phone number
+          {invitedPhones.length > 1 ? 's' : ''} invited
         </Text>
       </View>
 
@@ -137,12 +147,12 @@ export default function PhoneInviteList({
               <Text style={styles.phoneNumber}>{formatPhoneNumber(phone)}</Text>
               <Text style={styles.status}>{getInviteStatus(phone)}</Text>
             </View>
-            
+
             {isHost && (
               <TouchableOpacity
                 style={[
                   styles.removeButton,
-                  removing === phone && styles.removeButtonDisabled
+                  removing === phone && styles.removeButtonDisabled,
                 ]}
                 onPress={() => removePhoneNumber(phone)}
                 disabled={removing === phone}

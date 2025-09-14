@@ -33,6 +33,12 @@ This document provides a comprehensive inventory of all existing components in t
   - Features: LinearGradient styling, loading state with ActivityIndicator, BVS theme compliance
   - Colors: Dark red gradient ['#CC0022', '#FF0844', '#AA001B']
 
+- **MessageBoardButton** (`src/components/ui/buttons/MessageBoardButton.js`)
+  - Navigation button to event message board with preview (131 lines)
+  - Props: `eventId`, `eventTitle`, `navigation`
+  - Features: Message count display, last message preview, loading states, useComments integration
+  - **Used By**: EventDetailScreen, HomeScreen (for event cards)
+
 ### Inputs & Forms
 - **VibeInput** (`src/components/ui/VibeInput.js`)
   - Styled text input with completion states
@@ -249,20 +255,54 @@ This document provides a comprehensive inventory of all existing components in t
 
 ---
 
-## 💬 Comments & Discussion
+## 💬 Comments & Discussion (Message Board System)
 
+### Core Comment/Message Components
 - **CommentSection** (`src/components/ui/comments/CommentSection.js`)
-  - Complete commenting system for events
+  - Complete commenting system for events and message boards
   - Props: `eventId`
+  - Features: Full comment management with real-time updates
 
 - **CommentList** (`src/components/ui/comments/CommentList.js`)
-  - List of comments
+  - List container for comments/messages
+  - Props: Comment data array, rendering configuration
+  - Features: Scroll management, performance optimization
 
 - **CommentItem** (`src/components/ui/comments/CommentItem.js`)
-  - Individual comment display
+  - **⚠️ REUSE FOR MESSAGE DISPLAY**: Individual comment/message item component
+  - Props: `comment`, `onDelete`
+  - Features: User avatar, timestamp, content display, owner actions, user data fetching
+  - **USE INSTEAD OF**: Creating separate MessageItem component
 
 - **AddCommentInput** (`src/components/ui/comments/AddCommentInput.js`)
-  - Input for adding new comments
+  - **⚠️ REUSE FOR MESSAGE INPUT**: Comment/message input with validation
+  - Props: `onAddComment`, `submitting`, `disabled`
+  - Features: Content validation, submission handling, keyboard management, error handling
+  - **USE INSTEAD OF**: Creating separate MessageInput component
+
+### Message Board Specific
+- **MessageBoardButton** (`src/components/ui/buttons/MessageBoardButton.js`)
+  - Navigation button to message board with preview
+  - Props: `eventId`, `eventTitle`, `navigation`
+  - Features: Message count display, last message preview, loading states
+
+### Future Threading Support
+- **ThreadView** (`src/components/ui/comments/ThreadView.js`) - **PLANNED COMPONENT**
+  - Threading display component for nested conversations
+  - Props: `threadId`, `parentComment`, `replies`, `onReply`, `maxDepth`
+  - Features: Nested reply rendering, thread collapse/expand, depth limiting
+  - **STATUS**: Not yet implemented - safe to create when needed
+
+### Supporting Infrastructure
+- **useComments** (`src/components/ui/comments/hooks/useComments.js`)
+  - Comment/message data management hook
+  - Functions: Real-time comment loading, submission, deletion, error handling
+  - **USED BY**: MessageBoardScreen, CommentSection
+
+- **commentUtils** (`src/components/ui/comments/utils/commentUtils.js`)
+  - Comment validation and formatting utilities
+  - Functions: `validateComment`, `formatTimestamp`, content processing
+  - Features: Length validation, content sanitization, timestamp formatting
 
 ---
 
@@ -309,6 +349,58 @@ This document provides a comprehensive inventory of all existing components in t
 - **PhoneInviteList** (`src/components/ui/PhoneInviteList.js`)
   - List for phone contact invitations
 
+### Invite Screen Components (Screen-Specific)
+- **InviteScreenHeader** (`src/screens/invite/components/InviteScreenHeader.js`)
+  - **⚠️ DUPLICATE FUNCTIONALITY**: Similar to ScreenHeader - consider consolidation
+  - Header component for InviteScreen with title and close button
+  - Props: `title`, `onClose`
+
+- **TabSelector** (`src/screens/invite/components/TabSelector.js`)
+  - **⚠️ DUPLICATE FUNCTIONALITY**: Custom tab selector - VibeSegmentedControl could be used instead
+  - Three-tab selector for App Users, Phone Contacts, and QR Code tabs
+  - Props: `activeTab`, `setActiveTab`
+
+- **AppUsersTab** (`src/screens/invite/components/tabs/AppUsersTab.js`)
+  - Tab for selecting app users with filtering and group management
+  - Features: Search, favorite/friend filters, interest-based filtering, group selection
+
+- **PhoneContactsTab** (`src/screens/invite/components/tabs/PhoneContactsTab.js`)
+  - Tab for selecting device phone contacts
+  - Features: Contact permission handling, search, selection management
+
+- **QRCodeTab** (`src/screens/invite/components/tabs/QRCodeTab.js`)
+  - Tab for QR code invitation sharing
+  - Features: QR code generation for events and app downloads
+
+- **SelectedItemsList** (`src/screens/invite/components/lists/SelectedItemsList.js`)
+  - Displays selected users and contacts with removal capability
+  - Features: Mixed user/contact display, remove actions
+
+- **UserListItem** (`src/screens/invite/components/lists/UserListItem.js`)
+  - **⚠️ SIMILAR TO EXISTING**: Compare with SocialUserItem for potential consolidation
+  - Individual user item for selection with avatars and checkmarks
+  - Props: `item`, `isSelected`, `canSelect`, `themeColor`, `onPress`, `onAvatarPress`
+
+- **ContactListItem** (`src/screens/invite/components/lists/ContactListItem.js`)
+  - Individual phone contact item for selection
+  - Features: Contact info display, selection indicators
+
+- **GroupManagementModal** (`src/screens/invite/components/groups/GroupManagementModal.js`)
+  - Modal for managing custom user groups
+  - Features: Group CRUD operations, member management
+
+- **CreateGroupModal** (`src/screens/invite/components/groups/CreateGroupModal.js`)
+  - Modal for creating new custom groups
+  - Features: Group name input, validation
+
+- **GroupFilterSection** (`src/screens/invite/components/groups/GroupFilterSection.js`)
+  - Filter section for group-based user filtering
+  - Features: Group selection, filter management
+
+- **FilterSection** (`src/screens/invite/components/tabs/FilterSection.js`)
+  - General filter section for various user filtering options
+  - Features: Favorites, friends, interests, location filters
+
 ### Admin & Moderation
 - **AdminNotificationModal** (`src/components/ui/AdminNotificationModal.js`)
   - Modal for admin notifications
@@ -334,19 +426,34 @@ This document provides a comprehensive inventory of all existing components in t
 ## 🚨 Potential Duplicates & Issues Found
 
 ### Similar Components (Review for Consolidation)
-1. **Avatar Components**:
+1. **Header Components** - ⚠️ NEWLY IDENTIFIED:
+   - `InviteScreenHeader` vs `ScreenHeader` - Nearly identical functionality
+   - **RECOMMENDATION**: Replace InviteScreenHeader with ScreenHeader (supports title, onClose, optional count)
+   - **IMPACT**: Remove duplicate component, improve consistency
+
+2. **Tab/Segmented Controls** - ⚠️ NEWLY IDENTIFIED:
+   - `TabSelector` (invite screen) vs `VibeSegmentedControl` - Similar tab selection functionality
+   - **RECOMMENDATION**: Refactor InviteScreen to use VibeSegmentedControl instead of custom TabSelector
+   - **IMPACT**: Remove custom tab implementation, standardize UI patterns
+
+3. **User List Components** - ⚠️ NEWLY IDENTIFIED:
+   - `UserListItem` (invite) vs `SocialUserItem` - Both display users with avatars and actions
+   - **DIFFERENCES**: UserListItem has selection checkmarks, SocialUserItem has follow actions
+   - **RECOMMENDATION**: Consider creating unified UserItem component with configurable action types
+
+4. **Avatar Components**:
    - `UserAvatar` vs `ProfileAvatar` - Different data sources but similar purpose
    - Consider: Could be unified with a single flexible avatar component
 
-2. **Notification Buttons**:
+5. **Notification Buttons**:
    - `NotificationButton` (notifications/) vs `NotificationButton` (events/components/notificationSettings/)
    - **Location conflict detected** - same name, different paths
 
-3. **Reliability Components**:
+6. **Reliability Components**:
    - `ReliabilityWarning` (ui/) vs `ReliabilityWarning` (events/components/attendees/)
    - **Potential duplicate** - need to verify if functionality differs
 
-4. **AutoComplete Components**:
+7. **AutoComplete Components**:
    - `AutoCompleteInput` vs `VibeAutoComplete` - Similar functionality
    - Consider: `AutoCompleteInput` uses `VibeAutoComplete` internally, may be redundant wrapper
 
@@ -443,16 +550,21 @@ Based on usage analysis, consider creating:
 
 ### Social & Communication Screens
 - **InviteScreen** (`src/screens/InviteScreen.js`) - Route: `Invite`
-  - Comprehensive user invitation interface
-  - Features: Multi-tab user selection, phone contacts, QR codes, group management
+  - Comprehensive user invitation interface with complex state management
+  - Features: Multi-tab user selection (App Users, Phone Contacts, QR Codes), group management, interest-based filtering
+  - Components: Uses InviteScreenHeader, TabSelector, AppUsersTab, PhoneContactsTab, QRCodeTab, SelectedItemsList
+  - Hooks: useInviteScreenState, useContactManagement, useGroupManagement, useSelectionHandlers, useUserInterests
 
 - **SocialListScreen** (`src/screens/SocialListScreen.js`) - Route: `SocialList`
   - Social connections and friends list
   - Features: Friend management, social interactions
 
 - **MessageBoardScreen** (`src/screens/MessageBoardScreen.js`) - Route: `MessageBoard`
-  - Event-specific message board and discussions
-  - Features: Comments, real-time messaging, moderation
+  - Event-specific message board and real-time discussions (497 lines)
+  - Features: Real-time messaging using existing comment infrastructure, message list management, auto-scroll to bottom
+  - **Components Used**: CommentItem (for messages), AddCommentInput (for message input), useComments hook
+  - **Refactoring Status**: ⚠️ Uses existing comment components - no new MessageItem/MessageInput needed
+  - **Future Enhancement**: ThreadView component for threading support (not yet implemented)
 
 ### Notification & Settings Screens
 - **NotificationsScreen** (`src/screens/NotificationsScreen.js`) - Route: `Notifications`
@@ -578,29 +690,31 @@ Based on usage analysis, consider creating:
 
 ### Invite Screen Specific Hooks
 - **useInviteScreenState** (`src/screens/invite/hooks/useInviteScreenState.js`)
-  - Complex invite screen state management
-  - Functions: Tab management, selection state, filtering
-  - Features: Multi-tab coordination, complex selection logic
+  - Complex invite screen state management with 20+ state variables
+  - Functions: Tab management, selection state, filtering, form state, group modals
+  - Features: Multi-tab coordination, local selection tracking, filter toggles
+  - State: activeTab, searchQuery, form fields, filter flags, group states, selection arrays
 
 - **useContactManagement** (`src/screens/invite/hooks/useContactManagement.js`)
-  - Phone contact integration and management
-  - Functions: Contact fetching, permission handling, sync
-  - Dependencies: Phone contacts API, permissions
+  - Phone contact integration and app user data management
+  - Functions: Contact fetching, permission handling, app user loading, event subscriber handling
+  - Dependencies: Phone contacts API, permissions, Firestore
+  - Features: Device contact sync, app user filtering, event-based user loading
 
 - **useGroupManagement** (`src/screens/invite/hooks/useGroupManagement.js`)
   - User group creation and management
-  - Functions: Group CRUD operations, member management
-  - Features: Custom user groupings, group persistence
+  - Functions: Group CRUD operations, member management, group selection logic
+  - Features: Custom user groupings, group persistence, bulk user operations
 
 - **useSelectionHandlers** (`src/screens/invite/hooks/useSelectionHandlers.js`)
-  - User selection logic for invite screens
-  - Functions: Multi-select handling, validation, limits
-  - Features: Selection constraints, bulk operations
+  - User selection logic with limit enforcement and multi-type handling
+  - Functions: toggleUserSelection, togglePhoneContactSelection, remove operations
+  - Features: Max limit validation, selection constraints, multi-selection types (users, contacts, phone contacts)
 
 - **useUserInterests** (`src/screens/invite/hooks/useUserInterests.js`)
-  - User interest matching and filtering
-  - Functions: Interest-based filtering, recommendation
-  - Features: Smart user suggestions based on interests
+  - User interest matching and filtering for smart recommendations
+  - Functions: Interest-based filtering, user interest mapping
+  - Features: Interest-based user suggestions, filtering optimization
 
 ---
 
@@ -800,10 +914,10 @@ Based on usage analysis, consider creating:
 
 ---
 
-*Last Updated: Generated dynamically*
-*Total Components Inventoried: 80+*
+*Last Updated: 2025-09-13 (InviteScreen Component Audit Complete)*
+*Total Components Inventoried: 95+*
 *Total Screens Inventoried: 18*
-*Total Hooks Inventoried: 15+*
+*Total Hooks Inventoried: 20+*
 *Total Services Inventoried: 40+*
 
 > **Remember**: This inventory prevents duplicate component/service creation and promotes code reuse. Always check here first! 🚀

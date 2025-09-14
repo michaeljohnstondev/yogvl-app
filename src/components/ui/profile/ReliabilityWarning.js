@@ -1,14 +1,11 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { ReliabilityService } from '../../../services/ReliabilityService';
 import theme from '../../../theme/themes';
 
 export default function ReliabilityWarning({ userData, style }) {
-  const reliabilityData = ReliabilityService.getUserReliabilityDisplay(userData);
+  const reliabilityData =
+    ReliabilityService.getUserReliabilityDisplay(userData);
   const warning = reliabilityData.warning;
 
   if (!warning) return null;
@@ -45,14 +42,16 @@ export default function ReliabilityWarning({ userData, style }) {
   const warningStyles = getWarningStyles(warning.level);
 
   return (
-    <View style={[
-      styles.container,
-      {
-        backgroundColor: warningStyles.backgroundColor,
-        borderColor: warningStyles.borderColor,
-      },
-      style
-    ]}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: warningStyles.backgroundColor,
+          borderColor: warningStyles.borderColor,
+        },
+        style,
+      ]}
+    >
       <Text style={styles.icon}>{warningStyles.icon}</Text>
       <View style={styles.content}>
         <Text style={[styles.title, { color: warning.color }]}>

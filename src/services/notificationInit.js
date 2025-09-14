@@ -9,24 +9,35 @@ let processorCleanup = null;
  * Call this when your app starts (e.g., in App.js)
  */
 export const initializeNotificationServices = () => {
-  
   try {
     // DISABLED: Removed inefficient 2-minute polling background processor
     // TODO: Replace with proper event-driven notification scheduling
-    console.log('[NotificationInit] Notification services initialized (background polling disabled)');
-    
+    console.log(
+      '[NotificationInit] Notification services initialized (background polling disabled)'
+    );
+
     // Run one-time cleanup of old notifications
-    ScheduledNotificationService.cleanupOldNotifications(30).then(result => {
-      if (result.deletedCount > 0) {
-        console.log(`[NotificationInit] 🧹 Cleaned up ${result.deletedCount} old scheduled notifications`);
-      }
-    }).catch(error => {
-      console.warn('[NotificationInit] Failed to cleanup old notifications:', error);
-    });
-    
+    ScheduledNotificationService.cleanupOldNotifications(30)
+      .then((result) => {
+        if (result.deletedCount > 0) {
+          console.log(
+            `[NotificationInit] 🧹 Cleaned up ${result.deletedCount} old scheduled notifications`
+          );
+        }
+      })
+      .catch((error) => {
+        console.warn(
+          '[NotificationInit] Failed to cleanup old notifications:',
+          error
+        );
+      });
+
     return true;
   } catch (error) {
-    console.error('[NotificationInit] Failed to initialize notification services:', error);
+    console.error(
+      '[NotificationInit] Failed to initialize notification services:',
+      error
+    );
     return false;
   }
 };
@@ -37,7 +48,9 @@ export const initializeNotificationServices = () => {
  */
 export const cleanupNotificationServices = () => {
   if (processorCleanup) {
-    console.log('[NotificationInit] Shutting down scheduled notification processor...');
+    console.log(
+      '[NotificationInit] Shutting down scheduled notification processor...'
+    );
     processorCleanup();
     processorCleanup = null;
   }

@@ -16,11 +16,16 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
-import { createNotification, NOTIFICATION_TYPES, NOTIFICATION_PRIORITY, DELIVERY_CHANNELS } from './notifications';
+import {
+  createNotification,
+  NOTIFICATION_TYPES,
+  NOTIFICATION_PRIORITY,
+  DELIVERY_CHANNELS,
+} from './notifications';
 
 /**
  * SCHEDULED NOTIFICATION DATA MODEL:
- * 
+ *
  * Collection: /scheduledNotifications/{scheduleId}
  * {
  *   id: string,
@@ -41,27 +46,37 @@ import { createNotification, NOTIFICATION_TYPES, NOTIFICATION_PRIORITY, DELIVERY
 
 // Reminder intervals (in minutes before event)
 export const REMINDER_INTERVALS = {
-  ONE_DAY: 24 * 60,     // 24 hours
-  FOUR_HOURS: 4 * 60,   // 4 hours  
-  ONE_HOUR: 60,         // 1 hour
-  THIRTY_MINUTES: 30,   // 30 minutes
-  TEN_MINUTES: 10,      // 10 minutes
+  ONE_DAY: 24 * 60, // 24 hours
+  FOUR_HOURS: 4 * 60, // 4 hours
+  ONE_HOUR: 60, // 1 hour
+  THIRTY_MINUTES: 30, // 30 minutes
+  TEN_MINUTES: 10, // 10 minutes
 };
 
 export class ScheduledNotificationService {
-  
   /**
    * Schedule event reminder notifications with custom templates
    */
-  static async scheduleEventRemindersWithCustomTemplates(eventData, customReminderTemplates = []) {
+  static async scheduleEventRemindersWithCustomTemplates(
+    eventData,
+    customReminderTemplates = []
+  ) {
     try {
-      const { id: eventId, title, eventTimestamp, subscribers = [], createdBy } = eventData;
-      
+      const {
+        id: eventId,
+        title,
+        eventTimestamp,
+        subscribers = [],
+        createdBy,
+      } = eventData;
+
       if (!eventTimestamp) {
         throw new Error('Event must have a timestamp to schedule reminders');
       }
 
-      const eventTime = eventTimestamp.toDate ? eventTimestamp.toDate() : new Date(eventTimestamp);
+      const eventTime = eventTimestamp.toDate
+        ? eventTimestamp.toDate()
+        : new Date(eventTimestamp);
       const notifications = [];
 
       // Get all users who should receive reminders (subscribers + host)
@@ -70,12 +85,15 @@ export class ScheduledNotificationService {
       // Use custom templates if provided, otherwise fall back to defaults
       let intervals;
       if (customReminderTemplates && customReminderTemplates.length > 0) {
-        console.log('[ScheduledNotifications] Using custom reminder templates:', customReminderTemplates.length);
-        
+        console.log(
+          '[ScheduledNotifications] Using custom reminder templates:',
+          customReminderTemplates.length
+        );
+
         // Convert custom templates to interval format
         intervals = customReminderTemplates
-          .filter(template => template.enabled)
-          .map(template => {
+          .filter((template) => template.enabled)
+          .map((template) => {
             let minutes;
             if (template.unit === 'hours') {
               minutes = template.amount * 60;
@@ -90,33 +108,60 @@ export class ScheduledNotificationService {
               minutes,
               title: template.title || `Event Reminder: ${template.label}`,
               message: template.message,
-              template
+              template,
             };
           });
       } else {
-        console.log('[ScheduledNotifications] Using default reminder intervals');
+        console.log(
+          '[ScheduledNotifications] Using default reminder intervals'
+        );
         intervals = [
-          { key: 'ONE_DAY', minutes: REMINDER_INTERVALS.ONE_DAY, title: 'Event Tomorrow!' },
-          { key: 'FOUR_HOURS', minutes: REMINDER_INTERVALS.FOUR_HOURS, title: 'Event in 4 Hours' },
-          { key: 'ONE_HOUR', minutes: REMINDER_INTERVALS.ONE_HOUR, title: 'Event Starting Soon!' },
-          { key: 'THIRTY_MINUTES', minutes: REMINDER_INTERVALS.THIRTY_MINUTES, title: 'Event Starting in 30 Minutes!' },
-          { key: 'TEN_MINUTES', minutes: REMINDER_INTERVALS.TEN_MINUTES, title: 'Event Starting Now!' },
+          {
+            key: 'ONE_DAY',
+            minutes: REMINDER_INTERVALS.ONE_DAY,
+            title: 'Event Tomorrow!',
+          },
+          {
+            key: 'FOUR_HOURS',
+            minutes: REMINDER_INTERVALS.FOUR_HOURS,
+            title: 'Event in 4 Hours',
+          },
+          {
+            key: 'ONE_HOUR',
+            minutes: REMINDER_INTERVALS.ONE_HOUR,
+            title: 'Event Starting Soon!',
+          },
+          {
+            key: 'THIRTY_MINUTES',
+            minutes: REMINDER_INTERVALS.THIRTY_MINUTES,
+            title: 'Event Starting in 30 Minutes!',
+          },
+          {
+            key: 'TEN_MINUTES',
+            minutes: REMINDER_INTERVALS.TEN_MINUTES,
+            title: 'Event Starting Now!',
+          },
         ];
       }
 
       for (const interval of intervals) {
-        const reminderTime = new Date(eventTime.getTime() - (interval.minutes * 60 * 1000));
-        
+        const reminderTime = new Date(
+          eventTime.getTime() - interval.minutes * 60 * 1000
+        );
+
         // Skip if reminder time is in the past
         if (reminderTime <= new Date()) {
-          console.log(`Skipping ${interval.key} reminder for ${eventId} - time has passed`);
+          console.log(
+            `Skipping ${interval.key} reminder for ${eventId} - time has passed`
+          );
           continue;
         }
 
         // Schedule for each user
         for (const userId of allUsers) {
           const customTitle = interval.title || `${interval.title} 🎉`;
-          const customMessage = interval.message || 
+          const customMessage =
+            interval.message ||
             `"${title}" ${this.getTimeMessage(interval.minutes)}`;
 
           const scheduleId = await this.scheduleNotification({
@@ -134,7 +179,10 @@ export class ScheduledNotificationService {
               customTemplate: interval.template || null,
             },
             scheduledFor: reminderTime,
-            priority: interval.minutes <= 60 ? NOTIFICATION_PRIORITY.HIGH : NOTIFICATION_PRIORITY.NORMAL,
+            priority:
+              interval.minutes <= 60
+                ? NOTIFICATION_PRIORITY.HIGH
+                : NOTIFICATION_PRIORITY.NORMAL,
           });
 
           notifications.push({
@@ -151,9 +199,11 @@ export class ScheduledNotificationService {
         scheduledCount: notifications.length,
         notifications,
       };
-
     } catch (error) {
-      console.error('Error scheduling event reminders with custom templates:', error);
+      console.error(
+        'Error scheduling event reminders with custom templates:',
+        error
+      );
       throw error;
     }
   }
@@ -163,13 +213,21 @@ export class ScheduledNotificationService {
    */
   static async scheduleEventReminders(eventData) {
     try {
-      const { id: eventId, title, eventTimestamp, subscribers = [], createdBy } = eventData;
-      
+      const {
+        id: eventId,
+        title,
+        eventTimestamp,
+        subscribers = [],
+        createdBy,
+      } = eventData;
+
       if (!eventTimestamp) {
         throw new Error('Event must have a timestamp to schedule reminders');
       }
 
-      const eventTime = eventTimestamp.toDate ? eventTimestamp.toDate() : new Date(eventTimestamp);
+      const eventTime = eventTimestamp.toDate
+        ? eventTimestamp.toDate()
+        : new Date(eventTimestamp);
       const notifications = [];
 
       // Get all users who should receive reminders (subscribers + host)
@@ -177,19 +235,43 @@ export class ScheduledNotificationService {
 
       // Schedule reminders for different intervals
       const intervals = [
-        { key: 'ONE_DAY', minutes: REMINDER_INTERVALS.ONE_DAY, title: 'Event Tomorrow!' },
-        { key: 'FOUR_HOURS', minutes: REMINDER_INTERVALS.FOUR_HOURS, title: 'Event in 4 Hours' },
-        { key: 'ONE_HOUR', minutes: REMINDER_INTERVALS.ONE_HOUR, title: 'Event Starting Soon!' },
-        { key: 'THIRTY_MINUTES', minutes: REMINDER_INTERVALS.THIRTY_MINUTES, title: 'Event Starting in 30 Minutes!' },
-        { key: 'TEN_MINUTES', minutes: REMINDER_INTERVALS.TEN_MINUTES, title: 'Event Starting Now!' },
+        {
+          key: 'ONE_DAY',
+          minutes: REMINDER_INTERVALS.ONE_DAY,
+          title: 'Event Tomorrow!',
+        },
+        {
+          key: 'FOUR_HOURS',
+          minutes: REMINDER_INTERVALS.FOUR_HOURS,
+          title: 'Event in 4 Hours',
+        },
+        {
+          key: 'ONE_HOUR',
+          minutes: REMINDER_INTERVALS.ONE_HOUR,
+          title: 'Event Starting Soon!',
+        },
+        {
+          key: 'THIRTY_MINUTES',
+          minutes: REMINDER_INTERVALS.THIRTY_MINUTES,
+          title: 'Event Starting in 30 Minutes!',
+        },
+        {
+          key: 'TEN_MINUTES',
+          minutes: REMINDER_INTERVALS.TEN_MINUTES,
+          title: 'Event Starting Now!',
+        },
       ];
 
       for (const interval of intervals) {
-        const reminderTime = new Date(eventTime.getTime() - (interval.minutes * 60 * 1000));
-        
+        const reminderTime = new Date(
+          eventTime.getTime() - interval.minutes * 60 * 1000
+        );
+
         // Skip if reminder time is in the past
         if (reminderTime <= new Date()) {
-          console.log(`Skipping ${interval.key} reminder for ${eventId} - time has passed`);
+          console.log(
+            `Skipping ${interval.key} reminder for ${eventId} - time has passed`
+          );
           continue;
         }
 
@@ -209,7 +291,10 @@ export class ScheduledNotificationService {
               isHost: userId === createdBy,
             },
             scheduledFor: reminderTime,
-            priority: interval.minutes <= 60 ? NOTIFICATION_PRIORITY.HIGH : NOTIFICATION_PRIORITY.NORMAL,
+            priority:
+              interval.minutes <= 60
+                ? NOTIFICATION_PRIORITY.HIGH
+                : NOTIFICATION_PRIORITY.NORMAL,
           });
 
           notifications.push({
@@ -226,7 +311,6 @@ export class ScheduledNotificationService {
         scheduledCount: notifications.length,
         notifications,
       };
-
     } catch (error) {
       console.error('Error scheduling event reminders:', error);
       throw error;
@@ -249,7 +333,11 @@ export class ScheduledNotificationService {
   }) {
     try {
       const scheduleId = `sched_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const scheduledNotificationRef = doc(db, 'scheduledNotifications', scheduleId);
+      const scheduledNotificationRef = doc(
+        db,
+        'scheduledNotifications',
+        scheduleId
+      );
 
       const scheduledNotification = {
         id: scheduleId,
@@ -268,10 +356,11 @@ export class ScheduledNotificationService {
       };
 
       await setDoc(scheduledNotificationRef, scheduledNotification);
-      
-      console.log(`Scheduled notification ${scheduleId} for ${scheduledFor.toISOString()}`);
-      return scheduleId;
 
+      console.log(
+        `Scheduled notification ${scheduleId} for ${scheduledFor.toISOString()}`
+      );
+      return scheduleId;
     } catch (error) {
       console.error('Error scheduling notification:', error);
       throw error;
@@ -284,9 +373,9 @@ export class ScheduledNotificationService {
   static async processPendingNotifications() {
     try {
       console.log('Processing pending scheduled notifications...');
-      
+
       const now = new Date();
-      const cutoffTime = new Date(now.getTime() + (5 * 60 * 1000)); // 5 minutes buffer
+      const cutoffTime = new Date(now.getTime() + 5 * 60 * 1000); // 5 minutes buffer
 
       // Query for notifications that should be sent now
       const q = query(
@@ -298,24 +387,26 @@ export class ScheduledNotificationService {
       );
 
       const snapshot = await getDocs(q);
-      
+
       if (snapshot.empty) {
         console.log('No pending notifications to process');
         return { success: true, processedCount: 0 };
       }
 
       console.log(`Found ${snapshot.size} notifications to process`);
-      
+
       const results = [];
       const batch = writeBatch(db);
 
       for (const notificationDoc of snapshot.docs) {
         const notification = notificationDoc.data();
-        
+
         try {
           // Check if event still exists and hasn't been cancelled
           if (notification.eventId) {
-            const isEventValid = await this.validateEventForNotification(notification.eventId);
+            const isEventValid = await this.validateEventForNotification(
+              notification.eventId
+            );
             if (!isEventValid) {
               // Cancel notification - event no longer exists or was cancelled
               batch.update(notificationDoc.ref, {
@@ -323,7 +414,11 @@ export class ScheduledNotificationService {
                 cancelledAt: Timestamp.now(),
                 cancelReason: 'Event no longer valid',
               });
-              results.push({ id: notification.id, status: 'cancelled', reason: 'Event invalid' });
+              results.push({
+                id: notification.id,
+                status: 'cancelled',
+                reason: 'Event invalid',
+              });
               continue;
             }
           }
@@ -354,18 +449,28 @@ export class ScheduledNotificationService {
               lastAttemptAt: Timestamp.now(),
               failureReason: result.reason || 'Unknown error',
             });
-            results.push({ id: notification.id, status: 'failed', reason: result.reason });
+            results.push({
+              id: notification.id,
+              status: 'failed',
+              reason: result.reason,
+            });
           }
-
         } catch (error) {
-          console.error(`Error processing notification ${notification.id}:`, error);
+          console.error(
+            `Error processing notification ${notification.id}:`,
+            error
+          );
           batch.update(notificationDoc.ref, {
             status: 'failed',
             attempts: notification.attempts + 1,
             lastAttemptAt: Timestamp.now(),
             failureReason: error.message,
           });
-          results.push({ id: notification.id, status: 'failed', reason: error.message });
+          results.push({
+            id: notification.id,
+            status: 'failed',
+            reason: error.message,
+          });
         }
       }
 
@@ -378,7 +483,6 @@ export class ScheduledNotificationService {
         processedCount: results.length,
         results,
       };
-
     } catch (error) {
       console.error('Error processing pending notifications:', error);
       throw error;
@@ -397,14 +501,14 @@ export class ScheduledNotificationService {
       );
 
       const snapshot = await getDocs(q);
-      
+
       if (snapshot.empty) {
         return { success: true, cancelledCount: 0 };
       }
 
       const batch = writeBatch(db);
-      
-      snapshot.docs.forEach(doc => {
+
+      snapshot.docs.forEach((doc) => {
         batch.update(doc.ref, {
           status: 'cancelled',
           cancelledAt: Timestamp.now(),
@@ -414,12 +518,13 @@ export class ScheduledNotificationService {
 
       await batch.commit();
 
-      console.log(`Cancelled ${snapshot.size} scheduled notifications for event ${eventId}`);
+      console.log(
+        `Cancelled ${snapshot.size} scheduled notifications for event ${eventId}`
+      );
       return {
         success: true,
         cancelledCount: snapshot.size,
       };
-
     } catch (error) {
       console.error('Error cancelling event notifications:', error);
       throw error;
@@ -444,7 +549,7 @@ export class ScheduledNotificationService {
       const snapshot = await getDocs(q);
       const notifications = [];
 
-      snapshot.docs.forEach(doc => {
+      snapshot.docs.forEach((doc) => {
         const data = doc.data();
         notifications.push({
           ...data,
@@ -457,7 +562,6 @@ export class ScheduledNotificationService {
       });
 
       return notifications;
-
     } catch (error) {
       console.error('Error getting user scheduled notifications:', error);
       throw error;
@@ -479,13 +583,13 @@ export class ScheduledNotificationService {
       );
 
       const snapshot = await getDocs(q);
-      
+
       if (snapshot.empty) {
         return { success: true, deletedCount: 0 };
       }
 
       const batch = writeBatch(db);
-      snapshot.docs.forEach(doc => {
+      snapshot.docs.forEach((doc) => {
         batch.delete(doc.ref);
       });
 
@@ -495,7 +599,6 @@ export class ScheduledNotificationService {
         success: true,
         deletedCount: snapshot.size,
       };
-
     } catch (error) {
       console.error('Error cleaning up old notifications:', error);
       throw error;
@@ -507,18 +610,18 @@ export class ScheduledNotificationService {
    */
   static startBackgroundProcessor() {
     console.log('Starting scheduled notification background processor...');
-    
+
     // Process every 2 minutes
     const interval = 2 * 60 * 1000;
-    
+
     // Initial processing
-    this.processPendingNotifications().catch(error => {
+    this.processPendingNotifications().catch((error) => {
       console.error('Initial notification processing failed:', error);
     });
 
     // Set up periodic processing
     const intervalId = setInterval(() => {
-      this.processPendingNotifications().catch(error => {
+      this.processPendingNotifications().catch((error) => {
         console.error('Periodic notification processing failed:', error);
       });
     }, interval);
@@ -551,26 +654,28 @@ export class ScheduledNotificationService {
         collection(db, 'events'),
         where('__name__', '==', eventId)
       );
-      
+
       const snapshot = await getDocs(eventQuery);
-      
+
       if (snapshot.empty) {
         return false;
       }
-      
+
       const eventData = snapshot.docs[0].data();
-      
+
       // Check if event is cancelled
       if (eventData.cancelled) {
         return false;
       }
-      
+
       // Check if event is in the past
-      const eventTime = eventData.eventTimestamp.toDate ? eventData.eventTimestamp.toDate() : new Date(eventData.eventTimestamp);
+      const eventTime = eventData.eventTimestamp.toDate
+        ? eventData.eventTimestamp.toDate()
+        : new Date(eventData.eventTimestamp);
       if (eventTime < new Date()) {
         return false;
       }
-      
+
       return true;
     } catch (error) {
       console.error('Error validating event:', error);

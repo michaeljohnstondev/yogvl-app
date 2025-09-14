@@ -1,6 +1,11 @@
 // FILE: components/guests/GuestListViewer.js
 
-import React, { useState, useImperativeHandle, forwardRef, useEffect } from 'react';
+import React, {
+  useState,
+  useImperativeHandle,
+  forwardRef,
+  useEffect,
+} from 'react';
 import {
   View,
   Text,
@@ -13,307 +18,342 @@ import {
 import { VibeButton, CloseButton } from '../../../components/ui';
 import theme from '../../../theme/themes';
 
-const GuestListViewer = forwardRef(({
-  hosts = [],
-  selectedTextContacts = [],
-  invitedGuests = [],
-  currentUser = null,
-  onInvitePress,
-  onAddHostPress, // New prop for adding hosts
-  selectedGuestCount, // Override for guest count display
-  selectedCohostCount, // Override for cohost count display  
-  showGuestCount = true,
-  showHostCount = true,
-  compactView = false,
-  style,
-}, ref) => {
-  const [showModal, setShowModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('hosts'); // 'hosts' or 'guests'
-
-  // Expose methods to parent component
-  useImperativeHandle(ref, () => ({
-    reopenModal: () => setShowModal(true),
-    isModalOpen: () => {
-      console.log('[GuestListViewer] isModalOpen called, showModal:', showModal);
-      return showModal;
+const GuestListViewer = forwardRef(
+  (
+    {
+      hosts = [],
+      selectedTextContacts = [],
+      invitedGuests = [],
+      currentUser = null,
+      onInvitePress,
+      onAddHostPress, // New prop for adding hosts
+      selectedGuestCount, // Override for guest count display
+      selectedCohostCount, // Override for cohost count display
+      showGuestCount = true,
+      showHostCount = true,
+      compactView = false,
+      style,
     },
-    closeModal: () => {
-      console.log('[GuestListViewer] closeModal called');
-      setShowModal(false);
-    },
-  }));
+    ref
+  ) => {
+    const [showModal, setShowModal] = useState(false);
+    const [activeTab, setActiveTab] = useState('hosts'); // 'hosts' or 'guests'
 
+    // Expose methods to parent component
+    useImperativeHandle(ref, () => ({
+      reopenModal: () => setShowModal(true),
+      isModalOpen: () => {
+        console.log(
+          '[GuestListViewer] isModalOpen called, showModal:',
+          showModal
+        );
+        return showModal;
+      },
+      closeModal: () => {
+        console.log('[GuestListViewer] closeModal called');
+        setShowModal(false);
+      },
+    }));
 
+    // Combine all hosts including the creator
+    const allHosts = [
+      currentUser && {
+        id: currentUser.id || 'current',
+        name:
+          currentUser.displayName ||
+          (currentUser.userdata?.contactInfo?.firstName &&
+          currentUser.userdata?.contactInfo?.lastName
+            ? `${currentUser.userdata.contactInfo.firstName} ${currentUser.userdata.contactInfo.lastName}`
+            : currentUser.userdata?.contactInfo?.firstName) ||
+          currentUser.firstName ||
+          currentUser.name ||
+          'You',
+        email: currentUser.email,
+        role: 'creator',
+        isYou: true,
+      },
+      // Add current cohosts
+      ...(hosts || []).map((host) => ({
+        id: host.id,
+        name:
+          host.userdata?.contactInfo?.displayName ||
+          host.displayName ||
+          `${host.userdata?.contactInfo?.firstName || ''} ${host.userdata?.contactInfo?.lastName || ''}`.trim() ||
+          host.firstName ||
+          host.name ||
+          'Unknown Host',
+        email: host.userdata?.contactInfo?.email || host.email,
+        role: 'cohost',
+        isYou: host.id === currentUser?.id,
+      })),
+    ].filter(Boolean);
 
-  // Combine all hosts including the creator
-  const allHosts = [
-    currentUser && {
-      id: currentUser.id || 'current',
-      name:
-        currentUser.displayName ||
-        (currentUser.userdata?.contactInfo?.firstName && currentUser.userdata?.contactInfo?.lastName 
-          ? `${currentUser.userdata.contactInfo.firstName} ${currentUser.userdata.contactInfo.lastName}`
-          : currentUser.userdata?.contactInfo?.firstName) ||
-        currentUser.firstName ||
-        currentUser.name ||
-        'You',
-      email: currentUser.email,
-      role: 'creator',
-      isYou: true,
-    },
-    // Add current cohosts
-    ...(hosts || []).map(host => ({
-      id: host.id,
-      name: host.userdata?.contactInfo?.displayName || 
-            host.displayName || 
-            `${host.userdata?.contactInfo?.firstName || ''} ${host.userdata?.contactInfo?.lastName || ''}`.trim() ||
-            host.firstName ||
-            host.name ||
-            'Unknown Host',
-      email: host.userdata?.contactInfo?.email || host.email,
-      role: 'cohost',
-      isYou: host.id === currentUser?.id,
-    }))
-  ].filter(Boolean);
+    // Use invitedGuests passed as prop, fallback to selectedTextContacts for backward compatibility
+    const guests =
+      invitedGuests.length > 0
+        ? invitedGuests.map((guest, index) => ({
+            id: guest.id || `guest_${index}`,
+            name:
+              guest.userdata?.contactInfo?.displayName ||
+              guest.displayName ||
+              guest.userdata?.contactInfo?.firstName ||
+              guest.firstName ||
+              guest.name ||
+              guest.userdata?.contactInfo?.email ||
+              guest.email ||
+              'Unknown Guest',
+            email: guest.userdata?.contactInfo?.email || guest.email,
+            phone: guest.userdata?.contactInfo?.phone || guest.phone,
+            role: 'guest',
+            isYou: false,
+          }))
+        : selectedTextContacts.map((contact, index) => ({
+            id: contact.id || `contact_${index}`,
+            name:
+              contact.name ||
+              contact.displayName ||
+              contact.firstName ||
+              contact.lastName ||
+              (contact.firstName && contact.lastName
+                ? `${contact.firstName} ${contact.lastName}`
+                : null) ||
+              'Unknown Contact',
+            phone: contact.phone,
+            status: 'invited_via_text',
+            isTextInvite: true,
+          }));
 
-  // Use invitedGuests passed as prop, fallback to selectedTextContacts for backward compatibility
-  const guests =
-    invitedGuests.length > 0
-      ? invitedGuests.map((guest, index) => ({
-          id: guest.id || `guest_${index}`,
-          name:
-            guest.userdata?.contactInfo?.displayName ||
-            guest.displayName ||
-            guest.userdata?.contactInfo?.firstName ||
-            guest.firstName ||
-            guest.name ||
-            guest.userdata?.contactInfo?.email ||
-            guest.email ||
-            'Unknown Guest',
-          email: guest.userdata?.contactInfo?.email || guest.email,
-          phone: guest.userdata?.contactInfo?.phone || guest.phone,
-          role: 'guest',
-          isYou: false,
-        }))
-      : selectedTextContacts.map((contact, index) => ({
-          id: contact.id || `contact_${index}`,
-          name:
-            contact.name ||
-            contact.displayName ||
-            contact.firstName ||
-            contact.lastName ||
-            (contact.firstName && contact.lastName
-              ? `${contact.firstName} ${contact.lastName}`
-              : null) ||
-            'Unknown Contact',
-          phone: contact.phone,
-          status: 'invited_via_text',
-          isTextInvite: true,
-        }));
+    // Use override counts when available (for editing mode), otherwise calculate from arrays
+    const actualHostCount =
+      selectedCohostCount !== undefined
+        ? selectedCohostCount + 1
+        : allHosts.length; // +1 for creator
+    const actualGuestCount =
+      selectedGuestCount !== undefined ? selectedGuestCount : guests.length;
+    const totalPeople = actualHostCount + actualGuestCount;
 
-  // Use override counts when available (for editing mode), otherwise calculate from arrays
-  const actualHostCount = selectedCohostCount !== undefined ? selectedCohostCount + 1 : allHosts.length; // +1 for creator
-  const actualGuestCount = selectedGuestCount !== undefined ? selectedGuestCount : guests.length;
-  const totalPeople = actualHostCount + actualGuestCount;
+    // Always show the viewer, even when empty
+    const displayText =
+      totalPeople === 0
+        ? 'No people added yet'
+        : `${totalPeople} ${totalPeople === 1 ? 'total' : 'total'}`;
 
-  // Always show the viewer, even when empty
-  const displayText =
-    totalPeople === 0
-      ? 'No people added yet'
-      : `${totalPeople} ${totalPeople === 1 ? 'total' : 'total'}`;
-
-  // Render host item
-  const renderHostItem = ({ item }) => (
-    <View style={styles.personItem}>
-      <View style={styles.personInfo}>
-        <Text style={[styles.personName, item.isYou && styles.youText]}>
-          {item.name}{item.isYou ? ' (You)' : ''}
-        </Text>
-        <Text style={[styles.roleText, item.role === 'creator' ? styles.creatorRole : styles.cohostRole]}>
-          {item.role === 'creator' ? 'Event Creator' : 'Co-Host'}
-        </Text>
+    // Render host item
+    const renderHostItem = ({ item }) => (
+      <View style={styles.personItem}>
+        <View style={styles.personInfo}>
+          <Text style={[styles.personName, item.isYou && styles.youText]}>
+            {item.name}
+            {item.isYou ? ' (You)' : ''}
+          </Text>
+          <Text
+            style={[
+              styles.roleText,
+              item.role === 'creator' ? styles.creatorRole : styles.cohostRole,
+            ]}
+          >
+            {item.role === 'creator' ? 'Event Creator' : 'Co-Host'}
+          </Text>
+        </View>
+        <View style={styles.statusContainer}>
+          <View
+            style={[
+              styles.statusDot,
+              item.role === 'creator' ? styles.creatorDot : styles.cohostDot,
+            ]}
+          />
+          <Text
+            style={[
+              styles.statusText,
+              item.role === 'creator'
+                ? styles.creatorStatusText
+                : styles.cohostStatusText,
+            ]}
+          >
+            {item.role === 'creator' ? 'Host' : 'Co-Host'}
+          </Text>
+        </View>
       </View>
-      <View style={styles.statusContainer}>
-        <View style={[styles.statusDot, item.role === 'creator' ? styles.creatorDot : styles.cohostDot]} />
-        <Text style={[styles.statusText, item.role === 'creator' ? styles.creatorStatusText : styles.cohostStatusText]}>
-          {item.role === 'creator' ? 'Host' : 'Co-Host'}
-        </Text>
-      </View>
-    </View>
-  );
-
-  // Render guest item
-  const renderGuestItem = ({ item }) => (
-    <View style={styles.personItem}>
-      <View style={styles.personInfo}>
-        <Text style={styles.personName}>{item.name}</Text>
-        <Text style={styles.inviteTypeText}>
-          {item.isTextInvite
-            ? 'Will receive SMS invitation'
-            : 'Invited via app'}
-        </Text>
-      </View>
-      <View style={styles.statusContainer}>
-        <View style={[styles.statusDot, styles.guestDot]} />
-        <Text style={[styles.statusText, styles.guestStatusText]}>Guest</Text>
-      </View>
-    </View>
-  );
-
-  // Render tab button
-  const renderTabButton = (tab, label, count) => {
-    const isActive = activeTab === tab;
-    return (
-      <TouchableOpacity
-        style={[
-          styles.tabButton, 
-          isActive && styles.activeTab,
-          isActive && styles.activeBlueTab
-        ]}
-        onPress={() => setActiveTab(tab)}
-      >
-        <Text style={[
-          styles.tabText, 
-          isActive && styles.activeTabText,
-          isActive && { color: theme.colors.vibeBlue }
-        ]}>
-          {label} ({count})
-        </Text>
-      </TouchableOpacity>
     );
-  };
 
-  return (
-    <>
-      {/* Compact viewer button */}
-      <TouchableOpacity
-        style={[styles.viewerButton, style]}
-        onPress={() => setShowModal(true)}
-      >
-        <View style={styles.viewerContent}>
-          <View style={styles.viewerLeft}>
-            <Text style={styles.viewerTitle}>Guest List</Text>
-            <Text style={styles.viewerCount}>{displayText}</Text>
-          </View>
+    // Render guest item
+    const renderGuestItem = ({ item }) => (
+      <View style={styles.personItem}>
+        <View style={styles.personInfo}>
+          <Text style={styles.personName}>{item.name}</Text>
+          <Text style={styles.inviteTypeText}>
+            {item.isTextInvite
+              ? 'Will receive SMS invitation'
+              : 'Invited via app'}
+          </Text>
+        </View>
+        <View style={styles.statusContainer}>
+          <View style={[styles.statusDot, styles.guestDot]} />
+          <Text style={[styles.statusText, styles.guestStatusText]}>Guest</Text>
+        </View>
+      </View>
+    );
 
-          <View style={styles.viewerRight}>
-            <View style={styles.peopleIcons}>
-              <View style={styles.iconGroup}>
-                <Text style={styles.iconEmoji}>👑</Text>
-                <Text style={[styles.iconCount, styles.cohostCount]}>
-                  {actualHostCount}
-                </Text>
-              </View>
-              <View style={styles.iconGroup}>
-                <Text style={styles.iconEmoji}>👥</Text>
-                <Text style={[styles.iconCount, styles.guestCount]}>
-                  {actualGuestCount}
-                </Text>
-              </View>
+    // Render tab button
+    const renderTabButton = (tab, label, count) => {
+      const isActive = activeTab === tab;
+      return (
+        <TouchableOpacity
+          style={[
+            styles.tabButton,
+            isActive && styles.activeTab,
+            isActive && styles.activeBlueTab,
+          ]}
+          onPress={() => setActiveTab(tab)}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              isActive && styles.activeTabText,
+              isActive && { color: theme.colors.vibeBlue },
+            ]}
+          >
+            {label} ({count})
+          </Text>
+        </TouchableOpacity>
+      );
+    };
+
+    return (
+      <>
+        {/* Compact viewer button */}
+        <TouchableOpacity
+          style={[styles.viewerButton, style]}
+          onPress={() => setShowModal(true)}
+        >
+          <View style={styles.viewerContent}>
+            <View style={styles.viewerLeft}>
+              <Text style={styles.viewerTitle}>Guest List</Text>
+              <Text style={styles.viewerCount}>{displayText}</Text>
             </View>
-            <Text style={styles.viewText}>View →</Text>
+
+            <View style={styles.viewerRight}>
+              <View style={styles.peopleIcons}>
+                <View style={styles.iconGroup}>
+                  <Text style={styles.iconEmoji}>👑</Text>
+                  <Text style={[styles.iconCount, styles.cohostCount]}>
+                    {actualHostCount}
+                  </Text>
+                </View>
+                <View style={styles.iconGroup}>
+                  <Text style={styles.iconEmoji}>👥</Text>
+                  <Text style={[styles.iconCount, styles.guestCount]}>
+                    {actualGuestCount}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.viewText}>View →</Text>
+            </View>
           </View>
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
 
-      {/* Full modal viewer */}
-      <Modal
-        visible={showModal}
-        animationType="none"
-        presentationStyle="pageSheet"
-        onRequestClose={() => {
-          console.log('[GuestListViewer] Modal onRequestClose called');
-          setShowModal(false);
-        }}
-      >
-        <View style={styles.modalContainer}>
-          {/* Header */}
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Guest List</Text>
-            <CloseButton onPress={() => setShowModal(false)} />
+        {/* Full modal viewer */}
+        <Modal
+          visible={showModal}
+          animationType="none"
+          presentationStyle="pageSheet"
+          onRequestClose={() => {
+            console.log('[GuestListViewer] Modal onRequestClose called');
+            setShowModal(false);
+          }}
+        >
+          <View style={styles.modalContainer}>
+            {/* Header */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Guest List</Text>
+              <CloseButton onPress={() => setShowModal(false)} />
+            </View>
+
+            {/* Tabs */}
+            <View style={styles.tabContainer}>
+              {renderTabButton('hosts', 'Hosts', actualHostCount)}
+              {renderTabButton('guests', 'Guests', actualGuestCount)}
+            </View>
+
+            {/* Content */}
+            <View style={styles.contentContainer}>
+              {activeTab === 'hosts' ? (
+                <>
+                  {allHosts.length > 0 ? (
+                    <FlatList
+                      data={allHosts}
+                      renderItem={renderHostItem}
+                      keyExtractor={(item) => item.id}
+                      style={styles.list}
+                      showsVerticalScrollIndicator={false}
+                    />
+                  ) : (
+                    <View style={styles.emptyState}>
+                      <Text style={styles.emptyIcon}>👑</Text>
+                      <Text style={styles.emptyText}>No co-hosts added</Text>
+                      <Text style={styles.emptySubtext}>
+                        Add co-hosts to help manage your event
+                      </Text>
+                    </View>
+                  )}
+                </>
+              ) : (
+                <>
+                  {guests.length > 0 ? (
+                    <FlatList
+                      data={guests}
+                      renderItem={renderGuestItem}
+                      keyExtractor={(item) => item.id}
+                      style={styles.list}
+                      showsVerticalScrollIndicator={false}
+                    />
+                  ) : (
+                    <View style={styles.emptyState}>
+                      <Text style={styles.emptyIcon}>👥</Text>
+                      <Text style={styles.emptyText}>
+                        No guests invited yet
+                      </Text>
+                      <Text style={styles.emptySubtext}>
+                        Add guests using the invite section below
+                      </Text>
+                    </View>
+                  )}
+                </>
+              )}
+            </View>
+
+            {/* Action buttons */}
+            <View style={styles.actionButtons}>
+              <VibeButton
+                label="Add Co-Hosts"
+                onPress={() => {
+                  setShowModal(false);
+                  onAddHostPress && onAddHostPress();
+                }}
+                style={[styles.addHostActionButton, { marginVertical: 0 }]}
+              />
+
+              <VibeButton
+                label={
+                  actualGuestCount === 0 ? 'Invite Guests' : 'Add More Guests'
+                }
+                onPress={() => {
+                  console.log(
+                    'Invite button pressed, onInvitePress:',
+                    onInvitePress
+                  );
+                  setShowModal(false);
+                  onInvitePress && onInvitePress();
+                }}
+                style={[styles.inviteButton, { marginVertical: 0 }]}
+              />
+            </View>
           </View>
-
-          {/* Tabs */}
-          <View style={styles.tabContainer}>
-            {renderTabButton('hosts', 'Hosts', actualHostCount)}
-            {renderTabButton('guests', 'Guests', actualGuestCount)}
-          </View>
-
-          {/* Content */}
-          <View style={styles.contentContainer}>
-            {activeTab === 'hosts' ? (
-              <>
-                {allHosts.length > 0 ? (
-                  <FlatList
-                    data={allHosts}
-                    renderItem={renderHostItem}
-                    keyExtractor={(item) => item.id}
-                    style={styles.list}
-                    showsVerticalScrollIndicator={false}
-                  />
-                ) : (
-                  <View style={styles.emptyState}>
-                    <Text style={styles.emptyIcon}>👑</Text>
-                    <Text style={styles.emptyText}>No co-hosts added</Text>
-                    <Text style={styles.emptySubtext}>
-                      Add co-hosts to help manage your event
-                    </Text>
-                  </View>
-                )}
-              </>
-            ) : (
-              <>
-                {guests.length > 0 ? (
-                  <FlatList
-                    data={guests}
-                    renderItem={renderGuestItem}
-                    keyExtractor={(item) => item.id}
-                    style={styles.list}
-                    showsVerticalScrollIndicator={false}
-                  />
-                ) : (
-                  <View style={styles.emptyState}>
-                    <Text style={styles.emptyIcon}>👥</Text>
-                    <Text style={styles.emptyText}>No guests invited yet</Text>
-                    <Text style={styles.emptySubtext}>
-                      Add guests using the invite section below
-                    </Text>
-                  </View>
-                )}
-              </>
-            )}
-          </View>
-
-          {/* Action buttons */}
-          <View style={styles.actionButtons}>
-            <VibeButton
-              label="Add Co-Hosts"
-              onPress={() => {
-                setShowModal(false);
-                onAddHostPress && onAddHostPress();
-              }}
-              style={[styles.addHostActionButton, { marginVertical: 0 }]}
-            />
-
-            <VibeButton
-              label={actualGuestCount === 0 ? 'Invite Guests' : 'Add More Guests'}
-              onPress={() => {
-                console.log(
-                  'Invite button pressed, onInvitePress:',
-                  onInvitePress
-                );
-                setShowModal(false);
-                onInvitePress && onInvitePress();
-              }}
-              style={[styles.inviteButton, { marginVertical: 0 }]}
-            />
-
-          </View>
-        </View>
-      </Modal>
-    </>
-  );
-});
+        </Modal>
+      </>
+    );
+  }
+);
 
 export default GuestListViewer;
 

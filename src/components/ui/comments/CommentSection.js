@@ -7,7 +7,7 @@ import theme from '../../../theme/themes';
 
 const CommentSection = ({ eventId }) => {
   const [showComments, setShowComments] = useState(true);
-  
+
   const {
     comments,
     loading,

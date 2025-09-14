@@ -1,8 +1,12 @@
 import React, { useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, BackHandler, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, BackHandler } from 'react-native';
 import { VibeButton } from '../components/ui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import {
+  useNavigation,
+  useRoute,
+  useFocusEffect,
+} from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
 import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
 import theme from '../theme/themes';
@@ -15,8 +19,8 @@ import { useSelectionHandlers } from './invite/hooks/useSelectionHandlers';
 import { useUserInterests } from './invite/hooks/useUserInterests';
 
 // Components
-import InviteScreenHeader from './invite/components/InviteScreenHeader';
-import TabSelector from './invite/components/TabSelector';
+import ScreenHeader from '../components/ui/layout/ScreenHeader';
+import { VibeSegmentedControl } from '../components/ui/base';
 import AppUsersTab from './invite/components/tabs/AppUsersTab';
 import PhoneContactsTab from './invite/components/tabs/PhoneContactsTab';
 import QRCodeTab from './invite/components/tabs/QRCodeTab';
@@ -26,7 +30,10 @@ import CreateGroupModal from './invite/components/groups/CreateGroupModal';
 
 // Utils
 import { TABS, USER_TYPES } from './invite/utils/inviteScreenConstants';
-import { calculateTotals, getThemeColors } from './invite/utils/inviteScreenUtils';
+import {
+  calculateTotals,
+  getThemeColors,
+} from './invite/utils/inviteScreenUtils';
 import styles from './invite/styles/inviteScreenStyles';
 
 export default function InviteScreen() {
@@ -35,12 +42,12 @@ export default function InviteScreen() {
   const { currentUserId, userData } = useAuth();
   const vibeAlert = useVibeAlert();
   const insets = useSafeAreaInsets();
-  
+
   // Route parameters
-  const { 
+  const {
     type = USER_TYPES.GUESTS,
     selectedUsers = [],
-    selectedContacts = [], 
+    selectedContacts = [],
     selectedPhoneContacts = [],
     maxLimit = null,
     eventTitle = null,
@@ -48,16 +55,25 @@ export default function InviteScreen() {
     inviteCode = null,
     studioId: routeStudioId = null,
     source = 'unknown',
-    onSave
+    onSave,
   } = route.params || {};
-
 
   const isHostMode = type === USER_TYPES.HOSTS;
   const { themeColor, themeBgColor } = getThemeColors(isHostMode, theme);
 
   // Custom hooks
-  const state = useInviteScreenState(selectedUsers, selectedContacts, selectedPhoneContacts);
-  const contactManagement = useContactManagement(currentUserId, userData, state.activeTab, eventId, routeStudioId || studioId);
+  const state = useInviteScreenState(
+    selectedUsers,
+    selectedContacts,
+    selectedPhoneContacts
+  );
+  const contactManagement = useContactManagement(
+    currentUserId,
+    userData,
+    state.activeTab,
+    eventId,
+    routeStudioId || studioId
+  );
   const groupManagement = useGroupManagement();
   const selectionHandlers = useSelectionHandlers(
     maxLimit,
@@ -71,8 +87,8 @@ export default function InviteScreen() {
     state.setLocalSelectedPhoneContacts
   );
 
-  const userIds = useMemo(() => 
-    contactManagement.appUsers.map(user => user.id), 
+  const userIds = useMemo(
+    () => contactManagement.appUsers.map((user) => user.id),
     [contactManagement.appUsers]
   );
   const studioId = userData?.userdata?.studios?.default?.studioId;
@@ -80,8 +96,8 @@ export default function InviteScreen() {
 
   // Calculate totals
   const totalSelected = calculateTotals(
-    state.localSelectedUsers, 
-    state.localSelectedContacts, 
+    state.localSelectedUsers,
+    state.localSelectedContacts,
     state.localSelectedPhoneContacts
   );
 
@@ -92,106 +108,35 @@ export default function InviteScreen() {
         // For CreateEventScreen, just reopen guest list WITHOUT saving changes
         if (onSave && !isExistingEvent) {
           // Call onSave with empty data to trigger guest list reopening, but don't actually save selections
-          onSave({
-            users: [], // Don't save current selections
-            contacts: [],
-            phoneContacts: [],
-          }, { reopenGuestList: true, cancel: true });
+          onSave(
+            {
+              users: [], // Don't save current selections
+              contacts: [],
+              phoneContacts: [],
+            },
+            { reopenGuestList: true, cancel: true }
+          );
         }
         // Always use goBack() to return to the previous screen properly
         navigation.goBack();
         return true;
       };
 
-      const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-      
+      const backHandler = BackHandler.addEventListener(
+        'hardwareBackPress',
+        onBackPress
+      );
+
       return () => {
         backHandler.remove();
       };
     }, [navigation, isExistingEvent, eventId, onSave])
   );
 
-  // Handle avatar/icon actions - using vibeAlert with action buttons
+  // Handle avatar/icon actions - in invite context, avatar taps should toggle selection
   const handleAvatarAction = (user) => {
-    if (user.isFavorite) {
-      // Favorites - show confirmation to remove
-      vibeAlert.confirm(
-        `Remove ${user.name} from favorites?`,
-        'They will no longer be marked as a favorite.',
-        () => handleRemoveFromFavorites(user),
-        () => {} // onCancel - do nothing
-      );
-    } else if (user.isFollowing) {
-      // Following - show options (use menu for vertical layout)
-      vibeAlert.menu(
-        `${user.name}`, 
-        'You are following this person.',
-        [
-          { text: 'Add to Favorites', onPress: () => handleAddToFavorites(user) },
-          { text: 'Unfollow', onPress: () => handleUnfollowUser(user) },
-          { text: 'Cancel' }
-        ]
-      );
-    } else {
-      // Not following - show confirmation to follow
-      vibeAlert.cyan(
-        `Follow ${user.name}?`,
-        'You\'ll see their events in your feed and they\'ll be notified.',
-        [
-          { text: 'Follow', onPress: () => handleFollowUser(user) },
-          { text: 'Cancel' }
-        ]
-      );
-    }
-  };
-
-  // Follow action handlers (replacing friend system)
-  const handleFollowUser = async (user) => {
-    try {
-      const { followUser } = await import('../services/followService');
-      await followUser(currentUserId, user.id, userData);
-      // TODO: Update user in local state to reflect follow status
-    } catch (error) {
-      if (error.message === 'Already following this user') {
-        vibeAlert.info('Already Following', `You are already following ${user.name}.`);
-      } else {
-        vibeAlert.error('Error', 'Failed to follow user. Please try again.');
-      }
-    }
-  };
-
-  const handleUnfollowUser = async (user) => {
-    try {
-      const { unfollowUser } = await import('../services/followService');
-      await unfollowUser(currentUserId, user.id);
-      // TODO: Update user in local state to reflect follow status
-    } catch (error) {
-      vibeAlert.error('Error', 'Failed to unfollow user. Please try again.');
-    }
-  };
-
-  const handleAddToFavorites = async (user) => {
-    try {
-      const { addToFavorites } = await import('../services/friendService');
-      await addToFavorites(currentUserId, user.id);
-      
-      // Update user in local state to reflect favorite status
-      contactManagement.updateUserStatus(user.id, { isFavorite: true });
-    } catch (error) {
-      vibeAlert.error('Error', 'Failed to add to favorites. Please try again.');
-    }
-  };
-
-  const handleRemoveFromFavorites = async (user) => {
-    try {
-      const { removeFromFavorites } = await import('../services/friendService');
-      await removeFromFavorites(currentUserId, user.id);
-      
-      // Update user in local state to reflect favorite status
-      contactManagement.updateUserStatus(user.id, { isFavorite: false });
-    } catch (error) {
-      vibeAlert.error('Error', 'Failed to remove from favorites. Please try again.');
-    }
+    // In invitation context, avatar taps should behave the same as main selection
+    selectionHandlers.toggleUserSelection(user);
   };
 
   // Save and return
@@ -223,58 +168,65 @@ export default function InviteScreen() {
   // Handle sending invitations immediately for existing events
   const handleSendInvitations = async (selectedData) => {
     try {
-      const { users, contacts, phoneContacts } = selectedData;
-      const totalInvitations = users.length + contacts.length + phoneContacts.length;
-
-      if (totalInvitations === 0) {
-        vibeAlert.info('No Invitations', 'Please select people to invite.');
-        return;
-      }
-
-      // Send guest invitations for app users
-      if (users.length > 0) {
-        const { sendGuestInvitation } = await import('../services/friendService');
-        
-        const invitationPromises = users.map(async (user) => {
-          try {
-            await sendGuestInvitation(
-              currentUserId,
-              user.id,
-              eventId,
-              userData,
-              { title: eventTitle }, // Simplified event data
-              source
-            );
-          } catch (error) {
-          }
-        });
-        
-        await Promise.all(invitationPromises);
-      }
-
-      // Handle manual contacts and phone contacts (could be SMS invites in the future)
-      // For now, we'll just show success for app users
-      vibeAlert.success(
-        'Invitations Sent!', 
-        `Sent ${totalInvitations} invitation${totalInvitations === 1 ? '' : 's'}! 📬`
+      const { sendEventInvitations, formatInvitationMessages } = await import(
+        '../services/invitationService'
       );
-      
+
+      const result = await sendEventInvitations({
+        currentUserId,
+        eventId,
+        userData,
+        eventTitle,
+        source,
+        users: selectedData.users,
+        contacts: selectedData.contacts,
+        phoneContacts: selectedData.phoneContacts,
+      });
+
+      // Refresh invitation data to update the UI
+      if (contactManagement.loadPendingInvitations) {
+        await contactManagement.loadPendingInvitations();
+      }
+
+      // Display formatted messages
+      const messages = formatInvitationMessages(result);
+      messages.forEach((msg) => {
+        switch (msg.type) {
+          case 'success':
+            vibeAlert.success(msg.title, msg.message);
+            break;
+          case 'info':
+            vibeAlert.info(msg.title, msg.message);
+            break;
+          case 'warning':
+            vibeAlert.warning(msg.title, msg.message);
+            break;
+        }
+      });
+
       // Still call onSave callback if provided for any additional handling
       if (onSave) {
         onSave(selectedData);
       }
     } catch (error) {
-      vibeAlert.error('Error', 'Failed to send invitations. Please try again.');
+      if (error.message === 'NO_INVITATIONS_SELECTED') {
+        vibeAlert.info('No Invitations', 'Please select people to invite.');
+      } else {
+        vibeAlert.error(
+          'Error',
+          'Failed to send invitations. Please try again.'
+        );
+      }
     }
   };
 
   // Group management handlers
   const handleSelectGroup = (group) => {
     groupManagement.selectGroup(
-      group, 
-      contactManagement.appUsers, 
-      state.localSelectedUsers, 
-      state.setLocalSelectedUsers, 
+      group,
+      contactManagement.appUsers,
+      state.localSelectedUsers,
+      state.setLocalSelectedUsers,
       maxLimit
     );
   };
@@ -295,23 +247,29 @@ export default function InviteScreen() {
   const title = isHostMode ? 'Add Co-Hosts' : 'Invite Guests';
   const saveButtonText = isHostMode ? 'Add' : 'Invite'; // Unified "Invite" button text
   const isExistingEvent = !!eventId; // Track whether to batch (false) or send immediately (true)
-  const limitText = maxLimit ? `${totalSelected} of ${maxLimit} ${type} added` : `${totalSelected} ${type} added`;
+  const limitText = maxLimit
+    ? `${totalSelected} of ${maxLimit} ${type} added`
+    : `${totalSelected} ${type} added`;
 
   return (
     <View style={styles.container}>
-      <InviteScreenHeader
+      <ScreenHeader
         title={title}
+        showCloseButton={true}
         onClose={() => {
           if (isExistingEvent) {
             navigation.navigate('EventDetail', { eventId });
           } else {
             // For CreateEventScreen, just reopen guest list WITHOUT saving changes
             if (onSave) {
-              onSave({
-                users: [], // Don't save current selections
-                contacts: [],
-                phoneContacts: [],
-              }, { reopenGuestList: true, cancel: true });
+              onSave(
+                {
+                  users: [], // Don't save current selections
+                  contacts: [],
+                  phoneContacts: [],
+                },
+                { reopenGuestList: true, cancel: true }
+              );
             }
             navigation.goBack();
           }
@@ -324,14 +282,20 @@ export default function InviteScreen() {
         </View>
       )}
 
-      <ScrollView 
-        style={styles.content} 
+      <ScrollView
+        style={styles.content}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <TabSelector 
-          activeTab={state.activeTab} 
-          setActiveTab={state.setActiveTab} 
+        <VibeSegmentedControl
+          options={[
+            { value: TABS.APP, label: 'App Users' },
+            { value: TABS.PHONE, label: 'Phone Contacts' },
+            { value: TABS.QR, label: 'QR Code' },
+          ]}
+          selectedValue={state.activeTab}
+          onSelect={state.setActiveTab}
+          style={{ marginVertical: 12 }}
         />
 
         <View style={styles.tabContent}>
@@ -380,7 +344,9 @@ export default function InviteScreen() {
               setSearchQuery={state.setSearchQuery}
               localSelectedPhoneContacts={state.localSelectedPhoneContacts}
               loadDeviceContacts={contactManagement.loadDeviceContacts}
-              togglePhoneContactSelection={selectionHandlers.togglePhoneContactSelection}
+              togglePhoneContactSelection={
+                selectionHandlers.togglePhoneContactSelection
+              }
               themeColor={themeColor}
               themeBgColor={themeBgColor}
               maxLimit={maxLimit}
@@ -416,7 +382,12 @@ export default function InviteScreen() {
 
       {/* Hide invite button when QR tab is active - QR codes handle invitations */}
       {state.activeTab !== TABS.QR && (
-        <View style={[styles.bottomButtonContainer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+        <View
+          style={[
+            styles.bottomButtonContainer,
+            { paddingBottom: Math.max(insets.bottom, 20) },
+          ]}
+        >
           <VibeButton
             label={isHostMode ? 'Add Co-Hosts' : 'Invite Guests'}
             onPress={handleSave}

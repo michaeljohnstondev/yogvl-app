@@ -11,12 +11,12 @@ import {
 } from 'react-native';
 import theme from '../../../theme/themes';
 
-const InviteCodeInput = ({ 
-  onCodeSubmit, 
-  loading = false, 
-  placeholder = "Enter invite code (e.g., BVS-XY7K9)",
-  buttonText = "Join Event",
-  style 
+const InviteCodeInput = ({
+  onCodeSubmit,
+  loading = false,
+  placeholder = 'Enter invite code (e.g., BVS-XY7K9)',
+  buttonText = 'Join Event',
+  style,
 }) => {
   const [code, setCode] = useState('');
 
@@ -30,15 +30,15 @@ const InviteCodeInput = ({
   const formatCode = (input) => {
     // Auto-format as user types: BVS-XXXXX
     let formatted = input.toUpperCase().replace(/[^A-Z0-9]/g, '');
-    
+
     if (formatted.length > 3 && !formatted.startsWith('BVS')) {
       formatted = 'BVS' + formatted.substring(3);
     }
-    
+
     if (formatted.length > 3) {
       formatted = formatted.substring(0, 3) + '-' + formatted.substring(3, 8);
     }
-    
+
     return formatted;
   };
 
@@ -52,11 +52,11 @@ const InviteCodeInput = ({
   return (
     <View style={[styles.container, style]}>
       <Text style={styles.label}>Have an invite code?</Text>
-      
+
       <TextInput
         style={[
           styles.input,
-          !isValidCode && code.length > 0 && styles.inputInvalid
+          !isValidCode && code.length > 0 && styles.inputInvalid,
         ]}
         value={code}
         onChangeText={handleCodeChange}
@@ -67,11 +67,11 @@ const InviteCodeInput = ({
         maxLength={9} // BVS-XXXXX = 9 characters
         editable={!loading}
       />
-      
+
       <TouchableOpacity
         style={[
           styles.button,
-          (!isValidCode || loading) && styles.buttonDisabled
+          (!isValidCode || loading) && styles.buttonDisabled,
         ]}
         onPress={handleSubmit}
         disabled={!isValidCode || loading}
@@ -82,7 +82,7 @@ const InviteCodeInput = ({
           <Text style={styles.buttonText}>{buttonText}</Text>
         )}
       </TouchableOpacity>
-      
+
       {code.length > 0 && !isValidCode && (
         <Text style={styles.errorText}>
           Code should be in format: BVS-XXXXX

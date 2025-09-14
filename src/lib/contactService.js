@@ -23,7 +23,7 @@ export const getDeviceContacts = async () => {
   try {
     // Check if we have permission
     const { status } = await Contacts.getPermissionsAsync();
-    
+
     if (status !== 'granted') {
       const permissionGranted = await requestContactPermission();
       if (!permissionGranted) {
@@ -51,32 +51,36 @@ export const getDeviceContacts = async () => {
 
     // Transform contacts to our format
     const transformedContacts = data
-      .filter(contact => {
+      .filter((contact) => {
         // Only include contacts with at least a name and a phone number or email
         const hasName = contact.name || contact.firstName || contact.lastName;
-        const hasPhone = contact.phoneNumbers && contact.phoneNumbers.length > 0;
+        const hasPhone =
+          contact.phoneNumbers && contact.phoneNumbers.length > 0;
         const hasEmail = contact.emails && contact.emails.length > 0;
         return hasName && (hasPhone || hasEmail);
       })
-      .map(contact => {
+      .map((contact) => {
         // Get the best name available
         let displayName = contact.name;
         if (!displayName && (contact.firstName || contact.lastName)) {
-          displayName = `${contact.firstName || ''} ${contact.lastName || ''}`.trim();
+          displayName =
+            `${contact.firstName || ''} ${contact.lastName || ''}`.trim();
         }
         if (!displayName) {
           displayName = 'Unknown Contact';
         }
 
         // Get primary phone number
-        const primaryPhone = contact.phoneNumbers && contact.phoneNumbers.length > 0
-          ? contact.phoneNumbers[0].number
-          : null;
+        const primaryPhone =
+          contact.phoneNumbers && contact.phoneNumbers.length > 0
+            ? contact.phoneNumbers[0].number
+            : null;
 
         // Get primary email
-        const primaryEmail = contact.emails && contact.emails.length > 0
-          ? contact.emails[0].email
-          : null;
+        const primaryEmail =
+          contact.emails && contact.emails.length > 0
+            ? contact.emails[0].email
+            : null;
 
         return {
           id: `contact_${contact.id}`,
@@ -108,23 +112,35 @@ export const getDeviceContacts = async () => {
  */
 const getContactAvatar = (name) => {
   if (!name) return '👤';
-  
+
   const lowerName = name.toLowerCase();
-  
+
   // Family relations
-  if (lowerName.includes('mom') || lowerName.includes('mother') || lowerName.includes('mama')) return '👩';
-  if (lowerName.includes('dad') || lowerName.includes('father') || lowerName.includes('papa')) return '👨';
+  if (
+    lowerName.includes('mom') ||
+    lowerName.includes('mother') ||
+    lowerName.includes('mama')
+  )
+    return '👩';
+  if (
+    lowerName.includes('dad') ||
+    lowerName.includes('father') ||
+    lowerName.includes('papa')
+  )
+    return '👨';
   if (lowerName.includes('brother') || lowerName.includes('bro')) return '👨';
   if (lowerName.includes('sister') || lowerName.includes('sis')) return '👩';
   if (lowerName.includes('wife') || lowerName.includes('husband')) return '💑';
-  
+
   // Professional titles
   if (lowerName.includes('dr.') || lowerName.includes('doctor')) return '👨‍⚕️';
   if (lowerName.includes('prof') || lowerName.includes('teacher')) return '👨‍🏫';
   if (lowerName.includes('boss') || lowerName.includes('manager')) return '👨‍💼';
-  if (lowerName.includes('lawyer') || lowerName.includes('attorney')) return '👨‍⚖️';
-  if (lowerName.includes('mechanic') || lowerName.includes('repair')) return '👨‍🔧';
-  
+  if (lowerName.includes('lawyer') || lowerName.includes('attorney'))
+    return '👨‍⚖️';
+  if (lowerName.includes('mechanic') || lowerName.includes('repair'))
+    return '👨‍🔧';
+
   // Default based on first letter
   const firstLetter = name.charAt(0).toLowerCase();
   const avatars = ['👤', '👨', '👩', '🙂', '😊'];
@@ -150,17 +166,17 @@ export const hasContactPermission = async () => {
  */
 export const formatPhoneNumber = (phoneNumber) => {
   if (!phoneNumber) return '';
-  
+
   // Remove all non-digit characters
   const cleaned = phoneNumber.replace(/\D/g, '');
-  
+
   // Format US phone numbers
   if (cleaned.length === 10) {
     return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
   } else if (cleaned.length === 11 && cleaned.startsWith('1')) {
     return `+1 (${cleaned.slice(1, 4)}) ${cleaned.slice(4, 7)}-${cleaned.slice(7)}`;
   }
-  
+
   // Return original if can't format
   return phoneNumber;
 };

@@ -15,11 +15,12 @@ export default function VibeDropdown({
   const [isOpen, setIsOpen] = useState(false);
 
   const selectedOption = options.find((o) => o.value === selectedValue);
-  
+
   // Filter options to optionally hide selected value from list
-  const filteredOptions = hideSelectedFromList && selectedValue
-    ? options.filter((option) => option.value !== selectedValue)
-    : options;
+  const filteredOptions =
+    hideSelectedFromList && selectedValue
+      ? options.filter((option) => option.value !== selectedValue)
+      : options;
 
   const handleSelect = (option) => {
     onSelect(option.value);
@@ -29,7 +30,11 @@ export default function VibeDropdown({
   return (
     <View style={[styles.container, style]}>
       <Pressable
-        style={[styles.selector, isCompleted && styles.completedSelector, isOpen && styles.selectorOpen]}
+        style={[
+          styles.selector,
+          isCompleted && styles.completedSelector,
+          isOpen && styles.selectorOpen,
+        ]}
         onPress={() => {
           onFocus?.();
           setIsOpen((v) => !v);

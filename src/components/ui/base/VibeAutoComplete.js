@@ -24,14 +24,15 @@ const hasEmojiAtStart = (text) => {
 // Helper to normalize text for comparison (strip emojis)
 const normalizeForComparison = (text) => {
   if (!text || typeof text !== 'string') return '';
-  
-  const emojiRegex = /^[\u{1F600}-\u{1F64F}]|^[\u{1F300}-\u{1F5FF}]|^[\u{1F680}-\u{1F6FF}]|^[\u{1F1E6}-\u{1F1FF}]|^[\u{2600}-\u{26FF}]|^[\u{2700}-\u{27BF}]|^\u{2764}|^\u{2049}|^\u{203C}|^[\u{1F900}-\u{1F9FF}]|^[\u{1FA70}-\u{1FAFF}]/u;
-  
+
+  const emojiRegex =
+    /^[\u{1F600}-\u{1F64F}]|^[\u{1F300}-\u{1F5FF}]|^[\u{1F680}-\u{1F6FF}]|^[\u{1F1E6}-\u{1F1FF}]|^[\u{2600}-\u{26FF}]|^[\u{2700}-\u{27BF}]|^\u{2764}|^\u{2049}|^\u{203C}|^[\u{1F900}-\u{1F9FF}]|^[\u{1FA70}-\u{1FAFF}]/u;
+
   let normalized = text.trim();
   while (emojiRegex.test(normalized)) {
     normalized = normalized.replace(emojiRegex, '').trim();
   }
-  
+
   return normalized.toLowerCase();
 };
 
@@ -57,9 +58,10 @@ const VibeAutoComplete = React.memo(
       // Add historical suggestions first (these are smart suggestions from past events)
       if (suggestions && suggestions.length > 0) {
         suggestions.forEach((suggestion) => {
-          const suggestionText = typeof suggestion === 'string' ? suggestion : suggestion.text;
+          const suggestionText =
+            typeof suggestion === 'string' ? suggestion : suggestion.text;
           const normalized = normalizeForComparison(suggestionText);
-          
+
           if (!seenNormalized.has(normalized) && normalized) {
             seenNormalized.add(normalized);
             unifiedSuggestions.push(suggestion);
@@ -67,7 +69,7 @@ const VibeAutoComplete = React.memo(
         });
       }
 
-      // Add contextual suggestions if we need more and have input  
+      // Add contextual suggestions if we need more and have input
       if (inputValue && inputValue.length >= 1) {
         const contextualSuggestions = getContextualSuggestions(
           inputValue,
@@ -75,15 +77,16 @@ const VibeAutoComplete = React.memo(
         );
         contextualSuggestions.forEach((contextSuggestion) => {
           // Only add if not already seen (normalize for comparison)
-          const contextNormalized = normalizeForComparison(contextSuggestion.text);
-          
+          const contextNormalized = normalizeForComparison(
+            contextSuggestion.text
+          );
+
           if (!seenNormalized.has(contextNormalized) && contextNormalized) {
             seenNormalized.add(contextNormalized);
             unifiedSuggestions.push(contextSuggestion.text);
           }
         });
       }
-
 
       return unifiedSuggestions;
     };
@@ -103,8 +106,6 @@ const VibeAutoComplete = React.memo(
     // Show when visible prop is true AND we have suggestions
     // But don't show if we're hiding from recent selection
     const shouldShow = !shouldHideFromSelection && visible && hasSuggestions;
-    
-    
 
     // Handle selection and hide
     const handleSelect = (suggestion) => {
@@ -132,38 +133,38 @@ const VibeAutoComplete = React.memo(
 
     return (
       <View style={styles.autocompleteContainer}>
-        <ScrollView 
+        <ScrollView
           style={styles.scrollView}
           showsVerticalScrollIndicator={true}
           keyboardShouldPersistTaps="handled"
         >
           {displaySuggestions.map((item, index) => {
-          // Handle both string and object suggestions
-          const text = typeof item === 'string' ? item : item.text;
-          const count = typeof item === 'object' ? item.count : null;
+            // Handle both string and object suggestions
+            const text = typeof item === 'string' ? item : item.text;
+            const count = typeof item === 'object' ? item.count : null;
 
-          return (
-            <Pressable
-              key={`${text}-${index}`}
-              style={({ pressed }) => [
-                styles.suggestionItem,
-                { opacity: pressed ? 0.7 : 1 },
-              ]}
-              onPress={() => handleSelect(text)}
-            >
-              <View style={styles.suggestionContent}>
-                <Text style={styles.suggestionText} numberOfLines={1}>
-                  {hasEmojiAtStart(text)
-                    ? text
-                    : `${getEmojiForText(text)} ${text}`}
-                </Text>
-                {showCount && count && typeof count === 'number' && (
-                  <Text style={styles.suggestionCount}>Used {count}x</Text>
-                )}
-              </View>
-            </Pressable>
-          );
-        })}
+            return (
+              <Pressable
+                key={`${text}-${index}`}
+                style={({ pressed }) => [
+                  styles.suggestionItem,
+                  { opacity: pressed ? 0.7 : 1 },
+                ]}
+                onPress={() => handleSelect(text)}
+              >
+                <View style={styles.suggestionContent}>
+                  <Text style={styles.suggestionText} numberOfLines={1}>
+                    {hasEmojiAtStart(text)
+                      ? text
+                      : `${getEmojiForText(text)} ${text}`}
+                  </Text>
+                  {showCount && count && typeof count === 'number' && (
+                    <Text style={styles.suggestionCount}>Used {count}x</Text>
+                  )}
+                </View>
+              </Pressable>
+            );
+          })}
         </ScrollView>
       </View>
     );

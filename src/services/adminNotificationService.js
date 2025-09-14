@@ -12,7 +12,7 @@ import { db } from '../auth/services/firebase';
 
 /**
  * DATABASE STRUCTURE FOR ADMIN NOTIFICATIONS:
- * 
+ *
  * /users/{userId}/adminNotifications
  * {
  *   notifications: [
@@ -40,7 +40,6 @@ import { db } from '../auth/services/firebase';
  */
 
 class AdminNotificationService {
-  
   /**
    * Get user's admin notifications
    * @param {string} userId - User ID
@@ -50,15 +49,18 @@ class AdminNotificationService {
     try {
       const userRef = doc(db, 'users', userId);
       const userDoc = await getDoc(userRef);
-      
+
       if (!userDoc.exists()) {
         return null;
       }
-      
+
       const userData = userDoc.data();
       return userData.adminNotifications || null;
     } catch (error) {
-      console.error('[adminNotificationService] Error getting notifications:', error);
+      console.error(
+        '[adminNotificationService] Error getting notifications:',
+        error
+      );
       throw error;
     }
   }
@@ -83,36 +85,45 @@ class AdminNotificationService {
         requiresResponse: options.requiresResponse !== false, // Default to true
         acknowledged: false,
         relatedReport: options.relatedReport || null,
-        expiresAt: options.expiresAt || null
+        expiresAt: options.expiresAt || null,
       };
 
       const currentNotifications = await this.getAdminNotifications(userId);
-      const notifications = [...(currentNotifications?.notifications || []), notification];
-      const unacknowledgedCount = notifications.filter(n => !n.acknowledged).length;
+      const notifications = [
+        ...(currentNotifications?.notifications || []),
+        notification,
+      ];
+      const unacknowledgedCount = notifications.filter(
+        (n) => !n.acknowledged
+      ).length;
 
       const updatedNotifications = {
         notifications,
         stats: {
           totalNotifications: notifications.length,
           unacknowledgedCount,
-          lastNotificationAt: Timestamp.now()
+          lastNotificationAt: Timestamp.now(),
         },
-        updatedAt: Timestamp.now()
+        updatedAt: Timestamp.now(),
       };
 
       const userRef = doc(db, 'users', userId);
       await updateDoc(userRef, {
-        adminNotifications: updatedNotifications
+        adminNotifications: updatedNotifications,
       });
 
       // Trigger push notification
       await this.triggerPushNotification(userId, notification);
-      
-      console.log(`[adminNotificationService] Notification sent to user ${userId}: ${type}`);
-      return { success: true, notificationId: notification.id };
 
+      console.log(
+        `[adminNotificationService] Notification sent to user ${userId}: ${type}`
+      );
+      return { success: true, notificationId: notification.id };
     } catch (error) {
-      console.error('[adminNotificationService] Error sending notification:', error);
+      console.error(
+        '[adminNotificationService] Error sending notification:',
+        error
+      );
       throw error;
     }
   }
@@ -130,7 +141,8 @@ class AdminNotificationService {
       adminUserId,
       relatedReport: reportId,
       requiresResponse: true,
-      additionalInfo: 'Multiple warnings may result in strikes or temporary restrictions.'
+      additionalInfo:
+        'Multiple warnings may result in strikes or temporary restrictions.',
     });
   }
 
@@ -142,17 +154,24 @@ class AdminNotificationService {
    * @param {string} reportId - Related report ID
    * @param {number} totalStrikes - User's total active strikes
    */
-  async sendStrikeNotification(userId, message, adminUserId, reportId, totalStrikes) {
-    const additionalInfo = totalStrikes >= 3 
-      ? `You now have ${totalStrikes} active strikes. Further violations may result in a temporary ban.`
-      : `You now have ${totalStrikes} active strike${totalStrikes > 1 ? 's' : ''}. Strikes expire after 6 months.`;
+  async sendStrikeNotification(
+    userId,
+    message,
+    adminUserId,
+    reportId,
+    totalStrikes
+  ) {
+    const additionalInfo =
+      totalStrikes >= 3
+        ? `You now have ${totalStrikes} active strikes. Further violations may result in a temporary ban.`
+        : `You now have ${totalStrikes} active strike${totalStrikes > 1 ? 's' : ''}. Strikes expire after 6 months.`;
 
     return this.sendNotification(userId, 'strike', message, {
       priority: 'high',
       adminUserId,
       relatedReport: reportId,
       requiresResponse: true,
-      additionalInfo
+      additionalInfo,
     });
   }
 
@@ -166,13 +185,13 @@ class AdminNotificationService {
    */
   async sendAnnouncement(userId, title, message, adminUserId, options = {}) {
     const fullMessage = title ? `${title}\n\n${message}` : message;
-    
+
     return this.sendNotification(userId, 'announcement', fullMessage, {
       priority: options.priority || 'normal',
       adminUserId,
       requiresResponse: options.requiresResponse || false,
       additionalInfo: options.additionalInfo,
-      expiresAt: options.expiresAt
+      expiresAt: options.expiresAt,
     });
   }
 
@@ -184,44 +203,52 @@ class AdminNotificationService {
   async acknowledgeNotification(userId, notificationId) {
     try {
       const currentNotifications = await this.getAdminNotifications(userId);
-      
+
       if (!currentNotifications) {
         throw new Error('No notifications found for user');
       }
 
-      const updatedNotifications = currentNotifications.notifications.map(notification => {
-        if (notification.id === notificationId) {
-          return {
-            ...notification,
-            acknowledged: true,
-            acknowledgedAt: Timestamp.now()
-          };
+      const updatedNotifications = currentNotifications.notifications.map(
+        (notification) => {
+          if (notification.id === notificationId) {
+            return {
+              ...notification,
+              acknowledged: true,
+              acknowledgedAt: Timestamp.now(),
+            };
+          }
+          return notification;
         }
-        return notification;
-      });
+      );
 
-      const unacknowledgedCount = updatedNotifications.filter(n => !n.acknowledged).length;
+      const unacknowledgedCount = updatedNotifications.filter(
+        (n) => !n.acknowledged
+      ).length;
 
       const updatedRecord = {
         ...currentNotifications,
         notifications: updatedNotifications,
         stats: {
           ...currentNotifications.stats,
-          unacknowledgedCount
+          unacknowledgedCount,
         },
-        updatedAt: Timestamp.now()
+        updatedAt: Timestamp.now(),
       };
 
       const userRef = doc(db, 'users', userId);
       await updateDoc(userRef, {
-        adminNotifications: updatedRecord
+        adminNotifications: updatedRecord,
       });
 
-      console.log(`[adminNotificationService] Notification ${notificationId} acknowledged by user ${userId}`);
+      console.log(
+        `[adminNotificationService] Notification ${notificationId} acknowledged by user ${userId}`
+      );
       return { success: true };
-
     } catch (error) {
-      console.error('[adminNotificationService] Error acknowledging notification:', error);
+      console.error(
+        '[adminNotificationService] Error acknowledging notification:',
+        error
+      );
       throw error;
     }
   }
@@ -234,17 +261,21 @@ class AdminNotificationService {
   async getUnacknowledgedNotifications(userId) {
     try {
       const adminNotifications = await this.getAdminNotifications(userId);
-      
+
       if (!adminNotifications) {
         return [];
       }
 
       // Filter out expired notifications and return unacknowledged ones
       const now = Date.now();
-      const unacknowledged = adminNotifications.notifications.filter(notification => {
-        const isNotExpired = !notification.expiresAt || notification.expiresAt.seconds * 1000 > now;
-        return !notification.acknowledged && isNotExpired;
-      });
+      const unacknowledged = adminNotifications.notifications.filter(
+        (notification) => {
+          const isNotExpired =
+            !notification.expiresAt ||
+            notification.expiresAt.seconds * 1000 > now;
+          return !notification.acknowledged && isNotExpired;
+        }
+      );
 
       // Sort by priority (high first) and then by date (newest first)
       return unacknowledged.sort((a, b) => {
@@ -252,9 +283,11 @@ class AdminNotificationService {
         if (b.priority === 'high' && a.priority !== 'high') return 1;
         return b.issuedAt.seconds - a.issuedAt.seconds;
       });
-
     } catch (error) {
-      console.error('[adminNotificationService] Error getting unacknowledged notifications:', error);
+      console.error(
+        '[adminNotificationService] Error getting unacknowledged notifications:',
+        error
+      );
       return [];
     }
   }
@@ -269,23 +302,33 @@ class AdminNotificationService {
   async bulkSendNotification(userIds, type, message, options = {}) {
     try {
       const results = await Promise.allSettled(
-        userIds.map(userId => this.sendNotification(userId, type, message, options))
+        userIds.map((userId) =>
+          this.sendNotification(userId, type, message, options)
+        )
       );
 
-      const successful = results.filter(result => result.status === 'fulfilled').length;
-      const failed = results.filter(result => result.status === 'rejected').length;
+      const successful = results.filter(
+        (result) => result.status === 'fulfilled'
+      ).length;
+      const failed = results.filter(
+        (result) => result.status === 'rejected'
+      ).length;
 
-      console.log(`[adminNotificationService] Bulk notification sent: ${successful} successful, ${failed} failed`);
-      
+      console.log(
+        `[adminNotificationService] Bulk notification sent: ${successful} successful, ${failed} failed`
+      );
+
       return {
         success: true,
         successful,
         failed,
-        total: userIds.length
+        total: userIds.length,
       };
-
     } catch (error) {
-      console.error('[adminNotificationService] Error with bulk notification:', error);
+      console.error(
+        '[adminNotificationService] Error with bulk notification:',
+        error
+      );
       throw error;
     }
   }
@@ -300,7 +343,7 @@ class AdminNotificationService {
       // Create a notification trigger document that Cloud Functions will pick up
       const triggerId = `admin_${notification.type}_${userId}_${Date.now()}`;
       const notificationTriggerRef = doc(db, 'notificationTriggers', triggerId);
-      
+
       await setDoc(notificationTriggerRef, {
         type: 'admin_notification',
         subType: notification.type, // warning, strike, announcement, etc.
@@ -318,12 +361,17 @@ class AdminNotificationService {
           notificationId: notification.id,
           priority: notification.priority,
           screen: 'Notifications', // Navigate to notifications screen
-        }
+        },
       });
 
-      console.log(`[adminNotificationService] Push notification trigger created: ${triggerId}`);
+      console.log(
+        `[adminNotificationService] Push notification trigger created: ${triggerId}`
+      );
     } catch (error) {
-      console.error('[adminNotificationService] Error triggering push notification:', error);
+      console.error(
+        '[adminNotificationService] Error triggering push notification:',
+        error
+      );
       // Don't throw - admin notification should still be saved even if push fails
     }
   }

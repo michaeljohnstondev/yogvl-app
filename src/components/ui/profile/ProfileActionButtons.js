@@ -35,34 +35,41 @@ const ProfileActionButtons = ({
     console.log('[ProfileActionButtons] Debug - targetUserId:', targetUserId);
     console.log('[ProfileActionButtons] Debug - currentUserId:', currentUserId);
     console.log('[ProfileActionButtons] Debug - isOwnProfile:', isOwnProfile);
-    console.log('[ProfileActionButtons] Debug - targetUserId !== currentUserId:', targetUserId !== currentUserId);
-    const shouldShowReport = targetUserId && currentUserId && targetUserId !== currentUserId && !isOwnProfile;
-    console.log('[ProfileActionButtons] Debug - shouldShowReport:', shouldShowReport);
-    
+    console.log(
+      '[ProfileActionButtons] Debug - targetUserId !== currentUserId:',
+      targetUserId !== currentUserId
+    );
+    const shouldShowReport =
+      targetUserId &&
+      currentUserId &&
+      targetUserId !== currentUserId &&
+      !isOwnProfile;
+    console.log(
+      '[ProfileActionButtons] Debug - shouldShowReport:',
+      shouldShowReport
+    );
+
     return (
       <View style={styles.topButtonsRightSide}>
         {/* Report button - only for other users */}
         {shouldShowReport && (
-          <TouchableOpacity
-            style={styles.reportButton}
-            onPress={onReportUser}
-          >
+          <TouchableOpacity style={styles.reportButton} onPress={onReportUser}>
             <Text style={styles.reportButtonText}>⚠️</Text>
           </TouchableOpacity>
         )}
-      
-      {/* Edit button - only for own profile */}
-      {isOwnProfile && (
-        <TouchableOpacity
-          onPress={() => setIsEditing(!isEditing)}
-          style={styles.editButton}
-        >
-          <Text style={styles.editButtonText}>
-            {isEditing ? 'Cancel' : 'Edit'}
-          </Text>
-        </TouchableOpacity>
-      )}
-    </View>
+
+        {/* Edit button - only for own profile */}
+        {isOwnProfile && (
+          <TouchableOpacity
+            onPress={() => setIsEditing(!isEditing)}
+            style={styles.editButton}
+          >
+            <Text style={styles.editButtonText}>
+              {isEditing ? 'Cancel' : 'Edit'}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
     );
   };
 
@@ -86,9 +93,9 @@ const ProfileActionButtons = ({
             onPress={onNotificationSettings}
             style={styles.actionButton}
           />
-          
+
           <View style={styles.buttonSeparator} />
-          
+
           <VibeButton
             label="Logout"
             onPress={onLogout}

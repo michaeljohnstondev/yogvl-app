@@ -132,7 +132,7 @@ export const validateEventForm = (formData) => {
   } = formData;
 
   // Check required fields
-  if (!title || (typeof title !== 'string') || title.trim().length === 0) {
+  if (!title || typeof title !== 'string' || title.trim().length === 0) {
     console.log('🚨 Validation failed: Event name is required');
     return {
       isValid: false,
@@ -147,7 +147,11 @@ export const validateEventForm = (formData) => {
     };
   }
 
-  if (!location || (typeof location !== 'string') || location.trim().length === 0) {
+  if (
+    !location ||
+    typeof location !== 'string' ||
+    location.trim().length === 0
+  ) {
     return {
       isValid: false,
       message: 'Location is required',
@@ -170,7 +174,11 @@ export const validateEventForm = (formData) => {
   }
 
   // Validate details field (consolidated from old separate fields)
-  if (formData.details && typeof formData.details === 'string' && formData.details.trim().length > 1500) {
+  if (
+    formData.details &&
+    typeof formData.details === 'string' &&
+    formData.details.trim().length > 1500
+  ) {
     return {
       isValid: false,
       message: 'Event details must be 1500 characters or less',
@@ -199,7 +207,11 @@ export const validateEventForm = (formData) => {
   }
 
   // Validate max guests if provided
-  if (maxGuests && typeof maxGuests === 'string' && maxGuests.trim().length > 0) {
+  if (
+    maxGuests &&
+    typeof maxGuests === 'string' &&
+    maxGuests.trim().length > 0
+  ) {
     const maxGuestsNum = parseInt(maxGuests);
     if (isNaN(maxGuestsNum) || maxGuestsNum < 1) {
       return {
@@ -217,7 +229,11 @@ export const validateEventForm = (formData) => {
 
   // Validate entry fee if paid event
   if (hasFee) {
-    if (!entryFee || (typeof entryFee !== 'string') || entryFee.trim().length === 0) {
+    if (
+      !entryFee ||
+      typeof entryFee !== 'string' ||
+      entryFee.trim().length === 0
+    ) {
       return {
         isValid: false,
         message: 'Entry fee amount is required for paid events',
@@ -255,7 +271,11 @@ export const validateEventForm = (formData) => {
  * @param {boolean} isEditing - Whether this is for editing an existing event
  * @returns {Object} Formatted event data
  */
-export const formatEventForStorage = (formData, currentUserId, isEditing = false) => {
+export const formatEventForStorage = (
+  formData,
+  currentUserId,
+  isEditing = false
+) => {
   const {
     title,
     location,
@@ -276,7 +296,6 @@ export const formatEventForStorage = (formData, currentUserId, isEditing = false
     trackAttendance,
     attendanceType,
   } = formData;
-  
 
   // Format main event date/time
   const combined = DateTime.fromObject(
@@ -289,7 +308,7 @@ export const formatEventForStorage = (formData, currentUserId, isEditing = false
     },
     { zone: Intl.DateTimeFormat().resolvedOptions().timeZone }
   );
-  
+
   const eventTimestamp = new Date(combined.toUTC().toISO());
 
   // Format RSVP deadline based on rsvpDeadlineType
@@ -360,14 +379,14 @@ export const formatEventForStorage = (formData, currentUserId, isEditing = false
     createdBy: currentUserId,
     createdAt: null, // Will be set in the create handler
 
-    // DETAILS  
+    // DETAILS
     description: details ? details.trim() : '',
     address: address ? address.trim() : '',
     maxGuests: maxGuests ? parseInt(maxGuests) : null,
     hasFee: hasFee ?? false,
-    entryFee: (hasFee && entryFee) ? parseFloat(entryFee.replace(/[$,]/g, '')) : 0,
+    entryFee:
+      hasFee && entryFee ? parseFloat(entryFee.replace(/[$,]/g, '')) : 0,
     rsvpDeadline: rsvpDeadline_timestamp,
-
 
     // PEOPLE - Only set subscribers for new events, not when editing
     ...(isEditing ? {} : { subscribers: [currentUserId] }), // Creator is automatically subscribed to new events

@@ -1,7 +1,7 @@
 // Relative time formatting
 export const getRelativeTimeString = (timestamp) => {
   if (!timestamp) return 'Unknown time';
-  
+
   let date;
   if (timestamp?.toDate) {
     // Firebase Timestamp
@@ -12,26 +12,26 @@ export const getRelativeTimeString = (timestamp) => {
     // String or number
     date = new Date(timestamp);
   }
-  
+
   if (isNaN(date.getTime())) return 'Invalid time';
-  
+
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMinutes = Math.floor(diffMs / (1000 * 60));
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  
+
   if (diffMinutes < 1) return 'Just now';
   if (diffMinutes < 60) return `${diffMinutes}m ago`;
   if (diffHours < 24) return `${diffHours}h ago`;
   if (diffDays < 7) return `${diffDays}d ago`;
-  
+
   // For older messages, show the actual date
   return new Intl.DateTimeFormat('en-US', {
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
-    minute: '2-digit'
+    minute: '2-digit',
   }).format(date);
 };
 

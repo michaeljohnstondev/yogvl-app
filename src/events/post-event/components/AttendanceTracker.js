@@ -16,24 +16,25 @@ const AttendanceTracker = ({
   attendanceTracking,
   eventType,
   onComplete,
-  submitting
+  submitting,
 }) => {
-  const { 
-    getAttendanceStatus, 
-    getAttendanceStats, 
+  const {
+    getAttendanceStatus,
+    getAttendanceStats,
     toggleAttendance,
     markAllAttended,
     clearAllAttendance,
-    hasChanges
+    hasChanges,
   } = attendanceTracking;
 
   const stats = getAttendanceStats();
 
   const renderParticipant = ({ item }) => {
     const status = getAttendanceStatus(item.id);
-    const displayName = item.userdata?.contactInfo?.displayName || 
-                       item.userdata?.contactInfo?.firstName || 
-                       'Unknown User';
+    const displayName =
+      item.userdata?.contactInfo?.displayName ||
+      item.userdata?.contactInfo?.firstName ||
+      'Unknown User';
     const initial = displayName.charAt(0).toUpperCase();
 
     return (
@@ -47,7 +48,9 @@ const AttendanceTracker = ({
           </View>
           <View style={styles.participantDetails}>
             <Text style={styles.participantName}>{displayName}</Text>
-            <Text style={styles.participantStatus}>{getStatusText(status)}</Text>
+            <Text style={styles.participantStatus}>
+              {getStatusText(status)}
+            </Text>
           </View>
         </View>
         <View style={[styles.statusIndicator, getStatusStyle(status)]}>
@@ -59,33 +62,45 @@ const AttendanceTracker = ({
 
   const getStatusText = (status) => {
     switch (status) {
-      case 'attended': return 'Attended';
-      case 'no-show': return 'No Show';
-      default: return 'Not marked';
+      case 'attended':
+        return 'Attended';
+      case 'no-show':
+        return 'No Show';
+      default:
+        return 'Not marked';
     }
   };
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'attended': return '✅';
-      case 'no-show': return '❌';
-      default: return '❓';
+      case 'attended':
+        return '✅';
+      case 'no-show':
+        return '❌';
+      default:
+        return '❓';
     }
   };
 
   const getAvatarStyle = (status) => {
     switch (status) {
-      case 'attended': return { backgroundColor: theme.colors.vibeGreen };
-      case 'no-show': return { backgroundColor: theme.colors.vibeRed };
-      default: return { backgroundColor: theme.colors.gray };
+      case 'attended':
+        return { backgroundColor: theme.colors.vibeGreen };
+      case 'no-show':
+        return { backgroundColor: theme.colors.vibeRed };
+      default:
+        return { backgroundColor: theme.colors.gray };
     }
   };
 
   const getStatusStyle = (status) => {
     switch (status) {
-      case 'attended': return { backgroundColor: theme.colors.vibeBackgroundGreen };
-      case 'no-show': return { backgroundColor: theme.colors.vibeBackgroundRed };
-      default: return { backgroundColor: theme.colors.vibeBackgroundBlue };
+      case 'attended':
+        return { backgroundColor: theme.colors.vibeBackgroundGreen };
+      case 'no-show':
+        return { backgroundColor: theme.colors.vibeBackgroundRed };
+      default:
+        return { backgroundColor: theme.colors.vibeBackgroundBlue };
     }
   };
 
@@ -130,10 +145,9 @@ const AttendanceTracker = ({
       {eventType && (
         <View style={styles.eventTypeInfo}>
           <Text style={styles.eventTypeText}>
-            {eventType === 'casual' 
-              ? '🌊 Casual event - no-shows won\'t affect reliability scores'
-              : '🎯 Strict event - no-shows will impact reliability scores'
-            }
+            {eventType === 'casual'
+              ? "🌊 Casual event - no-shows won't affect reliability scores"
+              : '🎯 Strict event - no-shows will impact reliability scores'}
           </Text>
         </View>
       )}
@@ -174,7 +188,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.vibeBlue,
   },
-  
+
   // Stats Header
   statsHeader: {
     marginBottom: 16,

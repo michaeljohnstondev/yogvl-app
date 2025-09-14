@@ -7,7 +7,12 @@ import { db } from '../auth/services/firebase';
  * Implements debouncing to prevent excessive database writes
  * Extracted from NotificationSettingsScreen to eliminate code duplication
  */
-export function useNotificationAutoSave(settings, settingsPath, initialSettings, currentUserId) {
+export function useNotificationAutoSave(
+  settings,
+  settingsPath,
+  initialSettings,
+  currentUserId
+) {
   const isFirstRender = useRef(true);
   const saveTimeoutRef = useRef(null);
 
@@ -38,7 +43,10 @@ export function useNotificationAutoSave(settings, settingsPath, initialSettings,
           console.log(`[NotificationSettings] ${settingsPath} auto-saved`);
         }
       } catch (error) {
-        console.error(`[NotificationSettings] Failed to auto-save ${settingsPath}:`, error);
+        console.error(
+          `[NotificationSettings] Failed to auto-save ${settingsPath}:`,
+          error
+        );
       }
     }, 500);
 

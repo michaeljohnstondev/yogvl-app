@@ -34,7 +34,7 @@ const useEventFormState = (initialData = {}, options = {}) => {
   // Use ref to ensure initialization happens only once (like componentDidMount)
   const hasInitialized = useRef(false);
   const stableInitialData = useRef(null);
-  
+
   // Initialize only once, never again (componentDidMount behavior)
   if (!hasInitialized.current) {
     hasInitialized.current = true;
@@ -54,7 +54,10 @@ const useEventFormState = (initialData = {}, options = {}) => {
   const updateField = useCallback(
     (field, value) => {
       if (field === 'notificationSettings') {
-        console.log('🔧 [useEventFormState] updateField called for notificationSettings:', value);
+        console.log(
+          '🔧 [useEventFormState] updateField called for notificationSettings:',
+          value
+        );
       }
       setFormData((prev) => {
         const newData = { ...prev, [field]: value };
@@ -231,7 +234,7 @@ const useEventFormState = (initialData = {}, options = {}) => {
     const updates = {
       isPrivate: newIsPrivate,
       // Reset guest invites to false when making event public
-      ...(newIsPrivate ? {} : { allowGuestInvites: false })
+      ...(newIsPrivate ? {} : { allowGuestInvites: false }),
     };
     updateFields(updates);
   }, [formData.isPrivate, updateFields]);
@@ -243,7 +246,6 @@ const useEventFormState = (initialData = {}, options = {}) => {
   const toggleRsvpDeadline = useCallback(() => {
     updateField('hasRsvpDeadline', !formData.hasRsvpDeadline);
   }, [formData.hasRsvpDeadline, updateField]);
-
 
   // Legacy host management functions removed - now handled via invitation system
 
@@ -303,7 +305,7 @@ const useEventFormState = (initialData = {}, options = {}) => {
 // Validation helpers for common use cases
 export const eventFormValidators = {
   title: (value) => {
-    if (!value || (typeof value !== 'string') || value.trim().length === 0) {
+    if (!value || typeof value !== 'string' || value.trim().length === 0) {
       return 'Event name is required';
     }
     if (value.trim().length > 100) {
@@ -313,7 +315,7 @@ export const eventFormValidators = {
   },
 
   location: (value) => {
-    if (!value || (typeof value !== 'string') || value.trim().length === 0) {
+    if (!value || typeof value !== 'string' || value.trim().length === 0) {
       return 'Location is required';
     }
     if (value.trim().length > 200) {
@@ -344,7 +346,7 @@ export const eventFormValidators = {
 
   entryFee: (value, formData) => {
     if (formData.hasFee) {
-      if (!value || (typeof value !== 'string') || value.trim().length === 0) {
+      if (!value || typeof value !== 'string' || value.trim().length === 0) {
         return 'Entry fee amount is required for paid events';
       }
       const feeValue = parseFloat(value.replace(/[$,]/g, ''));

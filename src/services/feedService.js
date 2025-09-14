@@ -18,10 +18,12 @@ import { getFollowing } from './followService';
  */
 const shouldHideEventDueToRSVPDeadline = (eventData) => {
   if (!eventData.rsvpDeadline) return false;
-  
+
   const now = new Date();
-  const deadline = eventData.rsvpDeadline.toDate ? eventData.rsvpDeadline.toDate() : new Date(eventData.rsvpDeadline);
-  
+  const deadline = eventData.rsvpDeadline.toDate
+    ? eventData.rsvpDeadline.toDate()
+    : new Date(eventData.rsvpDeadline);
+
   return deadline < now;
 };
 
@@ -29,7 +31,11 @@ const shouldHideEventDueToRSVPDeadline = (eventData) => {
  * Get events from users that the current user is following
  * This replaces the old invitation-based event discovery
  */
-export const getFollowedUsersEvents = async (currentUserId, userStudio, limitCount = 50) => {
+export const getFollowedUsersEvents = async (
+  currentUserId,
+  userStudio,
+  limitCount = 50
+) => {
   try {
     if (!currentUserId || !userStudio) {
       return [];
@@ -37,17 +43,17 @@ export const getFollowedUsersEvents = async (currentUserId, userStudio, limitCou
 
     // Get list of users that current user is following
     const following = await getFollowing(currentUserId, 100);
-    
+
     if (following.length === 0) {
       return [];
     }
 
-    const followedUserIds = following.map(f => f.targetUserId);
+    const followedUserIds = following.map((f) => f.targetUserId);
 
     // Get all events from followed users in the same studio
     const eventsRef = collection(db, 'studios', userStudio, 'events');
     const now = Timestamp.now();
-    
+
     // Query for upcoming PUBLIC events created by followed users
     const q = query(
       eventsRef,
@@ -61,14 +67,14 @@ export const getFollowedUsersEvents = async (currentUserId, userStudio, limitCou
     const snapshot = await getDocs(q);
     const events = [];
 
-    snapshot.docs.forEach(doc => {
+    snapshot.docs.forEach((doc) => {
       const eventData = {
         id: doc.id,
         ...doc.data(),
         isFromFollowedUser: true,
-        category: 'followed_events'
+        category: 'followed_events',
       };
-      
+
       // Skip events with past RSVP deadlines
       if (!shouldHideEventDueToRSVPDeadline(eventData)) {
         events.push(eventData);
@@ -92,15 +98,15 @@ export const getFollowedUsersEvents = async (currentUserId, userStudio, limitCou
       }
 
       const additionalResults = await Promise.all(additionalBatches);
-      additionalResults.forEach(snapshot => {
-        snapshot.docs.forEach(doc => {
+      additionalResults.forEach((snapshot) => {
+        snapshot.docs.forEach((doc) => {
           const eventData = {
             id: doc.id,
             ...doc.data(),
             isFromFollowedUser: true,
-            category: 'followed_events'
+            category: 'followed_events',
           };
-          
+
           // Skip events with past RSVP deadlines
           if (!shouldHideEventDueToRSVPDeadline(eventData)) {
             events.push(eventData);
@@ -111,13 +117,19 @@ export const getFollowedUsersEvents = async (currentUserId, userStudio, limitCou
 
     // Sort all events by date and limit to requested count
     events.sort((a, b) => {
-      const aDate = a.datetime?.toDate() || new Date(a.utcDateTime) || a.eventTimestamp?.toDate();
-      const bDate = b.datetime?.toDate() || new Date(b.utcDateTime) || b.eventTimestamp?.toDate();
+      const aDate =
+        a.datetime?.toDate() ||
+        new Date(a.utcDateTime) ||
+        a.eventTimestamp?.toDate();
+      const bDate =
+        b.datetime?.toDate() ||
+        new Date(b.utcDateTime) ||
+        b.eventTimestamp?.toDate();
       return aDate - bDate;
     });
 
     const limitedEvents = events.slice(0, limitCount);
-    
+
     return limitedEvents;
   } catch (error) {
     return [];
@@ -128,7 +140,11 @@ export const getFollowedUsersEvents = async (currentUserId, userStudio, limitCou
  * Get suggested events from studio members (not followed)
  * These are public events from other studio members that the user might be interested in
  */
-export const getSuggestedEvents = async (currentUserId, userStudio, limitCount = 20) => {
+export const getSuggestedEvents = async (
+  currentUserId,
+  userStudio,
+  limitCount = 20
+) => {
   try {
     if (!currentUserId || !userStudio) {
       console.warn('[feedService] Missing currentUserId or userStudio');
@@ -137,15 +153,15 @@ export const getSuggestedEvents = async (currentUserId, userStudio, limitCount =
 
     // Get list of users that current user is following
     const following = await getFollowing(currentUserId, 100);
-    const followedUserIds = new Set(following.map(f => f.targetUserId));
-    
+    const followedUserIds = new Set(following.map((f) => f.targetUserId));
+
     // Add current user to exclusion list
     followedUserIds.add(currentUserId);
 
     // Get all upcoming public events from the studio
     const eventsRef = collection(db, 'studios', userStudio, 'events');
     const now = Timestamp.now();
-    
+
     const q = query(
       eventsRef,
       where('eventTimestamp', '>=', now),
@@ -157,9 +173,9 @@ export const getSuggestedEvents = async (currentUserId, userStudio, limitCount =
     const snapshot = await getDocs(q);
     const suggestedEvents = [];
 
-    snapshot.docs.forEach(doc => {
+    snapshot.docs.forEach((doc) => {
       const eventData = { id: doc.id, ...doc.data() };
-      
+
       // Skip events from followed users or current user
       if (!followedUserIds.has(eventData.createdBy)) {
         // Skip events with past RSVP deadlines
@@ -167,14 +183,14 @@ export const getSuggestedEvents = async (currentUserId, userStudio, limitCount =
           suggestedEvents.push({
             ...eventData,
             isSuggested: true,
-            category: 'suggested_events'
+            category: 'suggested_events',
           });
         }
       }
     });
 
     const limitedSuggested = suggestedEvents.slice(0, limitCount);
-    
+
     return limitedSuggested;
   } catch (error) {
     return [];
@@ -189,22 +205,30 @@ export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
     const {
       followedLimit = 30,
       suggestedLimit = 20,
-      includeSubscribed = true
+      includeSubscribed = true,
     } = options;
 
     // Get events from followed users
-    const followedEvents = await getFollowedUsersEvents(currentUserId, userStudio, followedLimit);
-    
+    const followedEvents = await getFollowedUsersEvents(
+      currentUserId,
+      userStudio,
+      followedLimit
+    );
+
     // Get suggested events from non-followed users
-    const suggestedEvents = await getSuggestedEvents(currentUserId, userStudio, suggestedLimit);
-    
+    const suggestedEvents = await getSuggestedEvents(
+      currentUserId,
+      userStudio,
+      suggestedLimit
+    );
+
     // Get user's subscribed events if requested
     let subscribedEvents = [];
     if (includeSubscribed) {
       try {
         const eventsRef = collection(db, 'studios', userStudio, 'events');
         const now = Timestamp.now();
-        
+
         // Get upcoming events
         const upcomingQuery = query(
           eventsRef,
@@ -215,7 +239,9 @@ export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
         );
 
         // Get past events (last 30 days)
-        const thirtyDaysAgo = Timestamp.fromDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
+        const thirtyDaysAgo = Timestamp.fromDate(
+          new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        );
         const pastQuery = query(
           eventsRef,
           where('subscribers', 'array-contains', currentUserId),
@@ -227,21 +253,21 @@ export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
 
         const [upcomingSnapshot, pastSnapshot] = await Promise.all([
           getDocs(upcomingQuery),
-          getDocs(pastQuery)
+          getDocs(pastQuery),
         ]);
 
-        const upcomingEvents = upcomingSnapshot.docs.map(doc => ({
+        const upcomingEvents = upcomingSnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
           isSubscribed: true,
-          category: 'my_events'
+          category: 'my_events',
         }));
 
-        const pastEvents = pastSnapshot.docs.map(doc => ({
+        const pastEvents = pastSnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
           isSubscribed: true,
-          category: 'my_events'
+          category: 'my_events',
         }));
 
         subscribedEvents = [...upcomingEvents, ...pastEvents];
@@ -251,9 +277,13 @@ export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
     }
 
     // Combine and deduplicate events
-    const allEvents = [...subscribedEvents, ...followedEvents, ...suggestedEvents];
+    const allEvents = [
+      ...subscribedEvents,
+      ...followedEvents,
+      ...suggestedEvents,
+    ];
     const seenEventIds = new Set();
-    const uniqueEvents = allEvents.filter(event => {
+    const uniqueEvents = allEvents.filter((event) => {
       if (seenEventIds.has(event.id)) {
         return false;
       }
@@ -277,8 +307,8 @@ export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
         totalEvents: uniqueEvents.length,
         subscribedCount: subscribedEvents.length,
         followedCount: followedEvents.length,
-        suggestedCount: suggestedEvents.length
-      }
+        suggestedCount: suggestedEvents.length,
+      },
     };
   } catch (error) {
     return {
@@ -290,8 +320,8 @@ export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
         totalEvents: 0,
         subscribedCount: 0,
         followedCount: 0,
-        suggestedCount: 0
-      }
+        suggestedCount: 0,
+      },
     };
   }
 };
@@ -299,7 +329,13 @@ export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
 /**
  * Get events created by a specific user (for their profile)
  */
-export const getUserEvents = async (userId, userStudio, includePrivate = false, limitCount = 50, currentUserId = null) => {
+export const getUserEvents = async (
+  userId,
+  userStudio,
+  includePrivate = false,
+  limitCount = 50,
+  currentUserId = null
+) => {
   try {
     if (!userId || !userStudio) {
       return [];
@@ -331,11 +367,11 @@ export const getUserEvents = async (userId, userStudio, includePrivate = false, 
     const snapshot = await getDocs(q);
     const events = [];
 
-    snapshot.docs.forEach(doc => {
+    snapshot.docs.forEach((doc) => {
       const eventData = {
         id: doc.id,
         ...doc.data(),
-        category: 'user_events'
+        category: 'user_events',
       };
 
       // If viewing someone else's profile (not your own), hide events with past RSVP deadlines

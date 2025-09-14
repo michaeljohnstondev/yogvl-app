@@ -7,15 +7,25 @@ import { ScheduledNotificationService } from './scheduledNotifications';
  * This replaces local notifications with reliable server-side push notifications
  */
 class EventNotificationScheduler {
-  
   /**
    * Schedule notifications for a specific event using server-side scheduling
    * Call this when events are created/updated
    */
-  static async scheduleEventReminders(eventId, eventData, userId, customReminderTemplates = []) {
+  static async scheduleEventReminders(
+    eventId,
+    eventData,
+    userId,
+    customReminderTemplates = []
+  ) {
     try {
-      console.log('[EventScheduler] Scheduling server-side FCM reminders for event:', eventId);
-      console.log('[EventScheduler] Custom templates count:', customReminderTemplates.length);
+      console.log(
+        '[EventScheduler] Scheduling server-side FCM reminders for event:',
+        eventId
+      );
+      console.log(
+        '[EventScheduler] Custom templates count:',
+        customReminderTemplates.length
+      );
 
       // Prepare event data for server-side scheduling
       const serverEventData = {
@@ -29,22 +39,27 @@ class EventNotificationScheduler {
       };
 
       // Use server-side scheduler with custom templates
-      const result = await ScheduledNotificationService.scheduleEventRemindersWithCustomTemplates(
-        serverEventData,
-        customReminderTemplates
-      );
+      const result =
+        await ScheduledNotificationService.scheduleEventRemindersWithCustomTemplates(
+          serverEventData,
+          customReminderTemplates
+        );
 
       console.log(`[EventScheduler] Server-side scheduling result:`, result);
 
       // Return legacy format for compatibility
-      return result.notifications?.map(notification => ({
-        notificationId: notification.scheduleId,
-        reminderType: notification.reminderType,
-        scheduledFor: notification.scheduledFor,
-      })) || [];
-
+      return (
+        result.notifications?.map((notification) => ({
+          notificationId: notification.scheduleId,
+          reminderType: notification.reminderType,
+          scheduledFor: notification.scheduledFor,
+        })) || []
+      );
     } catch (error) {
-      console.error('[EventScheduler] Failed to schedule server-side event reminders:', error);
+      console.error(
+        '[EventScheduler] Failed to schedule server-side event reminders:',
+        error
+      );
       return [];
     }
   }
@@ -55,18 +70,26 @@ class EventNotificationScheduler {
    */
   static async cancelEventReminders(eventId) {
     try {
-      console.log('[EventScheduler] Cancelling server-side reminders for event:', eventId);
-      
-      const result = await ScheduledNotificationService.cancelEventNotifications(
-        eventId, 
-        'Event cancelled or deleted'
+      console.log(
+        '[EventScheduler] Cancelling server-side reminders for event:',
+        eventId
       );
 
-      console.log(`[EventScheduler] Cancelled ${result.cancelledCount} server-side reminders for event ${eventId}`);
-      return result;
+      const result =
+        await ScheduledNotificationService.cancelEventNotifications(
+          eventId,
+          'Event cancelled or deleted'
+        );
 
+      console.log(
+        `[EventScheduler] Cancelled ${result.cancelledCount} server-side reminders for event ${eventId}`
+      );
+      return result;
     } catch (error) {
-      console.error('[EventScheduler] Failed to cancel server-side event reminders:', error);
+      console.error(
+        '[EventScheduler] Failed to cancel server-side event reminders:',
+        error
+      );
     }
   }
 
@@ -74,17 +97,33 @@ class EventNotificationScheduler {
    * Reschedule notifications when event time changes
    * Call this when events are updated
    */
-  static async rescheduleEventReminders(eventId, eventData, userId, customReminderTemplates = []) {
+  static async rescheduleEventReminders(
+    eventId,
+    eventData,
+    userId,
+    customReminderTemplates = []
+  ) {
     try {
-      console.log('[EventScheduler] Rescheduling server-side reminders for event:', eventId);
-      
+      console.log(
+        '[EventScheduler] Rescheduling server-side reminders for event:',
+        eventId
+      );
+
       // Cancel existing notifications
       await this.cancelEventReminders(eventId);
-      
+
       // Schedule new notifications
-      return await this.scheduleEventReminders(eventId, eventData, userId, customReminderTemplates);
+      return await this.scheduleEventReminders(
+        eventId,
+        eventData,
+        userId,
+        customReminderTemplates
+      );
     } catch (error) {
-      console.error('[EventScheduler] Failed to reschedule server-side event reminders:', error);
+      console.error(
+        '[EventScheduler] Failed to reschedule server-side event reminders:',
+        error
+      );
       return [];
     }
   }
@@ -96,10 +135,15 @@ class EventNotificationScheduler {
   static async getAllScheduledNotifications() {
     try {
       // This now refers to server-side scheduled notifications
-      console.log('[EventScheduler] Getting server-side scheduled notifications - use ScheduledNotificationService directly');
+      console.log(
+        '[EventScheduler] Getting server-side scheduled notifications - use ScheduledNotificationService directly'
+      );
       return [];
     } catch (error) {
-      console.error('[EventScheduler] Failed to get scheduled notifications:', error);
+      console.error(
+        '[EventScheduler] Failed to get scheduled notifications:',
+        error
+      );
       return [];
     }
   }
@@ -110,9 +154,14 @@ class EventNotificationScheduler {
    */
   static async cancelAllScheduledNotifications() {
     try {
-      console.log('[EventScheduler] Server-side notifications cannot be bulk cancelled - contact admin');
+      console.log(
+        '[EventScheduler] Server-side notifications cannot be bulk cancelled - contact admin'
+      );
     } catch (error) {
-      console.error('[EventScheduler] Failed to cancel all notifications:', error);
+      console.error(
+        '[EventScheduler] Failed to cancel all notifications:',
+        error
+      );
     }
   }
 }

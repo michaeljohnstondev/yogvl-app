@@ -3,13 +3,13 @@ import { View, Text } from 'react-native';
 import { StyleSheet } from 'react-native';
 import theme from '../../../theme/themes';
 
-const ContactItem = ({ 
-  icon, 
-  children, 
+const ContactItem = ({
+  icon,
+  children,
   text,
   textStyle,
   style,
-  isLast = false 
+  isLast = false,
 }) => {
   return (
     <View style={[styles.contactItem, isLast && { marginBottom: 0 }, style]}>

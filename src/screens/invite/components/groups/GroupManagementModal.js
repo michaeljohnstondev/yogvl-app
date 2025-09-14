@@ -12,10 +12,10 @@ const GroupManagementModal = ({
   removeFromGroup,
   showAddToGroupOptions,
   handleDeleteGroup,
-  onCreateNewGroup
+  onCreateNewGroup,
 }) => {
   const vibeAlert = useVibeAlert();
-  
+
   const confirmDeleteGroup = (groupId, groupName) => {
     vibeAlert.confirm(
       'Delete Group',
@@ -24,7 +24,7 @@ const GroupManagementModal = ({
       () => {} // onCancel - do nothing
     );
   };
-  
+
   return (
     <Modal
       visible={visible}
@@ -38,14 +38,18 @@ const GroupManagementModal = ({
         </View>
 
         <ScrollView style={styles.groupModalContent}>
-          {customGroups.map(group => (
+          {customGroups.map((group) => (
             <View key={group.id} style={styles.groupManageItem}>
               <View style={styles.groupManageHeader}>
-                <Text style={styles.groupManageName}>{group.emoji} {group.name}</Text>
+                <Text style={styles.groupManageName}>
+                  {group.emoji} {group.name}
+                </Text>
                 <View style={styles.groupActions}>
-                  <Text style={styles.groupMemberCount}>{group.members.length} members</Text>
+                  <Text style={styles.groupMemberCount}>
+                    {group.members.length} members
+                  </Text>
                   {group.isOwner && (
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       onPress={() => confirmDeleteGroup(group.id, group.name)}
                       style={styles.deleteGroupButton}
                     >
@@ -54,15 +58,19 @@ const GroupManagementModal = ({
                   )}
                 </View>
               </View>
-              
+
               <View style={styles.groupMembersList}>
-                {group.members.map(memberId => {
-                  const member = appUsers.find(user => user.id === memberId);
+                {group.members.map((memberId) => {
+                  const member = appUsers.find((user) => user.id === memberId);
                   return member ? (
                     <View key={memberId} style={styles.groupMemberItem}>
-                      <Text style={styles.groupMemberName}>{member.avatar} {member.name}</Text>
-                      <TouchableOpacity 
-                        onPress={() => removeFromGroup(group.id, memberId, appUsers)}
+                      <Text style={styles.groupMemberName}>
+                        {member.avatar} {member.name}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() =>
+                          removeFromGroup(group.id, memberId, appUsers)
+                        }
                         style={styles.removeMemberButton}
                       >
                         <Text style={styles.removeMemberText}>✕</Text>
@@ -72,7 +80,7 @@ const GroupManagementModal = ({
                 })}
               </View>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.addToGroupButton}
                 onPress={() => showAddToGroupOptions(group, appUsers)}
               >
@@ -81,7 +89,7 @@ const GroupManagementModal = ({
             </View>
           ))}
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.createGroupButton}
             onPress={onCreateNewGroup}
           >

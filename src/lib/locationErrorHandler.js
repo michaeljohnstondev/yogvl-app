@@ -17,42 +17,52 @@ export class LocationErrorHandler {
         type: 'unknown',
         message: 'Unknown error occurred',
         userMessage: 'Something went wrong. Please try again.',
-        canRetry: true
+        canRetry: true,
       };
     }
 
     const errorMessage = error.message || error.toString();
 
     // API Key issues
-    if (errorMessage.includes('API key not valid') || errorMessage.includes('REQUEST_DENIED')) {
+    if (
+      errorMessage.includes('API key not valid') ||
+      errorMessage.includes('REQUEST_DENIED')
+    ) {
       return {
         type: 'api_key',
         message: 'Invalid API key',
         userMessage: 'Location search is temporarily unavailable.',
         canRetry: false,
-        fallbackMessage: 'Please enter your address manually.'
+        fallbackMessage: 'Please enter your address manually.',
       };
     }
 
     // Quota/billing issues
-    if (errorMessage.includes('OVER_QUERY_LIMIT') || errorMessage.includes('quota')) {
+    if (
+      errorMessage.includes('OVER_QUERY_LIMIT') ||
+      errorMessage.includes('quota')
+    ) {
       return {
         type: 'quota',
         message: 'API quota exceeded',
         userMessage: 'Location search limit reached.',
         canRetry: true,
-        fallbackMessage: 'Please enter your address manually or try again later.'
+        fallbackMessage:
+          'Please enter your address manually or try again later.',
       };
     }
 
     // Network issues
-    if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network')) {
+    if (
+      errorMessage.includes('Failed to fetch') ||
+      errorMessage.includes('Network')
+    ) {
       return {
         type: 'network',
         message: 'Network error',
         userMessage: 'Check your internet connection.',
         canRetry: true,
-        fallbackMessage: 'Please try again or enter your address manually.'
+        fallbackMessage: 'Please try again or enter your address manually.',
       };
     }
 
@@ -63,7 +73,7 @@ export class LocationErrorHandler {
         message: 'Invalid request',
         userMessage: 'Unable to search for this location.',
         canRetry: false,
-        fallbackMessage: 'Please enter your address manually.'
+        fallbackMessage: 'Please enter your address manually.',
       };
     }
 
@@ -74,7 +84,8 @@ export class LocationErrorHandler {
         message: 'No results found',
         userMessage: 'No locations found matching your search.',
         canRetry: true,
-        fallbackMessage: 'Try a different search or enter your address manually.'
+        fallbackMessage:
+          'Try a different search or enter your address manually.',
       };
     }
 
@@ -84,7 +95,7 @@ export class LocationErrorHandler {
       message: errorMessage,
       userMessage: 'Location search failed.',
       canRetry: true,
-      fallbackMessage: 'Please enter your address manually or try again.'
+      fallbackMessage: 'Please enter your address manually or try again.',
     };
   }
 
@@ -101,31 +112,37 @@ export class LocationErrorHandler {
         type: 'unknown',
         message: 'Unknown venue service error',
         userMessage: 'Something went wrong.',
-        canRetry: true
+        canRetry: true,
       };
     }
 
     const errorMessage = error.message || error.toString();
 
     // Firebase/Firestore errors
-    if (errorMessage.includes('Firebase') || errorMessage.includes('Firestore')) {
+    if (
+      errorMessage.includes('Firebase') ||
+      errorMessage.includes('Firestore')
+    ) {
       return {
         type: 'firebase',
         message: 'Firebase error',
         userMessage: 'Database temporarily unavailable.',
         canRetry: true,
-        fallbackMessage: 'Please try again or enter your address manually.'
+        fallbackMessage: 'Please try again or enter your address manually.',
       };
     }
 
     // Permission errors
-    if (errorMessage.includes('permission') || errorMessage.includes('unauthorized')) {
+    if (
+      errorMessage.includes('permission') ||
+      errorMessage.includes('unauthorized')
+    ) {
       return {
         type: 'permission',
         message: 'Permission denied',
         userMessage: 'Access to venue database denied.',
         canRetry: false,
-        fallbackMessage: 'Please enter your address manually.'
+        fallbackMessage: 'Please enter your address manually.',
       };
     }
 
@@ -134,7 +151,7 @@ export class LocationErrorHandler {
       message: errorMessage,
       userMessage: 'Venue lookup failed.',
       canRetry: true,
-      fallbackMessage: 'Please enter your address manually.'
+      fallbackMessage: 'Please enter your address manually.',
     };
   }
 
@@ -169,7 +186,7 @@ export class LocationErrorHandler {
    */
   static shouldRetry(errorInfo) {
     if (!errorInfo) return false;
-    
+
     return errorInfo.canRetry === true;
   }
 
@@ -183,7 +200,7 @@ export class LocationErrorHandler {
     if (!errorInfo || !errorInfo.canRetry) return 0;
 
     const baseDelay = 1000; // 1 second base delay
-    
+
     switch (errorInfo.type) {
       case 'network':
         return baseDelay * Math.pow(2, attemptNumber); // Exponential backoff for network
@@ -210,7 +227,7 @@ export class LocationErrorHandler {
       errorMessage: errorInfo.message,
       userMessage: errorInfo.userMessage,
       context,
-      canRetry: errorInfo.canRetry
+      canRetry: errorInfo.canRetry,
     };
 
     console.error(`[LocationErrorHandler] ${service} error:`, logData);

@@ -43,20 +43,20 @@ const formatDisplayTime = (hour, minute, period) => {
 
 // Calculate angle for hour hand (30 degrees per hour + minute offset)
 const getHourAngle = (hour, minute) => {
-  return ((hour % 12) * 30) + (minute * 0.5) - 90; // -90 to start at 12 o'clock
+  return (hour % 12) * 30 + minute * 0.5 - 90; // -90 to start at 12 o'clock
 };
 
 // Calculate angle for minute hand (6 degrees per minute)
 const getMinuteAngle = (minute) => {
-  return (minute * 6) - 90; // -90 to start at 12 o'clock
+  return minute * 6 - 90; // -90 to start at 12 o'clock
 };
 
 // Convert angle and radius to x,y coordinates
 const polarToCartesian = (centerX, centerY, radius, angleInDegrees) => {
   const angleInRadians = (angleInDegrees * Math.PI) / 180;
   return {
-    x: centerX + (radius * Math.cos(angleInRadians)),
-    y: centerY + (radius * Math.sin(angleInRadians))
+    x: centerX + radius * Math.cos(angleInRadians),
+    y: centerY + radius * Math.sin(angleInRadians),
   };
 };
 
@@ -77,7 +77,7 @@ const getMinuteFromPosition = (x, y) => {
   let angle = Math.atan2(dy, dx) * (180 / Math.PI);
   angle = (angle + 90 + 360) % 360; // Normalize to 0-360, starting at 12 o'clock
   const rawMinute = Math.round(angle / 6) % 60;
-  
+
   // Snap to 5-minute increments for easier selection
   const snappedMinute = Math.round(rawMinute / 5) * 5;
   return snappedMinute === 60 ? 0 : snappedMinute;
@@ -87,9 +87,9 @@ const getMinuteFromPosition = (x, y) => {
 const ClockNumbers = React.memo(() => {
   const numbers = Array.from({ length: 12 }, (_, i) => {
     const hour = i === 0 ? 12 : i;
-    const angle = (i * 30) - 90; // -90 to start at 12 o'clock
+    const angle = i * 30 - 90; // -90 to start at 12 o'clock
     const position = polarToCartesian(CLOCK_CENTER, CLOCK_CENTER, 115, angle);
-    
+
     return (
       <SvgText
         key={hour}
@@ -112,7 +112,7 @@ const ClockNumbers = React.memo(() => {
 const ClockHand = React.memo(({ angle, length, color, width = 3 }) => {
   const start = { x: CLOCK_CENTER, y: CLOCK_CENTER };
   const end = polarToCartesian(CLOCK_CENTER, CLOCK_CENTER, length, angle);
-  
+
   return (
     <Line
       x1={start.x}
@@ -130,10 +130,7 @@ const ClockHand = React.memo(({ angle, length, color, width = 3 }) => {
 const AmPmButton = React.memo(({ period, onPress }) => (
   <Pressable
     onPress={onPress}
-    style={({ pressed }) => [
-      { opacity: pressed ? 0.8 : 1 },
-      styles.ampmButton,
-    ]}
+    style={({ pressed }) => [{ opacity: pressed ? 0.8 : 1 }, styles.ampmButton]}
   >
     <LinearGradient
       colors={theme.colors.buttonGradient}
@@ -145,8 +142,6 @@ const AmPmButton = React.memo(({ period, onPress }) => (
     </LinearGradient>
   </Pressable>
 ));
-
-
 
 // Main Analog Clock Component
 const VibeAnalogClock = ({
@@ -187,45 +182,52 @@ const VibeAnalogClock = ({
   const [currentStep, setCurrentStep] = useState(0); // 0: hour, 1: minute
 
   // Calculate hand angles
-  const hourAngle = useMemo(() => 
-    getHourAngle(selectedHour, selectedMinute), 
+  const hourAngle = useMemo(
+    () => getHourAngle(selectedHour, selectedMinute),
     [selectedHour, selectedMinute]
   );
-  
-  const minuteAngle = useMemo(() => 
-    getMinuteAngle(selectedMinute), 
+
+  const minuteAngle = useMemo(
+    () => getMinuteAngle(selectedMinute),
     [selectedMinute]
   );
 
   // Handle clock face touch
-  const handleClockTouch = useCallback((event) => {
-    const { locationX, locationY } = event.nativeEvent;
-    
-    if (currentStep === 0) {
-      // Hour selection
-      const hour = getHourFromPosition(locationX, locationY);
-      setSelectedHour(hour);
-      setCurrentStep(1); // Move to minute selection
-    } else if (currentStep === 1) {
-      // Minute selection
-      const minute = getMinuteFromPosition(locationX, locationY);
-      setSelectedMinute(minute);
-      setCurrentStep(2); // Show both hands
-    } else {
-      // Continue adjusting minutes after both hands are visible
-      const minute = getMinuteFromPosition(locationX, locationY);
-      setSelectedMinute(minute);
-    }
-  }, [currentStep]);
+  const handleClockTouch = useCallback(
+    (event) => {
+      const { locationX, locationY } = event.nativeEvent;
+
+      if (currentStep === 0) {
+        // Hour selection
+        const hour = getHourFromPosition(locationX, locationY);
+        setSelectedHour(hour);
+        setCurrentStep(1); // Move to minute selection
+      } else if (currentStep === 1) {
+        // Minute selection
+        const minute = getMinuteFromPosition(locationX, locationY);
+        setSelectedMinute(minute);
+        setCurrentStep(2); // Show both hands
+      } else {
+        // Continue adjusting minutes after both hands are visible
+        const minute = getMinuteFromPosition(locationX, locationY);
+        setSelectedMinute(minute);
+      }
+    },
+    [currentStep]
+  );
 
   // Handle AM/PM toggle
   const handlePeriodToggle = useCallback(() => {
-    setSelectedPeriod(prev => prev === 'AM' ? 'PM' : 'AM');
+    setSelectedPeriod((prev) => (prev === 'AM' ? 'PM' : 'AM'));
   }, []);
 
   // Handle done button
   const handleDone = useCallback(() => {
-    const newTime = createTimeFromSelection(selectedHour, selectedMinute, selectedPeriod);
+    const newTime = createTimeFromSelection(
+      selectedHour,
+      selectedMinute,
+      selectedPeriod
+    );
     Keyboard.dismiss();
     onConfirm(newTime);
   }, [selectedHour, selectedMinute, selectedPeriod, onConfirm]);
@@ -295,19 +297,44 @@ const VibeAnalogClock = ({
           <View style={styles.header}>
             <View style={styles.timeDisplayContainer}>
               <View style={styles.timePartsContainer}>
-                <Pressable onPress={() => setCurrentStep(0)} style={[styles.timePartContainer, currentStep === 0 && styles.activeTimePart]}>
-                  <Text style={[styles.timeDisplay, currentStep === 0 && styles.activeTimeText]}>
+                <Pressable
+                  onPress={() => setCurrentStep(0)}
+                  style={[
+                    styles.timePartContainer,
+                    currentStep === 0 && styles.activeTimePart,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.timeDisplay,
+                      currentStep === 0 && styles.activeTimeText,
+                    ]}
+                  >
                     {selectedHour}
                   </Text>
                 </Pressable>
                 <Text style={styles.timeDisplay}>:</Text>
-                <Pressable onPress={() => setCurrentStep(1)} style={[styles.timePartContainer, currentStep === 1 && styles.activeTimePart]}>
-                  <Text style={[styles.timeDisplay, currentStep === 1 && styles.activeTimeText]}>
+                <Pressable
+                  onPress={() => setCurrentStep(1)}
+                  style={[
+                    styles.timePartContainer,
+                    currentStep === 1 && styles.activeTimePart,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.timeDisplay,
+                      currentStep === 1 && styles.activeTimeText,
+                    ]}
+                  >
                     {selectedMinute.toString().padStart(2, '0')}
                   </Text>
                 </Pressable>
               </View>
-              <Pressable onPress={handlePeriodToggle} style={styles.ampmContainer}>
+              <Pressable
+                onPress={handlePeriodToggle}
+                style={styles.ampmContainer}
+              >
                 <Text style={styles.ampmDisplay}>{selectedPeriod}</Text>
               </Pressable>
             </View>
@@ -317,7 +344,11 @@ const VibeAnalogClock = ({
           <View style={styles.clockContainer}>
             <View style={styles.clockWrapper}>
               <Pressable onPress={handleClockTouch}>
-                <Svg width={CLOCK_SIZE} height={CLOCK_SIZE} style={styles.clockSvg}>
+                <Svg
+                  width={CLOCK_SIZE}
+                  height={CLOCK_SIZE}
+                  style={styles.clockSvg}
+                >
                   {/* Clock face circle */}
                   <Circle
                     cx={CLOCK_CENTER}
@@ -327,15 +358,25 @@ const VibeAnalogClock = ({
                     stroke={theme.colors.inputBorder}
                     strokeWidth="2"
                   />
-                  
-                  
+
                   {/* Minute markers */}
                   {Array.from({ length: 60 }, (_, i) => {
-                    if (i % 5 !== 0) { // Skip hour positions
-                      const angle = (i * 6) - 90;
-                      const outerPos = polarToCartesian(CLOCK_CENTER, CLOCK_CENTER, CLOCK_RADIUS - 5, angle);
-                      const innerPos = polarToCartesian(CLOCK_CENTER, CLOCK_CENTER, CLOCK_RADIUS - 12, angle);
-                      
+                    if (i % 5 !== 0) {
+                      // Skip hour positions
+                      const angle = i * 6 - 90;
+                      const outerPos = polarToCartesian(
+                        CLOCK_CENTER,
+                        CLOCK_CENTER,
+                        CLOCK_RADIUS - 5,
+                        angle
+                      );
+                      const innerPos = polarToCartesian(
+                        CLOCK_CENTER,
+                        CLOCK_CENTER,
+                        CLOCK_RADIUS - 12,
+                        angle
+                      );
+
                       return (
                         <Line
                           key={i}
@@ -350,10 +391,10 @@ const VibeAnalogClock = ({
                     }
                     return null;
                   })}
-                  
+
                   {/* Numbers */}
                   <ClockNumbers />
-                  
+
                   {/* Clock hands - show progressively */}
                   {currentStep >= 1 && (
                     <>
@@ -364,7 +405,7 @@ const VibeAnalogClock = ({
                         color={theme.colors.vibeGreen}
                         width={4}
                       />
-                      
+
                       {/* Center dot */}
                       <Circle
                         cx={CLOCK_CENTER}
@@ -374,7 +415,7 @@ const VibeAnalogClock = ({
                       />
                     </>
                   )}
-                  
+
                   {/* Minute hand - only show after second click/interaction */}
                   {currentStep > 1 && (
                     <ClockHand
@@ -395,7 +436,7 @@ const VibeAnalogClock = ({
               <Pressable onPress={handleCancel} style={styles.cancelButton}>
                 <Text style={styles.cancelButtonText}>{cancelText}</Text>
               </Pressable>
-              
+
               <Pressable onPress={handleDone} style={styles.doneButton}>
                 <Text style={styles.doneButtonText}>{confirmText}</Text>
               </Pressable>

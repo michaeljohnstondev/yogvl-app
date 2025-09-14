@@ -44,8 +44,14 @@ export default function ModerationInfo({ targetUserId, style = {} }) {
     try {
       const banStatus = await moderationService.getBanStatus(targetUserId);
       if (banStatus.isBanned) {
-        const banType = banStatus.type === 'permanent' ? 'Permanently Banned' : `Temp Banned (${banStatus.daysRemaining} days left)`;
-        Alert.alert('Ban Status', `User is ${banType}\nReason: ${banStatus.reason}`);
+        const banType =
+          banStatus.type === 'permanent'
+            ? 'Permanently Banned'
+            : `Temp Banned (${banStatus.daysRemaining} days left)`;
+        Alert.alert(
+          'Ban Status',
+          `User is ${banType}\nReason: ${banStatus.reason}`
+        );
       } else {
         Alert.alert('Ban Status', 'User is not currently banned');
       }
@@ -85,12 +91,13 @@ export default function ModerationInfo({ targetUserId, style = {} }) {
   const stats = moderationData.stats || {};
   const hasActiveStrikes = stats.activeStrikes > 0;
   const hasWarnings = stats.totalWarnings > 0;
-  const hasBans = moderationData.bans?.tempBans?.length > 0 || moderationData.bans?.permBan;
+  const hasBans =
+    moderationData.bans?.tempBans?.length > 0 || moderationData.bans?.permBan;
 
   return (
     <View style={[styles.container, style]}>
-      <TouchableOpacity 
-        style={styles.header} 
+      <TouchableOpacity
+        style={styles.header}
         onPress={() => setExpanded(!expanded)}
         activeOpacity={0.7}
       >
@@ -101,17 +108,19 @@ export default function ModerationInfo({ targetUserId, style = {} }) {
       {/* Summary Stats */}
       <View style={styles.summaryContainer}>
         <View style={styles.statItem}>
-          <Text style={[styles.statNumber, hasActiveStrikes && styles.alertNumber]}>
+          <Text
+            style={[styles.statNumber, hasActiveStrikes && styles.alertNumber]}
+          >
             {stats.activeStrikes || 0}
           </Text>
           <Text style={styles.statLabel}>Active Strikes</Text>
         </View>
-        
+
         <View style={styles.statItem}>
           <Text style={styles.statNumber}>{stats.totalStrikes || 0}</Text>
           <Text style={styles.statLabel}>Total Strikes</Text>
         </View>
-        
+
         <View style={styles.statItem}>
           <Text style={styles.statNumber}>{stats.totalWarnings || 0}</Text>
           <Text style={styles.statLabel}>Warnings</Text>
@@ -132,11 +141,18 @@ export default function ModerationInfo({ targetUserId, style = {} }) {
               <Text style={styles.sectionTitle}>Recent Strikes</Text>
               {moderationData.strikes.slice(-3).map((strike, index) => (
                 <View key={strike.id} style={styles.recordItem}>
-                  <Text style={[styles.recordType, !strike.active && styles.inactiveRecord]}>
+                  <Text
+                    style={[
+                      styles.recordType,
+                      !strike.active && styles.inactiveRecord,
+                    ]}
+                  >
                     {strike.active ? '⚠️ Active Strike' : '⚪ Expired Strike'}
                   </Text>
                   <Text style={styles.recordReason}>{strike.reason}</Text>
-                  <Text style={styles.recordDate}>{formatDate(strike.issuedAt)}</Text>
+                  <Text style={styles.recordDate}>
+                    {formatDate(strike.issuedAt)}
+                  </Text>
                 </View>
               ))}
             </View>
@@ -150,7 +166,9 @@ export default function ModerationInfo({ targetUserId, style = {} }) {
                 <View key={warning.id} style={styles.recordItem}>
                   <Text style={styles.recordType}>💬 Warning</Text>
                   <Text style={styles.recordReason}>{warning.reason}</Text>
-                  <Text style={styles.recordDate}>{formatDate(warning.issuedAt)}</Text>
+                  <Text style={styles.recordDate}>
+                    {formatDate(warning.issuedAt)}
+                  </Text>
                 </View>
               ))}
             </View>
@@ -162,15 +180,26 @@ export default function ModerationInfo({ targetUserId, style = {} }) {
               <Text style={styles.sectionTitle}>Ban History</Text>
               {moderationData.bans?.permBan && (
                 <View style={styles.recordItem}>
-                  <Text style={[styles.recordType, styles.permBanText]}>🚫 Permanent Ban</Text>
-                  <Text style={styles.recordReason}>{moderationData.bans.permBan.reason}</Text>
-                  <Text style={styles.recordDate}>{formatDate(moderationData.bans.permBan.issuedAt)}</Text>
+                  <Text style={[styles.recordType, styles.permBanText]}>
+                    🚫 Permanent Ban
+                  </Text>
+                  <Text style={styles.recordReason}>
+                    {moderationData.bans.permBan.reason}
+                  </Text>
+                  <Text style={styles.recordDate}>
+                    {formatDate(moderationData.bans.permBan.issuedAt)}
+                  </Text>
                 </View>
               )}
-              
+
               {moderationData.bans?.tempBans?.slice(-2).map((ban, index) => (
                 <View key={ban.id} style={styles.recordItem}>
-                  <Text style={[styles.recordType, ban.active && styles.activeBanText]}>
+                  <Text
+                    style={[
+                      styles.recordType,
+                      ban.active && styles.activeBanText,
+                    ]}
+                  >
                     {ban.active ? '🔒 Active Temp Ban' : '🔓 Past Temp Ban'}
                   </Text>
                   <Text style={styles.recordReason}>{ban.reason}</Text>

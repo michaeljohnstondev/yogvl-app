@@ -1,7 +1,9 @@
 // FILE: services/fcmService.js - Firebase Cloud Messaging Service for Push Notifications
 
 import { Platform } from 'react-native';
-import messaging from '@react-native-firebase/messaging';
+import messaging, {
+  setBackgroundMessageHandler,
+} from '@react-native-firebase/messaging';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -15,8 +17,11 @@ const STORAGE_KEYS = {
 
 // Configure Firebase messaging for background message handling
 try {
-  messaging().setBackgroundMessageHandler(async remoteMessage => {
-    console.log('[FCMService] Message handled in the background!', remoteMessage);
+  setBackgroundMessageHandler(async (remoteMessage) => {
+    console.log(
+      '[FCMService] Message handled in the background!',
+      remoteMessage
+    );
     // Handle background notification here if needed
   });
 } catch (error) {
@@ -57,7 +62,9 @@ class FCMService {
       this.setupFirebaseListeners();
 
       this.isInitialized = true;
-      console.log('[FCMService] Firebase messaging service initialized successfully');
+      console.log(
+        '[FCMService] Firebase messaging service initialized successfully'
+      );
 
       return true;
     } catch (error) {
@@ -71,25 +78,30 @@ class FCMService {
    */
   setupFirebaseListeners() {
     // Listener for messages received while app is in foreground
-    this.foregroundListener = messaging().onMessage(async remoteMessage => {
+    this.foregroundListener = messaging().onMessage(async (remoteMessage) => {
       console.log('[FCMService] Foreground message received:', remoteMessage);
       this.handleForegroundMessage(remoteMessage);
     });
 
     // Listener for when user taps on notification (app was in background)
-    this.notificationOpenedListener = messaging().onNotificationOpenedApp(remoteMessage => {
-      console.log('[FCMService] Notification opened app:', remoteMessage);
-      if (remoteMessage?.data) {
-        this.navigateFromNotification(remoteMessage.data);
+    this.notificationOpenedListener = messaging().onNotificationOpenedApp(
+      (remoteMessage) => {
+        console.log('[FCMService] Notification opened app:', remoteMessage);
+        if (remoteMessage?.data) {
+          this.navigateFromNotification(remoteMessage.data);
+        }
       }
-    });
+    );
 
     // Check if app was opened from a notification (app was quit)
     messaging()
       .getInitialNotification()
-      .then(remoteMessage => {
+      .then((remoteMessage) => {
         if (remoteMessage) {
-          console.log('[FCMService] App opened from notification:', remoteMessage);
+          console.log(
+            '[FCMService] App opened from notification:',
+            remoteMessage
+          );
           if (remoteMessage?.data) {
             // Delay navigation to allow app to fully initialize
             setTimeout(() => {
@@ -111,54 +123,66 @@ class FCMService {
       console.log('[FCMService] Requesting notification permission...');
 
       if (!Device.isDevice) {
-        console.warn('[FCMService] Must use physical device for push notifications');
+        console.warn(
+          '[FCMService] Must use physical device for push notifications'
+        );
         return { granted: false, error: 'Physical device required' };
       }
 
       let authStatus;
-      
+
       if (Platform.OS === 'ios') {
         // Request permission for iOS
         authStatus = await messaging().requestPermission();
-        
-        const granted = 
+
+        const granted =
           authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
           authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-          
+
         // Store that we've requested permission
         await AsyncStorage.setItem(STORAGE_KEYS.PERMISSION_REQUESTED, 'true');
 
-        console.log('[FCMService] iOS permission result:', authStatus, 'granted:', granted);
-        
-        return { 
-          granted, 
+        console.log(
+          '[FCMService] iOS permission result:',
+          authStatus,
+          'granted:',
+          granted
+        );
+
+        return {
+          granted,
           status: authStatus,
-          provisional: authStatus === messaging.AuthorizationStatus.PROVISIONAL 
+          provisional: authStatus === messaging.AuthorizationStatus.PROVISIONAL,
         };
       } else {
         // Android - check if permission is already granted
         authStatus = await messaging().hasPermission();
         const granted = authStatus === messaging.AuthorizationStatus.AUTHORIZED;
-        
+
         if (!granted) {
           // Request permission for Android
           authStatus = await messaging().requestPermission();
         }
-        
-        const finalGranted = authStatus === messaging.AuthorizationStatus.AUTHORIZED;
-        
+
+        const finalGranted =
+          authStatus === messaging.AuthorizationStatus.AUTHORIZED;
+
         // Store that we've requested permission
         await AsyncStorage.setItem(STORAGE_KEYS.PERMISSION_REQUESTED, 'true');
 
-        console.log('[FCMService] Android permission result:', authStatus, 'granted:', finalGranted);
-        
-        return { 
-          granted: finalGranted, 
+        console.log(
+          '[FCMService] Android permission result:',
+          authStatus,
+          'granted:',
+          finalGranted
+        );
+
+        return {
+          granted: finalGranted,
           status: authStatus,
-          provisional: false 
+          provisional: false,
         };
       }
-
     } catch (error) {
       console.error('[FCMService] Permission request failed:', error);
       return { granted: false, error: error.message };
@@ -174,7 +198,9 @@ class FCMService {
       console.log('[FCMService] Getting FCM token...');
 
       if (!Device.isDevice) {
-        console.warn('[FCMService] Must use physical device for push notifications');
+        console.warn(
+          '[FCMService] Must use physical device for push notifications'
+        );
         return null;
       }
 
@@ -183,7 +209,7 @@ class FCMService {
 
       if (token) {
         console.log('[FCMService] FCM token obtained successfully');
-        
+
         // Store token locally
         await AsyncStorage.setItem(STORAGE_KEYS.FCM_TOKEN, token);
         this.currentToken = token;
@@ -225,7 +251,7 @@ class FCMService {
       }
 
       // Get push token
-      const token = this.currentToken || await this.getFCMToken();
+      const token = this.currentToken || (await this.getFCMToken());
       if (!token) {
         console.warn('[FCMService] No FCM token available for registration');
         return false;
@@ -234,11 +260,11 @@ class FCMService {
       // Check if token has changed before updating
       const userRef = doc(db, 'users', userId);
       const userDoc = await getDoc(userRef);
-      
+
       if (userDoc.exists()) {
         const currentToken = userDoc.data()?.deviceInfo?.fcmToken;
         const currentPlatform = userDoc.data()?.deviceInfo?.platform;
-        
+
         // Only update if token or platform changed
         if (currentToken === token && currentPlatform === Platform.OS) {
           console.log('[FCMService] Token unchanged, skipping update');
@@ -257,7 +283,6 @@ class FCMService {
 
       console.log('[FCMService] FCM token updated for user:', userId);
       return true;
-
     } catch (error) {
       console.error('[FCMService] Failed to register token for user:', error);
       return false;
@@ -284,7 +309,7 @@ class FCMService {
    */
   navigateFromNotification(data) {
     console.log('[FCMService] Navigation requested:', data);
-    
+
     if (!this.navigationRef) {
       console.warn('[FCMService] Navigation ref not set, cannot navigate');
       return;
@@ -292,7 +317,8 @@ class FCMService {
 
     // Prevent rapid navigation calls that can cause screen resets
     const now = Date.now();
-    if (now - this.lastNavigationTime < 1000) { // 1 second cooldown
+    if (now - this.lastNavigationTime < 1000) {
+      // 1 second cooldown
       console.log('[FCMService] Skipping navigation due to recent navigation');
       return;
     }
@@ -309,7 +335,7 @@ class FCMService {
             this.navigationRef.navigate('EventDetail', { eventId });
           }
           break;
-        
+
         case 'follow_notification':
         case 'mutual_follow':
           if (userId) {
@@ -336,7 +362,7 @@ class FCMService {
           // Navigate to home where banned modal will show
           this.navigationRef.navigate('Home');
           break;
-        
+
         default:
           if (screen) {
             this.navigationRef.navigate(screen);
@@ -364,13 +390,14 @@ class FCMService {
     try {
       const authStatus = await messaging().hasPermission();
       const granted = authStatus === messaging.AuthorizationStatus.AUTHORIZED;
-      
-      return { 
-        granted, 
+
+      return {
+        granted,
         status: authStatus,
         provisional: authStatus === messaging.AuthorizationStatus.PROVISIONAL,
         denied: authStatus === messaging.AuthorizationStatus.DENIED,
-        notDetermined: authStatus === messaging.AuthorizationStatus.NOT_DETERMINED
+        notDetermined:
+          authStatus === messaging.AuthorizationStatus.NOT_DETERMINED,
       };
     } catch (error) {
       console.error('[FCMService] Failed to get permission status:', error);
@@ -385,21 +412,24 @@ class FCMService {
     try {
       const userRef = doc(db, 'users', userId);
       const userSnap = await getDoc(userRef);
-      
+
       if (!userSnap.exists()) {
         console.warn('[FCMService] User document not found:', userId);
         return null;
       }
 
       const preferences = userSnap.data()?.userdata?.settings?.notifications;
-      
+
       return {
         app: preferences?.app || {},
         hosting: preferences?.hosting || {},
         attending: preferences?.attending || {},
       };
     } catch (error) {
-      console.error('[FCMService] Failed to get user notification preferences:', error);
+      console.error(
+        '[FCMService] Failed to get user notification preferences:',
+        error
+      );
       return null;
     }
   }
@@ -424,7 +454,6 @@ class FCMService {
 
       console.log('[FCMService] Token removed for user:', userId);
       return true;
-
     } catch (error) {
       console.error('[FCMService] Failed to remove token for user:', error);
       return false;

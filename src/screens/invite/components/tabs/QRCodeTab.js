@@ -8,14 +8,14 @@ const QRCodeTab = ({
   eventId,
   inviteCode,
   studioId,
-  
+
   // UI state
-  isHostMode
+  isHostMode,
 }) => {
   return (
     <View style={styles.qrContainer}>
       <Text style={styles.qrTitle}>Share with QR Codes</Text>
-      
+
       {/* Event QR Code for App Users */}
       {inviteCode && (
         <View style={styles.qrSection}>
@@ -26,12 +26,10 @@ const QRCodeTab = ({
             size={180}
             showShareButton={false}
           />
-          <Text style={styles.qrDescription}>
-            Scan to join event instantly
-          </Text>
+          <Text style={styles.qrDescription}>Scan to join event instantly</Text>
         </View>
       )}
-      
+
       {/* App Download QR Code for New Users */}
       {studioId && eventId && (
         <View style={styles.qrSection}>

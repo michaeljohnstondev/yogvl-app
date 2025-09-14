@@ -22,12 +22,12 @@ import { db } from '../auth/services/firebase';
 
 /**
  * NOTIFICATION DATA MODEL:
- * 
+ *
  * Collection: /users/{userId}/notifications/{notificationId}
  * {
  *   id: string,
  *   userId: string, // recipient
- *   type: 'invitation_received' | 'invitation_accepted' | 'invitation_declined' | 
+ *   type: 'invitation_received' | 'invitation_accepted' | 'invitation_declined' |
  *         'event_updated' | 'event_cancelled' | 'event_reminder' | 'system',
  *   title: string,
  *   message: string,
@@ -40,7 +40,7 @@ import { db } from '../auth/services/firebase';
  *   channels: ['push', 'email', 'sms'], // delivery channels
  *   status: 'pending' | 'sent' | 'delivered' | 'failed',
  * }
- * 
+ *
  * User notification preferences:
  * /users/{userId}/notificationPreferences/{settingsId}
  * {
@@ -125,15 +125,19 @@ export const createNotification = async ({
 
     // Check user notification preferences
     const preferences = await getUserNotificationPreferences(userId);
-    const shouldSend = await shouldSendNotification(type, preferences, channels);
-    
+    const shouldSend = await shouldSendNotification(
+      type,
+      preferences,
+      channels
+    );
+
     if (!shouldSend.send) {
       console.log(`Notification not sent: ${shouldSend.reason}`);
       return { success: false, reason: shouldSend.reason };
     }
 
     // Filter channels based on user preferences
-    const allowedChannels = channels.filter(channel => {
+    const allowedChannels = channels.filter((channel) => {
       switch (channel) {
         case DELIVERY_CHANNELS.PUSH:
           return preferences.pushNotifications;
@@ -153,8 +157,14 @@ export const createNotification = async ({
 
     // Create notification document in user's subcollection
     const notificationId = `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const notificationRef = doc(db, 'users', userId, 'notifications', notificationId);
-    
+    const notificationRef = doc(
+      db,
+      'users',
+      userId,
+      'notifications',
+      notificationId
+    );
+
     const notification = {
       id: notificationId,
       userId,
@@ -194,8 +204,8 @@ export const createNotification = async ({
           userdata: {
             metadata: {
               createdAt: new Date(),
-            }
-          }
+            },
+          },
         });
       } else {
         throw error;
@@ -231,9 +241,7 @@ export const getUserNotifications = async (userId, options = {}) => {
       types = null, // array of types to filter
     } = options;
 
-    let q = query(
-      collection(db, 'users', userId, 'notifications')
-    );
+    let q = query(collection(db, 'users', userId, 'notifications'));
 
     if (unreadOnly) {
       q = query(q, where('read', '==', false));
@@ -250,7 +258,7 @@ export const getUserNotifications = async (userId, options = {}) => {
     const snapshot = await getDocs(q);
     const notifications = [];
 
-    snapshot.docs.forEach(doc => {
+    snapshot.docs.forEach((doc) => {
       const data = doc.data();
       notifications.push({
         ...data,
@@ -275,18 +283,24 @@ export const getUserNotifications = async (userId, options = {}) => {
  */
 export const markNotificationAsRead = async (notificationId, userId) => {
   const batch = writeBatch(db);
-  
+
   try {
     // Get notification to verify ownership and current read status
-    const notificationRef = doc(db, 'users', userId, 'notifications', notificationId);
+    const notificationRef = doc(
+      db,
+      'users',
+      userId,
+      'notifications',
+      notificationId
+    );
     const notificationDoc = await getDoc(notificationRef);
-    
+
     if (!notificationDoc.exists()) {
       throw new Error('Notification not found');
     }
 
     const notification = notificationDoc.data();
-    
+
     if (notification.userId !== userId) {
       throw new Error('Unauthorized to mark this notification as read');
     }
@@ -328,7 +342,7 @@ export const markAllNotificationsAsRead = async (userId) => {
     );
 
     const snapshot = await getDocs(q);
-    
+
     if (snapshot.empty) {
       return { success: true, updatedCount: 0 };
     }
@@ -336,7 +350,7 @@ export const markAllNotificationsAsRead = async (userId) => {
     const batch = writeBatch(db);
 
     // Mark all as read
-    snapshot.docs.forEach(doc => {
+    snapshot.docs.forEach((doc) => {
       batch.update(doc.ref, {
         read: true,
         readAt: Timestamp.now(),
@@ -363,18 +377,24 @@ export const markAllNotificationsAsRead = async (userId) => {
  */
 export const deleteNotification = async (notificationId, userId) => {
   const batch = writeBatch(db);
-  
+
   try {
     // Get notification to verify ownership and read status
-    const notificationRef = doc(db, 'users', userId, 'notifications', notificationId);
+    const notificationRef = doc(
+      db,
+      'users',
+      userId,
+      'notifications',
+      notificationId
+    );
     const notificationDoc = await getDoc(notificationRef);
-    
+
     if (!notificationDoc.exists()) {
       throw new Error('Notification not found');
     }
 
     const notification = notificationDoc.data();
-    
+
     if (notification.userId !== userId) {
       throw new Error('Unauthorized to delete this notification');
     }
@@ -406,7 +426,9 @@ export const cleanupExpiredNotifications = async () => {
   // TODO: With per-user subcollections, this would need to query all users
   // For now, expired notifications will be cleaned up when users query their notifications
   try {
-    console.log('Expired notification cleanup not implemented for per-user subcollections yet');
+    console.log(
+      'Expired notification cleanup not implemented for per-user subcollections yet'
+    );
     return { success: true, deletedCount: 0 };
   } catch (error) {
     console.error('Error cleaning up expired notifications:', error);
@@ -425,11 +447,11 @@ const getUserNotificationPreferences = async (userId) => {
     // First try the correct location in userdata.settings.notifications
     const userRef = doc(db, 'users', userId);
     const userDoc = await getDoc(userRef);
-    
+
     if (userDoc.exists()) {
       const userData = userDoc.data();
       const notifications = userData?.userdata?.settings?.notifications;
-      
+
       if (notifications) {
         // Map our database structure to expected format
         return {
@@ -445,7 +467,8 @@ const getUserNotificationPreferences = async (userId) => {
             reminders: notifications.attending?.eventReminders !== false,
             cancellations: true, // Always allow critical notifications
             attendeeChanges: notifications.hosting?.notifyOnJoin !== false,
-            attendanceReminders: notifications.attending?.eventReminders !== false,
+            attendanceReminders:
+              notifications.attending?.eventReminders !== false,
           },
           friendRequests: {
             received: notifications.app?.friendAdded !== false,
@@ -465,9 +488,15 @@ const getUserNotificationPreferences = async (userId) => {
     }
 
     // Fallback: check old location for backward compatibility
-    const prefsRef = doc(db, 'users', userId, 'notificationPreferences', 'settings');
+    const prefsRef = doc(
+      db,
+      'users',
+      userId,
+      'notificationPreferences',
+      'settings'
+    );
     const prefsDoc = await getDoc(prefsRef);
-    
+
     if (prefsDoc.exists()) {
       return prefsDoc.data();
     }
@@ -513,7 +542,13 @@ const getUserNotificationPreferences = async (userId) => {
       emailNotifications: false,
       smsNotifications: false,
       invitations: { received: true, responses: false },
-      events: { updates: true, reminders: false, cancellations: true, attendeeChanges: true, attendanceReminders: true },
+      events: {
+        updates: true,
+        reminders: false,
+        cancellations: true,
+        attendeeChanges: true,
+        attendanceReminders: true,
+      },
       friendRequests: { received: true, responses: true },
       cohostInvitations: { received: true, responses: true },
       followers: { newFollower: true },
@@ -531,70 +566,109 @@ const shouldSendNotification = async (type, preferences, channels) => {
     switch (type) {
       case NOTIFICATION_TYPES.INVITATION_RECEIVED:
         if (!preferences.invitations?.received) {
-          return { send: false, reason: 'User disabled invitation notifications' };
+          return {
+            send: false,
+            reason: 'User disabled invitation notifications',
+          };
         }
         break;
       case NOTIFICATION_TYPES.INVITATION_ACCEPTED:
       case NOTIFICATION_TYPES.INVITATION_DECLINED:
         if (!preferences.invitations?.responses) {
-          return { send: false, reason: 'User disabled invitation response notifications' };
+          return {
+            send: false,
+            reason: 'User disabled invitation response notifications',
+          };
         }
         break;
       case NOTIFICATION_TYPES.EVENT_JOINED:
       case NOTIFICATION_TYPES.EVENT_LEFT:
         if (!preferences.events?.attendeeChanges) {
-          return { send: false, reason: 'User disabled attendee change notifications' };
+          return {
+            send: false,
+            reason: 'User disabled attendee change notifications',
+          };
         }
         break;
       case NOTIFICATION_TYPES.EVENT_UPDATED:
         if (!preferences.events?.updates) {
-          return { send: false, reason: 'User disabled event update notifications' };
+          return {
+            send: false,
+            reason: 'User disabled event update notifications',
+          };
         }
         break;
       case NOTIFICATION_TYPES.EVENT_CANCELLED:
         if (!preferences.events?.cancellations) {
-          return { send: false, reason: 'User disabled event cancellation notifications' };
+          return {
+            send: false,
+            reason: 'User disabled event cancellation notifications',
+          };
         }
         break;
       case NOTIFICATION_TYPES.EVENT_REMINDER:
         if (!preferences.events?.reminders) {
-          return { send: false, reason: 'User disabled event reminder notifications' };
+          return {
+            send: false,
+            reason: 'User disabled event reminder notifications',
+          };
         }
         break;
       case NOTIFICATION_TYPES.ATTENDANCE_REMINDER:
         if (!preferences.events?.attendanceReminders) {
-          return { send: false, reason: 'User disabled attendance reminder notifications' };
+          return {
+            send: false,
+            reason: 'User disabled attendance reminder notifications',
+          };
         }
         break;
       case NOTIFICATION_TYPES.EVENT_WRAPUP_HOST:
       case NOTIFICATION_TYPES.EVENT_WRAPUP_GUEST:
         if (!preferences.events?.wrapUpReminders) {
-          return { send: false, reason: 'User disabled wrap-up reminder notifications' };
+          return {
+            send: false,
+            reason: 'User disabled wrap-up reminder notifications',
+          };
         }
         break;
       case NOTIFICATION_TYPES.NEW_FOLLOWER:
         if (!preferences.followers?.newFollower) {
-          return { send: false, reason: 'User disabled new follower notifications' };
+          return {
+            send: false,
+            reason: 'User disabled new follower notifications',
+          };
         }
         break;
       case NOTIFICATION_TYPES.FRIEND_REQUEST:
         if (!preferences.friendRequests?.received) {
-          return { send: false, reason: 'User disabled friend request notifications' };
+          return {
+            send: false,
+            reason: 'User disabled friend request notifications',
+          };
         }
         break;
       case NOTIFICATION_TYPES.FRIEND_ACCEPTED:
         if (!preferences.friendRequests?.responses) {
-          return { send: false, reason: 'User disabled friend request response notifications' };
+          return {
+            send: false,
+            reason: 'User disabled friend request response notifications',
+          };
         }
         break;
       case NOTIFICATION_TYPES.COHOST_INVITATION:
         if (!preferences.cohostInvitations?.received) {
-          return { send: false, reason: 'User disabled cohost invitation notifications' };
+          return {
+            send: false,
+            reason: 'User disabled cohost invitation notifications',
+          };
         }
         break;
       case NOTIFICATION_TYPES.COHOST_ACCEPTED:
         if (!preferences.cohostInvitations?.responses) {
-          return { send: false, reason: 'User disabled cohost invitation response notifications' };
+          return {
+            send: false,
+            reason: 'User disabled cohost invitation response notifications',
+          };
         }
         break;
     }
@@ -604,7 +678,7 @@ const shouldSendNotification = async (type, preferences, channels) => {
       const now = new Date();
       const currentTime = now.toTimeString().substr(0, 5); // "HH:MM"
       const { startTime, endTime } = preferences.quietHours;
-      
+
       if (isInQuietHours(currentTime, startTime, endTime)) {
         // Only allow urgent notifications during quiet hours
         const hasUrgentChannel = channels.includes(DELIVERY_CHANNELS.PUSH);
@@ -676,12 +750,22 @@ const sendNotificationToChannels = async (notification, channels) => {
   }
 
   // Update notification status based on results
-  const allSuccessful = results.every(r => r.success);
-  const anySuccessful = results.some(r => r.success);
-  
-  const status = allSuccessful ? 'delivered' : anySuccessful ? 'sent' : 'failed';
-  
-  const notificationRef = doc(db, 'users', notification.userId, 'notifications', notification.id);
+  const allSuccessful = results.every((r) => r.success);
+  const anySuccessful = results.some((r) => r.success);
+
+  const status = allSuccessful
+    ? 'delivered'
+    : anySuccessful
+      ? 'sent'
+      : 'failed';
+
+  const notificationRef = doc(
+    db,
+    'users',
+    notification.userId,
+    'notifications',
+    notification.id
+  );
   await updateDoc(notificationRef, {
     status,
     deliveryResults: results,
@@ -697,28 +781,41 @@ const sendNotificationToChannels = async (notification, channels) => {
  */
 const sendPushNotification = async (notification) => {
   try {
-    console.log(`[sendPushNotification] ⏩ Starting FCM push notification to user ${notification.userId}:`, {
-      type: notification.type,
-      title: notification.title,
-      message: notification.message
-    });
+    console.log(
+      `[sendPushNotification] ⏩ Starting FCM push notification to user ${notification.userId}:`,
+      {
+        type: notification.type,
+        title: notification.title,
+        message: notification.message,
+      }
+    );
 
     // Get user's FCM token
     const userDoc = await getDoc(doc(db, 'users', notification.userId));
     if (!userDoc.exists()) {
-      console.error(`[sendPushNotification] User ${notification.userId} not found in database`);
+      console.error(
+        `[sendPushNotification] User ${notification.userId} not found in database`
+      );
       throw new Error('User not found');
     }
-    
+
     const userData = userDoc.data();
     const fcmToken = userData.deviceInfo?.fcmToken;
-    
+
     if (!fcmToken) {
-      console.warn(`[sendPushNotification] No FCM token found for user ${notification.userId}. User may not have set up notifications yet.`);
-      return { success: false, error: 'No FCM token found - user needs to enable notifications' };
+      console.warn(
+        `[sendPushNotification] No FCM token found for user ${notification.userId}. User may not have set up notifications yet.`
+      );
+      return {
+        success: false,
+        error: 'No FCM token found - user needs to enable notifications',
+      };
     }
 
-    console.log(`[sendPushNotification] Found FCM token for user ${notification.userId}:`, fcmToken?.substring(0, 20) + '...');
+    console.log(
+      `[sendPushNotification] Found FCM token for user ${notification.userId}:`,
+      fcmToken?.substring(0, 20) + '...'
+    );
 
     // Create notification trigger for Cloud Function to handle
     // This is more reliable than client-side FCM calls
@@ -734,11 +831,15 @@ const sendPushNotification = async (notification) => {
       processed: false,
     });
 
-    console.log(`[sendPushNotification] ✅ Push notification trigger created for user ${notification.userId}`);
+    console.log(
+      `[sendPushNotification] ✅ Push notification trigger created for user ${notification.userId}`
+    );
     return { success: true, triggerId: triggerRef.id };
-    
   } catch (error) {
-    console.error(`[sendPushNotification] ❌ Push notification error for user ${notification.userId}:`, error);
+    console.error(
+      `[sendPushNotification] ❌ Push notification error for user ${notification.userId}:`,
+      error
+    );
     return { success: false, error: error.message };
   }
 };
@@ -748,29 +849,37 @@ const sendPushNotification = async (notification) => {
  */
 const sendEmailNotification = async (notification) => {
   try {
-    const { sendInvitationEmail, sendEventUpdateEmail, sendEventReminderEmail } = await import('./emailService');
-    
+    const {
+      sendInvitationEmail,
+      sendEventUpdateEmail,
+      sendEventReminderEmail,
+    } = await import('./emailService');
+
     // Get user email
     const userDoc = await getDoc(doc(db, 'users', notification.userId));
     if (!userDoc.exists()) {
       throw new Error('User not found');
     }
-    
+
     const userData = userDoc.data();
     const userEmail = userData.email;
-    
+
     if (!userEmail) {
       throw new Error('User email not found');
     }
 
     let result;
-    
+
     switch (notification.type) {
       case NOTIFICATION_TYPES.INVITATION_RECEIVED:
         // Get event and host data from notification data
-        const eventDoc = await getDoc(doc(db, 'events', notification.data.eventId));
-        const hostDoc = await getDoc(doc(db, 'users', notification.data.hostId));
-        
+        const eventDoc = await getDoc(
+          doc(db, 'events', notification.data.eventId)
+        );
+        const hostDoc = await getDoc(
+          doc(db, 'users', notification.data.hostId)
+        );
+
         if (eventDoc.exists() && hostDoc.exists()) {
           result = await sendInvitationEmail({
             recipientEmail: userEmail,
@@ -782,10 +891,12 @@ const sendEmailNotification = async (notification) => {
           });
         }
         break;
-        
+
       case NOTIFICATION_TYPES.EVENT_UPDATED:
         if (notification.data.eventId) {
-          const eventDoc = await getDoc(doc(db, 'events', notification.data.eventId));
+          const eventDoc = await getDoc(
+            doc(db, 'events', notification.data.eventId)
+          );
           if (eventDoc.exists()) {
             result = await sendEventUpdateEmail({
               recipientEmail: userEmail,
@@ -796,10 +907,12 @@ const sendEmailNotification = async (notification) => {
           }
         }
         break;
-        
+
       case NOTIFICATION_TYPES.EVENT_REMINDER:
         if (notification.data.eventId) {
-          const eventDoc = await getDoc(doc(db, 'events', notification.data.eventId));
+          const eventDoc = await getDoc(
+            doc(db, 'events', notification.data.eventId)
+          );
           if (eventDoc.exists()) {
             result = await sendEventReminderEmail({
               recipientEmail: userEmail,
@@ -810,20 +923,21 @@ const sendEmailNotification = async (notification) => {
           }
         }
         break;
-        
+
       default:
         // For other notification types, don't send email
-        console.log(`Email not supported for notification type: ${notification.type}`);
+        console.log(
+          `Email not supported for notification type: ${notification.type}`
+        );
         return { success: true, skipped: true };
     }
-    
+
     if (result) {
       console.log('Email notification sent:', notification.title);
       return result;
     } else {
       return { success: false, error: 'Failed to send email' };
     }
-    
   } catch (error) {
     console.error('Email notification error:', error);
     return { success: false, error: error.message };
@@ -848,7 +962,13 @@ const sendSMSNotification = async (notification) => {
 /**
  * Notify host when someone joins their event
  */
-export const notifyHostOfEventJoin = async ({ eventId, eventTitle, hostId, joinedUserId, joinedUserName }) => {
+export const notifyHostOfEventJoin = async ({
+  eventId,
+  eventTitle,
+  hostId,
+  joinedUserId,
+  joinedUserName,
+}) => {
   try {
     // Don't notify if host joins their own event
     if (hostId === joinedUserId) {
@@ -879,7 +999,13 @@ export const notifyHostOfEventJoin = async ({ eventId, eventTitle, hostId, joine
 /**
  * Notify host when someone leaves their event
  */
-export const notifyHostOfEventLeave = async ({ eventId, eventTitle, hostId, leftUserId, leftUserName }) => {
+export const notifyHostOfEventLeave = async ({
+  eventId,
+  eventTitle,
+  hostId,
+  leftUserId,
+  leftUserName,
+}) => {
   try {
     // Don't notify if host leaves their own event
     if (hostId === leftUserId) {
@@ -910,7 +1036,11 @@ export const notifyHostOfEventLeave = async ({ eventId, eventTitle, hostId, left
 /**
  * Notify user when they receive a friend request
  */
-export const notifyFriendRequest = async ({ recipientId, senderId, senderName }) => {
+export const notifyFriendRequest = async ({
+  recipientId,
+  senderId,
+  senderName,
+}) => {
   try {
     return await createNotification({
       userId: recipientId,
@@ -934,7 +1064,11 @@ export const notifyFriendRequest = async ({ recipientId, senderId, senderName })
 /**
  * Notify user when their friend request is accepted
  */
-export const notifyFriendAccepted = async ({ senderId, accepterId, accepterName }) => {
+export const notifyFriendAccepted = async ({
+  senderId,
+  accepterId,
+  accepterName,
+}) => {
   try {
     return await createNotification({
       userId: senderId,
@@ -958,7 +1092,14 @@ export const notifyFriendAccepted = async ({ senderId, accepterId, accepterName 
 /**
  * Notify user when they're invited to co-host an event
  */
-export const notifyCohostInvitation = async ({ recipientId, inviterId, inviterName, eventId, eventTitle, invitationId }) => {
+export const notifyCohostInvitation = async ({
+  recipientId,
+  inviterId,
+  inviterName,
+  eventId,
+  eventTitle,
+  invitationId,
+}) => {
   try {
     return await createNotification({
       userId: recipientId,
@@ -985,7 +1126,13 @@ export const notifyCohostInvitation = async ({ recipientId, inviterId, inviterNa
 /**
  * Notify user when their co-host invitation is accepted
  */
-export const notifyCohostAccepted = async ({ inviterId, accepterId, accepterName, eventId, eventTitle }) => {
+export const notifyCohostAccepted = async ({
+  inviterId,
+  accepterId,
+  accepterName,
+  eventId,
+  eventTitle,
+}) => {
   try {
     return await createNotification({
       userId: inviterId,
@@ -1011,7 +1158,15 @@ export const notifyCohostAccepted = async ({ inviterId, accepterId, accepterName
 /**
  * Notify user when they're invited as a guest to an event
  */
-export const notifyGuestInvitation = async ({ recipientId, inviterId, inviterName, eventId, eventTitle, invitationId, source = 'unknown' }) => {
+export const notifyGuestInvitation = async ({
+  recipientId,
+  inviterId,
+  inviterName,
+  eventId,
+  eventTitle,
+  invitationId,
+  source = 'unknown',
+}) => {
   try {
     return await createNotification({
       userId: recipientId,
@@ -1039,7 +1194,13 @@ export const notifyGuestInvitation = async ({ recipientId, inviterId, inviterNam
 /**
  * Notify user when their guest invitation is accepted
  */
-export const notifyGuestAccepted = async ({ inviterId, accepterId, accepterName, eventId, eventTitle }) => {
+export const notifyGuestAccepted = async ({
+  inviterId,
+  accepterId,
+  accepterName,
+  eventId,
+  eventTitle,
+}) => {
   try {
     return await createNotification({
       userId: inviterId,
@@ -1065,12 +1226,16 @@ export const notifyGuestAccepted = async ({ inviterId, accepterId, accepterName,
 /**
  * Notify user when they get a new follower
  */
-export const notifyNewFollower = async ({ targetUserId, followerId, followerName }) => {
+export const notifyNewFollower = async ({
+  targetUserId,
+  followerId,
+  followerName,
+}) => {
   try {
     // Check if target is already following back (mutual follow = new friend)
     const { checkIfFollowing } = await import('./followService');
     const isAlreadyFollowing = await checkIfFollowing(targetUserId, followerId);
-    
+
     if (isAlreadyFollowing) {
       // Mutual follow - create "New Friend" notification instead
       return await createNotification({
@@ -1104,9 +1269,9 @@ export const notifyNewFollower = async ({ targetUserId, followerId, followerName
               label: 'Follow Back',
               type: 'primary',
               action: 'follow_user',
-              params: { userId: followerId }
-            }
-          ]
+              params: { userId: followerId },
+            },
+          ],
         },
         priority: NOTIFICATION_PRIORITY.LOW,
         channels: [DELIVERY_CHANNELS.PUSH],
@@ -1138,12 +1303,12 @@ export const notifyHostEventWrapUp = async (hostId, eventId, eventTitle) => {
             label: 'Complete Recap',
             type: 'primary',
             action: 'navigate_to_screen',
-            params: { 
+            params: {
               screen: 'HostEventWrapUp',
-              params: { eventId }
-            }
-          }
-        ]
+              params: { eventId },
+            },
+          },
+        ],
       },
       priority: NOTIFICATION_PRIORITY.NORMAL,
       channels: [DELIVERY_CHANNELS.PUSH],
@@ -1157,15 +1322,22 @@ export const notifyHostEventWrapUp = async (hostId, eventId, eventTitle) => {
 /**
  * Send event recap notification to guest
  */
-export const notifyGuestEventWrapUp = async (guestId, eventId, eventTitle, attendanceType) => {
+export const notifyGuestEventWrapUp = async (
+  guestId,
+  eventId,
+  eventTitle,
+  attendanceType
+) => {
   try {
-    const title = attendanceType === 'strict' 
-      ? 'Confirm Your Attendance 🎯'
-      : 'How Was the Event? 🌊';
-    
-    const message = attendanceType === 'strict'
-      ? `Please confirm if you attended "${eventTitle}" - affects your reliability score`
-      : `Let us know if you made it to "${eventTitle}" - no worries if you missed it!`;
+    const title =
+      attendanceType === 'strict'
+        ? 'Confirm Your Attendance 🎯'
+        : 'How Was the Event? 🌊';
+
+    const message =
+      attendanceType === 'strict'
+        ? `Please confirm if you attended "${eventTitle}" - affects your reliability score`
+        : `Let us know if you made it to "${eventTitle}" - no worries if you missed it!`;
 
     return await createNotification({
       userId: guestId,
@@ -1183,14 +1355,17 @@ export const notifyGuestEventWrapUp = async (guestId, eventId, eventTitle, atten
             label: 'Report Attendance',
             type: 'primary',
             action: 'navigate_to_screen',
-            params: { 
+            params: {
               screen: 'GuestEventWrapUp',
-              params: { eventId }
-            }
-          }
-        ]
+              params: { eventId },
+            },
+          },
+        ],
       },
-      priority: attendanceType === 'strict' ? NOTIFICATION_PRIORITY.HIGH : NOTIFICATION_PRIORITY.NORMAL,
+      priority:
+        attendanceType === 'strict'
+          ? NOTIFICATION_PRIORITY.HIGH
+          : NOTIFICATION_PRIORITY.NORMAL,
       channels: [DELIVERY_CHANNELS.PUSH],
     });
   } catch (error) {
@@ -1204,28 +1379,36 @@ export const notifyGuestEventWrapUp = async (guestId, eventId, eventTitle, atten
  */
 export const scheduleEventWrapUpNotifications = async (eventData) => {
   try {
-    const { id: eventId, title, attendanceType, trackAttendance, createdBy, subscribers = [] } = eventData;
-    
+    const {
+      id: eventId,
+      title,
+      attendanceType,
+      trackAttendance,
+      createdBy,
+      subscribers = [],
+    } = eventData;
+
     // Skip if no attendance tracking
     if (!trackAttendance) {
-      return { success: true, message: 'No attendance tracking - skipped recap notifications' };
+      return {
+        success: true,
+        message: 'No attendance tracking - skipped recap notifications',
+      };
     }
 
     const notifications = [];
 
     // Send to host (creator) - 30 minutes after event ends
-    notifications.push(
-      notifyHostEventWrapUp(createdBy, eventId, title)
-    );
+    notifications.push(notifyHostEventWrapUp(createdBy, eventId, title));
 
     // Send to guests for attendance tracking
     if (subscribers.length > 0) {
       const guestNotifications = subscribers
-        .filter(userId => userId !== createdBy) // Don't notify host as guest
-        .map(guestId => 
+        .filter((userId) => userId !== createdBy) // Don't notify host as guest
+        .map((guestId) =>
           notifyGuestEventWrapUp(guestId, eventId, title, attendanceType)
         );
-      
+
       notifications.push(...guestNotifications);
     }
 
@@ -1234,12 +1417,10 @@ export const scheduleEventWrapUpNotifications = async (eventData) => {
     return {
       success: true,
       hostNotified: true,
-      guestsNotified: subscribers.length - 1
+      guestsNotified: subscribers.length - 1,
     };
-
   } catch (error) {
     console.error('Error scheduling recap notifications:', error);
     return { success: false, error };
   }
 };
-

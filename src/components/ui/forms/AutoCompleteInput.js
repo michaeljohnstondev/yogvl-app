@@ -1,12 +1,7 @@
 // FILE: src/components/ui/forms/AutoCompleteInput.js - Reusable autocomplete input component
 
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import VibeInput from '../base/VibeInput';
 import { getContextualSuggestions } from '../../../lib/emojiUtils';
 import theme from '../../../theme/themes';
@@ -33,7 +28,7 @@ export default function AutoCompleteInput({
   maxSuggestions = 5,
   showEmojis = true,
   style,
-  inputProps = {}
+  inputProps = {},
 }) {
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -53,10 +48,11 @@ export default function AutoCompleteInput({
   // Handle suggestion selection
   const handleSuggestionPress = (suggestion) => {
     // Include emoji in the text value if showEmojis is true
-    const newValue = showEmojis && suggestion.emoji 
-      ? `${suggestion.emoji} ${suggestion.text}`
-      : suggestion.text;
-    
+    const newValue =
+      showEmojis && suggestion.emoji
+        ? `${suggestion.emoji} ${suggestion.text}`
+        : suggestion.text;
+
     onChangeText(newValue);
     onSuggestionSelect && onSuggestionSelect(suggestion);
     setShowSuggestions(false);
@@ -79,7 +75,7 @@ export default function AutoCompleteInput({
         placeholder={placeholder}
         {...inputProps}
       />
-      
+
       {showSuggestions && suggestions.length > 0 && (
         <View style={styles.dropdownContainer}>
           {suggestions.map((suggestion, index) => (
@@ -87,12 +83,13 @@ export default function AutoCompleteInput({
               key={index}
               style={[
                 styles.dropdownItem,
-                index === suggestions.length - 1 && styles.dropdownItemLast
+                index === suggestions.length - 1 && styles.dropdownItemLast,
               ]}
               onPress={() => handleSuggestionPress(suggestion)}
             >
               <Text style={styles.dropdownText}>
-                {showEmojis && suggestion.emoji ? `${suggestion.emoji} ` : ''}{suggestion.text}
+                {showEmojis && suggestion.emoji ? `${suggestion.emoji} ` : ''}
+                {suggestion.text}
               </Text>
             </TouchableOpacity>
           ))}
@@ -106,7 +103,7 @@ const styles = StyleSheet.create({
   container: {
     position: 'relative',
   },
-  
+
   // Dropdown styling
   dropdownContainer: {
     position: 'absolute',
