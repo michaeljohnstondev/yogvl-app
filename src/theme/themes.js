@@ -63,7 +63,11 @@ const theme = {
     inputPadding: 16,
   },
   shadows: {
-    // Glow effects removed to comply with punk aesthetic design rules
+    textGlow: {
+      textShadowColor: '#00C6FF',
+      textShadowOffset: { width: 0, height: 0 },
+      textShadowRadius: 10,
+    },
   },
 };
 
