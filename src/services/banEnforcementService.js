@@ -1,7 +1,7 @@
 // FILE: services/banEnforcementService.js - Ban Enforcement System
 
 import { moderationService } from './moderationService';
-import { doc, setDoc, Timestamp } from 'firebase/firestore';
+import { doc, setDoc, Timestamp } from '../lib/firebase/firestore';
 import { db } from '../auth/services/firebase';
 
 /**

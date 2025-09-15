@@ -1,13 +1,12 @@
 // FILE: services/fcmService.js - Firebase Cloud Messaging Service for Push Notifications
 
 import { Platform } from 'react-native';
-import messaging, {
-  setBackgroundMessageHandler,
-} from '@react-native-firebase/messaging';
+import { getApp } from '@react-native-firebase/app';
+import messaging from '@react-native-firebase/messaging';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import * as SecureStore from 'expo-secure-store';
+import { doc, updateDoc, getDoc } from '../lib/firebase';
 import { db } from '../auth/services/firebase';
 
 const STORAGE_KEYS = {
@@ -17,7 +16,7 @@ const STORAGE_KEYS = {
 
 // Configure Firebase messaging for background message handling
 try {
-  setBackgroundMessageHandler(async (remoteMessage) => {
+  messaging().setBackgroundMessageHandler(async (remoteMessage) => {
     console.log(
       '[FCMService] Message handled in the background!',
       remoteMessage
@@ -94,8 +93,7 @@ class FCMService {
     );
 
     // Check if app was opened from a notification (app was quit)
-    messaging()
-      .getInitialNotification()
+    messaging().getInitialNotification()
       .then((remoteMessage) => {
         if (remoteMessage) {
           console.log(
@@ -139,8 +137,8 @@ class FCMService {
           authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
           authStatus === messaging.AuthorizationStatus.PROVISIONAL;
 
-        // Store that we've requested permission
-        await AsyncStorage.setItem(STORAGE_KEYS.PERMISSION_REQUESTED, 'true');
+        // Store that we've requested permission securely
+        await SecureStore.setItemAsync(STORAGE_KEYS.PERMISSION_REQUESTED, 'true');
 
         console.log(
           '[FCMService] iOS permission result:',
@@ -167,8 +165,8 @@ class FCMService {
         const finalGranted =
           authStatus === messaging.AuthorizationStatus.AUTHORIZED;
 
-        // Store that we've requested permission
-        await AsyncStorage.setItem(STORAGE_KEYS.PERMISSION_REQUESTED, 'true');
+        // Store that we've requested permission securely
+        await SecureStore.setItemAsync(STORAGE_KEYS.PERMISSION_REQUESTED, 'true');
 
         console.log(
           '[FCMService] Android permission result:',
@@ -210,8 +208,8 @@ class FCMService {
       if (token) {
         console.log('[FCMService] FCM token obtained successfully');
 
-        // Store token locally
-        await AsyncStorage.setItem(STORAGE_KEYS.FCM_TOKEN, token);
+        // Store token securely with encryption
+        await SecureStore.setItemAsync(STORAGE_KEYS.FCM_TOKEN, token);
         this.currentToken = token;
 
         return token;
@@ -448,8 +446,8 @@ class FCMService {
         'deviceInfo.lastTokenUpdate': new Date(),
       });
 
-      // Clear local storage
-      await AsyncStorage.removeItem(STORAGE_KEYS.FCM_TOKEN);
+      // Clear secure storage
+      await SecureStore.deleteItemAsync(STORAGE_KEYS.FCM_TOKEN);
       this.currentToken = null;
 
       console.log('[FCMService] Token removed for user:', userId);

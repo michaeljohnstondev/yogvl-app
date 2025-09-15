@@ -8,9 +8,9 @@ import {
   Switch,
   Alert,
 } from 'react-native';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc } from '../lib/firebase';
 import { db } from '../auth/services/firebase';
-import { VibeButton, VibeSegmentedControl } from '../components/ui/base';
+import { VibeButton, VibeSegmentedControl } from '../components/ui';
 import { CloseButton } from '../components/ui/buttons';
 import { NotificationSettingItem } from '../components/ui';
 import NotificationSettingsForm from '../components/notifications/NotificationSettingsForm';

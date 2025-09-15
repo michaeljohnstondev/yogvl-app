@@ -45,7 +45,7 @@ export default function EditEventScreen({ navigation, route }) {
 
       const loadEventData = async () => {
         try {
-          const { doc, getDoc } = await import('firebase/firestore');
+          const { doc, getDoc } = await import('../../lib/firebase/firestore');
           const { db } = await import('../../auth/services/firebase');
 
           const userStudioId =
@@ -90,7 +90,7 @@ export default function EditEventScreen({ navigation, route }) {
 
       const loadCurrentUsers = async () => {
         try {
-          const { doc, getDoc } = await import('firebase/firestore');
+          const { doc, getDoc } = await import('../../lib/firebase/firestore');
           const { db } = await import('../../auth/services/firebase');
 
           const subscriberUserIds = eventData.subscribers || [];

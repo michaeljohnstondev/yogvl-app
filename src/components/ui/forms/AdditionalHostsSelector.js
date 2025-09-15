@@ -3,7 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import FriendsBucket from '../social/FriendsBucket';
 import FriendsList from '../social/FriendsList';
 import InviteFriendsSelector from './InviteFriendsSelector';
-import VibeButton from '../base/VibeButton';
+import { VibeButton } from '../';
 
 export default forwardRef(function AdditionalHostsSelector(
   {

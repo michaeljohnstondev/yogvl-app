@@ -8,6 +8,7 @@ import { sendGuestInvitation } from './friendService';
  * @param {Object} params - Invitation parameters
  * @param {string} params.currentUserId - ID of user sending invitations
  * @param {string} params.eventId - ID of event to invite to
+ * @param {string} params.studioId - ID of studio containing the event
  * @param {Object} params.userData - Current user data
  * @param {string} params.eventTitle - Title of event
  * @param {string} params.source - Source of invitation
@@ -19,6 +20,7 @@ import { sendGuestInvitation } from './friendService';
 export const sendEventInvitations = async ({
   currentUserId,
   eventId,
+  studioId,
   userData,
   eventTitle,
   source,
@@ -45,6 +47,7 @@ export const sendEventInvitations = async ({
           currentUserId,
           user.id,
           eventId,
+          studioId,
           userData,
           { title: eventTitle }, // Simplified event data
           source

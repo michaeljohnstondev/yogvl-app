@@ -11,7 +11,7 @@ import {
 import { useVibeAlert } from '../ui/base/VibeAlertContext';
 import VibeInput from '../ui/base/VibeInput';
 import VibeDropdown from '../ui/base/VibeDropdown';
-import VibeButton from '../ui/base/VibeButton';
+import { VibeButton } from '../ui';
 import CustomTemplateService from '../../services/CustomTemplateService';
 import theme from '../../theme/themes';
 

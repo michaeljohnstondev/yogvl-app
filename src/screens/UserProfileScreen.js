@@ -46,7 +46,7 @@ import { blockingService } from '../services/blockingService';
 import { getVisibleContactInfo } from '../services/privacyService';
 import { reportUser } from '../services/reportingService';
 import { auth } from '../auth/services/firebase';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc } from '../lib/firebase';
 import { db } from '../auth/services/firebase';
 import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
 import theme from '../theme/themes';

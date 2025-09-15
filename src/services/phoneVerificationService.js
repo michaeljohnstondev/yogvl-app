@@ -1,6 +1,6 @@
 // FILE: services/phoneVerificationService.js - Phone Number Verification Service
 
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc } from '../lib/firebase/firestore';
 import { db } from '../auth/services/firebase';
 import { normalizePhoneNumber } from './phoneAccessService';
 

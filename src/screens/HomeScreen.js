@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   BackHandler,
 } from 'react-native';
 import {
@@ -23,9 +22,8 @@ import {
 import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
 import EventCard from '../events/components/EventCard';
 import NotificationButton from '../components/notifications/NotificationButton';
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 import { useAuth } from '../auth/AuthContext';
 import { getEventFeed } from '../services/feedService';
@@ -56,6 +54,9 @@ export default function HomeScreen({ navigation }) {
   // Get auth and alert context
   const { currentUserId, userData, isAuthenticated } = useAuth();
   const vibeAlert = useVibeAlert();
+
+  // Ref for ScrollView to enable simultaneous gesture handling
+  const scrollViewRef = useRef(null);
 
   // Memoize static components to prevent unnecessary re-renders
   const bellIcon = useMemo(() => <Text style={styles.bellIcon}>🔔</Text>, []);
@@ -364,12 +365,18 @@ export default function HomeScreen({ navigation }) {
       {hasNoEvents ? (
         <EmptyStateView navigation={navigation} />
       ) : (
-        <ScrollView contentContainerStyle={styles.container}>
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={styles.container}
+          scrollEnabled={true}
+          nestedScrollEnabled={true}
+        >
           {myEvents.length > 0 && (
             <>
               <Text style={styles.sectionHeader}>My Events</Text>
               <VibeCarousel
                 data={myEvents}
+                scrollViewRef={scrollViewRef}
                 renderItem={(item, isScrolling) => (
                   <EventCard
                     {...item}
@@ -393,6 +400,7 @@ export default function HomeScreen({ navigation }) {
               </Text>
               <VibeCarousel
                 data={followedEvents}
+                scrollViewRef={scrollViewRef}
                 renderItem={(item, isScrolling) => (
                   <EventCard
                     {...item}
@@ -414,6 +422,7 @@ export default function HomeScreen({ navigation }) {
               <Text style={styles.sectionHeader}>Discover Events</Text>
               <VibeCarousel
                 data={suggestedEvents}
+                scrollViewRef={scrollViewRef}
                 renderItem={(item, isScrolling) => (
                   <EventCard
                     {...item}
@@ -435,6 +444,7 @@ export default function HomeScreen({ navigation }) {
               <Text style={styles.sectionHeader}>My Past Events</Text>
               <VibeCarousel
                 data={pastEvents}
+                scrollViewRef={scrollViewRef}
                 renderItem={(item, isScrolling) => (
                   <EventCard
                     {...item}
@@ -476,6 +486,8 @@ export default function HomeScreen({ navigation }) {
           style={styles.dropdownOverlay}
           onPress={() => setShowAccountSettings(false)}
           activeOpacity={1}
+          // Ensure this overlay doesn't interfere with scrolling when not visible
+          pointerEvents={showAccountSettings ? 'auto' : 'none'}
         />
       )}
 
@@ -546,6 +558,7 @@ const styles = StyleSheet.create({
     paddingBottom: 60,
     paddingHorizontal: 16,
     overflow: 'visible',
+    minHeight: '150%', // Force scroll by making content taller than screen
   },
   centerContent: {
     justifyContent: 'center',

@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react';
 import { Linking, Platform } from 'react-native';
 // VibeAlert will be passed from component
-import { Timestamp, collection, addDoc } from 'firebase/firestore';
+import { Timestamp, collection, addDoc } from '../../lib/firebase/firestore';
 import { db } from '../../auth/services/firebase';
 import {
   validateEventForm,
@@ -616,7 +616,7 @@ Hope to see you there! 🎉`;
       selectedInvitations = {},
       vibeAlert
     ) => {
-      const { doc, updateDoc } = await import('firebase/firestore');
+      const { doc, updateDoc } = await import('../../lib/firebase/firestore');
       const userStudio = userData?.studioId || 'greenville_sc';
 
       // Remove subscriber/cohost arrays from eventData for editing - we don't want to overwrite existing attendees
@@ -725,7 +725,7 @@ Hope to see you there! 🎉`;
           // Send all invitations
           if (guestInvitations.length > 0 || cohostInvitations.length > 0) {
             // Get event and host data for proper notification context
-            const { getDoc, doc } = await import('firebase/firestore');
+            const { getDoc, doc } = await import('../../lib/firebase/firestore');
             const eventDoc = await getDoc(eventRef);
             const hostDoc = await getDoc(doc(db, 'users', currentUserId));
 
@@ -752,7 +752,7 @@ Hope to see you there! 🎉`;
             selectedInvitations.textContacts.length > 0
           ) {
             // Get updated event data for text invitations
-            const { getDoc } = await import('firebase/firestore');
+            const { getDoc } = await import('../../lib/firebase/firestore');
             const updatedEventDoc = await getDoc(eventRef);
             if (updatedEventDoc.exists()) {
               const updatedEventData = updatedEventDoc.data();

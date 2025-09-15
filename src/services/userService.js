@@ -13,7 +13,7 @@ import {
   arrayRemove,
   orderBy,
   limit as firestoreLimit,
-} from 'firebase/firestore';
+} from '../lib/firebase';
 import { db } from '../auth/services/firebase';
 import { StudioStatsService } from './studioStatsService';
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, TouchableOpacity, Text } from 'react-native';
 import { StyleSheet } from 'react-native';
-import VibeButton from '../base/VibeButton';
+import { VibeButton } from '../';
 import FollowButton from '../buttons/FollowButton';
 import BlockButton from '../buttons/BlockButton';
 import theme from '../../../theme/themes';

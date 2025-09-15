@@ -10,7 +10,7 @@ import {
   ScrollView,
 } from 'react-native';
 import theme from '../../../theme/themes';
-import VibeButton from '../base/VibeButton';
+import { VibeButton } from '../';
 
 /**
  * Modal to display admin notifications to users

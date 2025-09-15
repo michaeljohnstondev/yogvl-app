@@ -10,8 +10,10 @@ import {
   arrayUnion,
   arrayRemove,
   where,
+  runTransaction,
 } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
+import { sanitizeInterest, validateInterestsArray } from '../lib/interestUtils';
 
 /**
  * Get user's interests from preferences
@@ -40,11 +42,21 @@ export const getUserInterests = async (userId) => {
         await updateDoc(userRef, {
           'preferences.interests': [],
         });
-      } catch (error) {}
+      } catch (error) {
+        console.error('[InterestService] Failed to initialize user preferences:', {
+          userId: 'present',
+          error: error.message
+        });
+      }
     }
 
-    return interests;
+    // Validate and sanitize the interests array before returning
+    return validateInterestsArray(interests);
   } catch (error) {
+    console.error('[InterestService] Failed to get user interests:', {
+      userId: 'present',
+      error: error.message
+    });
     return [];
   }
 };
@@ -58,11 +70,19 @@ export const getUserInterests = async (userId) => {
 export const addUserInterest = async (userId, interest) => {
   try {
     if (!userId || !interest) {
+      console.error('[InterestService] Missing required parameters:', {
+        hasUserId: !!userId,
+        hasInterest: !!interest
+      });
       return false;
     }
 
-    const trimmedInterest = interest.trim();
-    if (!trimmedInterest) {
+    // Sanitize input to prevent security issues
+    const sanitizedInterest = sanitizeInterest(interest);
+    if (!sanitizedInterest) {
+      console.error('[InterestService] Invalid interest after sanitization:', {
+        original: interest.substring(0, 50) + '...'
+      });
       return false;
     }
 
@@ -71,56 +91,122 @@ export const addUserInterest = async (userId, interest) => {
     // First check if interest already exists (case insensitive comparison)
     const currentInterests = await getUserInterests(userId);
     const existingInterest = currentInterests.find(
-      (existing) => existing.toLowerCase() === trimmedInterest.toLowerCase()
+      (existing) => existing.toLowerCase() === sanitizedInterest.toLowerCase()
     );
 
     if (existingInterest) {
       // If exact match (same case), no need to update
-      if (existingInterest === trimmedInterest) {
+      if (existingInterest === sanitizedInterest) {
         return true;
       }
 
-      // If case mismatch, update to new capitalization
-      await updateDoc(userRef, {
-        'preferences.interests': arrayRemove(existingInterest),
-      });
-      await updateDoc(userRef, {
-        'preferences.interests': arrayUnion(trimmedInterest),
+      // If case mismatch, update to new capitalization atomically
+      await runTransaction(db, async (transaction) => {
+        const userDoc = await transaction.get(userRef);
+        if (!userDoc.exists()) {
+          throw new Error('User document not found');
+        }
+
+        const userData = userDoc.data();
+        const interests = userData?.preferences?.interests || [];
+
+        // Find and replace the interest with new capitalization
+        const updatedInterests = interests.map(interest =>
+          interest.toLowerCase() === sanitizedInterest.toLowerCase()
+            ? sanitizedInterest
+            : interest
+        );
+
+        transaction.update(userRef, {
+          'preferences.interests': updatedInterests,
+        });
       });
       return true;
     }
 
+    // Validate user doesn't exceed interest limit
+    if (currentInterests.length >= 50) {
+      console.error('[InterestService] User has reached maximum interest limit:', {
+        userId: 'present',
+        currentCount: currentInterests.length
+      });
+      return false;
+    }
+
     // Add new interest
     await updateDoc(userRef, {
-      'preferences.interests': arrayUnion(trimmedInterest), // Keep original case
+      'preferences.interests': arrayUnion(sanitizedInterest),
     });
 
     return true;
   } catch (error) {
+    console.error('[InterestService] Failed to add interest:', {
+      userId: 'present',
+      interest: sanitizedInterest?.substring(0, 20) + '...',
+      error: error.message
+    });
     return false;
   }
 };
 
 /**
  * Remove interest from user's preferences
- * @param {string} userId - User ID
+ * @param {string} userId - User ID (must match authenticated user)
  * @param {string} interest - Interest to remove
  * @returns {Promise<boolean>} Success status
  */
 export const removeUserInterest = async (userId, interest) => {
   try {
     if (!userId || !interest) {
+      console.error('[InterestService] Missing required parameters for removal:', {
+        hasUserId: !!userId,
+        hasInterest: !!interest
+      });
+      return false;
+    }
+
+    // Validate userId format for basic security
+    if (!userId.match(/^[a-zA-Z0-9]{28}$/)) {
+      console.error('[InterestService] Invalid user ID format for removal:', {
+        userIdLength: userId.length
+      });
+      return false;
+    }
+
+    // Sanitize input for consistency
+    const sanitizedInterest = sanitizeInterest(interest);
+    if (!sanitizedInterest) {
+      console.error('[InterestService] Invalid interest for removal after sanitization:', {
+        original: interest.substring(0, 50) + '...'
+      });
       return false;
     }
 
     const userRef = doc(db, 'users', userId);
 
+    // Get current interests to ensure we're removing the exact stored value
+    const currentInterests = await getUserInterests(userId);
+    const exactMatch = currentInterests.find(
+      existing => existing.toLowerCase() === sanitizedInterest.toLowerCase()
+    );
+
+    if (!exactMatch) {
+      // Interest doesn't exist, operation successful (idempotent)
+      return true;
+    }
+
+    // Remove interest using the exact stored value for consistency
     await updateDoc(userRef, {
-      'preferences.interests': arrayRemove(interest),
+      'preferences.interests': arrayRemove(exactMatch),
     });
 
     return true;
   } catch (error) {
+    console.error('[InterestService] Failed to remove interest:', {
+      userId: 'present',
+      interest: interest?.substring(0, 20) + '...',
+      error: error.message
+    });
     return false;
   }
 };

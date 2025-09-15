@@ -16,8 +16,8 @@ export default function AttendanceCard({
 }) {
   const [showReliabilityDetail, setShowReliabilityDetail] = useState(false);
   const getStatusColor = () => {
-    if (attendanceStatus?.attended) return theme.colors.vibeGreen || '#00FF96';
-    if (attendanceStatus?.noShow) return '#FF6B6B';
+    if (attendanceStatus?.attended) return theme.colors.vibeGreen;
+    if (attendanceStatus?.noShow) return theme.colors.vibeRed;
     return theme.colors.textSecondary;
   };
 
@@ -59,7 +59,7 @@ export default function AttendanceCard({
             onPress={() => onMarkAttended(user.id)}
           >
             <LinearGradient
-              colors={[theme.colors.vibeGreen || '#00FF96', '#00CC78']}
+              colors={[theme.colors.vibeGreen, '#00CC78']}
               style={styles.button}
             >
               <Text style={styles.buttonText}>✓ Attended</Text>
@@ -146,9 +146,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   noShowButtonBg: {
-    backgroundColor: 'rgba(255, 107, 107, 0.2)',
+    backgroundColor: 'rgba(255, 68, 68, 0.2)',
     borderWidth: 1,
-    borderColor: '#FF6B6B',
+    borderColor: theme.colors.vibeRed,
   },
   buttonText: {
     color: theme.colors.textPrimary,
@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   noShowButtonText: {
-    color: '#FF6B6B',
+    color: theme.colors.vibeRed,
     fontSize: 14,
     fontWeight: '600',
   },

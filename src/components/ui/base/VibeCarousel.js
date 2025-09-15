@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Dimensions, StyleSheet, View } from 'react-native';
 import Carousel from 'react-native-reanimated-carousel';
+import { PanGestureHandler } from 'react-native-gesture-handler';
 
 const { width, height } = Dimensions.get('window');
 
-export default function VibeCarousel({ data, renderItem }) {
+export default function VibeCarousel({ data, renderItem, scrollViewRef }) {
   const [isScrolling, setIsScrolling] = useState(false);
+  const carouselRef = useRef(null);
 
   return (
     <View style={styles.container}>
@@ -20,12 +22,14 @@ export default function VibeCarousel({ data, renderItem }) {
         sliderWidth={Dimensions.get('window').width}
         itemWidth={Dimensions.get('window').width * 0.9}
         contentContainerCustomStyle={{ paddingBottom: 30 }}
-        // Add these props to improve gesture recognition
+        // Configure gesture handler to allow parent ScrollView vertical scrolling
         panGestureHandlerProps={{
-          activeOffsetX: [-15, 15], // Horizontal swipe threshold
-          failOffsetY: [-100, 100], // Prevent accidental vertical scrolls
+          activeOffsetX: [-10, 10], // Only capture horizontal gestures
+          failOffsetY: [-5, 5], // Fail on vertical movement to allow ScrollView
           shouldCancelWhenOutside: true,
         }}
+        // Enable simultaneous gesture recognition with parent ScrollView
+        simultaneousHandlers={scrollViewRef}
         onScrollBegin={() => setIsScrolling(true)}
         onScrollEnd={() => {
           // Small delay to ensure scroll has fully ended

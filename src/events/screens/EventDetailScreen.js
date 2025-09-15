@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, memo, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,49 +6,23 @@ import {
   ActivityIndicator,
   ScrollView,
   Alert,
-  TouchableOpacity,
-  Linking,
-  Modal,
 } from 'react-native';
-import { db } from '../../auth/services/firebase';
-import {
-  doc,
-  getDoc,
-  updateDoc,
-  arrayUnion,
-  arrayRemove,
-  increment,
-  setDoc,
-  deleteDoc,
-  runTransaction,
-} from 'firebase/firestore';
-import { VibeButton } from '../../components/ui/base';
-import { ProfileAvatar } from '../../components/ui/profile';
+import { VibeButton } from '../../components/ui';
 import { MessageBoardButton } from '../../components/ui/buttons';
-import EventCreatorInfo from '../components/hosts/EventCreatorInfo';
 import { useVibeAlert } from '../../components/ui/base/VibeAlertContext';
 import { useFocusEffect } from '@react-navigation/native';
 import SubscriptionNotificationSettings from '../components/subscriptionSettings/SubscriptionNotificationSettings';
-import { FormatDate } from '../../lib/formatDate';
 import { useAuth } from '../../auth/AuthContext';
-import { StudioStatsService } from '../../services/studioStatsService';
+import { eventService } from '../services/eventService';
+import { eventDataService } from '../services/eventDataService';
+import { textUtils } from '../../lib/textUtils';
+import { toggleInterestInArray } from '../../lib/interestUtils';
+import { useInterestToggle } from '../hooks/useInterestToggle';
+import { useEventPermissions } from '../hooks/useEventPermissions';
+import { useEventStatus } from '../hooks/useEventStatus';
 import {
-  updateEventSubscription,
-  updateEventUnsubscription,
-} from '../lib/userMetrics';
-import {
-  getEventStatus,
-  getStatusColor,
-  isPastEvent,
-  isEventFull,
   validateUserCanJoinEvent,
-  getUserEventPermissions,
-  validateEventJoinConstraints,
 } from '../lib/eventUtils';
-import {
-  notifyHostOfEventJoin,
-  notifyHostOfEventLeave,
-} from '../../services/notifications';
 import {
   getUserInterests,
   addUserInterest,
@@ -56,1264 +30,382 @@ import {
   extractInterestsFromEventTitle,
 } from '../../services/interestService';
 import { reportEvent } from '../../services/reportingService';
-import {
-  createNotification,
-  NOTIFICATION_TYPES,
-  NOTIFICATION_PRIORITY,
-  DELIVERY_CHANNELS,
-} from '../../services/notifications';
+import EventStatusBadges from '../components/detail/EventStatusBadges';
+import EventInfoSection from '../components/detail/EventInfoSection';
+import EventActionButtons from '../components/detail/EventActionButtons';
+import AttendeeSection from '../components/detail/AttendeeSection';
 import theme from '../../theme/themes';
 
-export default function EventDetailScreen({ route, navigation }) {
+const EventDetailScreen = memo(function EventDetailScreen({ route, navigation }) {
   const { eventId, studioId: routeStudioId } = route.params;
-
-  // Get current user from Auth Context
   const { currentUserId, userData } = useAuth();
+  const vibeAlert = useVibeAlert();
 
   // Use studioId from route, or fallback to user's default studio
-  const studioId =
-    routeStudioId || userData?.userdata?.studios?.default?.studioId;
+  const studioId = routeStudioId || userData?.userdata?.studios?.default?.studioId;
+
+  // State
   const [event, setEvent] = useState(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [creatorData, setCreatorData] = useState(null);
   const [cohostData, setCohostData] = useState([]);
+  const [friendAttendees, setFriendAttendees] = useState([]);
+  const [userInterests, setUserInterests] = useState([]);
+  const [eventInterests, setEventInterests] = useState([]);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
-  const [userNotificationSettings, setUserNotificationSettings] =
-    useState(null);
+  const [showFriendsModal, setShowFriendsModal] = useState(false);
+  const [showPrivacyFlash, setShowPrivacyFlash] = useState(false);
+  const [userNotificationSettings, setUserNotificationSettings] = useState(null);
 
-  // Handler for showing host profile
+  // Custom hooks for performance optimization
+  const { handleInterestToggle, isTogglingInterest } = useInterestToggle(
+    currentUserId,
+    userInterests,
+    setUserInterests
+  );
+
+  const { permissions, joinConstraints } = useEventPermissions(
+    currentUserId,
+    userData,
+    event,
+    isSubscribed
+  );
+
+  const { eventStatus, statusColor, isEventPast, isFullEvent } = useEventStatus(event);
+
+  // Filter out host from attendees list for modal display
+  const filteredAttendees = useMemo(() => {
+    if (!event?.createdBy) return friendAttendees;
+    return friendAttendees.filter(attendee => attendee.id !== event.createdBy);
+  }, [friendAttendees, event?.createdBy]);
+
+  // Privacy flash timeout cleanup
+  useEffect(() => {
+    let timeoutId;
+    if (showPrivacyFlash) {
+      timeoutId = setTimeout(() => {
+        setShowPrivacyFlash(false);
+      }, 1500);
+    }
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [showPrivacyFlash]);
+
+  // Handler functions
   const handleShowHostProfile = (hostData) => {
+    console.log('[EventDetailScreen] Navigating to HostProfile with hostData:', hostData);
+
+    // Ensure hostData has the expected structure
+    if (!hostData || !hostData.id) {
+      console.error('[EventDetailScreen] Invalid hostData:', hostData);
+      vibeAlert.error('Error', 'Unable to load host profile.');
+      return;
+    }
+
     navigation.navigate('HostProfile', {
       hostData,
       currentUserId,
       eventId,
     });
   };
-  const [userInterests, setUserInterests] = useState([]);
-  const [eventInterests, setEventInterests] = useState([]);
-  const [friendAttendees, setFriendAttendees] = useState([]);
-  const [showFriendsModal, setShowFriendsModal] = useState(false);
-  const [showPrivacyFlash, setShowPrivacyFlash] = useState(false);
-  const [selfReportedAttendance, setSelfReportedAttendance] = useState(null);
 
-  const vibeAlert = useVibeAlert();
-
-  // Privacy flash functionality
-  const handlePrivacyIconPress = () => {
+  const handlePrivacyIconPress = useCallback(() => {
     setShowPrivacyFlash(true);
-    // Auto-hide after 1.5 seconds
-    setTimeout(() => {
-      setShowPrivacyFlash(false);
-    }, 1500);
-  };
+  }, []);
 
-  // Notification settings functionality
-  const handleNotificationSettings = () => {
-    if (!event || !currentUserId) {
-      vibeAlert.error('Error', 'Event information is not available.');
-      return;
-    }
+  const handleNotificationSettings = useCallback(() => {
+    setShowSubscriptionModal(true);
+  }, []);
 
-    // Only allow notification settings if user is subscribed to the event
-    if (!isSubscribed) {
-      vibeAlert.warning(
-        'Not Subscribed',
-        'You need to join this event to manage notifications.'
-      );
-      return;
-    }
+  const handleReportEvent = useCallback(() => {
+    if (!event) return;
 
-    navigation.navigate('EventNotificationSettings', {
-      notificationSettings: userNotificationSettings || {
-        enabled: true,
-        notifyOnJoin: true,
-        notifyOnLeave: true,
-        newComments: true,
-        reminderTemplates: [],
-      },
-      currentUserId,
-      eventId,
-      eventDateTime: event.datetime,
-      onUpdateSettings: async (key, newSettings) => {
-        // Update the user's notification settings in Firestore
-        try {
-          const userEventRef = doc(
-            db,
-            'users',
-            currentUserId,
-            'eventSubscriptions',
-            eventId
-          );
-          await setDoc(
-            userEventRef,
-            {
-              eventId,
-              notificationSettings: newSettings,
-              subscribedAt: new Date(),
-              studioId,
-            },
-            { merge: true }
-          );
-          setUserNotificationSettings(newSettings);
-
-          // Update reminders for the user based on their new notification settings
-          try {
-            // Cancel existing scheduled notifications for this user on this event
-            const { ScheduledNotificationService } = await import(
-              '../../services/scheduledNotifications'
-            );
-
-            // Note: We currently don't have a method to cancel notifications for a specific user
-            // This would need to be implemented if per-user notification changes are required
-            console.log(
-              '[EventDetailScreen] User notification settings updated - server-side scheduling'
-            );
-            console.log(
-              '[EventDetailScreen] New templates count:',
-              newSettings?.reminderTemplates?.length || 0
-            );
-
-            // For now, we don't reschedule individual user notifications
-            // The notifications were set when they subscribed to the event
-            // To change notification preferences, user would need to unsubscribe and resubscribe
-          } catch (reminderError) {
-            console.warn(
-              '[EventDetailScreen] Failed to update reminders:',
-              reminderError
-            );
-            // Don't fail the settings update if reminder update fails
-          }
-        } catch (error) {
-          console.error(
-            '[EventDetailScreen] Error updating notification settings:',
-            error
-          );
-          vibeAlert.error(
-            'Error',
-            'Failed to save notification settings. Please try again.'
-          );
-        }
-      },
-    });
-  };
-
-  // Report event functionality
-  const handleReportEvent = () => {
-    if (
-      !event ||
-      !event.id ||
-      !currentUserId ||
-      !event.title ||
-      !event.createdBy
-    ) {
-      vibeAlert.error(
-        'Error',
-        'Event information is not available for reporting.'
-      );
-      return;
-    }
-
-    // Show report categories directly
-    vibeAlert.redmenu(
+    Alert.alert(
       'Report Event',
-      'Select the reason for reporting this event:',
+      'Why are you reporting this event?',
       [
+        { text: 'Cancel', style: 'cancel' },
         {
           text: 'Inappropriate Content',
           onPress: () => submitReport('inappropriate_content'),
         },
-        {
-          text: 'Spam/Fake Event',
-          onPress: () => submitReport('spam'),
-        },
-        {
-          text: 'Harmful/Dangerous',
-          onPress: () => submitReport('harmful'),
-        },
-        {
-          text: 'Other Violation',
-          onPress: () => submitReport('other'),
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-          onPress: () => {},
-        },
+        { text: 'Spam', onPress: () => submitReport('spam') },
+        { text: 'Other', onPress: () => submitReport('other') },
       ]
     );
-  };
+  }, [event]);
 
   const submitReport = async (reason) => {
     try {
-      // Use the studio ID from route params or fall back to user's default studio
-      const eventStudioId =
-        studioId || userData?.userdata?.studios?.default?.studioId;
-
-      if (!eventStudioId) {
-        vibeAlert.error(
-          'Error',
-          'Unable to determine event studio for reporting'
-        );
-        return;
-      }
-
-      // Use the proper reporting service
-      const result = await reportEvent(
-        currentUserId,
-        eventId,
-        eventStudioId,
-        reason
-      );
-
-      if (result.success) {
-        vibeAlert.success('Report Submitted', result.message);
-      } else {
-        vibeAlert.error('Error', 'Failed to submit report. Please try again.');
-      }
+      await reportEvent({
+        eventId: event.id,
+        eventTitle: event.title,
+        hostId: event.createdBy,
+        reporterId: currentUserId,
+        reason,
+        studioId,
+      });
+      vibeAlert.success('Report Submitted', 'Thank you for your report.');
     } catch (error) {
-      console.error('[EventDetailScreen] Error reporting event:', error);
-      vibeAlert.error(
-        'Error',
-        error.message || 'Failed to submit report. Please try again.'
-      );
+      console.error('[EventDetailScreen] Error submitting report:', error);
+      vibeAlert.error('Error', 'Failed to submit report.');
     }
   };
 
-  // Function to extract emoji from title
-  const extractEmoji = (title) => {
-    if (!title) return { emoji: null, cleanTitle: title };
-
-    // Regex to match emojis (including compound emojis)
-    const emojiRegex =
-      /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1FA70}-\u{1FAFF}]/u;
-    const match = title.match(emojiRegex);
-
-    if (match) {
-      const emoji = match[0];
-      const cleanTitle = title.replace(emojiRegex, '').trim();
-      return { emoji, cleanTitle };
-    }
-
-    return { emoji: null, cleanTitle: title };
-  };
-
-  // Function to open maps with location
-  const openMaps = () => {
-    if (!event.address) return;
-
-    const query = `${event.location}, ${event.address}`.trim();
-    const encodedQuery = encodeURIComponent(query);
-    const mapsUrl = `https://maps.google.com/maps?q=${encodedQuery}`;
-
-    Linking.openURL(mapsUrl).catch((err) => {
-      vibeAlert.error('Error', 'Could not open maps');
-    });
-  };
-
-  useFocusEffect(
-    useCallback(() => {
-      const fetchEvent = async () => {
-        console.log('🔄 [DEBUG] useFocusEffect fetchEvent called', {
-          studioId,
-          eventId,
-          currentSubscriberCount: event?.subscriberCount,
-        });
-
-        if (!studioId) {
-          vibeAlert.error(
-            'Error',
-            'Unable to load event: studio information missing.'
-          );
-          return;
-        }
-
-        try {
-          const ref = doc(db, 'studios', studioId, 'events', eventId);
-          const snap = await getDoc(ref);
-          if (snap.exists()) {
-            const eventData = { id: snap.id, ...snap.data() };
-            console.log('🔄 [DEBUG] useFocusEffect fetched new event data', {
-              newSubscriberCount: eventData.subscriberCount,
-              previousSubscriberCount: event?.subscriberCount,
-            });
-            setEvent(eventData);
-
-            // Check if user is subscribed or is the host/cohost
-            const subscribers = eventData.subscribers || [];
-            const userIsSubscribed = subscribers.includes(currentUserId);
-            const isHostOrCohost =
-              eventData.createdBy === currentUserId ||
-              eventData.cohosts?.includes(currentUserId) ||
-              false;
-            setIsSubscribed(userIsSubscribed || isHostOrCohost);
-
-            // Fetch user's notification settings if subscribed or host
-            if ((userIsSubscribed || isHostOrCohost) && currentUserId) {
-              try {
-                const userEventRef = doc(
-                  db,
-                  'users',
-                  currentUserId,
-                  'eventSubscriptions',
-                  eventId
-                );
-                const userEventSnap = await getDoc(userEventRef);
-
-                if (userEventSnap.exists()) {
-                  const data = userEventSnap.data();
-                  setUserNotificationSettings(
-                    data.notificationSettings || {
-                      enabled: true,
-                      notifyOnJoin: true,
-                      notifyOnLeave: true,
-                      newComments: true,
-                      reminderTemplates: [],
-                    }
-                  );
-                } else {
-                  // If no eventSubscriptions document exists (common for hosts), use defaults
-                  setUserNotificationSettings({
-                    enabled: true,
-                    notifyOnJoin: true,
-                    notifyOnLeave: true,
-                    newComments: true,
-                    reminderTemplates: [],
-                  });
-                }
-              } catch (error) {
-                console.error(
-                  '[EventDetailScreen] Error fetching user notification settings:',
-                  error
-                );
-              }
-            }
-
-            // Load visible attendees - depends on if user is host/cohost or not
-            if (subscribers.length > 0 && currentUserId) {
-              try {
-                // Check if user is host or cohost
-                const isHostOrCohost =
-                  eventData.createdBy === currentUserId ||
-                  eventData.cohosts?.includes(currentUserId) ||
-                  false;
-                const attendeesList = [];
-
-                // Filter out the current user and host from subscribers list
-                const otherSubscribers = subscribers.filter(
-                  (subscriberId) =>
-                    subscriberId !== currentUserId &&
-                    subscriberId !== eventData.createdBy
-                );
-
-                if (isHostOrCohost) {
-                  // Host/Cohost: Load ALL attendees (excluding self and duplicates)
-                  for (const subscriberId of otherSubscribers) {
-                    const userDoc = await getDoc(
-                      doc(db, 'users', subscriberId)
-                    );
-                    if (userDoc.exists()) {
-                      const userData = userDoc.data();
-                      const displayName =
-                        userData.userdata?.contactInfo?.displayName ||
-                        userData.userdata?.contactInfo?.firstName ||
-                        'Attendee';
-                      attendeesList.push({
-                        id: subscriberId,
-                        displayName,
-                        userData,
-                      });
-                    }
-                  }
-                } else {
-                  // Non-host/cohost: Only load friends (mutual follows)
-                  for (const subscriberId of otherSubscribers) {
-                    // Check if they're a friend (mutual follow)
-                    const followingDoc = await getDoc(
-                      doc(db, 'users', currentUserId, 'following', subscriberId)
-                    );
-                    const followerDoc = await getDoc(
-                      doc(db, 'users', currentUserId, 'followers', subscriberId)
-                    );
-
-                    if (followingDoc.exists() && followerDoc.exists()) {
-                      // They're a friend, get their full user data
-                      const userDoc = await getDoc(
-                        doc(db, 'users', subscriberId)
-                      );
-                      if (userDoc.exists()) {
-                        const userData = userDoc.data();
-                        const displayName =
-                          userData.userdata?.contactInfo?.displayName ||
-                          userData.userdata?.contactInfo?.firstName ||
-                          'Friend';
-                        attendeesList.push({
-                          id: subscriberId,
-                          displayName,
-                          userData,
-                        });
-                      }
-                    }
-                  }
-                }
-
-                setFriendAttendees(attendeesList);
-              } catch (error) {
-                setFriendAttendees([]);
-              }
-            } else {
-              setFriendAttendees([]);
-            }
-
-            // Load user interests and extract interests from event title
-            try {
-              const interests = await getUserInterests(currentUserId);
-              setUserInterests(interests);
-
-              const titleInterests = extractInterestsFromEventTitle(
-                eventData.title
-              );
-              setEventInterests(titleInterests);
-            } catch (err) {
-              setUserInterests([]);
-              setEventInterests([]);
-            }
-
-            // Fetch creator data for reliability display
-            if (eventData.createdBy) {
-              try {
-                const creatorRef = doc(db, 'users', eventData.createdBy);
-                const creatorSnap = await getDoc(creatorRef);
-                if (creatorSnap.exists()) {
-                  setCreatorData({ id: creatorSnap.id, ...creatorSnap.data() });
-                }
-              } catch (err) {
-                // Creator data fetch failed
-              }
-            }
-
-            // Fetch cohost data (accepted cohosts)
-            const cohostIds = eventData.cohosts || [];
-            if (cohostIds.length > 0) {
-              try {
-                const cohostPromises = cohostIds.map(async (cohostId) => {
-                  const cohostRef = doc(db, 'users', cohostId);
-                  const cohostSnap = await getDoc(cohostRef);
-                  if (cohostSnap.exists()) {
-                    return { id: cohostSnap.id, ...cohostSnap.data() };
-                  }
-                  return null;
-                });
-
-                const cohostResults = await Promise.all(cohostPromises);
-                const validCohosts = cohostResults.filter(
-                  (cohost) => cohost !== null
-                );
-                setCohostData(validCohosts);
-              } catch (err) {
-                setCohostData([]);
-              }
-            } else {
-              setCohostData([]);
-            }
-          } else {
-            vibeAlert.error(
-              'Event Not Found',
-              'This event may have been deleted.',
-              [{ text: 'OK', onPress: () => navigation.goBack() }]
-            );
-          }
-        } catch (err) {
-          vibeAlert.error('Error', 'Failed to load event details.');
-        }
-      };
-
-      fetchEvent();
-    }, [currentUserId, userData, eventId, studioId, navigation])
-  );
-
-  // Interest toggle functionality
-  const handleInterestToggle = async (interest) => {
-    if (!currentUserId) return;
-
+  // Interest toggle handler with error feedback
+  const handleInterestToggleWithFeedback = useCallback(async (interest) => {
     try {
-      const isCurrentlyInterested = userInterests.some(
-        (userInterest) => userInterest.toLowerCase() === interest.toLowerCase()
-      );
-
-      if (isCurrentlyInterested) {
-        // Remove interest
-        const success = await removeUserInterest(currentUserId, interest);
-        if (success) {
-          setUserInterests((prev) =>
-            prev.filter(
-              (userInterest) =>
-                userInterest.toLowerCase() !== interest.toLowerCase()
-            )
-          );
-          vibeAlert.success(
-            'Interest Removed',
-            `Removed "${interest}" from your interests`
-          );
-        } else {
-          vibeAlert.error(
-            'Error',
-            'Failed to remove interest. Please try again.'
-          );
-        }
-      } else {
-        // Add interest
-        const success = await addUserInterest(currentUserId, interest);
-        if (success) {
-          setUserInterests((prev) => [...prev, interest]);
-          vibeAlert.success(
-            'Interest Added',
-            `Added "${interest}" to your interests! You'll see more events like this.`
-          );
-        } else {
-          vibeAlert.error('Error', 'Failed to add interest. Please try again.');
-        }
-      }
+      await handleInterestToggle(interest);
     } catch (error) {
+      // Show user-friendly error feedback
       vibeAlert.error('Error', 'Failed to update interest. Please try again.');
     }
-  };
-
-  // Self-reporting attendance for casual events
-  const handleSelfReportAttendance = async (attended) => {
-    try {
-      await AttendanceService.selfReportAttendance(
-        studioId,
-        eventId,
-        currentUserId,
-        attended
-      );
-      setSelfReportedAttendance(attended);
-      vibeAlert.success(
-        'Attendance Recorded',
-        `Thanks for reporting that you ${attended ? 'attended' : 'did not attend'} this event.`
-      );
-    } catch (error) {
-      vibeAlert.error(
-        'Error',
-        error.message || 'Failed to record attendance. Please try again.'
-      );
-    }
-  };
+  }, [handleInterestToggle, vibeAlert]);
 
   const handleSubscribe = async () => {
-    console.log('🔵 [DEBUG] handleSubscribe called', {
-      eventId,
-      isSubscribed,
-      isLoading,
-      currentUserId,
-      currentSubscriberCount: event?.subscriberCount,
-    });
+    if (!event || !currentUserId || isLoading) return;
 
-    if (!event || !currentUserId) {
-      console.log('🔴 [DEBUG] handleSubscribe early return - no event or user');
-      return;
-    }
-
-    // Critical: Set loading state immediately to prevent double-clicks
-    if (isLoading) {
-      console.log('🔴 [DEBUG] handleSubscribe early return - already loading');
-      return;
-    }
     setIsLoading(true);
-    console.log('🟡 [DEBUG] handleSubscribe set isLoading = true');
 
     try {
-      // If user is not subscribed, show notification options alert
       if (!isSubscribed) {
-        console.log('🟢 [DEBUG] User not subscribed, validating join');
-        // Validate user can join (reliability checks)
         const canJoin = await validateUserCanJoinEvent(userData, event);
         if (!canJoin) {
-          console.log('🔴 [DEBUG] User cannot join event');
           setIsLoading(false);
           return;
         }
 
-        console.log('🟢 [DEBUG] Showing subscription alert');
-        // Show custom VibeAlert with notification options
         vibeAlert.subscribe(
           'Join Event',
           'Choose your notification preferences for this event:',
-          () => {
-            console.log('🟠 [DEBUG] Use Defaults callback triggered');
-            subscribeWithDefaults();
-          }, // onUseDefaults
-          () => {
-            console.log('🟠 [DEBUG] Customize callback triggered');
-            setShowSubscriptionModal(true);
-          }, // onCustomize
-          () => {
-            console.log('🟠 [DEBUG] Cancel callback triggered');
-            setIsLoading(false);
-          } // onCancel - reset loading state
+          () => subscribeWithDefaults(),
+          () => setShowSubscriptionModal(true),
+          () => setIsLoading(false)
         );
         return;
       }
 
-      console.log('🟢 [DEBUG] User is subscribed, performing unsubscribe');
-      // If already subscribed, handle unsubscribe directly
       await performUnsubscribe();
     } finally {
-      console.log('🔵 [DEBUG] handleSubscribe finally block');
-      // Note: Loading state is managed by subscribeWithDefaults or performUnsubscribe
-      // Only reset here if we didn't call those functions
       if (isSubscribed) {
-        // performUnsubscribe was called, it will handle the loading state
-      } else {
-        // If we showed the subscription modal, don't reset loading here
-        // It will be reset by the modal actions
+        // Unsubscribe handles loading state
       }
     }
   };
 
   const subscribeWithDefaults = async () => {
-    console.log('🔶 [DEBUG] subscribeWithDefaults called', {
-      eventId,
-      currentUserId,
-      isLoading,
-      currentSubscriberCount: event?.subscriberCount,
-    });
+    if (!event || !currentUserId) return;
 
-    if (!event || !currentUserId) {
-      console.log(
-        '🔴 [DEBUG] subscribeWithDefaults early return - no event or user'
-      );
-      return;
-    }
-
-    // Get user's default notification preferences or use app defaults
-    const userNotificationDefaults =
-      userData?.userdata?.settings?.notifications?.attending || {};
-
+    const userNotificationDefaults = userData?.userdata?.settings?.notifications?.attending || {};
     const defaultSettings = {
-      eventCancellation: true, // Always true - critical info
+      eventCancellation: true,
       hostChanges: userNotificationDefaults.hostChanges ?? true,
       eventReminders: userNotificationDefaults.eventReminders ?? true,
       reminderTiming: userNotificationDefaults.reminderTiming ?? '1hour',
       dayBeforeReminder: userNotificationDefaults.dayBeforeReminder ?? true,
-      hostComments: userNotificationDefaults.hostComments ?? true, // Default ON - batched after first
+      hostComments: userNotificationDefaults.hostComments ?? true,
       newComments: userNotificationDefaults.newComments ?? false,
-      // Include user's custom reminder templates
       reminderTemplates: userNotificationDefaults.reminderTemplates || [],
     };
 
-    console.log(
-      '🔶 [DEBUG] subscribeWithDefaults calling handleSubscribeWithSettings'
-    );
     await handleSubscribeWithSettings(defaultSettings);
-    console.log(
-      '🔶 [DEBUG] subscribeWithDefaults completed handleSubscribeWithSettings'
+  };
+
+  const handleSubscribeWithSettings = async (notificationSettings) => {
+    if (!event || !currentUserId || isLoading) return;
+
+    setIsLoading(true);
+
+    try {
+      const result = await eventService.subscribeToEvent(
+        currentUserId,
+        eventId,
+        studioId,
+        notificationSettings
+      );
+
+      setEvent(prev => ({
+        ...prev,
+        subscribers: result.subscribers,
+        subscriberCount: result.subscriberCount,
+      }));
+      setIsSubscribed(true);
+      setShowSubscriptionModal(false);
+
+      vibeAlert.success('Joined Event', 'You have successfully joined this event!');
+    } catch (error) {
+      console.error('[EventDetailScreen] Error subscribing to event:', error);
+
+      if (error.message === 'ALREADY_SUBSCRIBED') {
+        vibeAlert.error('Already Subscribed', 'You are already subscribed to this event.');
+        setIsSubscribed(true);
+      } else {
+        vibeAlert.error('Error', 'Failed to join event. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const performUnsubscribe = async () => {
+    if (!event || !currentUserId) return;
+
+    try {
+      const result = await eventService.unsubscribeFromEvent(
+        currentUserId,
+        eventId,
+        studioId
+      );
+
+      setEvent(prev => ({
+        ...prev,
+        subscribers: result.subscribers,
+        subscriberCount: result.subscriberCount,
+      }));
+      setIsSubscribed(false);
+
+      vibeAlert.success('Left Event', 'You have left this event.');
+    } catch (error) {
+      console.error('[EventDetailScreen] Error unsubscribing from event:', error);
+      vibeAlert.error('Error', 'Failed to leave event. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = () => {
+    if (!event) return;
+
+    vibeAlert.confirm(
+      'Delete Event',
+      `Are you sure you want to delete "${event.title}"? This cannot be undone.`,
+      async () => {
+        try {
+          await eventService.deleteEvent(studioId, eventId, currentUserId);
+          vibeAlert.success(
+            'Event Deleted',
+            'Event has been deleted successfully.',
+            [
+              {
+                text: 'OK',
+                onPress: () => navigation.goBack(),
+              },
+            ]
+          );
+        } catch (error) {
+          console.error('[EventDetailScreen] Error deleting event:', error);
+          vibeAlert.error('Error', 'Failed to delete event. Please try again.');
+        }
+      }
     );
   };
 
-  // Separate function to handle the actual subscription with notification settings
-  const handleSubscribeWithSettings = async (notificationSettings) => {
-    console.log('🟣 [DEBUG] handleSubscribeWithSettings called', {
-      eventId,
-      currentUserId,
-      isLoading,
-      currentSubscriberCount: event?.subscriberCount,
-      notificationSettings: Object.keys(notificationSettings || {}),
-    });
-
-    // Critical: Check loading state first, then set it immediately
-    if (!event || !currentUserId || isLoading) {
-      console.log('🔴 [DEBUG] handleSubscribeWithSettings early return', {
-        hasEvent: !!event,
-        hasUserId: !!currentUserId,
-        isLoading,
-      });
-      return;
-    }
-    setIsLoading(true);
-    console.log('🟡 [DEBUG] handleSubscribeWithSettings set isLoading = true');
-
-    try {
-      const eventRef = doc(db, 'studios', studioId, 'events', eventId);
-      const userRef = doc(db, 'users', currentUserId);
-
-      // Check if user document exists, create if not
-      const userSnap = await getDoc(userRef);
-      if (!userSnap.exists()) {
-        await setDoc(userRef, {
-          subscribedEvents: [],
-          userdata: {
-            metrics: {
-              events: {
-                created: 0,
-                attended: 0,
-                noShows: 0,
-                subscribedEvents: [],
-              },
-            },
-            metadata: {
-              createdAt: new Date(),
-            },
-          },
-          uid: currentUserId,
-        });
-      }
-
-      // Use Firebase transaction to ensure atomic subscribe operation
-      console.log('🟪 [DEBUG] Starting Firebase transaction for subscribe');
-      const result = await runTransaction(db, async (transaction) => {
-        console.log('🟪 [DEBUG] Inside transaction - reading event data');
-        // Read the current event data within transaction
-        const eventSnap = await transaction.get(eventRef);
-
-        if (!eventSnap.exists()) {
-          console.log('🔴 [DEBUG] Transaction error - event no longer exists');
-          throw new Error('Event no longer exists');
-        }
-
-        const eventData = eventSnap.data();
-        const currentSubscribers = eventData.subscribers || [];
-        const currentCount = eventData.subscriberCount || 0;
-
-        console.log('🟪 [DEBUG] Transaction data check', {
-          currentSubscribers: currentSubscribers.length,
-          currentCount,
-          userAlreadySubscribed: currentSubscribers.includes(currentUserId),
-        });
-
-        // Check if user is already subscribed to prevent duplicates
-        if (currentSubscribers.includes(currentUserId)) {
-          console.log('🔴 [DEBUG] Transaction error - user already subscribed');
-          throw new Error('ALREADY_SUBSCRIBED');
-        }
-
-        // Atomic update within transaction - prevents race conditions
-        console.log('🟪 [DEBUG] Transaction performing update');
-        transaction.update(eventRef, {
-          subscribers: arrayUnion(currentUserId),
-          subscriberCount: increment(1),
-        });
-
-        // Return data for local state update
-        console.log('🟪 [DEBUG] Transaction completed successfully');
-        return {
-          currentSubscribers,
-          currentSubscriberCount: eventData.subscriberCount || 0,
-        };
-      });
-      console.log('🟪 [DEBUG] Firebase transaction completed', result);
-
-      // Update local state immediately after transaction success
-      console.log('🟢 [DEBUG] Updating local state', {
-        newCount: result.currentSubscriberCount + 1,
-        previousCount: event?.subscriberCount,
-      });
-      setEvent((prev) => ({
-        ...prev,
-        subscriberCount: result.currentSubscriberCount + 1,
-        subscribers: [...result.currentSubscribers, currentUserId],
-      }));
-
-      setIsSubscribed(true);
-      console.log('🟢 [DEBUG] Showing success alert');
-      vibeAlert.success(
-        'Subscribed!',
-        `You're now registered for "${event.title}"`
-      );
-
-      // Perform background operations after showing success (non-blocking)
-      Promise.all([
-        // Update user metrics (non-critical for UX)
-        updateEventSubscription(currentUserId, eventId).catch((error) => {
-          console.warn(
-            '[EventDetailScreen] Failed to update user metrics:',
-            error
-          );
-        }),
-
-        // Store user's notification settings for this event
-        setDoc(doc(db, 'users', currentUserId, 'eventSubscriptions', eventId), {
-          eventId,
-          notificationSettings,
-          subscribedAt: new Date(),
-          studioId,
-        }).catch((error) => {
-          console.error(
-            '[EventDetailScreen] Failed to save notification settings:',
-            error
-          );
-        }),
-
-        // Notify host that user joined (non-critical for UX)
-        (async () => {
-          const hostId = event.createdBy;
-          if (hostId && hostId !== currentUserId) {
-            try {
-              const joinedUserName =
-                userData?.userdata?.contactInfo?.displayName ||
-                userData?.userdata?.contactInfo?.firstName ||
-                'Someone';
-              await notifyHostOfEventJoin({
-                eventId,
-                eventTitle: event.title,
-                hostId,
-                joinedUserId: currentUserId,
-                joinedUserName,
-              });
-            } catch (notifyError) {
-              console.error(
-                'Failed to notify host of event join:',
-                notifyError
-              );
-            }
-          }
-        })(),
-      ]).catch((error) => {
-        // Log any background operation failures but don't affect UX
-        console.error(
-          '[EventDetailScreen] Background operations failed:',
-          error
-        );
-      });
-    } catch (err) {
-      if (err.message === 'ALREADY_SUBSCRIBED') {
-        vibeAlert.info(
-          'Already Joined',
-          'You are already registered for this event.'
-        );
-      } else {
-        vibeAlert.error(
-          'Error',
-          `Failed to subscribe: ${err.message}. Please try again.`
-        );
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Separate function to handle unsubscribe
-  const performUnsubscribe = async () => {
-    // Critical: Check loading state first, then set it immediately
-    if (isLoading) return;
-    setIsLoading(true);
-
-    try {
-      const eventRef = doc(db, 'studios', studioId, 'events', eventId);
-      const userRef = doc(db, 'users', currentUserId);
-
-      // Use Firebase transaction to ensure atomic unsubscribe operation
-      const result = await runTransaction(db, async (transaction) => {
-        // Read the current event data within transaction
-        const eventSnap = await transaction.get(eventRef);
-
-        if (!eventSnap.exists()) {
-          throw new Error('Event no longer exists');
-        }
-
-        const eventData = eventSnap.data();
-        const currentSubscribers = eventData.subscribers || [];
-
-        // Check if user is still subscribed
-        if (!currentSubscribers.includes(currentUserId)) {
-          throw new Error('NOT_SUBSCRIBED');
-        }
-
-        // Atomic update within transaction - prevents race conditions
-        transaction.update(eventRef, {
-          subscribers: arrayRemove(currentUserId),
-          subscriberCount: increment(-1),
-        });
-
-        // Return data for local state update
-        return {
-          currentSubscribers,
-          currentSubscriberCount: eventData.subscriberCount || 0,
-        };
-      });
-
-      // Update local state immediately after transaction success
-      setEvent((prev) => ({
-        ...prev,
-        subscriberCount: Math.max(0, result.currentSubscriberCount - 1),
-        subscribers: result.currentSubscribers.filter(
-          (id) => id !== currentUserId
-        ),
-      }));
-
-      setIsSubscribed(false);
-      vibeAlert.warning(
-        'Event Left',
-        'You have been removed from this event. 👋'
-      );
-
-      // Perform background operations after showing success (non-blocking)
-      Promise.all([
-        // Update user metrics (non-critical for UX)
-        updateEventUnsubscription(currentUserId, eventId).catch((error) => {
-          console.warn(
-            '[EventDetailScreen] Failed to update user metrics:',
-            error
-          );
-        }),
-
-        // Remove user's notification settings for this event
-        deleteDoc(
-          doc(db, 'users', currentUserId, 'eventSubscriptions', eventId)
-        ).catch((error) => {
-          console.error(
-            '[EventDetailScreen] Failed to delete notification settings:',
-            error
-          );
-        }),
-
-        // Notify host that user left the event (non-critical for UX)
-        notifyHostOfEventLeave({
-          eventId: event.id,
-          eventTitle: event.title,
-          hostId: event.createdBy,
-          leftUserId: currentUserId,
-          leftUserName:
-            userData?.userdata?.contactInfo?.firstName ||
-            userData?.userdata?.contactInfo?.displayName ||
-            'Someone',
-        }).catch((error) => {
-          console.error('Failed to notify host of event leave:', error);
-        }),
-      ]).catch((error) => {
-        // Log any background operation failures but don't affect UX
-        console.error(
-          '[EventDetailScreen] Background operations failed:',
-          error
-        );
-      });
-    } catch (err) {
-      if (err.message === 'NOT_SUBSCRIBED') {
-        vibeAlert.info(
-          'Already Left',
-          'You are not currently registered for this event.'
-        );
-        setIsSubscribed(false);
-      } else {
-        vibeAlert.error(
-          'Error',
-          `Failed to leave event: ${err.message}. Please try again.`
-        );
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle kicking an attendee from the event
-  const handleKickAttendee = async (attendeeId, attendeeName) => {
-    if (!event || !currentUserId || !studioId) {
-      vibeAlert.error('Error', 'Unable to remove attendee at this time.');
-      return;
-    }
-
-    // Check if user has permission to kick
-    const isHostOrCohost =
-      event.createdBy === currentUserId ||
-      event.cohosts?.includes(currentUserId) ||
-      false;
-    if (!isHostOrCohost) {
-      vibeAlert.error('Error', 'Only hosts and co-hosts can remove attendees.');
-      return;
-    }
-
-    // Prevent kicking hosts/cohosts
-    if (
-      attendeeId === event.createdBy ||
-      event.cohosts?.includes(attendeeId) ||
-      false
-    ) {
-      vibeAlert.error(
-        'Error',
-        'Cannot remove hosts or co-hosts from the event.'
-      );
-      return;
-    }
-
-    vibeAlert.error(
+  const handleKickAttendee = (attendeeId, attendeeName) => {
+    vibeAlert.confirm(
       'Remove Attendee',
-      `Are you sure you want to remove "${attendeeName}" from this event? They will be notified.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setIsLoading(true);
+      `Remove ${attendeeName} from this event?`,
+      async () => {
+        try {
+          const result = await eventService.kickAttendee(
+            studioId,
+            eventId,
+            attendeeId,
+            currentUserId
+          );
 
-              // Update event document to remove subscriber
-              const eventRef = doc(db, 'studios', studioId, 'events', eventId);
-              await updateDoc(eventRef, {
-                subscribers: arrayRemove(attendeeId),
-                subscriberCount: increment(-1),
-              });
+          setEvent(prev => ({
+            ...prev,
+            subscribers: result.subscribers,
+            subscriberCount: result.subscriberCount,
+          }));
 
-              // Update user's subscribed events
-              const userRef = doc(db, 'users', attendeeId);
-              await updateDoc(userRef, {
-                subscribedEvents: arrayRemove(eventId),
-                'userdata.metrics.events.subscribedEvents':
-                  arrayRemove(eventId),
-                'userdata.metrics.events.lastActivity': new Date(),
-              });
+          setFriendAttendees(prev =>
+            prev.filter(attendee => attendee.id !== attendeeId)
+          );
 
-              // Remove user's notification settings for this event
-              const userEventRef = doc(
-                db,
-                'users',
-                attendeeId,
-                'eventSubscriptions',
-                eventId
-              );
-              await deleteDoc(userEventRef);
-
-              // User's reminders are handled by server-side FCM scheduling
-              // Individual user notification cancellation would need to be implemented separately
-
-              // Send notification to kicked user
-              try {
-                await createNotification({
-                  userId: attendeeId,
-                  type: NOTIFICATION_TYPES.EVENT_KICKED || 'event_kicked',
-                  title: 'Removed from Event',
-                  message: `You have been removed from "${event.title}"`,
-                  data: {
-                    eventId: eventId,
-                    eventTitle: event.title,
-                    hostId: currentUserId,
-                    studioId: studioId,
-                  },
-                  priority: NOTIFICATION_PRIORITY.HIGH,
-                  channels: [DELIVERY_CHANNELS.PUSH],
-                });
-              } catch (notificationError) {
-                console.warn(
-                  'Failed to send removal notification:',
-                  notificationError
-                );
-              }
-
-              // Update local state
-              setEvent((prev) => ({
-                ...prev,
-                subscribers: (prev.subscribers || []).filter(
-                  (id) => id !== attendeeId
-                ),
-                subscriberCount: Math.max(0, (prev.subscriberCount || 0) - 1),
-              }));
-
-              // Remove from friendAttendees display list
-              setFriendAttendees((prev) =>
-                prev.filter((attendee) => attendee.id !== attendeeId)
-              );
-
-              vibeAlert.success(
-                'Removed',
-                `${attendeeName} has been removed from the event.`
-              );
-            } catch (error) {
-              console.error('Error kicking attendee:', error);
-              vibeAlert.error(
-                'Error',
-                'Failed to remove attendee. Please try again.'
-              );
-            } finally {
-              setIsLoading(false);
-            }
-          },
-        },
-      ]
+          vibeAlert.success('Attendee Removed', `${attendeeName} has been removed from the event.`);
+        } catch (error) {
+          console.error('[EventDetailScreen] Error kicking attendee:', error);
+          vibeAlert.error('Error', 'Failed to remove attendee.');
+        }
+      }
     );
   };
 
   const handleInvite = () => {
-    if (!event) return;
-
     navigation.navigate('Invite', {
       type: 'guests',
-      eventId: eventId,
-      isEventCreator: permissions.canDelete, // User can delete = user is creator
       selectedUsers: [],
       selectedContacts: [],
       selectedPhoneContacts: [],
-      maxLimit: null, // No limit for finding friends
-      eventTitle: event.title,
-      source: 'event_detail',
-      onSave: async (inviteData) => {
-        try {
-          // Use the follow system instead of invitations
-          const { followUser, batchFollowUsers } = await import(
-            '../../services/followService'
-          );
-
-          // Only process app users - we can't "follow" email/phone contacts
-          const usersToFollow = inviteData.users || [];
-
-          if (usersToFollow.length === 0) {
-            vibeAlert.info('Info', 'Select app users to connect with them.');
-            return;
-          }
-
-          // Follow all selected users
-          const userIds = usersToFollow.map((user) => user.id);
-          const result = await batchFollowUsers(
-            currentUserId,
-            userIds,
-            userData
-          );
-
-          const successful = result.filter((r) => r.success).length;
-          const failed = result.filter((r) => !r.success).length;
-
-          if (successful > 0 && failed === 0) {
-            vibeAlert.success(
-              'Success',
-              `Now following ${successful} user${successful > 1 ? 's' : ''}! You'll see their events in your feed.`
-            );
-          } else if (successful > 0 && failed > 0) {
-            vibeAlert.warning(
-              'Partial Success',
-              `Following ${successful} users, but ${failed} failed (may already be following them).`
-            );
-          } else {
-            vibeAlert.error(
-              'Error',
-              'Failed to follow users. You may already be following them.'
-            );
-          }
-        } catch (error) {
-          vibeAlert.error(
-            'Error',
-            'Failed to connect with users. Please try again.'
-          );
-        }
+      eventTitle: event?.title,
+      eventId: eventId, // Pass eventId for proper filtering
+      studioId: studioId, // Pass studioId for proper filtering
+      source: 'guest_invite',
+      onSave: (selectedData) => {
+        vibeAlert.success(
+          'Invites Sent',
+          `Invited ${selectedData.users.length} people to the event!`
+        );
+        navigation.goBack();
       },
     });
   };
 
-  const handleDelete = () => {
-    if (!permissions.canDelete) {
-      vibeAlert.error(
-        'Error',
-        'You do not have permission to delete this event.'
-      );
-      return;
-    }
+  // Load event data on focus
+  useFocusEffect(
+    useCallback(() => {
+      const fetchEventData = async () => {
+        if (!studioId || !eventId || !currentUserId) return;
 
-    const subscriberCount = event.subscriberCount || 0;
-    const warningMessage =
-      subscriberCount > 1
-        ? `This event has ${subscriberCount} subscribers who will lose access. This action cannot be undone.`
-        : 'This action cannot be undone.';
+        try {
+          const eventData = await eventDataService.fetchEventData(
+            studioId,
+            eventId,
+            currentUserId
+          );
 
-    vibeAlert.error(
-      'Delete Event',
-      `Are you sure you want to delete "${event.title}"? ${warningMessage}`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: performDelete,
-        },
-      ]
-    );
-  };
+          setEvent(eventData.event);
+          setIsSubscribed(eventData.isSubscribed);
+          setCreatorData(eventData.creatorData);
+          setCohostData(eventData.cohostData);
+          setFriendAttendees(eventData.attendeesList);
 
-  const performDelete = async () => {
-    try {
-      // Get all subscribers and creator before deleting the event
-      const subscriberIds = event.subscribers || [];
-      const creatorId = event.createdBy;
+          // Load interests
+          const [userInterestsData, eventInterestsData] = await Promise.all([
+            getUserInterests(currentUserId),
+            extractInterestsFromEventTitle(eventData.event.title)
+          ]);
 
-      // Delete the event first
-      await deleteDoc(doc(db, 'studios', studioId, 'events', eventId));
+          setUserInterests(userInterestsData);
+          setEventInterests(eventInterestsData);
 
-      // Update studio event count
-      try {
-        await StudioStatsService.decrementEventCount(studioId);
-      } catch (error) {
-        console.warn('Failed to decrement studio event count:', error);
-        // Don't fail the deletion if stats update fails
-      }
+        } catch (error) {
+          console.error('[EventDetailScreen] Error fetching event data:', error);
+          vibeAlert.error(
+            'Error',
+            'Failed to load event details. Please try again.',
+            [
+              {
+                text: 'Retry',
+                onPress: () => fetchEventData(),
+              },
+              {
+                text: 'Go Back',
+                onPress: () => navigation.goBack(),
+              },
+            ]
+          );
+        }
+      };
 
-      const cleanupPromises = [];
-
-      // Remove event from all subscribers' arrays
-      subscriberIds.forEach((userId) => {
-        const userRef = doc(db, 'users', userId);
-        cleanupPromises.push(
-          updateDoc(userRef, {
-            subscribedEvents: arrayRemove(eventId),
-            'userdata.metrics.events.subscribedEvents': arrayRemove(eventId),
-            'userdata.metrics.events.attendedEvents': arrayRemove(eventId), // Also remove from attended if they had it
-            'userdata.metrics.events.lastActivity': new Date(),
-          }).catch((err) => {
-            console.warn(
-              `Failed to cleanup subscriber metrics for ${userId}:`,
-              err
-            );
-          })
-        );
-      });
-
-      // Use the proper deletion metrics function for the creator/host
-      if (creatorId) {
-        const { updateEventDeletionMetrics } = await import(
-          '../lib/userMetrics'
-        );
-        cleanupPromises.push(
-          updateEventDeletionMetrics(creatorId, eventId).catch((err) => {
-            console.warn(
-              `Failed to cleanup creator metrics for ${creatorId}:`,
-              err
-            );
-          })
-        );
-      }
-
-      // Delete attendance records
-      const { AttendanceService } = await import(
-        '../../services/AttendanceService'
-      );
-      cleanupPromises.push(
-        AttendanceService.deleteEventAttendance(studioId, eventId).catch(
-          (err) => {
-            console.warn(
-              `Failed to cleanup attendance records for event ${eventId}:`,
-              err
-            );
-          }
-        )
-      );
-
-      await Promise.allSettled(cleanupPromises);
-
-      vibeAlert.success(
-        'Event Deleted',
-        'Event has been deleted successfully.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              // Navigate back to the previous screen
-              navigation.goBack();
-            },
-          },
-        ]
-      );
-    } catch (err) {
-      console.error('Error deleting event:', err);
-      vibeAlert.error('Error', 'Failed to delete event. Please try again.');
-    }
-  };
+      fetchEventData();
+    }, [studioId, eventId, currentUserId, navigation, vibeAlert])
+  );
 
   if (!event) {
     return (
@@ -1324,17 +416,6 @@ export default function EventDetailScreen({ route, navigation }) {
     );
   }
 
-  // Use utility functions instead of local ones - with null checks
-  const eventStatus = event ? getEventStatus(event) : 'Loading';
-  const statusColor = event ? getStatusColor(eventStatus) : theme.colors.gray;
-  const isEventPast = event ? isPastEvent(event) : false;
-  const isFullEvent = event ? isEventFull(event) : false;
-  const permissions = event
-    ? getUserEventPermissions(currentUserId, userData, event)
-    : { canDelete: false, canEdit: false, canManageAttendance: false };
-  const joinConstraints = event
-    ? validateEventJoinConstraints(event, isSubscribed)
-    : { canJoin: false, reason: 'Loading' };
 
   return (
     <ScrollView
@@ -1342,411 +423,31 @@ export default function EventDetailScreen({ route, navigation }) {
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      {/* Status Badges Section with Notification and Report Buttons */}
-      <View style={styles.badgesSection}>
-        <View style={styles.badgeRow}>
-          {/* Notification Bell Button - Only show when subscribed to event and event is not past */}
-          {event && isSubscribed && !isPastEvent(event) && (
-            <TouchableOpacity
-              style={styles.notificationButton}
-              onPress={handleNotificationSettings}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.notificationIcon}>🔔</Text>
-            </TouchableOpacity>
-          )}
+      {/* Status Badges */}
+      <EventStatusBadges
+        event={event}
+        isSubscribed={isSubscribed}
+        onNotificationSettings={handleNotificationSettings}
+        onReportEvent={handleReportEvent}
+      />
 
-          <View style={styles.titleBadges}>
-            {/* Event Status Badge - Always show when event is loaded */}
-            {event && (
-              <View
-                style={[styles.statusBadge, { backgroundColor: statusColor }]}
-              >
-                <Text style={styles.statusText}>{eventStatus}</Text>
-              </View>
-            )}
-          </View>
+      {/* Event Info Section */}
+      <EventInfoSection
+        event={event}
+        currentUserId={currentUserId}
+        creatorData={creatorData}
+        cohostData={cohostData}
+        friendAttendees={friendAttendees}
+        userInterests={userInterests}
+        eventInterests={eventInterests}
+        showPrivacyFlash={showPrivacyFlash}
+        onInterestToggle={handleInterestToggleWithFeedback}
+        onPrivacyIconPress={handlePrivacyIconPress}
+        onShowHostProfile={handleShowHostProfile}
+        onShowAttendeesModal={() => setShowFriendsModal(true)}
+      />
 
-          {/* Report Button - Only show when event is fully loaded */}
-          {event && event.id && event.title && event.createdBy && (
-            <TouchableOpacity
-              style={styles.reportButton}
-              onPress={handleReportEvent}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.reportIcon}>⚠️</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-
-      {/* Event Info Section - Only show when event is loaded */}
-      {event && (
-        <View style={styles.infoSection}>
-          <View style={styles.infoCard}>
-            <View style={styles.eventNameRow}>
-              <TouchableOpacity
-                onPress={handlePrivacyIconPress}
-                style={styles.privacyIconContainer}
-              >
-                <Text style={styles.privacyIcon}>
-                  {event.isPrivate ? '🔒' : '🌍'}
-                </Text>
-              </TouchableOpacity>
-              <View style={styles.eventNameContent}>
-                <Text style={styles.infoLabel}>Event Name</Text>
-                <Text style={styles.infoValue}>
-                  {showPrivacyFlash
-                    ? event.isPrivate
-                      ? 'Private Event'
-                      : 'Public Event'
-                    : (() => {
-                        const { cleanTitle } = extractEmoji(event.title);
-                        return cleanTitle;
-                      })()}
-                </Text>
-              </View>
-              <View style={styles.interestStars}>
-                {eventInterests.length > 0 ? (
-                  // Show stars for detected interests
-                  eventInterests.map((interest, index) => {
-                    const isInterested = userInterests.some(
-                      (userInterest) =>
-                        userInterest.toLowerCase() === interest.toLowerCase()
-                    );
-                    return (
-                      <TouchableOpacity
-                        key={index}
-                        onPress={() => handleInterestToggle(interest)}
-                        style={styles.starButton}
-                      >
-                        <Text
-                          style={[
-                            styles.starIcon,
-                            { color: isInterested ? '#FFD700' : '#888888' },
-                          ]}
-                        >
-                          {isInterested ? '⭐' : '☆'}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })
-                ) : (
-                  // Show generic star for custom interest creation
-                  <TouchableOpacity
-                    onPress={() => {
-                      // Clean event title for consistent interest matching
-                      const cleanTitle = event.title
-                        .replace(/[^\w\s]/g, '') // Remove all non-word characters
-                        .replace(/\s+/g, ' ')
-                        .trim()
-                        .split(' ')
-                        .map(
-                          (word) =>
-                            word.charAt(0).toUpperCase() +
-                            word.slice(1).toLowerCase()
-                        )
-                        .join(' ');
-                      handleInterestToggle(cleanTitle);
-                    }}
-                    style={styles.starButton}
-                  >
-                    <Text
-                      style={[
-                        styles.starIcon,
-                        {
-                          color: userInterests.some(
-                            (userInterest) =>
-                              userInterest.toLowerCase() ===
-                              event.title.toLowerCase().trim()
-                          )
-                            ? '#FFD700'
-                            : '#888888',
-                        },
-                      ]}
-                    >
-                      {userInterests.some(
-                        (userInterest) =>
-                          userInterest.toLowerCase() ===
-                          event.title.toLowerCase().trim()
-                      )
-                        ? '⭐'
-                        : '☆'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-          </View>
-          <View style={styles.infoCard}>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoIcon}>📅</Text>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Date & Time</Text>
-                <Text style={styles.infoValue}>
-                  {FormatDate(
-                    event.eventTimestamp?.toDate() || event.utcDateTime,
-                    event.eventTimeZone ||
-                      Intl.DateTimeFormat().resolvedOptions().timeZone
-                  )}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          <TouchableOpacity
-            style={styles.infoCard}
-            onPress={event.address ? openMaps : undefined}
-            disabled={!event.address}
-          >
-            <View style={styles.infoRow}>
-              <Text style={styles.infoIcon}>📍</Text>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Location</Text>
-                <Text style={styles.infoValue}>{event.location}</Text>
-              </View>
-              {event.address && <Text style={styles.tapToOpenMaps}>🗺️</Text>}
-            </View>
-          </TouchableOpacity>
-
-          <View style={styles.infoCard}>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoIcon}>👤</Text>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>
-                  Event Host{cohostData.length > 0 ? 's' : ''}
-                </Text>
-                <EventCreatorInfo
-                  creatorData={creatorData}
-                  showLabel={false}
-                  showReliability={false}
-                  onPress={() => handleShowHostProfile(creatorData)}
-                />
-                {cohostData.length > 0 && (
-                  <View style={styles.cohostsContainer}>
-                    {cohostData.map((cohost) => (
-                      <EventCreatorInfo
-                        key={cohost.id}
-                        creatorData={cohost}
-                        showLabel={false}
-                        showReliability={false}
-                        onPress={() => handleShowHostProfile(cohost)}
-                        style={styles.cohostItem}
-                      />
-                    ))}
-                  </View>
-                )}
-              </View>
-            </View>
-          </View>
-
-          {/* Only show attendee card if there are attendees beyond the host */}
-          {(event.subscriberCount || 0) > 1 && (
-            <View style={styles.infoCard}>
-              <TouchableOpacity
-                style={styles.infoRow}
-                onPress={() => {
-                  const isHostOrCohost =
-                    event?.createdBy === currentUserId ||
-                    event?.cohosts?.includes(currentUserId);
-                  const canViewAttendees =
-                    (isHostOrCohost && (event?.subscriberCount || 0) > 1) ||
-                    friendAttendees.length > 0;
-                  if (canViewAttendees) setShowFriendsModal(true);
-                }}
-                disabled={(() => {
-                  const isHostOrCohost =
-                    event?.createdBy === currentUserId ||
-                    event?.cohosts?.includes(currentUserId);
-                  return (
-                    !(isHostOrCohost && (event?.subscriberCount || 0) > 1) &&
-                    friendAttendees.length === 0
-                  );
-                })()}
-                activeOpacity={(() => {
-                  const isHostOrCohost =
-                    event?.createdBy === currentUserId ||
-                    event?.cohosts?.includes(currentUserId);
-                  return (isHostOrCohost &&
-                    (event?.subscriberCount || 0) > 1) ||
-                    friendAttendees.length > 0
-                    ? 0.7
-                    : 1;
-                })()}
-              >
-                <Text style={styles.infoIcon}>👥</Text>
-                <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Attendees</Text>
-                  <Text style={styles.infoValue}>
-                    {(() => {
-                      // Use subscriberCount and subtract 1 for host to show actual attendees
-                      const totalSubscribers = event.subscriberCount || 0;
-                      const attendeeCount = Math.max(0, totalSubscribers - 1);
-                      return attendeeCount;
-                    })()}{' '}
-                    attendees
-                    {event.maxGuests && ` / ${event.maxGuests} max`}
-                    {(() => {
-                      const isHostOrCohost =
-                        event?.createdBy === currentUserId ||
-                        event?.cohosts?.includes(currentUserId);
-                      const attendeeCount = Math.max(
-                        0,
-                        (event.subscriberCount || 0) - 1
-                      );
-                      return isHostOrCohost && attendeeCount > 0
-                        ? ' (tap to view all)'
-                        : '';
-                    })()}
-                  </Text>
-                  <View style={styles.eventBadges}>
-                    {event.hasFee && event.entryFee && (
-                      <View style={styles.feeBadge}>
-                        <Text style={styles.badgeText}>
-                          💰 ${event.entryFee || 'Paid'}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                  {isFullEvent && !isSubscribed && (
-                    <Text style={styles.fullText}>Event is full</Text>
-                  )}
-                  {joinConstraints.reason && (
-                    <Text
-                      style={[
-                        styles.constraintText,
-                        {
-                          color: joinConstraints.canJoin
-                            ? '#FF9800'
-                            : '#F44336',
-                        },
-                      ]}
-                    >
-                      {joinConstraints.reason}
-                    </Text>
-                  )}
-                </View>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      )}
-
-      {/* Event Details */}
-      {event.description && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📝 Event Details</Text>
-          <View style={styles.sectionContent}>
-            <Text style={styles.details}>
-              {event.description ||
-                'No additional details provided for this event.'}
-            </Text>
-          </View>
-        </View>
-      )}
-
-      {/* Additional Information */}
-      {(event.whatsProvided ||
-        event.whatToBring ||
-        event.parkingInstructions ||
-        event.dressCode ||
-        event.ageRestrictions) && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📋 Additional Information</Text>
-          <View style={styles.sectionContent}>
-            {event.whatsProvided && (
-              <View style={styles.detailItem}>
-                <Text style={styles.detailLabel}>🎁 What's Provided</Text>
-                <Text style={styles.detailValue}>{event.whatsProvided}</Text>
-              </View>
-            )}
-
-            {event.whatToBring && (
-              <View style={styles.detailItem}>
-                <Text style={styles.detailLabel}>🎒 What to Bring</Text>
-                <Text style={styles.detailValue}>{event.whatToBring}</Text>
-              </View>
-            )}
-
-            {event.parkingInstructions && (
-              <View style={styles.detailItem}>
-                <Text style={styles.detailLabel}>🚗 Parking</Text>
-                <Text style={styles.detailValue}>
-                  {event.parkingInstructions}
-                </Text>
-              </View>
-            )}
-
-            {event.dressCode && (
-              <View style={styles.detailItem}>
-                <Text style={styles.detailLabel}>👔 Dress Code</Text>
-                <Text style={styles.detailValue}>{event.dressCode}</Text>
-              </View>
-            )}
-
-            {event.ageRestrictions && (
-              <View style={styles.detailItem}>
-                <Text style={styles.detailLabel}>🔞 Age Requirements</Text>
-                <Text style={styles.detailValue}>{event.ageRestrictions}</Text>
-              </View>
-            )}
-          </View>
-        </View>
-      )}
-
-      {/* RSVP Information */}
-      {event.rsvpDeadline && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>⏰ RSVP Information</Text>
-          <View style={styles.sectionContent}>
-            <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>RSVP Deadline</Text>
-              <Text style={styles.detailValue}>
-                {FormatDate(
-                  event.rsvpDeadline?.toDate
-                    ? event.rsvpDeadline.toDate()
-                    : new Date(event.rsvpDeadline),
-                  event.eventTimeZone ||
-                    Intl.DateTimeFormat().resolvedOptions().timeZone
-                )}
-              </Text>
-            </View>
-          </View>
-        </View>
-      )}
-
-      {/* Host Contact Information */}
-      {event.showHost && creatorData && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📞 Contact Host</Text>
-          <View style={styles.sectionContent}>
-            {creatorData.userdata?.contactInfo?.email && (
-              <View style={styles.detailItem}>
-                <Text style={styles.detailLabel}>Email</Text>
-                <Text style={styles.detailValue}>
-                  {creatorData.userdata.contactInfo.email}
-                </Text>
-              </View>
-            )}
-            {creatorData.userdata?.contactInfo?.phoneNumber && (
-              <View style={styles.detailItem}>
-                <Text style={styles.detailLabel}>Phone</Text>
-                <Text style={styles.detailValue}>
-                  {creatorData.userdata.contactInfo.phoneNumber}
-                </Text>
-              </View>
-            )}
-            {!creatorData.userdata?.contactInfo?.email &&
-              !creatorData.userdata?.contactInfo?.phoneNumber && (
-                <Text style={styles.detailValue}>
-                  Contact information not available
-                </Text>
-              )}
-          </View>
-        </View>
-      )}
-
-      {/* Message Board - Standalone Blue Card */}
+      {/* Message Board Button */}
       <MessageBoardButton
         eventId={eventId}
         eventTitle={event?.title}
@@ -1754,238 +455,27 @@ export default function EventDetailScreen({ route, navigation }) {
       />
 
       {/* Action Buttons */}
-      <View style={styles.buttonContainer}>
-        {/* For non-hosts: show INVITE GUESTS first, then JOIN/LEAVE EVENT */}
-        {/* Show invite button for public events OR private events where guest invites are allowed and user is subscribed */}
-        {!isEventPast &&
-          !permissions.canEdit &&
-          (!event?.isPrivate || (event?.allowGuestInvites && isSubscribed)) && (
-            <VibeButton label="INVITE GUESTS" onPress={handleInvite} />
-          )}
+      <EventActionButtons
+        event={event}
+        isEventPast={isEventPast}
+        isSubscribed={isSubscribed}
+        isLoading={isLoading || isTogglingInterest}
+        permissions={permissions}
+        joinConstraints={joinConstraints}
+        onSubscribe={handleSubscribe}
+        onInvite={handleInvite}
+        onEdit={() => {}}
+        onDelete={handleDelete}
+        onManageAttendance={() => {}}
+        onSaveAsTemplate={() => {}}
+        onEventRecap={() => {}}
+        navigation={navigation}
+        eventId={eventId}
+        studioId={studioId}
+        vibeAlert={vibeAlert}
+      />
 
-        {!isEventPast && !permissions.canEdit && (
-          <VibeButton
-            label={isSubscribed ? 'LEAVE EVENT' : 'JOIN EVENT'}
-            onPress={handleSubscribe}
-            disabled={isLoading || (!isSubscribed && !joinConstraints.canJoin)}
-            style={[
-              isLoading && styles.disabledButton,
-              !isSubscribed &&
-                !joinConstraints.canJoin &&
-                styles.disabledButton,
-            ]}
-          />
-        )}
-
-        {/* Hide invite/edit/delete buttons for past events */}
-        {!isEventPast && (
-          <>
-            {/* Manage Attendance button for hosts - moved above invite */}
-            {permissions.canManageAttendance && (
-              <VibeButton
-                label="MANAGE ATTENDANCE"
-                onPress={() =>
-                  navigation.navigate('EventAttendance', { eventId, studioId })
-                }
-              />
-            )}
-
-            {/* Invite button for hosts */}
-            {permissions.canEdit && (
-              <VibeButton
-                label="INVITE GUESTS"
-                onPress={() =>
-                  navigation.navigate('Invite', {
-                    type: 'guests',
-                    selectedUsers: [],
-                    selectedContacts: [],
-                    selectedPhoneContacts: [],
-                    eventTitle: event.title,
-                    eventId: event.id, // Add eventId to indicate this is from an existing event
-                    source: 'host_invite',
-                    onSave: (selectedData) => {
-                      vibeAlert.success(
-                        'Success',
-                        `Connected with ${selectedData.users.length} people! They can now see your events.`
-                      );
-                      navigation.goBack();
-                    },
-                  })
-                }
-                style={styles.tightButton}
-              />
-            )}
-
-            {permissions.canEdit && (
-              <VibeButton
-                label="EDIT EVENT"
-                onPress={() => {
-                  navigation.navigate('EditEvent', {
-                    eventId,
-                    eventData: event,
-                    studioId,
-                  });
-                }}
-                style={styles.tightButton}
-              />
-            )}
-
-            {permissions.canDelete && (
-              <VibeButton
-                label="DELETE EVENT"
-                onPress={handleDelete}
-                style={styles.tightButton}
-              />
-            )}
-          </>
-        )}
-
-        {/* Save as Template button for past events (hosts only) */}
-        {isEventPast && permissions.canEdit && (
-          <VibeButton
-            label="SAVE AS TEMPLATE"
-            onPress={() => {
-              vibeAlert.confirm(
-                'Save as Template',
-                `Save "${event.title}" as a reusable template for future events?`,
-                () => {
-                  // Navigate to CreateEvent with this event as template
-                  navigation.navigate('CreateEvent', {
-                    templateFromEvent: {
-                      title: `${event.title} (Copy)`,
-                      location: event.location,
-                      address: event.address,
-                      details: event.description,
-                      maxGuests: event.maxGuests?.toString() || '',
-                      hasFee: event.hasFee || false,
-                      entryFee: event.entryFee?.toString() || '',
-                      isPrivate: event.isPrivate || false,
-                      showHostContact: event.showHostContact,
-                      trackAttendance: event.trackAttendance || false,
-                      attendanceType: event.attendanceType || 'casual',
-                      whatsProvided: event.whatsProvided || '',
-                      whatToBring: event.whatToBring || '',
-                      parkingInstructions: event.parkingInstructions || '',
-                      dressCode: event.dressCode || '',
-                      ageRestrictions: event.ageRestrictions || '',
-                    },
-                  });
-                  vibeAlert.turquoise(
-                    'Template Created',
-                    'Event loaded as template in Create Event!'
-                  );
-                },
-                () => {}
-              );
-            }}
-            variant="outline"
-          />
-        )}
-
-        {/* Manage Attendance button moved above invite section */}
-      </View>
-
-      {isEventPast && (
-        <View style={styles.pastEventContainer}>
-          {/* Wrap-up buttons for past events */}
-          {/* Always show wrap-up buttons for past events */}
-          {permissions.isCreator ||
-          permissions.isCohost ||
-          permissions.isAdmin ? (
-            <>
-              {/* Host wrap-up button */}
-              <VibeButton
-                label={
-                  event.status === 'completed' ? 'VIEW RECAP' : 'EVENT RECAP'
-                }
-                onPress={() =>
-                  navigation.navigate('HostEventWrapUp', { eventId, studioId })
-                }
-                variant="outline"
-              />
-              {/* Recreate event button for hosts */}
-              <VibeButton
-                label="RECREATE EVENT"
-                onPress={() =>
-                  navigation.navigate('CreateEvent', {
-                    templateFromEvent: {
-                      ...event,
-                      trackAttendance: event.trackAttendance || true,
-                      attendanceType: event.attendanceType || 'casual',
-                    },
-                  })
-                }
-                variant="primary"
-                style={{ marginTop: 8 }}
-              />
-            </>
-          ) : (
-            <>
-              {/* Solo event message */}
-              {(event?.subscriberCount || 0) === 1 &&
-                event.createdBy === currentUserId && (
-                  <View style={styles.soloEventMessage}>
-                    <Text style={styles.soloEventMessageText}>
-                      📊 Solo Event - No attendance metrics recorded
-                    </Text>
-                  </View>
-                )}
-
-              {/* Self-reporting for casual events (but not solo events) */}
-              {event?.attendanceType === 'casual' &&
-                isSubscribed &&
-                selfReportedAttendance === null &&
-                !(
-                  (event?.subscriberCount || 0) === 1 &&
-                  event.createdBy === currentUserId
-                ) && (
-                  <View style={styles.selfReportContainer}>
-                    <Text style={styles.selfReportTitle}>
-                      Did you attend this event?
-                    </Text>
-                    <Text style={styles.selfReportSubtitle}>
-                      Help us track attendance for casual events
-                    </Text>
-                    <View style={styles.selfReportButtons}>
-                      <VibeButton
-                        label="✅ I Attended"
-                        onPress={() => handleSelfReportAttendance(true)}
-                        style={[styles.selfReportButton, styles.attendedButton]}
-                      />
-                      <VibeButton
-                        label="❌ I Didn't Attend"
-                        onPress={() => handleSelfReportAttendance(false)}
-                        variant="outline"
-                        style={[styles.selfReportButton, styles.noShowButton]}
-                      />
-                    </View>
-                  </View>
-                )}
-
-              {/* Show self-reported status */}
-              {selfReportedAttendance !== null && (
-                <View style={styles.selfReportStatus}>
-                  <Text style={styles.selfReportStatusText}>
-                    ✓ You reported:{' '}
-                    {selfReportedAttendance ? 'Attended' : 'Did not attend'}
-                  </Text>
-                </View>
-              )}
-
-              {/* Guest wrap-up button */}
-              <VibeButton
-                label="EVENT RECAP"
-                onPress={() =>
-                  navigation.navigate('GuestEventWrapUp', { eventId, studioId })
-                }
-                variant="outline"
-              />
-            </>
-          )}
-        </View>
-      )}
-
-      {/* Subscription Notification Settings Modal */}
+      {/* Subscription Modal */}
       <SubscriptionNotificationSettings
         visible={showSubscriptionModal}
         onClose={() => setShowSubscriptionModal(false)}
@@ -1995,572 +485,41 @@ export default function EventDetailScreen({ route, navigation }) {
         currentUserId={currentUserId}
       />
 
-      {/* Friends Modal */}
-      <Modal
+      {/* Attendees Modal */}
+      <AttendeeSection
         visible={showFriendsModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowFriendsModal(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowFriendsModal(false)}
-        >
-          <View style={styles.friendsModal}>
-            <Text style={styles.friendsModalTitle}>
-              {event?.createdBy === currentUserId ||
-              event?.cohosts?.includes(currentUserId)
-                ? 'All Attendees'
-                : 'Friends Attending'}
-            </Text>
-            {friendAttendees.map((friend, index) => {
-              const isHostOrCohost =
-                event?.createdBy === currentUserId ||
-                event?.cohosts?.includes(currentUserId);
-              const canKickThisUser =
-                isHostOrCohost &&
-                friend.id !== event?.createdBy &&
-                !event?.cohosts?.includes(friend.id) &&
-                friend.id !== currentUserId;
-
-              return (
-                <View key={friend.id || index} style={styles.friendsModalItem}>
-                  <TouchableOpacity
-                    style={styles.friendsModalContent}
-                    onPress={() => {
-                      setShowFriendsModal(false);
-                      navigation.navigate('UserProfile', { userId: friend.id });
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <ProfileAvatar
-                      userData={friend.userData}
-                      size={32}
-                      showBorder={true}
-                    />
-                    <Text style={styles.friendName}>{friend.displayName}</Text>
-                  </TouchableOpacity>
-
-                  {canKickThisUser && (
-                    <TouchableOpacity
-                      style={styles.kickButton}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        setShowFriendsModal(false);
-                        handleKickAttendee(friend.id, friend.displayName);
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.kickButtonText}>❌</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              );
-            })}
-          </View>
-        </TouchableOpacity>
-      </Modal>
+        onClose={() => setShowFriendsModal(false)}
+        attendees={filteredAttendees}
+        eventData={event}
+        currentUserId={currentUserId}
+        isHost={permissions.canEdit}
+        onKickAttendee={handleKickAttendee}
+        navigation={navigation}
+      />
     </ScrollView>
   );
-}
+});
+
+export default EventDetailScreen;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: theme.colors.background,
   },
   content: {
-    paddingBottom: 40,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-    width: '100%',
-    position: 'relative',
-  },
-  notificationButton: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    padding: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  notificationIcon: {
-    fontSize: 18,
-  },
-  reportButton: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    padding: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  reportIcon: {
-    fontSize: 18,
-  },
-  eventNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  privacyIconContainer: {
-    position: 'relative',
-    marginRight: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 40,
-    height: 40,
-  },
-  privacyIcon: {
-    fontSize: 24,
-    textAlign: 'center',
-  },
-  eventNameContent: {
-    flex: 1,
+    paddingBottom: 100, // Fixed bottom spacing issue
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: theme.colors.background,
   },
   loadingText: {
-    color: theme.colors.textSecondary,
+    color: theme.colors.textPrimary,
     fontSize: 16,
     marginTop: 12,
-    fontFamily: theme.fonts.main,
-  },
-
-  // Badges Section
-  badgesSection: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 16,
-    alignItems: 'center',
-  },
-  titleBadges: {
-    flexDirection: 'row',
-    gap: 8,
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-  },
-
-  statusBadge: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  statusText: {
-    color: theme.colors.textPrimary,
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    fontFamily: theme.fonts.main,
-  },
-  privateTitleBadge: {
-    backgroundColor: 'rgba(255, 152, 0, 0.2)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#FF9800',
-  },
-  privateBadgeText: {
-    color: theme.colors.textPrimary,
-    fontSize: 12,
-    fontWeight: '600',
-    fontFamily: theme.fonts.main,
-  },
-  publicTitleBadge: {
-    backgroundColor: 'rgba(76, 175, 80, 0.2)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#4CAF50',
-  },
-  publicBadgeText: {
-    color: theme.colors.textPrimary,
-    fontSize: 12,
-    fontWeight: '600',
-    fontFamily: theme.fonts.main,
-  },
-  attendanceTypeBadge: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    marginTop: 8,
-  },
-  attendanceTypeBadgeText: {
-    color: theme.colors.textPrimary,
-    fontSize: 12,
-    fontWeight: '600',
-    fontFamily: theme.fonts.main,
-  },
-
-  // Info Section
-  infoSection: {
-    paddingHorizontal: 20,
-    marginBottom: 32,
-  },
-  infoCard: {
-    backgroundColor: theme.colors.inputBackground,
-    borderRadius: theme.sizes.borderRadius,
-    padding: 20,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.inputBorder,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  infoIcon: {
-    fontSize: 24,
-    marginRight: 16,
-    width: 40,
-    textAlign: 'center',
-  },
-  infoContent: {
-    flex: 1,
-  },
-  infoLabel: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-    fontWeight: '500',
-    marginBottom: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    fontFamily: theme.fonts.main,
-  },
-  infoValue: {
-    fontSize: 16,
-    color: theme.colors.textPrimary,
-    fontWeight: '600',
-    lineHeight: 22,
-    fontFamily: theme.fonts.main,
-  },
-  friendsList: {
-    marginTop: 4,
-    marginBottom: 4,
-  },
-  friendsHint: {
-    fontSize: 12,
-    color: theme.colors.vibeBlue,
-    fontFamily: theme.fonts.main,
-    fontWeight: '400',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  friendsModal: {
-    backgroundColor: theme.colors.background,
-    borderRadius: 16,
-    padding: 20,
-    margin: 20,
-    minWidth: 350,
-    maxWidth: 400,
-    borderWidth: 1,
-    borderColor: theme.colors.vibeBlue,
-  },
-  friendsModalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: theme.colors.white,
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  friendsModalItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: 'rgba(0, 198, 255, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 198, 255, 0.2)',
-  },
-  friendsModalContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: 12,
-  },
-  friendName: {
-    fontSize: 16,
-    color: theme.colors.white,
-    flex: 1,
-    fontFamily: theme.fonts.main,
-  },
-  kickButton: {
-    padding: 8,
-    borderRadius: 6,
-    backgroundColor: 'transparent',
-    borderWidth: 0,
-    marginLeft: 8,
-  },
-  kickButtonText: {
-    fontSize: 16,
-    color: '#FF4D4D',
-  },
-  tapToOpenMaps: {
-    fontSize: 20,
-    marginLeft: 8,
-  },
-
-  // Interest Star Styles
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: 22, // Match line height of title text
-  },
-  titleText: {
-    flex: 1,
-    marginRight: 8,
-  },
-  interestStars: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  starButton: {
-    padding: 4,
-  },
-  starIcon: {
-    fontSize: 20,
-    color: '#888888', // Light grey for better visibility
-  },
-  fullText: {
-    color: '#ff6b6b',
-    fontSize: 14,
-    fontWeight: '600',
-    marginTop: 6,
-    fontFamily: theme.fonts.main,
-  },
-  constraintText: {
-    fontSize: 12,
-    fontWeight: '500',
-    marginTop: 4,
-    fontFamily: theme.fonts.main,
-  },
-
-  // Sections
-  section: {
-    marginBottom: 24,
-    paddingHorizontal: 20,
-  },
-  sectionTitle: {
-    color: theme.colors.textPrimary,
-    fontSize: 20,
-    fontWeight: '600',
-    marginBottom: 16,
-    fontFamily: theme.fonts.main,
-  },
-  sectionContent: {
-    backgroundColor: theme.colors.inputBackground,
-    borderRadius: theme.sizes.borderRadius,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: theme.colors.inputBorder,
-  },
-  details: {
-    color: theme.colors.textPrimary,
-    fontSize: 16,
-    lineHeight: 24,
-    fontFamily: theme.fonts.main,
-  },
-
-  // Buttons
-  buttonContainer: {
-    paddingHorizontal: 20,
-  },
-  disabledButton: {
-    opacity: 0.5,
-  },
-  tightButton: {
-    marginVertical: 2,
-  },
-
-  // Past Event
-  pastEventContainer: {
-    marginTop: 24,
-    marginBottom: 40,
-    paddingHorizontal: 20,
-  },
-
-  // Solo event message
-  soloEventMessage: {
-    backgroundColor: 'rgba(255, 165, 0, 0.1)',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#FFA500',
-    padding: 16,
-    marginBottom: 16,
-    alignItems: 'center',
-  },
-  soloEventMessageText: {
-    color: '#FFA500',
-    fontSize: 14,
-    fontWeight: '500',
-    textAlign: 'center',
-    fontFamily: theme.fonts.main,
-  },
-
-  // Self-reporting styles
-  selfReportContainer: {
-    backgroundColor: theme.colors.inputBackground,
-    borderRadius: theme.sizes.borderRadius,
-    padding: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.inputBorder,
-  },
-  selfReportTitle: {
-    color: theme.colors.textPrimary,
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: 4,
-    fontFamily: theme.fonts.main,
-  },
-  selfReportSubtitle: {
-    color: theme.colors.textSecondary,
-    fontSize: 12,
-    textAlign: 'center',
-    marginBottom: 16,
-    fontFamily: theme.fonts.main,
-  },
-  selfReportButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  selfReportButton: {
-    flex: 1,
-  },
-  attendedButton: {
-    backgroundColor: theme.colors.vibeGreen || '#00FF96',
-  },
-  noShowButton: {
-    borderColor: theme.colors.textSecondary,
-  },
-  selfReportStatus: {
-    backgroundColor: 'rgba(0, 255, 150, 0.1)',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.vibeGreen || '#00FF96',
-  },
-  selfReportStatusText: {
-    color: theme.colors.vibeGreen || '#00FF96',
-    fontSize: 14,
-    fontWeight: '500',
-    textAlign: 'center',
-    fontFamily: theme.fonts.main,
-  },
-  pastEventText: {
-    color: theme.colors.textSecondary,
-    fontSize: 16,
-    textAlign: 'center',
-    fontStyle: 'italic',
-    fontFamily: theme.fonts.main,
-  },
-
-  // New styles for enhanced event details
-  infoSubValue: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-    fontFamily: theme.fonts.main,
-    marginTop: 4,
-  },
-  eventBadges: {
-    flexDirection: 'row',
-    marginTop: 8,
-    gap: 8,
-  },
-  privateBadge: {
-    backgroundColor: 'rgba(255, 152, 0, 0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#FF9800',
-  },
-  feeBadge: {
-    backgroundColor: 'rgba(76, 175, 80, 0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#4CAF50',
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: theme.colors.textPrimary,
-    fontFamily: theme.fonts.main,
-  },
-  detailItem: {
-    marginBottom: 16,
-  },
-  lastDetailItem: {
-    marginBottom: 0,
-  },
-  detailLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.colors.vibeBlue || '#00C6FF',
-    marginBottom: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    fontFamily: theme.fonts.main,
-  },
-  detailValue: {
-    fontSize: 16,
-    color: theme.colors.textPrimary,
-    lineHeight: 22,
-    fontFamily: theme.fonts.main,
-  },
-  cohostsContainer: {
-    marginTop: 8,
-  },
-  cohostItem: {
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border || 'rgba(255, 255, 255, 0.1)',
-  },
-  qrHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  qrTitle: {
-    color: theme.colors.textPrimary,
-    fontSize: 18,
-    fontWeight: '600',
-    fontFamily: theme.fonts.main,
-  },
-  toggleQRButton: {
-    backgroundColor: theme.colors.vibeBlue,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  toggleQRButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
+    ...theme.shadows.textGlow,
   },
 });

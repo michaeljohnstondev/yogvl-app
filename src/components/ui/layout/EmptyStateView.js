@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import VibeButton from '../base/VibeButton';
+import { VibeButton } from '../';
 
 const EmptyStateView = ({ navigation }) => {
   return (

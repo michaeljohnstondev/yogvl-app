@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Alert, ScrollView } from 'react-native';
-import VibeButton from '../base/VibeButton';
+import { VibeButton } from '../';
 import fcmService from '../../../services/fcmServiceWrapper';
 import {
   notifyNewFollower,

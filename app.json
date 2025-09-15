@@ -4,7 +4,7 @@
     "slug": "bvs-app",
     "version": "1.0.0",
     "scheme": "bvs-app",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -29,11 +29,6 @@
         "backgroundColor": "#000000"
       },
       "package": "com.bigvibestudios.bvs",
-      "buildVariants": {
-        "development": {
-          "package": "com.bigvibestudios.bvs.dev"
-        }
-      },
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.ACCESS_COARSE_LOCATION",
@@ -78,7 +73,8 @@
             "googleServicesFile": "./google-services.json"
           }
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "extra": {
       "eas": {

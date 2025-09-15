@@ -54,7 +54,8 @@
       "Bash(npx kill-port:*)",
       "Bash(timeout 30 npx expo export --dev)",
       "Bash(npx reset-cache:*)",
-      "Bash(tasklist)"
+      "Bash(tasklist)",
+      "mcp__ide__getDiagnostics"
     ],
     "deny": [],
     "ask": [],

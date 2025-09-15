@@ -14,7 +14,7 @@ import {
 } from '../../components/ui/base';
 import { useVibeAlert } from '../../components/ui/base/VibeAlertContext';
 import { LinearGradient } from 'expo-linear-gradient';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from '../../lib/firebase';
 import { auth, db } from '../services/firebase';
 import {
   getDefaultUserSettings,

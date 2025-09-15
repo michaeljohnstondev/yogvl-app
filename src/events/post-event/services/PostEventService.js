@@ -4,10 +4,12 @@ import {
   doc,
   getDoc,
   updateDoc,
+  deleteDoc,
   Timestamp,
   arrayUnion,
   arrayRemove,
   increment,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '../../../auth/services/firebase';
 import { AttendanceService } from '../../../services/AttendanceService';
@@ -62,32 +64,50 @@ export class PostEventService {
         throw new Error('Users cannot be both attendees and no-shows');
       }
 
+      // Use atomic batch operation for event completion
+      const batch = writeBatch(db);
+      const now = Timestamp.now();
+
       // Update event status
       const updateData = {
         status: 'completed',
-        completedAt: Timestamp.now(),
+        completedAt: now,
         completedBy: hostId,
-        finalAttendees: attendeeIds,
-        attendeeCount: attendeeIds.length,
+        attended: attendeeIds.length,
+        noShows: noShowIds.length,
+        // Build attendance array for detailed tracking
+        attendance: this.buildAttendanceArray(
+          attendeeIds,
+          noShowIds,
+          hostId,
+          eventData,
+          now
+        ),
       };
 
-      // Add no-shows for strict events only
+      // Add legacy fields for backward compatibility
+      updateData.finalAttendees = attendeeIds;
+      updateData.attendeeCount = attendeeIds.length;
+
       if (eventData.attendanceType === 'strict') {
         updateData.noShows = noShowIds;
         updateData.noShowCount = noShowIds.length;
       }
 
-      await updateDoc(eventRef, updateData);
+      batch.update(eventRef, updateData);
 
-      // Update attendance records for all participants
-      await this.processAttendanceRecords(
-        studioId,
-        eventId,
-        hostId,
-        attendeeIds,
-        noShowIds,
-        eventData
-      );
+      // Process reliability updates atomically (for strict events only)
+      if (eventData.attendanceType === 'strict') {
+        await this.addReliabilityUpdatesToBatch(
+          batch,
+          attendeeIds,
+          noShowIds,
+          eventData
+        );
+      }
+
+      // Commit all changes atomically
+      await batch.commit();
 
       // Send completion notifications
       await this.sendEventCompletionNotifications(
@@ -428,6 +448,70 @@ export class PostEventService {
       return true;
     } catch (error) {
       console.error('Error deleting event:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Build attendance array according to DATABASE.md schema
+   * @private
+   */
+  static buildAttendanceArray(attendeeIds, noShowIds, hostId, eventData, timestamp) {
+    const attendance = [];
+    const allParticipants = [...new Set([...attendeeIds, ...noShowIds, hostId])];
+
+    allParticipants.forEach(userId => {
+      const attended = attendeeIds.includes(userId);
+      const isHost = userId === hostId;
+
+      attendance.push({
+        userId,
+        attended,
+        isHost,
+        markedBy: hostId,
+        markedAt: timestamp,
+        selfReported: false,
+        isSoloEvent: AttendanceService.isSoloEvent(eventData),
+        eventType: eventData.attendanceType || 'casual'
+      });
+    });
+
+    return attendance;
+  }
+
+  /**
+   * Add reliability score updates to batch for atomic operation
+   * @private
+   */
+  static async addReliabilityUpdatesToBatch(batch, attendeeIds, noShowIds, eventData) {
+    try {
+      // Only update reliability for strict events
+      if (eventData.attendanceType !== 'strict') {
+        return;
+      }
+
+      // Process no-shows (negative impact)
+      noShowIds.forEach(userId => {
+        const userRef = doc(db, 'users', userId);
+        batch.update(userRef, {
+          'userdata.metrics.events.noShows': increment(1),
+          'userdata.metrics.events.lastNoShow': Timestamp.now(),
+          'userdata.lastUpdated': Timestamp.now()
+        });
+      });
+
+      // Process attendees (positive impact)
+      attendeeIds.forEach(userId => {
+        const userRef = doc(db, 'users', userId);
+        batch.update(userRef, {
+          'userdata.metrics.events.attended': increment(1),
+          'userdata.metrics.events.lastAttended': Timestamp.now(),
+          'userdata.lastUpdated': Timestamp.now()
+        });
+      });
+
+    } catch (error) {
+      console.error('[PostEventService] Error adding reliability updates to batch:', error);
       throw error;
     }
   }

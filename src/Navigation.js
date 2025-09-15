@@ -1,40 +1,49 @@
 import React, { useState, useEffect } from 'react';
-import { View, ActivityIndicator, Text } from 'react-native';
+import { View } from 'react-native';
 import { VibeLoadingScreen } from './components/ui/base';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as Linking from 'expo-linking';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, getDoc, doc, onSnapshot } from 'firebase/firestore';
+import { getAuth, onAuthStateChanged, getDoc, doc, onSnapshot, getFirestore } from './lib/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import app, { auth as firebaseAuth } from './auth/services/firebase';
 import { UserDataCleanupService } from './services/UserDataCleanupService';
 import { AuthProvider } from './auth/AuthContext';
 import { RealtimeNotificationsProvider } from './contexts/RealtimeNotificationsContext';
-import { useEventEndNotifications } from './hooks/useEventEndNotifications';
 import fcmService from './services/fcmServiceWrapper';
-import LandingScreen from './screens/LandingScreen';
-import ContactInfoScreen from './auth/screens/ContactInfoScreen';
-import LocationScreen from './auth/screens/LocationScreen';
-import HomeScreen from './screens/HomeScreen';
-import CreateEventScreen from './events/screens/CreateEventScreen';
-import EventDetailScreen from './events/screens/EventDetailScreen';
-import EventNotificationSettingsScreen from './events/screens/EventNotificationSettingsScreen';
-import InviteGuestsScreen from './events/screens/InviteGuestsScreen';
-import InvitationsScreen from './events/screens/InvitationsScreen';
-import AttendanceScreen from './events/screens/AttendanceScreen';
-import NotificationsScreen from './screens/NotificationsScreen';
-import InviteScreen from './screens/InviteScreen';
-import PrivacySettingsScreen from './screens/PrivacySettingsScreen';
-import NotificationSettingsScreen from './screens/NotificationSettingsScreen';
-import UserProfileScreen from './screens/UserProfileScreen';
-import SocialListScreen from './screens/SocialListScreen';
-import InterestsScreen from './screens/InterestsScreen';
-import AdminScreen from './screens/AdminScreen';
-import EditEventScreen from './events/screens/EditEventScreen';
-import HostProfileScreen from './screens/HostProfileScreen';
-import MessageBoardScreen from './screens/MessageBoardScreen';
+
+// Consolidated screen imports using barrel exports
+import {
+  LandingScreen,
+  HomeScreen,
+  NotificationsScreen,
+  InviteScreen,
+  PrivacySettingsScreen,
+  NotificationSettingsScreen,
+  UserProfileScreen,
+  SocialListScreen,
+  InterestsScreen,
+  AdminScreen,
+  HostProfileScreen,
+  MessageBoardScreen
+} from './screens';
+
+import {
+  ContactInfoScreen,
+  LocationScreen
+} from './auth/screens';
+
+import {
+  CreateEventScreen,
+  EventDetailScreen,
+  EventNotificationSettingsScreen,
+  InviteGuestsScreen,
+  InvitationsScreen,
+  AttendanceScreen,
+  EditEventScreen,
+  EventWrapUpScreen
+} from './events/screens';
 
 const Stack = createNativeStackNavigator();
 
@@ -196,17 +205,55 @@ export default function Navigation() {
 
     if (__DEV__) console.log('[Navigation] Setting up user data listener');
     const userDocRef = doc(db, 'users', user.uid);
+
+    // Add debouncing to reduce excessive updates from rapid Firestore changes
+    let updateTimeout;
+
     const unsubscribe = onSnapshot(
       userDocRef,
       (doc) => {
-        if (__DEV__) console.log('[Navigation] User data updated');
-        if (doc.exists()) {
-          const newUserData = doc.data();
-          setUserData(newUserData);
-        } else {
-          if (__DEV__) console.log('[Navigation] User document missing');
-          setUserData(null);
+        // Clear any pending updates
+        if (updateTimeout) {
+          clearTimeout(updateTimeout);
         }
+
+        // Debounce the update by 50ms to batch rapid changes
+        updateTimeout = setTimeout(() => {
+          if (__DEV__) console.log('[Navigation] User data updated');
+          if (doc.exists()) {
+            const newUserData = doc.data();
+
+            // Only update state if navigation-relevant fields changed
+            setUserData(prevUserData => {
+              if (!prevUserData) {
+                // First load - always update
+                return newUserData;
+              }
+
+              // Check if only interests changed (ignore preferences.interests updates)
+              const { preferences: prevPrefs, ...prevRest } = prevUserData;
+              const { preferences: newPrefs, ...newRest } = newUserData;
+
+              const { interests: prevInterests, ...prevPrefsRest } = prevPrefs || {};
+              const { interests: newInterests, ...newPrefsRest } = newPrefs || {};
+
+              // Deep comparison of non-interest data
+              const navigationDataChanged = JSON.stringify(prevRest) !== JSON.stringify(newRest) ||
+                                          JSON.stringify(prevPrefsRest) !== JSON.stringify(newPrefsRest);
+
+              if (navigationDataChanged) {
+                return newUserData;
+              } else {
+                // Only interests changed - don't trigger re-render
+                if (__DEV__) console.log('[Navigation] Ignored interest-only update');
+                return prevUserData;
+              }
+            });
+          } else {
+            if (__DEV__) console.log('[Navigation] User document missing');
+            setUserData(null);
+          }
+        }, 50);
       },
       (error) => {
         console.error('[Navigation] Firestore listener error:', error);
@@ -216,6 +263,9 @@ export default function Navigation() {
     if (__DEV__) console.log('[Navigation] User data listener created');
     return () => {
       if (__DEV__) console.log('[Navigation] Cleaning up user data listener');
+      if (updateTimeout) {
+        clearTimeout(updateTimeout);
+      }
       unsubscribe();
     };
   }, [user]);
@@ -306,20 +356,12 @@ export default function Navigation() {
   // Get user completion status based on actual data
   const userStatus = UserDataCleanupService.getUserCompletionStatus(userData);
 
-  // Basic navigation state logging (no sensitive data)
+  // Log navigation state for debugging
   if (__DEV__) {
-    console.log(
-      '[Navigation] Auth state:',
-      user ? 'authenticated' : 'unauthenticated'
-    );
-    console.log(
-      '[Navigation] Contact info:',
-      userStatus.hasContactInfo ? 'complete' : 'missing'
-    );
-    console.log(
-      '[Navigation] Location:',
-      userStatus.hasLocation ? 'set' : 'missing'
-    );
+    console.log('[Navigation] Auth state:', user ? 'authenticated' : 'unauthenticated');
+    console.log('[Navigation] Contact info:', userStatus.hasContactInfo ? 'complete' : 'missing');
+    console.log('[Navigation] Location:', userStatus.hasLocation ? 'set' : 'missing');
+    console.log('[Navigation] User data updated');
   }
 
   return (
@@ -418,6 +460,10 @@ export default function Navigation() {
               <Stack.Screen
                 name="MessageBoard"
                 component={MessageBoardScreen}
+              />
+              <Stack.Screen
+                name="EventWrapUp"
+                component={EventWrapUpScreen}
               />
             </Stack.Navigator>
           )}

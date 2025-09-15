@@ -17,7 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
 import { login, signup } from '../auth/services/FirebaseAuthService';
 import { db } from '../auth/services/firebase';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc } from '../lib/firebase';
 import {
   getDefaultUserSettings,
   getDefaultUserMetrics,

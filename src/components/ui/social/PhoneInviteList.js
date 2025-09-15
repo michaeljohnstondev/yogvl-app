@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import theme from '../../../theme/themes';
-import VibeButton from '../base/VibeButton';
+import { VibeButton } from '../';
 import { useVibeAlert } from '../base/VibeAlertContext';
 
 export default function PhoneInviteList({

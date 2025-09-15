@@ -1,6 +1,6 @@
 // eventFormValidation.js
 import { DateTime } from 'luxon';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from '../../lib/firebase/firestore';
 import { db } from '../../auth/services/firebase';
 
 /**

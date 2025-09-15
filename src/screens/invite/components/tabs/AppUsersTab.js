@@ -122,6 +122,17 @@ const AppUsersTab = ({
 
       <View style={styles.itemsList}>
         {filteredAppUsers.map((item) => {
+          // Check if user is already subscribed or invited - these should be filtered out by useContactManagement
+          // but we add this as a safety check to prevent showing users who shouldn't be invited
+          const isAlreadySubscribed = eventSubscribers.includes(item.id);
+          const isAlreadyInvited = item.ineligibilityReason === 'already_invited';
+          const isAlreadyParticipating = item.ineligibilityReason === 'already_participating';
+
+          // Skip rendering this user if they're already subscribed, invited, or participating
+          if (isAlreadySubscribed || isAlreadyInvited || isAlreadyParticipating) {
+            return null;
+          }
+
           const isSelected = localSelectedUsers.some((u) => u.id === item.id);
           const canSelect = !isSelected && !hasReachedLimit;
 

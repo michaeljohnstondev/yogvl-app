@@ -11,7 +11,7 @@ import {
   ScrollView,
 } from 'react-native';
 import theme from '../../../theme/themes';
-import VibeButton from '../base/VibeButton';
+import { VibeButton } from '../';
 
 /**
  * Modal for taking moderation actions with custom admin messages

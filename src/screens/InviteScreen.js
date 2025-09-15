@@ -175,6 +175,7 @@ export default function InviteScreen() {
       const result = await sendEventInvitations({
         currentUserId,
         eventId,
+        studioId: routeStudioId || studioId,
         userData,
         eventTitle,
         source,

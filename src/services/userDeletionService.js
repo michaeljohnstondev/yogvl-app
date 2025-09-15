@@ -11,8 +11,8 @@ import {
   updateDoc,
   writeBatch,
   arrayRemove,
-} from 'firebase/firestore';
-import { deleteUser as deleteAuthUser } from 'firebase/auth';
+} from '../lib/firebase/firestore';
+import { deleteUser as deleteAuthUser } from '../lib/firebase/auth';
 import { db } from '../auth/services/firebase';
 
 /**

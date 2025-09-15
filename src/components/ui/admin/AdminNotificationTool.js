@@ -11,7 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import theme from '../../../theme/themes';
-import VibeButton from '../base/VibeButton';
+import { VibeButton } from '../';
 import { adminNotificationService } from '../../../services/adminNotificationService';
 import { globalAdminService } from '../../../services/globalAdminService';
 

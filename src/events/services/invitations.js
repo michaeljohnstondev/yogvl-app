@@ -17,7 +17,7 @@ import {
   increment,
   Timestamp,
   writeBatch,
-} from 'firebase/firestore';
+} from '../../lib/firebase';
 import { db } from '../../auth/services/firebase';
 import {
   createNotification,
@@ -136,7 +136,8 @@ export const sendUserInvitation = async ({
     // Update event document (in studio collection)
     const eventRef = doc(db, 'studios', studioId, 'events', eventId);
     batch.update(eventRef, {
-      invitations: arrayUnion(inviteId),
+      invitations: arrayUnion(guestId), // User IDs for fast lookups
+      invitationIds: arrayUnion(inviteId), // Invitation IDs for detailed tracking
       pendingInvites: increment(1),
     });
 
@@ -146,10 +147,11 @@ export const sendUserInvitation = async ({
       sentInvitations: arrayUnion(inviteId),
     });
 
-    // Update guest's received invitations
+    // Update guest's received invitations and invited events array
     const guestRef = doc(db, 'users', guestId);
     batch.update(guestRef, {
       receivedInvitations: arrayUnion(inviteId),
+      'userdata.metrics.events.invitedEvents': arrayUnion(eventId),
     });
 
     await batch.commit();
@@ -477,34 +479,36 @@ export const acceptInvitation = async (
       throw new Error('You are already attending this event');
     }
 
-    // Update invitation status
-    batch.update(inviteRef, {
+    // Use eventService for atomic invitation acceptance -> subscription
+    const { eventService } = await import('./eventService');
+
+    // Get default notification settings (can be enhanced later)
+    const defaultNotificationSettings = {
+      eventReminders: true,
+      hostChanges: true,
+      reminderTiming: '1hour'
+    };
+
+    await eventService.acceptInvitationAndSubscribe(
+      userId,
+      invitation.eventId,
+      eventStudioId,
+      defaultNotificationSettings
+    );
+
+    // Update invitation status after successful subscription
+    await updateDoc(inviteRef, {
       status: INVITATION_STATUS.ACCEPTED,
       respondedAt: Timestamp.now(),
       ...(invitation.type === INVITATION_TYPE.EMAIL && { guestId: userId }), // Link email invite to user
     });
 
-    // Subscribe user to event (use studio-specific collection)
-    const eventRef = doc(
-      db,
-      'studios',
-      eventStudioId,
-      'events',
-      invitation.eventId
-    );
-    batch.update(eventRef, {
-      subscribers: arrayUnion(userId),
-      subscriberCount: increment(1),
+    // Update event pending invites count and invitation tracking
+    const eventRef = doc(db, 'studios', eventStudioId, 'events', invitation.eventId);
+    await updateDoc(eventRef, {
       pendingInvites: increment(-1),
+      invitationIds: arrayRemove(invitationId), // Remove from detailed tracking
     });
-
-    // Update user's subscribed events
-    const userRef = doc(db, 'users', userId);
-    batch.update(userRef, {
-      subscribedEvents: arrayUnion(invitation.eventId),
-    });
-
-    await batch.commit();
 
     // Send notification to host about acceptance
     try {
@@ -582,17 +586,28 @@ export const declineInvitation = async (invitationId, userId) => {
       throw new Error('This invitation is not for you');
     }
 
-    // Update invitation status
+    // Use eventService for atomic invitation decline
+    const { eventService } = await import('./eventService');
+    const eventStudioId = invitation.studioId;
+
+    if (!eventStudioId) {
+      throw new Error('Studio information missing from invitation');
+    }
+
+    await eventService.declineInvitation(userId, invitation.eventId, eventStudioId);
+
+    // Update invitation status after successful decline
     await updateDoc(inviteRef, {
       status: INVITATION_STATUS.DECLINED,
       respondedAt: Timestamp.now(),
       ...(invitation.type === INVITATION_TYPE.EMAIL && { guestId: userId }), // Link email invite to user
     });
 
-    // Update event pending invites count
-    const eventRef = doc(db, 'events', invitation.eventId);
+    // Update event pending invites count and invitation tracking
+    const eventRef = doc(db, 'studios', eventStudioId, 'events', invitation.eventId);
     await updateDoc(eventRef, {
       pendingInvites: increment(-1),
+      invitationIds: arrayRemove(invitationId), // Remove from detailed tracking
     });
 
     // Send notification to host about decline

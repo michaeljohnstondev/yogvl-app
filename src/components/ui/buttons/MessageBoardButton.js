@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.inputBackground,
     borderRadius: theme.sizes.borderRadius,
     padding: 20,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: theme.colors.vibeBlue, // Blue instead of inputBorder
   },
   header: {

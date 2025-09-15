@@ -160,13 +160,17 @@ class BlockingService {
       const currentUserData = currentUserDoc.data();
       const targetUserData = targetUserDoc.data();
 
+      // Safe array checks to prevent indexOf errors
+      const currentBlockedUsers = currentUserData?.blockedUsers;
+      const targetBlockedUsers = targetUserData?.blockedUsers;
+
       // Check if current user blocked target
-      const currentBlockedTarget =
-        currentUserData.blockedUsers?.includes(targetUserId);
+      const currentBlockedTarget = Array.isArray(currentBlockedUsers) &&
+        currentBlockedUsers.includes(targetUserId);
 
       // Check if target user blocked current user
-      const targetBlockedCurrent =
-        targetUserData.blockedUsers?.includes(currentUserId);
+      const targetBlockedCurrent = Array.isArray(targetBlockedUsers) &&
+        targetBlockedUsers.includes(currentUserId);
 
       if (currentBlockedTarget) {
         return { isBlocked: true, blockedBy: 'current' };
@@ -267,8 +271,8 @@ class BlockingService {
       }
 
       const currentUserData = currentUserDoc.data();
-      const blockedUsers = currentUserData.blockedUsers || [];
-      const blockedBy = currentUserData.blockedBy || [];
+      const blockedUsers = Array.isArray(currentUserData?.blockedUsers) ? currentUserData.blockedUsers : [];
+      const blockedBy = Array.isArray(currentUserData?.blockedBy) ? currentUserData.blockedBy : [];
 
       // Filter out users that are blocked or have blocked current user
       return userIds.filter(

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Alert, Linking, Platform } from 'react-native';
 import * as Contacts from 'expo-contacts';
-import VibeButton from '../base/VibeButton';
+import { VibeButton } from '../';
 import FriendsBucket from '../social/FriendsBucket';
 import FriendsList from '../social/FriendsList';
 import { FormatDate } from '../../../lib/formatDate';

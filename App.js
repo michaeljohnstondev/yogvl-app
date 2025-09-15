@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { initializeIndexOfFix } from './src/lib/indexOfErrorFix';
 import Navigation from './src/Navigation';
 import { VibeAlertProvider, VibeScreen } from './src/components/ui/base';
 import { useEventEndNotifications } from './src/hooks/useEventEndNotifications';
@@ -9,6 +10,8 @@ import { initializeNotificationServices } from './src/services/notificationInit'
 function AppWithNotifications() {
   // Initialize event end notification service
   useEventEndNotifications();
+  // Initialize indexOf error prevention
+  initializeIndexOfFix();
 
   // Initialize push notifications
   useEffect(() => {

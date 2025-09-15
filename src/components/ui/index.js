@@ -36,3 +36,6 @@ export * from './utils';
 
 // Comments (already organized)
 export * from './comments';
+
+// Feedback Components
+export * from './feedback';

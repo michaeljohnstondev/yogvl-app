@@ -1,7 +1,7 @@
 // Subscription Notification Settings Modal for Event Attendees
 import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, Modal, ScrollView } from 'react-native';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc } from '../../../lib/firebase';
 import { db } from '../../../auth/services/firebase';
 import { useAuth } from '../../../auth/AuthContext';
 import { VibeButton, CloseButton } from '../../../components/ui';

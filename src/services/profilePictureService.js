@@ -6,8 +6,8 @@ import {
   getDownloadURL,
   deleteObject,
   getStorage,
-} from 'firebase/storage';
-import { doc, updateDoc } from 'firebase/firestore';
+} from '../lib/firebase';
+import { doc, updateDoc } from '../lib/firebase';
 import { db } from '../auth/services/firebase';
 import app from '../auth/services/firebase';
 

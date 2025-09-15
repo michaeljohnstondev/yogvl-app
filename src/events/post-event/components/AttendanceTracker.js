@@ -9,6 +9,7 @@ import {
   FlatList,
 } from 'react-native';
 import { VibeButton } from '../../../components/ui';
+import AttendanceCard from '../../../components/ui/events/AttendanceCard';
 import theme from '../../../theme/themes';
 
 const AttendanceTracker = ({
@@ -31,78 +32,34 @@ const AttendanceTracker = ({
 
   const renderParticipant = ({ item }) => {
     const status = getAttendanceStatus(item.id);
-    const displayName =
-      item.userdata?.contactInfo?.displayName ||
-      item.userdata?.contactInfo?.firstName ||
-      'Unknown User';
-    const initial = displayName.charAt(0).toUpperCase();
+
+    // Convert attendance tracking status to AttendanceCard format
+    const attendanceStatus = {
+      attended: status === 'attended',
+      noShow: status === 'no-show',
+      markedAt: null, // Could be enhanced later with timestamps
+    };
+
+    // Extract user data in format expected by AttendanceCard
+    const userData = {
+      id: item.id,
+      firstName: item.userdata?.contactInfo?.firstName,
+      lastName: item.userdata?.contactInfo?.lastName,
+      email: item.email,
+      ...item.userdata?.contactInfo,
+    };
 
     return (
-      <TouchableOpacity
-        style={styles.participantItem}
-        onPress={() => toggleAttendance(item.id, eventType)}
-      >
-        <View style={styles.participantInfo}>
-          <View style={[styles.avatar, getAvatarStyle(status)]}>
-            <Text style={styles.avatarText}>{initial}</Text>
-          </View>
-          <View style={styles.participantDetails}>
-            <Text style={styles.participantName}>{displayName}</Text>
-            <Text style={styles.participantStatus}>
-              {getStatusText(status)}
-            </Text>
-          </View>
-        </View>
-        <View style={[styles.statusIndicator, getStatusStyle(status)]}>
-          <Text style={styles.statusIcon}>{getStatusIcon(status)}</Text>
-        </View>
-      </TouchableOpacity>
+      <AttendanceCard
+        user={userData}
+        attendanceStatus={attendanceStatus}
+        onMarkAttended={(userId) => toggleAttendance(userId, eventType)}
+        onMarkNoShow={(userId) => toggleAttendance(userId, eventType)}
+        disabled={false}
+      />
     );
   };
 
-  const getStatusText = (status) => {
-    switch (status) {
-      case 'attended':
-        return 'Attended';
-      case 'no-show':
-        return 'No Show';
-      default:
-        return 'Not marked';
-    }
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'attended':
-        return '✅';
-      case 'no-show':
-        return '❌';
-      default:
-        return '❓';
-    }
-  };
-
-  const getAvatarStyle = (status) => {
-    switch (status) {
-      case 'attended':
-        return { backgroundColor: theme.colors.vibeGreen };
-      case 'no-show':
-        return { backgroundColor: theme.colors.vibeRed };
-      default:
-        return { backgroundColor: theme.colors.gray };
-    }
-  };
-
-  const getStatusStyle = (status) => {
-    switch (status) {
-      case 'attended':
-        return { backgroundColor: theme.colors.vibeBackgroundGreen };
-      case 'no-show':
-        return { backgroundColor: theme.colors.vibeBackgroundRed };
-      default:
-        return { backgroundColor: theme.colors.vibeBackgroundBlue };
-    }
-  };
 
   return (
     <View style={styles.container}>
@@ -258,56 +215,6 @@ const styles = StyleSheet.create({
   participantsList: {
     maxHeight: 300,
     marginBottom: 16,
-  },
-  participantItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: theme.colors.darkGray,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-  },
-  participantInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  avatarText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: theme.colors.white,
-  },
-  participantDetails: {
-    flex: 1,
-  },
-  participantName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.white,
-  },
-  participantStatus: {
-    fontSize: 12,
-    color: theme.colors.gray,
-    marginTop: 2,
-  },
-  statusIndicator: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statusIcon: {
-    fontSize: 16,
   },
 
   // Complete Button

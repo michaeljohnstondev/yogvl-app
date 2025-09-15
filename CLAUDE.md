@@ -31,13 +31,14 @@ Full User → Home → CreateEvent → EventDetail → EditEvent
 
 ## Tech Stack
 
-- **Framework**: React Native (Expo SDK ~53.0.11)
-- **Navigation**: React Navigation v7 (native stack)  
+- **Framework**: React Native (Expo SDK 54.0.7)
+- **Navigation**: React Navigation v7 (native stack)
 - **Backend**: Firebase (Auth + Firestore)
 - **State Management**: React Context API (AuthContext)
 - **Styling**: Punk/cyberpunk neon theme from src/theme/themes.js
 - **Build Tool**: EAS Build for APK generation
 - **Metro Config**: Custom config for Firebase bundling fixes
+- **Node.js**: Current version 22.19.0 (requires ≥20.19.4 LTS for Expo SDK 54.0.7 compatibility)
 
 ## Core Patterns
 
@@ -177,6 +178,15 @@ Never assume missing context → ask first
 Confirm paths exist before referencing
 
 **ALWAYS check COMPONENT_INVENTORY.md before creating new components, screens, hooks, or services** to avoid duplication
+
+**USE EXPO-SPECIALIST AGENT** for:
+- Expo/React Native specific implementations
+- EAS Build configuration and troubleshooting
+- Expo SDK compatibility issues
+- Metro bundler configuration
+- Platform-specific features (camera, location, notifications)
+- Build errors and deployment issues
+- Expo CLI commands and workflows
 
 Don't add dependencies unless:
 

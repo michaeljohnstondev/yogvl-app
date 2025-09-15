@@ -230,30 +230,7 @@ export class AttendanceService {
     }
   }
 
-  /**
-   * Get attendance status for a specific user and event
-   * @param {string} studioId - Studio ID
-   * @param {string} eventId - Event ID
-   * @param {string} userId - User ID
-   * @returns {Promise<Object|null>} Attendance status or null if not marked
-   */
-  static async getUserEventAttendance(studioId, eventId, userId) {
-    try {
-      const eventRef = doc(db, 'studios', studioId, 'events', eventId);
-      const eventDoc = await getDoc(eventRef);
-
-      if (!eventDoc.exists()) {
-        return null;
-      }
-
-      const eventData = eventDoc.data();
-      const attendance = eventData.attendance || [];
-
-      return attendance.find((a) => a.userId === userId) || null;
-    } catch (error) {
-      throw error;
-    }
-  }
+  // getUserEventAttendance method removed - use getAttendanceStatus from attendanceUtils.js instead
 
   /**
    * Bulk mark attendance for multiple users
@@ -280,59 +257,7 @@ export class AttendanceService {
     }
   }
 
-  /**
-   * Auto-mark host as attended when they create an event
-   * Hosts are automatically considered to attend their own events
-   * @param {string} eventId - Event ID
-   * @param {string} hostUserId - Host's user ID
-   * @param {string} studioId - Studio ID where the event is located
-   * @returns {Promise<boolean>} Success status
-   */
-  static async markHostAttendance(eventId, hostUserId, studioId) {
-    try {
-      const eventRef = doc(db, 'studios', studioId, 'events', eventId);
-      const eventDoc = await getDoc(eventRef);
-
-      if (!eventDoc.exists()) {
-        throw new Error(`Event ${eventId} not found in studio ${studioId}`);
-      }
-
-      const eventData = eventDoc.data();
-      const attendance = eventData.attendance || [];
-
-      // Check if host is already in attendance array
-      const existingIndex = attendance.findIndex(
-        (a) => a.userId === hostUserId
-      );
-
-      if (existingIndex === -1) {
-        // Add host to attendance array
-        attendance.push({
-          userId: hostUserId,
-          attended: true,
-          isHost: true,
-          markedBy: hostUserId,
-          markedAt: serverTimestamp(),
-        });
-
-        // Update event with host in attendance
-        await updateDoc(eventRef, {
-          attendance: attendance,
-          attendanceCount: attendance.filter((a) => a.attended).length,
-        });
-      }
-
-      // Note: Host reliability is updated when event is completed via PostEventService
-
-      console.log(
-        `Auto-marked host ${hostUserId} as attended for event ${eventId} in studio ${studioId}`
-      );
-      return true;
-    } catch (error) {
-      console.error('Error marking host attendance:', error);
-      throw error;
-    }
-  }
+  // markHostAttendance method removed - hosts are automatically included in post-event flow
 
   /**
    * Delete all attendance records for an event (used when deleting event)

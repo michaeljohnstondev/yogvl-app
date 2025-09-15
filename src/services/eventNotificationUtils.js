@@ -110,8 +110,7 @@ export const removeUserFromEventNotifications = async (eventId, userId) => {
 
     // Find all pending notifications for this user and event
     const q = query(
-      collection(db, 'scheduledNotifications'),
-      where('userId', '==', userId),
+      collection(db, 'users', userId, 'scheduledNotifications'),
       where('eventId', '==', eventId),
       where('status', '==', 'pending')
     );
@@ -204,12 +203,17 @@ export const updateEventNotifications = async (
       );
       const { db } = await import('../auth/services/firebase');
 
-      // Find all pending notifications for this event
-      const q = query(
-        collection(db, 'scheduledNotifications'),
-        where('eventId', '==', eventId),
-        where('status', '==', 'pending')
-      );
+      // DEPRECATED: Cross-user queries not efficient in user-scoped architecture
+      // TODO: Move this to Cloud Functions for proper cross-user notification updates
+      console.warn('[EventNotificationUtils] Cross-user notification updates should use Cloud Functions');
+
+      // For now, return success but note that this operation is not supported
+      // In user-scoped architecture, notifications should be updated per-user
+      return {
+        success: false,
+        error: 'Cross-user notification updates not supported in user-scoped architecture. Use Cloud Functions.',
+        action: 'deprecated'
+      };
 
       const snapshot = await getDocs(q);
 

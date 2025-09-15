@@ -7,7 +7,7 @@ import {
   collection,
   addDoc,
   Timestamp,
-} from 'firebase/firestore';
+} from '../lib/firebase/firestore';
 import { db } from '../auth/services/firebase';
 
 /**
@@ -273,7 +273,7 @@ export const getStudioReports = async (studioId, limit = 50) => {
       query,
       orderBy,
       limit: firestoreLimit,
-    } = await import('firebase/firestore');
+    } = await import('../lib/firebase/firestore');
 
     console.log(`[getStudioReports] Querying path: /studios/${studioId}/admin`);
     const adminCollectionRef = collection(db, 'studios', studioId, 'admin');

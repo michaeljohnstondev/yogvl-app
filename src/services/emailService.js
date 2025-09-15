@@ -175,7 +175,7 @@ export const sendEventReminderEmail = async ({
 const sendWithFirebaseExtension = async (emailRequest) => {
   try {
     // This writes to a Firestore collection that triggers the Firebase Extension
-    const { addDoc, collection } = await import('firebase/firestore');
+    const { addDoc, collection } = await import('../lib/firebase/firestore');
     const { db } = await import('../auth/services/firebase');
 
     await addDoc(collection(db, 'mail'), {

@@ -7,7 +7,6 @@ const theme = {
     textSecondary: '#778DA9',
     inputBorder: '#555',
     inputBackground: 'rgba(255,255,255,0.05)',
-    shadowGlow: '#00FFFF',
     alertButton: '#00c6ff',
 
     //vibeColors
@@ -64,11 +63,7 @@ const theme = {
     inputPadding: 16,
   },
   shadows: {
-    textGlow: {
-      textShadowColor: '#00FFFF',
-      textShadowOffset: { width: 0, height: 0 },
-      textShadowRadius: 30,
-    },
+    // Glow effects removed to comply with punk aesthetic design rules
   },
 };
 

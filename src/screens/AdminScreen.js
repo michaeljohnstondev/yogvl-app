@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
 import theme from '../theme/themes';
-import { VibeButton } from '../components/ui/base';
+import { VibeButton } from '../components/ui';
 import { CloseButton } from '../components/ui/buttons';
 import { ModerationActionModal } from '../components/ui/modals';
 import {

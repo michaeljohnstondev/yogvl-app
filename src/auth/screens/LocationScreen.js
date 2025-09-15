@@ -14,7 +14,7 @@ import {
 import { useVibeAlert } from '../../components/ui/base/VibeAlertContext';
 import { CloseButton } from '../../components/ui/buttons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from '../../lib/firebase';
 import { auth, db } from '../services/firebase';
 import { StudioService } from '../../services/StudioService';
 import { GooglePlacesService } from '../../services/GooglePlacesService';

@@ -2,10 +2,6 @@ import { useState, useEffect } from 'react';
 import {
   doc,
   getDoc,
-  collection,
-  query,
-  where,
-  getDocs,
 } from 'firebase/firestore';
 import { db } from '../../../auth/services/firebase';
 import { getDeviceContacts } from '../../../lib/contactService';
@@ -30,13 +26,10 @@ export const useContactManagement = (
   const [appUsers, setAppUsers] = useState([]);
   const [loadingAppUsers, setLoadingAppUsers] = useState(false);
 
-  // Event subscribers (to filter out from app users)
-  const [eventSubscribers, setEventSubscribers] = useState([]);
-  const [loadingSubscribers, setLoadingSubscribers] = useState(false);
+  // Combined loading state to prevent premature interactions
+  const [dataReady, setDataReady] = useState(false);
 
-  // Pending invitations (to filter out from app users)
-  const [pendingInvitations, setPendingInvitations] = useState([]);
-  const [loadingInvitations, setLoadingInvitations] = useState(false);
+  // Uses event-level arrays for O(1) filtering performance
 
   // Load contacts when phone tab is selected
   useEffect(() => {
@@ -45,94 +38,21 @@ export const useContactManagement = (
     }
   }, [activeTab]);
 
-  // Load app users on component mount and when subscribers/invitations change
+  // Load app users with proper filtering and set data ready state
   useEffect(() => {
-    loadAppUsers();
-  }, [currentUserId, userData, eventSubscribers, pendingInvitations]);
+    const initializeData = async () => {
+      setDataReady(false);
+      await loadAppUsers();
+      setDataReady(true);
+    };
 
-  // Load event subscribers and pending invitations when eventId and studioId are provided
-  useEffect(() => {
-    if (eventId && studioId) {
-      loadEventSubscribers();
-      loadPendingInvitations();
-    }
-  }, [eventId, studioId]);
+    initializeData();
+  }, [currentUserId, userData, eventId, studioId]);
 
-  const loadEventSubscribers = async () => {
-    if (!eventId || !studioId) {
-      return;
-    }
-
-    try {
-      setLoadingSubscribers(true);
-      const eventRef = doc(db, 'studios', studioId, 'events', eventId);
-      const eventDoc = await getDoc(eventRef);
-
-      if (eventDoc.exists()) {
-        const eventData = eventDoc.data();
-        const subscribers = eventData.subscribers || [];
-        setEventSubscribers(subscribers);
-        console.log(
-          `[InviteScreen] Found ${subscribers.length} existing subscribers for event ${eventId}`
-        );
-      } else {
-        console.log(
-          `[InviteScreen] Event ${eventId} not found in studio ${studioId}`
-        );
-        setEventSubscribers([]);
-      }
-    } catch (error) {
-      console.error('[InviteScreen] Failed to load event subscribers:', error);
-      setEventSubscribers([]);
-    } finally {
-      setLoadingSubscribers(false);
-    }
-  };
-
-  const loadPendingInvitations = async () => {
-    if (!eventId) {
-      return;
-    }
-
-    try {
-      setLoadingInvitations(true);
-
-      // Query for pending invitations to this event
-      const invitationsRef = collection(db, 'invitations');
-      const q = query(
-        invitationsRef,
-        where('eventId', '==', eventId),
-        where('status', '==', 'pending')
-      );
-
-      const querySnapshot = await getDocs(q);
-      const invitedUserIds = [];
-
-      querySnapshot.forEach((doc) => {
-        const invitation = doc.data();
-        if (invitation.guestId) {
-          invitedUserIds.push(invitation.guestId);
-        }
-      });
-
-      setPendingInvitations(invitedUserIds);
-      console.log(
-        `[InviteScreen] Found ${invitedUserIds.length} pending invitations for event ${eventId}`
-      );
-    } catch (error) {
-      console.error(
-        '[InviteScreen] Failed to load pending invitations:',
-        error
-      );
-      setPendingInvitations([]);
-    } finally {
-      setLoadingInvitations(false);
-    }
-  };
 
   const loadAppUsers = async () => {
     if (!currentUserId || !userData?.userdata?.studios?.default?.studioId) {
-      console.log('[InviteScreen] Missing user data, skipping app users load');
+      console.log('[useContactManagement] Missing user data, skipping app users load');
       return;
     }
 
@@ -141,28 +61,57 @@ export const useContactManagement = (
       const userStudio = userData.userdata.studios.default.studioId;
       const allUsers = await getStudioUsers(currentUserId, userStudio);
 
-      // Filter out users who are already subscribed to the event or have pending invitations
-      let filteredUsers = allUsers;
-      if (eventId) {
-        const excludedUserIds = [...eventSubscribers, ...pendingInvitations];
-        if (excludedUserIds.length > 0) {
-          filteredUsers = allUsers.filter(
-            (user) => !excludedUserIds.includes(user.id)
-          );
-          const subscribedCount = eventSubscribers.length;
-          const invitedCount = pendingInvitations.length;
-          console.log(
-            `[InviteScreen] Filtered out ${subscribedCount} subscribed users and ${invitedCount} pending invitations`
-          );
-        }
-      }
+      // Use simple array-based filtering for event contexts
+      if (eventId && studioId) {
+        try {
+          // Get event data to access the new invitation arrays
+          const eventRef = doc(db, 'studios', studioId, 'events', eventId);
+          const eventDoc = await getDoc(eventRef);
 
-      setAppUsers(filteredUsers);
-      console.log(
-        `[InviteScreen] Loaded ${filteredUsers.length} available users (${allUsers.length} total)`
-      );
+          if (eventDoc.exists()) {
+            const eventData = eventDoc.data();
+
+            // Get arrays with fallbacks
+            const subscribers = eventData.subscribers || [];
+            const invitations = eventData.invitations || [];
+            const cohosts = eventData.cohosts || [];
+            const hostId = eventData.createdBy;
+
+            // Use simple event-level array - invitations contains user IDs directly
+            const invitedUserIds = invitations;
+
+            // Create Sets for O(1) lookup performance
+            const subscribedSet = new Set(subscribers);
+            const invitedSet = new Set(invitedUserIds);
+            const cohostSet = new Set(cohosts);
+
+            // Simple filtering logic using arrays
+            const filteredUsers = allUsers.filter(user => {
+              if (!user.id) return false;
+              if (user.id === hostId) return false;
+              if (cohostSet.has(user.id)) return false;
+              if (subscribedSet.has(user.id)) return false;
+              if (invitedSet.has(user.id)) return false;
+              return true;
+            });
+
+            setAppUsers(filteredUsers);
+          } else {
+            console.warn(`[useContactManagement] Event not found: ${eventId}`);
+            // If event doesn't exist, show all users as fallback
+            setAppUsers(allUsers);
+          }
+        } catch (eventError) {
+          console.error('[useContactManagement] Failed to load event data for filtering:', eventError);
+          // Fallback to showing all users if event data can't be loaded
+          setAppUsers(allUsers);
+        }
+      } else {
+        // For non-event contexts, use all users
+        setAppUsers(allUsers);
+      }
     } catch (error) {
-      console.error('[InviteScreen] Failed to load app users:', error);
+      console.error('[useContactManagement] Failed to load app users:', error);
       vibeAlert.error('Error', 'Failed to load app users. Please try again.');
       setAppUsers([]);
     } finally {
@@ -196,21 +145,14 @@ export const useContactManagement = (
   };
 
   return {
-    // App users
+    // App users with unified filtering
     appUsers,
     loadingAppUsers,
     loadAppUsers,
     updateUserStatus,
 
-    // Event subscribers
-    eventSubscribers,
-    loadingSubscribers,
-    loadEventSubscribers,
-
-    // Pending invitations
-    pendingInvitations,
-    loadingInvitations,
-    loadPendingInvitations,
+    // Combined data ready state to prevent premature interactions
+    dataReady,
 
     // Phone contacts
     phoneContacts,

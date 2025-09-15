@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { signOut } from 'firebase/auth';
+import { signOut } from '../../../lib/firebase/auth';
 import { auth } from '../../../auth/services/firebase';
 import { useVibeAlert } from '../base/VibeAlertContext';
 import CloseButton from '../buttons/CloseButton';

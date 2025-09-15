@@ -9,13 +9,15 @@ import {
   TouchableOpacity,
   Linking,
   BackHandler,
+  SafeAreaView,
 } from 'react-native';
-import { VibeButton, VibeScreen } from '../components/ui/base';
+import { VibeButton } from '../components/ui';
 import { BlockButton } from '../components/ui/buttons';
 import { ProfileAvatar } from '../components/ui/profile';
 import { UserReliabilityCard } from '../events/components/UserReliabilityCard';
 import { getUserEventStats } from '../events/lib/userMetrics';
 import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
+import { safeEmailSplit } from '../lib/indexOfErrorFix';
 import {
   getVisibleContactInfo,
   canViewUserStats,
@@ -32,12 +34,28 @@ import { useAuth } from '../auth/AuthContext';
 import theme from '../theme/themes';
 
 const HostProfileScreen = ({ navigation, route }) => {
-  console.log(
-    'HostProfile component mounted/re-rendered with params:',
-    !!route.params?.returnTo
-  );
-  const { hostData, eventId } = route.params;
   const { currentUserId, userData } = useAuth();
+  const vibeAlert = useVibeAlert();
+
+  // Security validation of route parameters
+  useEffect(() => {
+    if (!route.params?.hostData || typeof route.params.hostData !== 'object') {
+      console.error('[HostProfile] Invalid hostData parameter');
+      vibeAlert.error('Error', 'Invalid user profile data');
+      navigation.goBack();
+      return;
+    }
+
+    const { hostData } = route.params;
+    if (!hostData.id || typeof hostData.id !== 'string') {
+      console.error('[HostProfile] Invalid hostData.id');
+      vibeAlert.error('Error', 'Invalid user ID');
+      navigation.goBack();
+      return;
+    }
+  }, [route.params, navigation, vibeAlert]);
+
+  const { hostData, eventId } = route.params || {};
   const [isFollowing, setIsFollowing] = useState(false);
   const [visibleContactInfo, setVisibleContactInfo] = useState({});
   const [canViewStats, setCanViewStats] = useState(true);
@@ -52,7 +70,6 @@ const HostProfileScreen = ({ navigation, route }) => {
     isBlocked: false,
     loading: true,
   });
-  const vibeAlert = useVibeAlert();
 
   // Load privacy-filtered contact information
   useEffect(() => {
@@ -69,12 +86,14 @@ const HostProfileScreen = ({ navigation, route }) => {
         setVisibleContactInfo(contactInfo);
         setCanViewStats(statsVisible);
       } catch (error) {
-        console.error('Error loading visible contact info:', error);
-        // Fallback to basic info
+        console.error('[HostProfile] Error loading visible contact info:', error.message);
+        // Security: Never fallback to raw data on privacy service failure
         setVisibleContactInfo({
-          firstName: hostData?.userdata?.contactInfo?.firstName,
-          lastName: hostData?.userdata?.contactInfo?.lastName,
+          firstName: 'User',
+          lastName: '',
+          // All other fields remain undefined to respect privacy
         });
+        setCanViewStats(false);
       }
     };
 
@@ -84,23 +103,28 @@ const HostProfileScreen = ({ navigation, route }) => {
   // Check follow status on mount
   useEffect(() => {
     const checkFollowStatus = async () => {
-      if (!isCurrentUser && currentUserId && hostData.id) {
+      if (!isCurrentUser && currentUserId && hostData?.id) {
         try {
           const following = await checkIfFollowing(currentUserId, hostData.id);
           setIsFollowing(following);
         } catch (error) {
-          console.error('Error checking follow status:', error);
+          console.error('[HostProfile] Error checking follow status:', error);
+          // Set default state on error to prevent blocking UI
+          setIsFollowing(false);
         }
       }
     };
 
     checkFollowStatus();
-  }, [currentUserId, hostData.id, isCurrentUser]);
+  }, [currentUserId, hostData?.id, isCurrentUser]);
 
   // Check block status and access restrictions
   useEffect(() => {
     const checkBlockStatus = async () => {
-      if (!currentUserId || !hostData?.id) return;
+      if (!currentUserId || !hostData?.id) {
+        setBlockStatus({ isBlocked: false, loading: false });
+        return;
+      }
 
       try {
         // Check if current user has blocked this host
@@ -124,6 +148,7 @@ const HostProfileScreen = ({ navigation, route }) => {
         }
       } catch (error) {
         console.error('[HostProfile] Error checking block status:', error);
+        // Set safe defaults on error
         setBlockStatus({ isBlocked: false, loading: false });
       }
     };
@@ -155,13 +180,9 @@ const HostProfileScreen = ({ navigation, route }) => {
     const backAction = () => {
       // Don't handle back button if we've already navigated away
       if (hasNavigatedAway) {
-        console.log(
-          'HostProfile ignoring back button - already navigated away'
-        );
         return false; // Allow default back action
       }
 
-      console.log('Android back button pressed in HostProfile');
       handleBack();
       return true; // Prevent default back action
     };
@@ -176,11 +197,17 @@ const HostProfileScreen = ({ navigation, route }) => {
 
   if (!hostData) {
     return (
-      <VibeScreen title="Host Profile" onBack={() => navigation.goBack()}>
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Host information not available</Text>
-        </View>
-      </VibeScreen>
+      <SafeAreaView style={styles.container}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>Host information not available</Text>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
     );
   }
 
@@ -188,9 +215,7 @@ const HostProfileScreen = ({ navigation, route }) => {
   const displayName =
     hostData.displayName ||
     `${visibleContactInfo.firstName || contactInfo.firstName || ''} ${visibleContactInfo.lastName || contactInfo.lastName || ''}`.trim() ||
-    (visibleContactInfo.email || contactInfo.email || hostData.email)?.split(
-      '@'
-    )[0] ||
+    safeEmailSplit(visibleContactInfo.email || contactInfo.email || hostData.email) ||
     'Unknown Host';
 
   const stats = getUserEventStats(hostData);
@@ -331,10 +356,6 @@ const HostProfileScreen = ({ navigation, route }) => {
   };
 
   const handleBack = () => {
-    console.log(
-      'HostProfile handleBack called - using default navigation.goBack()'
-    );
-
     // Mark that we've navigated away to disable future back button handling
     setHasNavigatedAway(true);
 
@@ -343,35 +364,41 @@ const HostProfileScreen = ({ navigation, route }) => {
   };
 
   return (
-    <VibeScreen>
+    <SafeAreaView style={styles.container}>
       <ScrollView
         style={styles.scrollView}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Profile Info */}
+        {/* Profile Info - No Card */}
         <View style={styles.profileSection}>
-          {/* Close button - left side, aligned with top of picture */}
+          {/* Close button - left side */}
           <TouchableOpacity
-            onPress={() => {
-              console.log('Back button touched!');
-              handleBack();
-            }}
+            onPress={handleBack}
             style={styles.closeButton}
           >
             <Text style={styles.closeButtonText}>✕</Text>
           </TouchableOpacity>
 
           {/* Report button - only show for other users' profiles */}
-          {hostData?.id && currentUserId && hostData.id !== currentUserId && (
-            <TouchableOpacity
-              onPress={handleReport}
-              style={styles.reportButtonTop}
-            >
-              <Text style={styles.reportButtonText}>⚠️</Text>
-            </TouchableOpacity>
-          )}
+          {hostData?.id &&
+            currentUserId &&
+            hostData.id !== currentUserId && (
+              <TouchableOpacity
+                onPress={handleReport}
+                style={styles.reportButtonTop}
+              >
+                <Text style={styles.reportButtonText}>⚠️</Text>
+              </TouchableOpacity>
+            )}
 
-          <ProfileAvatar userData={hostData} size={120} showBorder={true} />
+          <View style={styles.avatarContainer}>
+            <ProfileAvatar
+              userData={hostData}
+              size={120}
+              showBorder={true}
+            />
+          </View>
 
           <Text style={styles.hostName}>{displayName}</Text>
 
@@ -383,159 +410,185 @@ const HostProfileScreen = ({ navigation, route }) => {
         </View>
 
         {/* Contact Info */}
-        {(() => {
-          const contactItems = [];
+        <View style={styles.infoSection}>
+          {(() => {
+            const contactItems = [];
 
-          // Check email visibility
-          if (visibleContactInfo.email) {
-            contactItems.push(
-              <TouchableOpacity
-                key="email"
-                style={styles.contactItem}
-                onPress={() => {
-                  const email = visibleContactInfo.email;
-                  const subject = encodeURIComponent('Regarding your event');
-                  const mailtoUrl = `mailto:${email}?subject=${subject}`;
-                  Linking.openURL(mailtoUrl).catch(() => {
-                    vibeAlert.error('Error', 'Unable to open email app');
-                  });
-                }}
-              >
-                <Text style={styles.contactIcon}>📧</Text>
-                <Text style={styles.contactText}>
-                  {visibleContactInfo.email}
-                </Text>
-              </TouchableOpacity>
-            );
-          }
+            // Check email visibility
+            if (visibleContactInfo.email) {
+              contactItems.push(
+                <TouchableOpacity
+                  key="email"
+                  style={styles.contactItem}
+                  onPress={() => {
+                    const email = visibleContactInfo.email;
+                    const subject = encodeURIComponent('Regarding your event');
+                    const mailtoUrl = `mailto:${email}?subject=${subject}`;
+                    Linking.openURL(mailtoUrl).catch(() => {
+                      vibeAlert.error('Error', 'Unable to open email app');
+                    });
+                  }}
+                >
+                  <Text style={styles.contactIcon}>📧</Text>
+                  <View style={styles.contactContent}>
+                    <Text style={styles.contactLabel}>Email</Text>
+                    <Text style={styles.contactValue}>
+                      {visibleContactInfo.email}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            }
 
-          // Check phone visibility
-          if (visibleContactInfo.phone) {
-            contactItems.push(
-              <TouchableOpacity
-                key="phone"
-                style={styles.contactItem}
-                onPress={() =>
-                  Linking.openURL(`tel:${visibleContactInfo.phone}`)
+            // Check phone visibility
+            if (visibleContactInfo.phone) {
+              contactItems.push(
+                <TouchableOpacity
+                  key="phone"
+                  style={styles.contactItem}
+                  onPress={() =>
+                    Linking.openURL(`tel:${visibleContactInfo.phone}`)
+                  }
+                >
+                  <Text style={styles.contactIcon}>📞</Text>
+                  <View style={styles.contactContent}>
+                    <Text style={styles.contactLabel}>Phone</Text>
+                    <Text style={styles.contactValue}>
+                      {visibleContactInfo.phone}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            }
+
+            // Check location visibility
+            if (visibleContactInfo.location) {
+              contactItems.push(
+                <View key="location" style={styles.contactItem}>
+                  <Text style={styles.contactIcon}>📍</Text>
+                  <View style={styles.contactContent}>
+                    <Text style={styles.contactLabel}>Location</Text>
+                    <Text style={styles.contactValue}>
+                      {visibleContactInfo.location}
+                    </Text>
+                  </View>
+                </View>
+              );
+            }
+
+            if (hostData.website) {
+              contactItems.push(
+                <TouchableOpacity
+                  key="website"
+                  style={styles.contactItem}
+                  onPress={() => Linking.openURL(hostData.website)}
+                >
+                  <Text style={styles.contactIcon}>🌐</Text>
+                  <View style={styles.contactContent}>
+                    <Text style={styles.contactLabel}>Website</Text>
+                    <Text style={styles.contactValue}>{hostData.website}</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            }
+
+            if (hostData.socialMedia) {
+              contactItems.push(
+                <TouchableOpacity
+                  key="social"
+                  style={styles.contactItem}
+                  onPress={() => Linking.openURL(hostData.socialMedia)}
+                >
+                  <Text style={styles.contactIcon}>📱</Text>
+                  <View style={styles.contactContent}>
+                    <Text style={styles.contactLabel}>Social Media</Text>
+                    <Text style={styles.contactValue}>View Profile</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            }
+
+            // Remove margin from last item
+            if (contactItems.length > 0) {
+              const lastItem = contactItems[contactItems.length - 1];
+              contactItems[contactItems.length - 1] = React.cloneElement(
+                lastItem,
+                {
+                  style: [lastItem.props.style, { marginBottom: 0 }],
                 }
-              >
-                <Text style={styles.contactIcon}>📞</Text>
-                <Text style={styles.contactText}>
-                  {visibleContactInfo.phone}
-                </Text>
-              </TouchableOpacity>
-            );
-          }
+              );
+            }
 
-          // Check location visibility
-          if (visibleContactInfo.location) {
-            contactItems.push(
-              <View key="location" style={styles.contactItem}>
-                <Text style={styles.contactIcon}>📍</Text>
-                <Text style={styles.contactText}>
-                  {visibleContactInfo.location}
-                </Text>
-              </View>
-            );
-          }
-
-          if (hostData.website) {
-            contactItems.push(
-              <TouchableOpacity
-                key="website"
-                style={styles.contactItem}
-                onPress={() => Linking.openURL(hostData.website)}
-              >
-                <Text style={styles.contactIcon}>🌐</Text>
-                <Text style={styles.contactText}>{hostData.website}</Text>
-              </TouchableOpacity>
-            );
-          }
-
-          if (hostData.socialMedia) {
-            contactItems.push(
-              <TouchableOpacity
-                key="social"
-                style={styles.contactItem}
-                onPress={() => Linking.openURL(hostData.socialMedia)}
-              >
-                <Text style={styles.contactIcon}>📱</Text>
-                <Text style={styles.contactText}>Social Media</Text>
-              </TouchableOpacity>
-            );
-          }
-
-          // Remove margin from last item
-          if (contactItems.length > 0) {
-            const lastItem = contactItems[contactItems.length - 1];
-            contactItems[contactItems.length - 1] = React.cloneElement(
-              lastItem,
-              {
-                style: [lastItem.props.style, { marginBottom: 0 }],
-              }
-            );
-          }
-
-          // Only show contact section if there are visible contact items
-          return contactItems.length > 0 ? (
-            <View style={styles.contactSection}>
-              <View style={styles.contactContainer}>
-                <Text style={styles.contactTitle}>Contact Info</Text>
+            // Only show contact section if there are visible contact items
+            return contactItems.length > 0 ? (
+              <View style={styles.infoCard}>
+                <Text style={styles.sectionTitle}>Contact Info</Text>
                 {contactItems}
               </View>
-            </View>
-          ) : null;
-        })()}
+            ) : null;
+          })()}
+        </View>
 
         {/* User Metrics */}
-        <View style={styles.metricsSection}>
-          <View style={styles.metricsContainer}>
-            <Text style={styles.metricsTitle}>Events</Text>
-            <View style={styles.quickStats}>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{stats.eventsCreated}</Text>
-                <Text style={styles.statLabel}>Created</Text>
+        <View style={styles.infoSection}>
+          <View style={styles.infoCard}>
+            <Text style={styles.sectionTitle}>Events</Text>
+            <View style={styles.statsGrid}>
+              <View style={styles.statsRow}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>{stats.eventsCreated}</Text>
+                  <Text style={styles.statLabel}>Created</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>{stats.eventsAttended}</Text>
+                  <Text style={styles.statLabel}>Attended</Text>
+                </View>
               </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{stats.eventsAttended}</Text>
-                <Text style={styles.statLabel}>Attended</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>
-                  {stats.averageAttendees.toFixed(1)}
-                </Text>
-                <Text style={styles.statLabel}>Avg Attendees</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{stats.noShows}</Text>
-                <Text style={styles.statLabel}>No Shows</Text>
+              <View style={styles.statsRow}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>
+                    {stats.averageAttendees.toFixed(1)}
+                  </Text>
+                  <Text style={styles.statLabel}>Avg Attendees</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>{stats.noShows}</Text>
+                  <Text style={styles.statLabel}>No Shows</Text>
+                </View>
               </View>
             </View>
           </View>
         </View>
 
         {/* Social Stats */}
-        <View style={styles.socialSection}>
-          <View style={styles.socialContainer}>
-            <Text style={styles.socialTitle}>Social</Text>
-            <View style={styles.quickStats}>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>
-                  {loadingFollowStats ? '...' : followStats.mutualCount}
-                </Text>
-                <Text style={styles.statLabel}>Mutual Friends</Text>
+        <View style={styles.infoSection}>
+          <View style={styles.infoCard}>
+            <Text style={styles.sectionTitle}>Social</Text>
+            <View style={styles.statsGrid}>
+              <View style={styles.statsRow}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>
+                    {loadingFollowStats ? '...' : followStats.mutualCount}
+                  </Text>
+                  <Text style={styles.statLabel}>Mutual Friends</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>
+                    {loadingFollowStats ? '...' : followStats.followingCount}
+                  </Text>
+                  <Text style={styles.statLabel}>Following</Text>
+                </View>
               </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>
-                  {loadingFollowStats ? '...' : followStats.followingCount}
-                </Text>
-                <Text style={styles.statLabel}>Following</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>
-                  {loadingFollowStats ? '...' : followStats.followerCount}
-                </Text>
-                <Text style={styles.statLabel}>Followers</Text>
+              <View style={styles.statsRow}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>
+                    {loadingFollowStats ? '...' : followStats.followerCount}
+                  </Text>
+                  <Text style={styles.statLabel}>Followers</Text>
+                </View>
+                <View style={styles.statItemSingle}>
+                  {/* Empty placeholder for visual balance */}
+                </View>
               </View>
             </View>
           </View>
@@ -756,9 +809,9 @@ const HostProfileScreen = ({ navigation, route }) => {
 
           // Only show highlights section if there are highlights to display
           return highlights.length > 0 ? (
-            <View style={styles.highlightsSection}>
-              <View style={styles.highlightsContainer}>
-                <Text style={styles.highlightsTitle}>Host Highlights</Text>
+            <View style={styles.infoSection}>
+              <View style={styles.infoCard}>
+                <Text style={styles.sectionTitle}>Host Highlights</Text>
                 {highlights}
               </View>
             </View>
@@ -767,38 +820,54 @@ const HostProfileScreen = ({ navigation, route }) => {
 
         {/* Action Buttons */}
         {!isCurrentUser && (
-          <View style={styles.buttonContainer}>
-            <VibeButton
-              label={isFollowing ? 'FOLLOWING' : 'FOLLOW HOST'}
-              onPress={handleFollow}
-              variant={isFollowing ? 'outline' : 'filled'}
-              style={[
-                styles.followButton,
-                isFollowing && styles.followingButton,
-              ]}
-            />
+          <View style={styles.infoSection}>
+            <View style={styles.buttonContainer}>
+              <VibeButton
+                label={isFollowing ? 'FOLLOWING' : 'FOLLOW HOST'}
+                onPress={handleFollow}
+                variant={isFollowing ? 'outline' : 'filled'}
+                style={[
+                  styles.followButton,
+                  isFollowing && styles.followingButton,
+                ]}
+              />
 
-            {/* Block/Unblock Button */}
-            <BlockButton
-              label={blockStatus.isBlocked ? 'UNBLOCK USER' : 'BLOCK USER'}
-              onPress={handleBlock}
-              isLoading={blockStatus.loading}
-              style={styles.blockButton}
-            />
+              {/* Block/Unblock Button */}
+              <BlockButton
+                label={blockStatus.isBlocked ? 'UNBLOCK USER' : 'BLOCK USER'}
+                onPress={handleBlock}
+                isLoading={blockStatus.loading}
+                style={styles.blockButton}
+              />
+            </View>
           </View>
         )}
-
-        {/* Safe area spacing */}
-        <View style={styles.safeAreaBottom} />
       </ScrollView>
-    </VibeScreen>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
   scrollView: {
     flex: 1,
-    padding: 20,
+  },
+  content: {
+    paddingBottom: 100,
+  },
+  infoSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  infoCard: {
+    backgroundColor: theme.colors.vibeBackgroundBlue,
+    borderRadius: theme.sizes.borderRadius,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: theme.colors.vibeBlue,
   },
   errorContainer: {
     flex: 1,
@@ -806,31 +875,49 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   errorText: {
-    color: '#888',
+    color: theme.colors.textSecondary,
     fontSize: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.colors.textPrimary,
+    marginBottom: 16,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   profileSection: {
     alignItems: 'center',
-    marginBottom: 24,
-    gap: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     position: 'relative',
+  },
+  profileContent: {
+    alignItems: 'center',
+    position: 'relative',
+  },
+  avatarContainer: {
+    marginVertical: 8,
   },
   closeButton: {
     position: 'absolute',
-    left: 0,
-    top: 0,
+    left: 20,
+    top: 18,
+    borderRadius: theme.sizes.borderRadius,
     padding: 8,
     zIndex: 10,
   },
   closeButtonText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 20,
     fontWeight: 'bold',
   },
   reportButtonTop: {
     position: 'absolute',
-    right: 0,
-    top: 0,
+    right: 20,
+    top: 18,
+    borderRadius: theme.sizes.borderRadius,
     padding: 8,
     zIndex: 10,
   },
@@ -840,92 +927,66 @@ const styles = StyleSheet.create({
   hostName: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
+    color: theme.colors.textPrimary,
     textAlign: 'center',
     marginBottom: 8,
   },
   bio: {
     fontSize: 16,
-    color: '#ccc',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 8,
   },
   joinDate: {
     fontSize: 14,
-    color: '#888',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
-  },
-  contactSection: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 12,
-  },
-  contactContainer: {
-    backgroundColor: theme.colors.vibeBackgroundBlue,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.vibeBlue,
-  },
-  contactTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    textAlign: 'center',
+    fontStyle: 'italic',
   },
   contactItem: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     backgroundColor: 'rgba(0, 198, 255, 0.05)',
-    borderRadius: 8,
+    borderRadius: theme.sizes.borderRadius,
     padding: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: 'rgba(0, 198, 255, 0.2)',
+    borderColor: theme.colors.vibeBlue + '33',
   },
   contactIcon: {
     fontSize: 18,
     marginRight: 12,
+    marginTop: 2,
   },
-  contactText: {
-    fontSize: 16,
-    color: '#fff',
+  contactContent: {
     flex: 1,
   },
-  highlightsSection: {
-    marginBottom: 20,
+  contactLabel: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    marginBottom: 4,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  highlightsContainer: {
-    backgroundColor: theme.colors.vibeBackgroundBlue,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.vibeBlue,
-  },
-  highlightsTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    textAlign: 'center',
+  contactValue: {
+    fontSize: 16,
+    color: theme.colors.textPrimary,
+    fontWeight: '500',
+    lineHeight: 22,
   },
   highlight: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 198, 255, 0.05)',
-    borderRadius: 8,
+    borderRadius: theme.sizes.borderRadius,
     padding: 12,
     marginBottom: 8,
     borderLeftWidth: 3,
     borderLeftColor: theme.colors.vibeBlue,
     borderWidth: 1,
-    borderColor: 'rgba(0, 198, 255, 0.2)',
+    borderColor: theme.colors.vibeBlue + '33',
   },
   highlightIcon: {
     fontSize: 18,
@@ -933,12 +994,10 @@ const styles = StyleSheet.create({
   },
   highlightText: {
     fontSize: 16,
-    color: '#fff',
+    color: theme.colors.textPrimary,
     fontWeight: '500',
   },
   buttonContainer: {
-    padding: 20,
-    paddingTop: 0,
     gap: 12,
   },
   followButton: {
@@ -951,59 +1010,36 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.vibeRed,
     marginTop: 12,
   },
-  metricsSection: {
-    marginBottom: 20,
-  },
-  metricsContainer: {
-    backgroundColor: theme.colors.vibeBackgroundBlue,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.vibeBlue,
-  },
-  metricsTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  socialSection: {
-    marginBottom: 20,
-  },
-  socialContainer: {
-    backgroundColor: theme.colors.vibeBackgroundBlue,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.vibeBlue,
-  },
-  socialTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
   quickStats: {
     flexDirection: 'row',
     justifyContent: 'space-around',
   },
+  statsGrid: {
+    gap: 16,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
   statItem: {
     alignItems: 'center',
+    flex: 1,
+  },
+  statItemSingle: {
+    flex: 1,
   },
   statNumber: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#00C6FF',
+    color: theme.colors.vibeBlue,
   },
   statLabel: {
     fontSize: 12,
-    color: '#888',
+    color: theme.colors.textSecondary,
     marginTop: 4,
-  },
-  safeAreaBottom: {
-    height: 100,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 });
 

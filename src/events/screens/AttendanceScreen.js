@@ -188,6 +188,7 @@ export default function AttendanceScreen({ route, navigation }) {
                 attended: true,
               }));
               await AttendanceService.bulkMarkAttendance(
+                studioId,
                 eventId,
                 bulkList,
                 currentUserId

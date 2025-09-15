@@ -8,11 +8,14 @@ import {
   StyleSheet,
   FlatList,
 } from 'react-native';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../../auth/services/firebase';
 import { useAuth } from '../../../auth/AuthContext';
 import { useVibeAlert } from '../../../components/ui/base/VibeAlertContext';
-import { followUser, unfollowUser } from '../../../services/followService';
+import {
+  followUser,
+  unfollowUser,
+  checkIfFollowing,
+  checkIfMutualFollows
+} from '../../../services/followService';
 import { VibeButton } from '../../../components/ui';
 import theme from '../../../theme/themes';
 
@@ -44,19 +47,11 @@ const PostEventActions = ({
       const followStatusPromises = participants.map(async (user) => {
         if (user.id === currentUserId) return [user.id, false, false]; // Can't follow yourself
 
-        // Check if I follow them
-        const followingDoc = await getDoc(
-          doc(db, 'users', currentUserId, 'following', user.id)
-        );
-        const iFollowThem = followingDoc.exists();
-
-        // Check if they follow me
-        const followerDoc = await getDoc(
-          doc(db, 'users', currentUserId, 'followers', user.id)
-        );
-        const theyFollowMe = followerDoc.exists();
-
-        const isMutualFriend = iFollowThem && theyFollowMe;
+        // Use service functions instead of direct Firebase calls
+        const [iFollowThem, isMutualFriend] = await Promise.all([
+          checkIfFollowing(currentUserId, user.id),
+          checkIfMutualFollows(currentUserId, user.id)
+        ]);
 
         return [user.id, iFollowThem, isMutualFriend];
       });
@@ -73,7 +68,7 @@ const PostEventActions = ({
       setFollowingStatus(followStatusMap);
       setMutualFollowStatus(mutualFollowMap);
     } catch (error) {
-      console.error('Error loading follow statuses:', error);
+      console.error('[PostEventActions] Error loading follow statuses:', error);
     } finally {
       setLoadingFollows(false);
     }
@@ -98,11 +93,8 @@ const PostEventActions = ({
       } else {
         await followUser(currentUserId, targetUserId, userData);
         setFollowingStatus((prev) => ({ ...prev, [targetUserId]: true }));
-        // Check if it's now mutual (they were already following us)
-        const followerDoc = await getDoc(
-          doc(db, 'users', currentUserId, 'followers', targetUserId)
-        );
-        const isMutual = followerDoc.exists();
+        // Check if it's now mutual using service function
+        const isMutual = await checkIfMutualFollows(currentUserId, targetUserId);
         setMutualFollowStatus((prev) => ({
           ...prev,
           [targetUserId]: isMutual,

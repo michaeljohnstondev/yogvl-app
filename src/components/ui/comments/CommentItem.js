@@ -8,7 +8,7 @@ import {
   Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc } from '../../../lib/firebase/firestore';
 import { db } from '../../../auth/services/firebase';
 import ProfileAvatar from '../profile/ProfileAvatar';
 import { useAuth } from '../../../auth/AuthContext';
