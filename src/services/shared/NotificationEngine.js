@@ -1,9 +1,9 @@
 // FILE: NotificationEngine.js - Unified Notification System Core
 // Consolidates all notification functionality into single engine
 
-import { doc, getDoc, updateDoc, writeBatch, collection, query, where, getDocs } from '../../lib/firebase';
-import { db } from '../../auth/services/firebase';
-import fcmService from '../fcmService';
+import { doc, getDoc, updateDoc, writeBatch, collection, query, where, getDocs, deleteDoc, setDoc } from '../../lib/firebase/index.js';
+import { db } from '../../auth/services/firebase.js';
+import fcmService from '../fcmService.js';
 
 // Unified notification types and priorities
 export const NOTIFICATION_TYPES = {
@@ -23,6 +23,12 @@ export const NOTIFICATION_PRIORITY = {
   NORMAL: 'normal',
   HIGH: 'high',
   URGENT: 'urgent'
+};
+
+export const DELIVERY_CHANNELS = {
+  PUSH: 'push',
+  IN_APP: 'in_app',
+  EMAIL: 'email'
 };
 
 // Unified notification templates
@@ -215,7 +221,7 @@ class NotificationEngine {
       // Add to user's notifications subcollection
       const notificationRef = doc(collection(userRef, 'notifications'), notificationId);
 
-      await updateDoc(notificationRef, {
+      await setDoc(notificationRef, {
         id: notificationId,
         type,
         title,
@@ -365,6 +371,124 @@ class NotificationEngine {
       data: sanitizeObject(data),
       priority: sanitizedPriority
     };
+  }
+
+  /**
+   * Get user's notifications
+   */
+  async getUserNotifications(userId, options = {}) {
+    try {
+      const { limit = 50, offset = 0, unreadOnly = false } = options;
+
+      const userRef = doc(db, 'users', userId);
+      const notificationsRef = collection(userRef, 'notifications');
+
+      let q = query(notificationsRef);
+
+      if (unreadOnly) {
+        q = query(q, where('read', '==', false));
+      }
+
+      const snapshot = await getDocs(q);
+      const notifications = [];
+
+      snapshot.forEach(doc => {
+        notifications.push({
+          id: doc.id,
+          userId, // Add userId to each notification object
+          ...doc.data()
+        });
+      });
+
+      // Sort by createdAt desc and apply pagination
+      const sorted = notifications
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(offset, offset + limit);
+
+      return {
+        success: true,
+        notifications: sorted,
+        hasMore: notifications.length > offset + limit
+      };
+
+    } catch (error) {
+      console.error('[NotificationEngine] Failed to get user notifications:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Mark a notification as read
+   */
+  async markNotificationAsRead(userId, notificationId) {
+    try {
+      const userRef = doc(db, 'users', userId);
+      const notificationRef = doc(collection(userRef, 'notifications'), notificationId);
+
+      await updateDoc(notificationRef, {
+        read: true,
+        readAt: new Date()
+      });
+
+      return { success: true };
+
+    } catch (error) {
+      console.error('[NotificationEngine] Failed to mark notification as read:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Mark all notifications as read for a user
+   */
+  async markAllNotificationsAsRead(userId) {
+    try {
+      const userRef = doc(db, 'users', userId);
+      const notificationsRef = collection(userRef, 'notifications');
+
+      const unreadQuery = query(notificationsRef, where('read', '==', false));
+      const snapshot = await getDocs(unreadQuery);
+
+      if (snapshot.empty) {
+        return { success: true, updated: 0 };
+      }
+
+      const batch = writeBatch(db);
+      const now = new Date();
+
+      snapshot.forEach(doc => {
+        batch.update(doc.ref, {
+          read: true,
+          readAt: now
+        });
+      });
+
+      await batch.commit();
+
+      return { success: true, updated: snapshot.size };
+
+    } catch (error) {
+      console.error('[NotificationEngine] Failed to mark all notifications as read:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Delete a notification
+   */
+  async deleteNotification(userId, notificationId) {
+    try {
+      const userRef = doc(db, 'users', userId);
+      const notificationRef = doc(collection(userRef, 'notifications'), notificationId);
+
+      await deleteDoc(notificationRef);
+
+      return { success: true };
+
+    } catch (error) {
+      console.error('[NotificationEngine] Failed to delete notification:', error);
+      return { success: false, error: error.message };
+    }
   }
 
   /**

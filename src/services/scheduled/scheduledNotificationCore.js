@@ -6,11 +6,27 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { db } from '../../auth/services/firebase';
-import {
-  NOTIFICATION_TYPES,
-  NOTIFICATION_PRIORITY,
-  DELIVERY_CHANNELS,
-} from '../notifications';
+// Local constants to avoid import resolution issues
+const NOTIFICATION_TYPES = {
+  EVENT_REMINDER: 'event_reminder',
+  EVENT_UPDATE: 'event_update',
+  EVENT_CANCELLED: 'event_cancelled',
+  EVENT_JOIN: 'event_join',
+  EVENT_LEAVE: 'event_leave'
+};
+
+const NOTIFICATION_PRIORITY = {
+  LOW: 'low',
+  NORMAL: 'normal',
+  HIGH: 'high',
+  URGENT: 'urgent'
+};
+
+const DELIVERY_CHANNELS = {
+  PUSH: 'push',
+  IN_APP: 'in_app',
+  EMAIL: 'email'
+};
 
 /**
  * SCHEDULED NOTIFICATION DATA MODEL:
