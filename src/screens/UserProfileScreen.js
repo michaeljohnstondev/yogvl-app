@@ -28,6 +28,7 @@ import {
   ProfileActionButtons,
 } from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
+import { logout } from '../auth/services/FirebaseAuthService';
 import {
   getFollowStats,
   getUserRelationshipStatus,
@@ -54,7 +55,7 @@ import theme from '../theme/themes';
 import { styles } from './UserProfileScreen.styles';
 
 function UserProfile({ navigation, route }) {
-  const { userData, logout, currentUserId } = useAuth();
+  const { userData, currentUserId } = useAuth();
   const vibeAlert = useVibeAlert();
   const { validateProfileAccess, clearValidationCache } =
     usePrivacyValidation(currentUserId);

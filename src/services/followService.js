@@ -245,7 +245,7 @@ export const checkIfMutualFollows = async (userId1, userId2) => {
 };
 
 /**
- * Get mutual followers (friends) - ENHANCED with safe array operations
+ * Get mutual followers (friends) - Uses intersection logic for mathematically correct results
  */
 export const getMutualFollows = async (userId, limitCount = 50) => {
   try {
@@ -257,112 +257,39 @@ export const getMutualFollows = async (userId, limitCount = 50) => {
       return [];
     }
 
-    const following = await getFollowing(userId, limitCount);
-    if (!Array.isArray(following) || following.length === 0) {
+    // Get both followers and following lists in parallel
+    const [followers, following] = await Promise.all([
+      getFollowers(userId, limitCount),
+      getFollowing(userId, limitCount)
+    ]);
+
+    // Validate both arrays exist
+    if (!Array.isArray(followers) || !Array.isArray(following)) {
+      console.warn('[followService] Invalid followers or following data');
       return [];
     }
 
-    const targetUserIds = following
-      .filter((f) => f && f.targetUserId) // Filter out any invalid entries
-      .map((f) => f.targetUserId);
-
-    if (targetUserIds.length === 0) {
+    // If either list is empty, no mutual follows possible
+    if (followers.length === 0 || following.length === 0) {
       return [];
     }
 
-    // Batch check all follow relationships in parallel instead of sequential for loop
-    const followBackPromises = targetUserIds.map((targetId) =>
-      getDoc(doc(db, 'users', targetId, 'followers', userId)).catch((err) => {
-        console.error(
-          '[followService] Error checking follow back status for',
-          targetId,
-          ':',
-          err
-        );
-        return { exists: () => false };
-      })
-    );
+    // Find intersection: users who appear in BOTH followers AND following lists
+    const mutualFollows = followers.filter(follower => {
+      // Check if this follower is also in the following list
+      return following.some(followed => followed.id === follower.id);
+    }).map(user => ({
+      ...user,
+      isMutual: true, // Mark as mutual follow relationship
+    }));
 
-    const followBackResults = await Promise.all(followBackPromises);
-
-    const mutualFollows = [];
-    const userIdsNeedingData = [];
-
-    // First pass: identify users with incomplete data
-    following.forEach((followedUser, index) => {
-      if (
-        followedUser &&
-        followBackResults[index] &&
-        followBackResults[index].exists()
-      ) {
-        // Check if we have profile picture data in cached targetData
-        if (!followedUser.targetData?.profilePicture) {
-          userIdsNeedingData.push(followedUser.targetUserId);
-        }
-      }
-    });
-
-    // Fetch current user data for users missing profile picture info
-    let currentUserDataMap = new Map();
-    if (userIdsNeedingData.length > 0) {
-      try {
-        const userDocs = await Promise.all(
-          userIdsNeedingData.map(userId =>
-            getDoc(doc(db, 'users', userId)).catch(err => {
-              console.error(`[followService] Error fetching user data for ${userId}:`, err);
-              return null;
-            })
-          )
-        );
-
-        userDocs.forEach((userDoc, index) => {
-          if (userDoc && userDoc.exists()) {
-            currentUserDataMap.set(userIdsNeedingData[index], userDoc.data());
-          }
-        });
-      } catch (error) {
-        console.error('[followService] Error fetching user data for mutual friends:', error);
-      }
+    // Mathematical validation: friends should never exceed min(followers, following)
+    const maxPossibleFriends = Math.min(followers.length, following.length);
+    if (mutualFollows.length > maxPossibleFriends) {
+      console.error(
+        `[followService] Mathematical error: ${mutualFollows.length} friends found but max possible is ${maxPossibleFriends}`
+      );
     }
-
-    // Second pass: build mutual follows with complete data
-    following.forEach((followedUser, index) => {
-      if (
-        followedUser &&
-        followBackResults[index] &&
-        followBackResults[index].exists()
-      ) {
-        const currentUserData = currentUserDataMap.get(followedUser.targetUserId);
-        const profilePicture = followedUser.targetData?.profilePicture ||
-                              currentUserData?.userdata?.contactInfo?.profilePicture ||
-                              null;
-
-        mutualFollows.push({
-          id: followedUser.targetUserId,
-          userdata: {
-            contactInfo: {
-              firstName: followedUser.targetData?.firstName ||
-                        currentUserData?.userdata?.contactInfo?.firstName || '',
-              lastName: followedUser.targetData?.lastName ||
-                       currentUserData?.userdata?.contactInfo?.lastName || '',
-              email: followedUser.targetData?.email ||
-                     currentUserData?.userdata?.contactInfo?.email || '',
-              profilePicture: profilePicture,
-            },
-            studios: followedUser.targetData?.studios ||
-                    currentUserData?.userdata?.studios || {},
-          },
-          displayName: followedUser.targetData?.displayName ||
-                      `${currentUserData?.userdata?.contactInfo?.firstName || ''} ${currentUserData?.userdata?.contactInfo?.lastName || ''}`.trim() ||
-                      'Unknown User',
-          email: followedUser.targetData?.email ||
-                 currentUserData?.userdata?.contactInfo?.email || '',
-          isMutual: true,
-          isFollowing: true, // All mutual friends are by definition already being followed
-          followedAt: followedUser.createdAt,
-        });
-      }
-    });
 
     return mutualFollows;
   } catch (error) {

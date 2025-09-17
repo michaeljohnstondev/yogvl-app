@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, TouchableOpacity, Text } from 'react-native';
+import { View, TouchableOpacity, Text, Pressable } from 'react-native';
 import { StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { VibeButton } from '../';
 import FollowButton from '../buttons/FollowButton';
 import BlockButton from '../buttons/BlockButton';
@@ -80,39 +81,44 @@ const ProfileActionButtons = ({
     );
   };
 
+  // Red gradient button component (matching BlockButton style)
+  const RedButton = ({ label, onPress, style }) => (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        { opacity: pressed ? 0.8 : 1 },
+        style,
+      ]}
+    >
+      <LinearGradient
+        colors={['#CC0022', '#FF0844', '#AA001B']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.redGradientBorder}
+      >
+        <View style={styles.redButtonContent}>
+          <Text style={styles.redButtonText}>{label}</Text>
+        </View>
+      </LinearGradient>
+    </Pressable>
+  );
+
   // Bottom action buttons
   const renderBottomButtons = () => {
     if (isOwnProfile) {
       return (
         <View style={styles.buttonContainer}>
           <VibeButton
-            label="Settings"
-            onPress={onSettings}
-            style={styles.settingsButton}
-          />
-          <VibeButton
-            label="Privacy Settings"
-            onPress={onPrivacySettings}
-            style={styles.actionButton}
-          />
-          <VibeButton
-            label="Notification Settings"
-            onPress={onNotificationSettings}
-            style={styles.actionButton}
-          />
-
-          <View style={styles.buttonSeparator} />
-
-          <VibeButton
-            label="Logout"
+            label="LOGOUT"
             onPress={onLogout}
+            variant="toggle"
             color="red"
             style={styles.actionButton}
+            textStyle={{ fontWeight: '900', letterSpacing: 2 }}
           />
-          <VibeButton
-            label="Delete Account"
+          <RedButton
+            label="DELETE ACCOUNT"
             onPress={onDeleteAccount}
-            color="red"
             style={styles.actionButton}
           />
         </View>
@@ -180,9 +186,6 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 40,
   },
-  settingsButton: {
-    marginBottom: 12,
-  },
   actionButton: {
     marginBottom: 12,
   },
@@ -198,6 +201,25 @@ const styles = StyleSheet.create({
   },
   followButton: {
     alignSelf: 'stretch',
+  },
+  // Red gradient button styles (matching BlockButton)
+  redGradientBorder: {
+    borderRadius: theme.sizes.buttonRadius,
+    padding: 2,
+  },
+  redButtonContent: {
+    backgroundColor: 'transparent',
+    borderRadius: theme.sizes.buttonRadius,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  redButtonText: {
+    color: theme.colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '900',
+    fontFamily: theme.fonts.main,
+    textAlign: 'center',
   },
 });
 
