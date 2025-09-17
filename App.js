@@ -44,6 +44,7 @@ function AppWithNotifications() {
 }
 
 export default function App() {
+  globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
   return (
     <SafeAreaProvider>
       <VibeScreen>
