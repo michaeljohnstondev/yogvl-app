@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useVibeAlert } from '../../components/ui/base/VibeAlertContext';
@@ -142,7 +141,6 @@ export default function AttendanceScreen({ route, navigation }) {
         userId,
         currentUserId
       );
-      vibeAlert.success('Success', 'User marked as attended.');
       await loadAttendanceData(); // Refresh data
     } catch (error) {
       console.error('[AttendanceScreen] handleMarkAttended error:', error);
@@ -161,7 +159,6 @@ export default function AttendanceScreen({ route, navigation }) {
         userId,
         currentUserId
       );
-      vibeAlert.warning('Marked', 'User marked as no-show.');
       await loadAttendanceData(); // Refresh data
     } catch (error) {
       vibeAlert.error('Error', 'Failed to mark no-show.');
@@ -170,50 +167,164 @@ export default function AttendanceScreen({ route, navigation }) {
     }
   };
 
-  const handleBulkMarkAttended = () => {
-    Alert.alert(
-      'Mark All Attended',
-      'Mark all pending RSVPs as attended? This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Mark All',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setSaving(true);
-              const pendingUsers = rsvpUsers.filter((user) => {
-                const attendance = attendanceData.find(
-                  (a) => a.userId === user.id
-                );
-                return !attendance?.attended && !attendance?.noShow;
-              });
+  const handleStatusChange = async (userId, newStatus) => {
+    try {
+      setSaving(true);
 
-              const bulkList = pendingUsers.map((user) => ({
-                userId: user.id,
-                attended: true,
-              }));
-              await AttendanceService.bulkMarkAttendance(
-                studioId,
-                eventId,
-                bulkList,
-                currentUserId
-              );
+      // Optimistically update local state first
+      let newAttendanceData;
+      setAttendanceData(prevData => {
+        const newData = [...prevData];
+        const existingIndex = newData.findIndex(a => a.userId === userId);
 
-              vibeAlert.success(
-                'Success',
-                `Marked ${pendingUsers.length} users as attended.`
-              );
-              await loadAttendanceData();
-            } catch (error) {
-              vibeAlert.error('Error', 'Failed to bulk mark attendance.');
-            } finally {
-              setSaving(false);
-            }
-          },
-        },
-      ]
-    );
+        if (newStatus === 'pending') {
+          // Remove attendance record for pending
+          if (existingIndex >= 0) {
+            newData.splice(existingIndex, 1);
+          }
+        } else {
+          // Create or update attendance record
+          const attendanceRecord = {
+            userId,
+            attended: newStatus === 'attended',
+            isHost: event?.createdBy === userId,
+            markedBy: currentUserId,
+            markedAt: new Date(),
+            isSoloEvent: event ? AttendanceService.isSoloEvent(event) : false,
+          };
+
+          if (existingIndex >= 0) {
+            newData[existingIndex] = attendanceRecord;
+          } else {
+            newData.push(attendanceRecord);
+          }
+        }
+        newAttendanceData = newData;
+        return newData;
+      });
+
+      // Update stats optimistically using the new data
+      setAttendanceStats(prevStats => {
+        const newAttendedCount = newAttendanceData.filter(a => a.attended).length;
+        const newNoShowCount = newAttendanceData.filter(a => !a.attended).length;
+        const totalRsvp = event?.subscribers?.length || 0;
+
+        return {
+          ...prevStats,
+          attendedCount: newAttendedCount,
+          noShowCount: newNoShowCount,
+          pendingCount: Math.max(0, totalRsvp - (newAttendedCount + newNoShowCount)),
+          attendanceRate: totalRsvp > 0 ? (newAttendedCount / totalRsvp) * 100 : 0,
+        };
+      });
+
+      // Perform backend update
+      switch (newStatus) {
+        case 'attended':
+          await AttendanceService.markAttended(studioId, eventId, userId, currentUserId);
+          break;
+        case 'noShow':
+          await AttendanceService.markNoShow(studioId, eventId, userId, currentUserId);
+          break;
+        case 'pending':
+          await AttendanceService.clearAttendance(studioId, eventId, userId);
+          break;
+        default:
+          throw new Error(`Unknown status: ${newStatus}`);
+      }
+
+    } catch (error) {
+      console.error('[AttendanceScreen] handleStatusChange error:', error);
+      vibeAlert.error('Error', 'Failed to update attendance status.');
+      // Revert optimistic update on error
+      await loadAttendanceData();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleBulkMarkAttended = async () => {
+    try {
+      setSaving(true);
+      const pendingUsers = rsvpUsers.filter((user) => {
+        const attendance = attendanceData.find(
+          (a) => a.userId === user.id
+        );
+        // Only include users with no attendance record (truly pending)
+        return !attendance;
+      });
+
+      if (pendingUsers.length === 0) {
+        return; // No pending users to mark
+      }
+
+      // Optimistically update all pending users
+      setAttendanceData(prevData => {
+        const newData = [...prevData];
+
+        pendingUsers.forEach(user => {
+          const attendanceRecord = {
+            userId: user.id,
+            attended: true,
+            isHost: event?.createdBy === user.id,
+            markedBy: currentUserId,
+            markedAt: new Date(),
+            isSoloEvent: event ? AttendanceService.isSoloEvent(event) : false,
+          };
+          newData.push(attendanceRecord);
+        });
+
+        return newData;
+      });
+
+      // Update stats optimistically
+      setAttendanceStats(prevStats => {
+        const newAttendedCount = (prevStats.attendedCount || 0) + pendingUsers.length;
+        const totalRsvp = event?.subscribers?.length || 0;
+        const newPendingCount = Math.max(0, totalRsvp - newAttendedCount - (prevStats.noShowCount || 0));
+
+        return {
+          ...prevStats,
+          attendedCount: newAttendedCount,
+          pendingCount: newPendingCount,
+          attendanceRate: totalRsvp > 0 ? (newAttendedCount / totalRsvp) * 100 : 0,
+        };
+      });
+
+      // Perform backend updates
+      console.log(`[AttendanceScreen] Starting bulk mark for ${pendingUsers.length} users:`, pendingUsers.map(u => u.id));
+
+      const promises = pendingUsers.map((user) =>
+        AttendanceService.markAttended(studioId, eventId, user.id, currentUserId)
+          .then(result => {
+            console.log(`[AttendanceScreen] Successfully marked ${user.id} as attended:`, result);
+            return { userId: user.id, success: true, result };
+          })
+          .catch(error => {
+            console.error(`[AttendanceScreen] Failed to mark ${user.id} as attended:`, error);
+            return { userId: user.id, success: false, error };
+          })
+      );
+
+      const results = await Promise.all(promises);
+
+      // Log results summary
+      const successful = results.filter(r => r.success);
+      const failed = results.filter(r => !r.success);
+
+      console.log(`[AttendanceScreen] Bulk mark results: ${successful.length} succeeded, ${failed.length} failed`);
+
+      if (failed.length > 0) {
+        console.error('[AttendanceScreen] Failed operations:', failed);
+        throw new Error(`${failed.length} operations failed`);
+      }
+    } catch (error) {
+      vibeAlert.error('Error', 'Failed to bulk mark attendance.');
+      // Revert optimistic update on error
+      await loadAttendanceData();
+    } finally {
+      setSaving(false);
+    }
   };
 
   const getUserAttendanceStatus = (userId) => {
@@ -326,6 +437,7 @@ export default function AttendanceScreen({ route, navigation }) {
               attendanceStatus={getUserAttendanceStatus(user.id)}
               onMarkAttended={handleMarkAttended}
               onMarkNoShow={handleMarkNoShow}
+              onStatusChange={handleStatusChange}
               disabled={saving}
             />
           ))}

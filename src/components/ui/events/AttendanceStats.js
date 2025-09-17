@@ -36,6 +36,13 @@ export default function AttendanceStats({ stats }) {
         />
 
         <StatCard
+          title="Pending"
+          value={pendingCount}
+          color={theme.colors.textSecondary}
+          icon="⏳"
+        />
+
+        <StatCard
           title="Attended"
           value={attendedCount}
           color={theme.colors.vibeGreen || '#00FF96'}
@@ -47,13 +54,6 @@ export default function AttendanceStats({ stats }) {
           value={noShowCount}
           color="#FF6B6B"
           icon="❌"
-        />
-
-        <StatCard
-          title="Pending"
-          value={pendingCount}
-          color={theme.colors.textSecondary}
-          icon="⏳"
         />
       </View>
 

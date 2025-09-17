@@ -10,7 +10,6 @@ import {
   query,
   where,
   getDocs,
-  serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 import { ReliabilityService } from './ReliabilityService';
@@ -38,14 +37,23 @@ export class AttendanceService {
    * @returns {Promise<boolean>} Success status
    */
   static async markAttended(studioId, eventId, userId, markedBy) {
+    console.log('[AttendanceService] markAttended called with:', {
+      studioId,
+      eventId,
+      userId,
+      markedBy
+    });
     try {
       const eventRef = doc(db, 'studios', studioId, 'events', eventId);
+      console.log('[AttendanceService] Fetching event from path:', `studios/${studioId}/events/${eventId}`);
       const eventDoc = await getDoc(eventRef);
 
       if (!eventDoc.exists()) {
+        console.error('[AttendanceService] Event not found at path:', `studios/${studioId}/events/${eventId}`);
         throw new Error(`Event ${eventId} not found`);
       }
 
+      console.log('[AttendanceService] Event found, processing attendance...');
       const eventData = eventDoc.data();
       const attendance = eventData.attendance || [];
       const isHost = eventData.createdBy === userId;
@@ -59,9 +67,11 @@ export class AttendanceService {
         attended: true,
         isHost: isHost,
         markedBy: markedBy,
-        markedAt: serverTimestamp(),
+        markedAt: new Date(),
         isSoloEvent: isSolo, // Flag for excluding from metrics
       };
+
+      console.log('[AttendanceService] Using new Date() timestamp:', attendanceRecord.markedAt);
 
       if (existingIndex >= 0) {
         // Update existing record
@@ -125,7 +135,7 @@ export class AttendanceService {
         attended: false,
         isHost: isHost,
         markedBy: markedBy,
-        markedAt: serverTimestamp(),
+        markedAt: new Date(),
         isSoloEvent: isSolo, // Flag for excluding from metrics
       };
 
@@ -345,7 +355,7 @@ export class AttendanceService {
         markedBy: userId, // Self-reported
         selfReported: true,
         isSoloEvent: false, // Already checked - not a solo event
-        markedAt: serverTimestamp(),
+        markedAt: new Date(),
       };
 
       if (existingIndex >= 0) {
@@ -369,6 +379,42 @@ export class AttendanceService {
       return true;
     } catch (error) {
       console.error('Error with self-reported attendance:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Clear attendance status (mark as pending)
+   * @param {string} studioId - Studio ID
+   * @param {string} eventId - Event ID
+   * @param {string} userId - User ID
+   * @returns {Promise<boolean>} Success status
+   */
+  static async clearAttendance(studioId, eventId, userId) {
+    try {
+      const eventRef = doc(db, 'studios', studioId, 'events', eventId);
+      const eventDoc = await getDoc(eventRef);
+
+      if (!eventDoc.exists()) {
+        throw new Error(`Event ${eventId} not found`);
+      }
+
+      const eventData = eventDoc.data();
+      const attendance = eventData.attendance || [];
+
+      // Remove the user's attendance record
+      const updatedAttendance = attendance.filter((a) => a.userId !== userId);
+
+      // Update event with filtered attendance array
+      await updateDoc(eventRef, {
+        attendance: updatedAttendance,
+        attendanceCount: updatedAttendance.filter((a) => a.attended).length,
+      });
+
+      console.log(`Cleared attendance for user ${userId} in event ${eventId}`);
+      return true;
+    } catch (error) {
+      console.error('[AttendanceService] clearAttendance error:', error);
       throw error;
     }
   }

@@ -2,9 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import ProfileAvatar from '../profile/ProfileAvatar';
-import ReliabilityBadge from '../profile/ReliabilityBadge';
-import ReliabilityWarning from '../profile/ReliabilityWarning';
-import ReliabilityDetail from '../profile/ReliabilityDetail';
+import VibeButton from '../base/VibeButton';
 import theme from '../../../theme/themes';
 
 export default function AttendanceCard({
@@ -12,44 +10,64 @@ export default function AttendanceCard({
   attendanceStatus,
   onMarkAttended,
   onMarkNoShow,
+  onStatusChange, // New prop for cycling status
   disabled = false,
 }) {
-  const [showReliabilityDetail, setShowReliabilityDetail] = useState(false);
   const getStatusColor = () => {
-    if (attendanceStatus?.attended) return theme.colors.vibeGreen;
-    if (attendanceStatus?.noShow) return theme.colors.vibeRed;
+    if (attendanceStatus?.attended === true) return theme.colors.vibeGreen;
+    if (attendanceStatus?.attended === false) return theme.colors.vibeRed;
     return theme.colors.textSecondary;
   };
 
   const getStatusText = () => {
-    if (attendanceStatus?.attended) return '✅ Attended';
-    if (attendanceStatus?.noShow) return '❌ No Show';
+    if (attendanceStatus?.attended === true) return '✅ Attended';
+    if (attendanceStatus?.attended === false) return '❌ No Show';
     return '⏳ Pending';
   };
 
+  const getStatusColorName = () => {
+    if (attendanceStatus?.attended === true) return 'green';
+    if (attendanceStatus?.attended === false) return 'red';
+    return 'gray';
+  };
+
+  const handleStatusCycle = () => {
+    if (disabled || !onStatusChange) return;
+
+    // Cycle through: Pending → Attended → No Show → Pending
+    if (!attendanceStatus) {
+      // Pending → Attended
+      onStatusChange(user.id, 'attended');
+    } else if (attendanceStatus.attended === true) {
+      // Attended → No Show
+      onStatusChange(user.id, 'noShow');
+    } else if (attendanceStatus.attended === false) {
+      // No Show → Pending
+      onStatusChange(user.id, 'pending');
+    }
+  };
+
   const showButtons =
-    !attendanceStatus?.attended && !attendanceStatus?.noShow && !disabled;
+    (!attendanceStatus || attendanceStatus.attended === undefined) && !disabled && !onStatusChange;
 
   return (
     <View style={styles.card}>
-      <View style={styles.userInfo}>
-        <ProfileAvatar userData={user} size={50} showBorder={true} />
+      <ProfileAvatar userData={user} size={50} showBorder={true} style={styles.avatar} />
 
-        <View style={styles.userDetails}>
-          <Text style={styles.userName}>
-            {user.firstName && user.lastName
-              ? `${user.firstName} ${user.lastName}`
-              : user.email || 'Unknown User'}
-          </Text>
-          <Text style={[styles.statusText, { color: getStatusColor() }]}>
-            {getStatusText()}
-          </Text>
-          <ReliabilityBadge
-            userData={user}
-            size="small"
-            onPress={() => setShowReliabilityDetail(true)}
-          />
-        </View>
+      <View style={styles.userInfo}>
+        <Text style={styles.userName}>
+          {user.firstName && user.lastName
+            ? `${user.firstName} ${user.lastName}`
+            : user.email || 'Unknown User'}
+        </Text>
+
+        <VibeButton
+          label={getStatusText()}
+          onPress={handleStatusCycle}
+          variant="toggle"
+          color={getStatusColorName()}
+          style={styles.statusButton}
+        />
       </View>
 
       {showButtons && (
@@ -77,23 +95,17 @@ export default function AttendanceCard({
         </View>
       )}
 
-      {/* Reliability Warning */}
-      <ReliabilityWarning userData={user} />
 
       {attendanceStatus?.markedAt && (
         <Text style={styles.markedTime}>
           Marked:{' '}
-          {new Date(attendanceStatus.markedAt.toDate()).toLocaleString()}
+          {attendanceStatus.markedAt.toDate
+            ? new Date(attendanceStatus.markedAt.toDate()).toLocaleString()
+            : new Date(attendanceStatus.markedAt).toLocaleString()
+          }
         </Text>
       )}
 
-      {/* Reliability Detail Modal */}
-      {showReliabilityDetail && (
-        <ReliabilityDetail
-          userData={user}
-          onClose={() => setShowReliabilityDetail(false)}
-        />
-      )}
     </View>
   );
 }
@@ -106,30 +118,33 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
+    position: 'relative',
+  },
+  avatar: {
+    position: 'absolute',
+    top: 55,
+    left: 16,
+    zIndex: 1,
   },
   userInfo: {
-    flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
-    gap: 12,
-  },
-  userDetails: {
-    flex: 1,
   },
   userName: {
     color: theme.colors.textPrimary,
     fontSize: 16,
     fontWeight: '600',
+    textAlign: 'center',
     marginBottom: 2,
   },
-  statusText: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 2,
+  statusButton: {
+    alignSelf: 'center',
+    marginTop: 8,
   },
   buttonContainer: {
     flexDirection: 'row',
     gap: 8,
+    justifyContent: 'center',
   },
   attendedButton: {
     flex: 1,
