@@ -22,9 +22,9 @@ import {
   ReliabilityBadge,
   ProfileAvatar,
   QRCodeGenerator,
-  ProfileSectionCard,
+  VibeCard,
   ContactItem,
-  UserStatsGrid,
+  VibeStatsGrid,
   ProfileActionButtons,
 } from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
@@ -840,7 +840,7 @@ function UserProfile({ navigation, route }) {
 
         {/* Bio Section - Only show if has content OR in edit mode */}
         {(displayUserData?.bio || isEditing) && (
-          <ProfileSectionCard title="About Me">
+          <VibeCard title="About Me">
             <ContactItem isLast={true}>
               {isEditing ? (
                 <VibeInput
@@ -858,11 +858,11 @@ function UserProfile({ navigation, route }) {
                 <Text style={[styles.contactText, { textAlign: 'center' }]}>{displayUserData?.bio}</Text>
               )}
             </ContactItem>
-          </ProfileSectionCard>
+          </VibeCard>
         )}
 
         {/* Contact Section */}
-        <ProfileSectionCard title="Contact Info">
+        <VibeCard title="Contact Info">
           <ContactItem icon="👤">
             {isEditing ? (
               <View style={styles.nameEditContainer}>
@@ -965,11 +965,11 @@ function UserProfile({ navigation, route }) {
               )}
             </ContactItem>
           )}
-        </ProfileSectionCard>
+        </VibeCard>
 
         {/* Activity Section */}
-        <ProfileSectionCard title="Events">
-          <UserStatsGrid
+        <VibeCard title="Events">
+          <VibeStatsGrid
             stats={[
               {
                 value: displayUserData?.userdata?.metrics?.events?.created || 0,
@@ -986,11 +986,11 @@ function UserProfile({ navigation, route }) {
               },
             ]}
           />
-        </ProfileSectionCard>
+        </VibeCard>
 
         {/* Social Section */}
-        <ProfileSectionCard title="Social">
-          <UserStatsGrid
+        <VibeCard title="Social">
+          <VibeStatsGrid
             stats={[
               {
                 value: loadingStats ? '...' : followStats.mutualCount,
@@ -1029,20 +1029,20 @@ function UserProfile({ navigation, route }) {
                   : undefined,
               },
             ]}
-            isOwnProfile={isOwnProfile}
+            enableTouch={isOwnProfile}
           />
-        </ProfileSectionCard>
+        </VibeCard>
 
         {/* QR Code Section - Only for own profile */}
         {isOwnProfile && (
-          <ProfileSectionCard title="Share Profile">
+          <VibeCard title="Share Profile">
             <QRCodeGenerator
               type="user"
               data={currentUserId}
               size={180}
               showShareButton={false}
             />
-          </ProfileSectionCard>
+          </VibeCard>
         )}
 
         {/* Attendance Details */}

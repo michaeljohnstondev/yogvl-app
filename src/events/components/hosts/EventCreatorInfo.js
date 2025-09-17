@@ -58,7 +58,6 @@ const EventCreatorInfo = ({
             showLabel={false}
           />
         )}
-        {onPress && <Text style={styles.clickHint}>ⓘ</Text>}
       </Container>
     );
   }
@@ -70,8 +69,7 @@ const EventCreatorInfo = ({
         <ProfileAvatar userData={creatorData} size={40} showBorder={true} />
         <View style={styles.nameContainer}>
           <Text style={styles.name}>{displayName}</Text>
-          {onPress && <Text style={styles.clickHint}>ⓘ</Text>}
-        </View>
+          </View>
         {showReliability && (
           <ReliabilityBadge userData={creatorData} size="medium" />
         )}

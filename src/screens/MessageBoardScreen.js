@@ -15,7 +15,6 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useComments } from '../components/ui/comments/hooks/useComments';
 import { UserAvatar } from '../components/ui';
-import VibeScreen from '../components/ui/base/VibeScreen';
 import { CloseButton } from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
 import { FormatDate, getRelativeTimeString } from '../lib/formatDate';
@@ -270,7 +269,10 @@ export default function MessageBoardScreen({ route, navigation }) {
   );
 
   return (
-    <VibeScreen>
+    <LinearGradient
+      colors={theme.colors.backgroundGradient}
+      style={styles.background}
+    >
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -327,11 +329,14 @@ export default function MessageBoardScreen({ route, navigation }) {
           disabled={false}
         />
       </KeyboardAvoidingView>
-    </VibeScreen>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  background: {
+    flex: 1,
+  },
   container: {
     flex: 1,
   },
@@ -339,7 +344,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 8,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.inputBorder,
     backgroundColor: theme.colors.background,

@@ -22,7 +22,7 @@ import { db } from '../../auth/services/firebase';
 import { useAuth } from '../../auth/AuthContext';
 import AttendanceStats from '../../components/ui/events/AttendanceStats';
 import AttendanceCard from '../../components/ui/events/AttendanceCard';
-import { VibeButton, CloseButton } from '../../components/ui';
+import { VibeButton, CloseButton, VibeCard, VibeStatsGrid } from '../../components/ui';
 import theme from '../../theme/themes';
 
 export default function AttendanceScreen({ route, navigation }) {
@@ -352,14 +352,10 @@ export default function AttendanceScreen({ route, navigation }) {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <CloseButton onPress={() => navigation.goBack()} />
-          <Text style={styles.title}>Attendance Manager</Text>
-        </View>
+        {/* Header with Event Details */}
+        <View style={styles.headerWithEvent}>
+          <CloseButton onPress={() => navigation.goBack()} style={styles.closeButton} />
 
-        {/* Event Type Badge */}
-        <View style={styles.eventInfo}>
           <View style={styles.eventTypeContainer}>
             <TouchableOpacity
               style={[
@@ -411,28 +407,68 @@ export default function AttendanceScreen({ route, navigation }) {
         </View>
 
         {/* Attendance Stats */}
-        <AttendanceStats stats={attendanceStats} />
+        <VibeCard title="Attendance Overview">
+          <VibeStatsGrid
+            stats={[
+              {
+                value: attendanceStats.rsvpCount || 0,
+                label: 'RSVPs',
+              },
+              {
+                value: attendanceStats.pendingCount || 0,
+                label: 'Pending',
+              },
+            ]}
+          />
+
+          <VibeStatsGrid
+            stats={[
+              {
+                value: attendanceStats.attendedCount || 0,
+                label: 'Attended',
+              },
+              {
+                value: attendanceStats.noShowCount || 0,
+                label: 'No Shows',
+              },
+            ]}
+          />
+
+          <View style={styles.attendanceRateContainer}>
+            <Text style={styles.attendanceRateLabel}>Attendance Rate</Text>
+            <View style={styles.attendanceRateBar}>
+              <View
+                style={[
+                  styles.attendanceRateFill,
+                  { width: `${Math.min(attendanceStats.attendanceRate || 0, 100)}%` },
+                ]}
+              />
+            </View>
+            <Text style={styles.attendanceRateText}>
+              {Math.round(attendanceStats.attendanceRate || 0)}%
+            </Text>
+          </View>
+        </VibeCard>
+
+        {/* Attendance List */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>RSVPs ({rsvpUsers.length})</Text>
+        </View>
 
         {/* Bulk Actions */}
         {attendanceStats.pendingCount > 0 && (
-          <View style={styles.bulkActions}>
-            <VibeButton
-              label={`Mark All ${attendanceStats.pendingCount} as Attended`}
-              onPress={handleBulkMarkAttended}
-              variant="outline"
-              disabled={saving}
-              style={styles.bulkButton}
-            />
-          </View>
+          <VibeButton
+            label={`Mark All ${attendanceStats.pendingCount} as Attended`}
+            onPress={handleBulkMarkAttended}
+            variant="outline"
+            disabled={saving}
+            style={styles.bulkButton}
+          />
         )}
 
-        {/* Attendance List */}
-        <View style={styles.attendanceList}>
-          <Text style={styles.sectionTitle}>RSVPs ({rsvpUsers.length})</Text>
-
-          {rsvpUsers.map((user) => (
+        {rsvpUsers.map((user) => (
+          <VibeCard key={user.id}>
             <AttendanceCard
-              key={user.id}
               user={user}
               attendanceStatus={getUserAttendanceStatus(user.id)}
               onMarkAttended={handleMarkAttended}
@@ -440,17 +476,21 @@ export default function AttendanceScreen({ route, navigation }) {
               onStatusChange={handleStatusChange}
               disabled={saving}
             />
-          ))}
+          </VibeCard>
+        ))}
 
-          {rsvpUsers.length === 0 && (
+        {rsvpUsers.length === 0 && (
+          <VibeCard>
             <View style={styles.emptyState}>
               <Text style={styles.emptyText}>No RSVPs yet</Text>
               <Text style={styles.emptySubtext}>
                 Users will appear here when they RSVP to your event
               </Text>
             </View>
-          )}
-        </View>
+          </VibeCard>
+        )}
+
+        <View style={styles.bottomPadding} />
       </ScrollView>
     </LinearGradient>
   );
@@ -474,40 +514,34 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 20,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
+  headerWithEvent: {
+    position: 'relative',
+    paddingTop: 10,
     paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 20,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: theme.colors.textPrimary,
-    flex: 1,
-  },
-  eventInfo: {
-    padding: 20,
-    alignItems: 'center',
+  closeButton: {
+    position: 'absolute',
+    top: 8,
+    left: 15,
+    zIndex: 1,
   },
   eventTypeContainer: {
     alignItems: 'center',
-    marginTop: 16,
   },
   eventTypeBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 2,
     marginBottom: 8,
   },
   eventTypeBadgeText: {
     color: theme.colors.textPrimary,
-    fontSize: 12,
-    fontWeight: '600',
-    fontFamily: theme.fonts.main,
+    fontSize: 14,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   eventTypeContext: {
     fontSize: 11,
@@ -532,23 +566,51 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: theme.fonts.main,
   },
-  bulkActions: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
+  attendanceRateContainer: {
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  attendanceRateLabel: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    marginBottom: 8,
+  },
+  attendanceRateBar: {
+    width: '100%',
+    height: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  attendanceRateFill: {
+    height: '100%',
+    backgroundColor: theme.colors.vibeGreen || '#00FF96',
+    borderRadius: 4,
+  },
+  attendanceRateText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.colors.vibeGreen || '#00FF96',
   },
   bulkButton: {
-    backgroundColor: 'rgba(0, 255, 150, 0.1)',
     borderColor: theme.colors.vibeGreen,
+    marginHorizontal: 20,
+    marginBottom: 16,
   },
-  attendanceList: {
+  sectionHeader: {
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    marginTop: 20,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: theme.colors.textPrimary,
-    marginBottom: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  bottomPadding: {
+    height: 40,
   },
   emptyState: {
     alignItems: 'center',

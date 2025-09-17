@@ -3,7 +3,7 @@ import { View, Text } from 'react-native';
 import { StyleSheet } from 'react-native';
 import theme from '../../../theme/themes';
 
-const ProfileSectionCard = ({
+const VibeCard = ({
   title,
   children,
   style,
@@ -41,4 +41,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ProfileSectionCard;
+export default VibeCard;

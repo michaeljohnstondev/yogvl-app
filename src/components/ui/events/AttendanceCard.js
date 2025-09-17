@@ -95,7 +95,6 @@ export default function AttendanceCard({
         </View>
       )}
 
-
       {attendanceStatus?.markedAt && (
         <Text style={styles.markedTime}>
           Marked:{' '}
@@ -105,25 +104,18 @@ export default function AttendanceCard({
           }
         </Text>
       )}
-
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
     position: 'relative',
   },
   avatar: {
     position: 'absolute',
-    top: 55,
-    left: 16,
+    top: 40,
+    left: 0,
     zIndex: 1,
   },
   userInfo: {

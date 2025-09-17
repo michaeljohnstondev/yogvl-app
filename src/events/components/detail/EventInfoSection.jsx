@@ -342,7 +342,9 @@ const styles = StyleSheet.create({
   },
   infoIcon: {
     fontSize: 20,
-    marginRight: 12,
+    marginRight: 16,
+    width: 40,
+    textAlign: 'center',
   },
   infoContent: {
     flex: 1,

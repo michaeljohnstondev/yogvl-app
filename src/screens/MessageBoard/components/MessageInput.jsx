@@ -89,8 +89,8 @@ const styles = StyleSheet.create({
   inputWrapper: {
     backgroundColor: theme.colors.inputBackground,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderWidth: 2,
+    borderColor: theme.colors.inputBorder,
     paddingHorizontal: 16,
     paddingVertical: 12,
     minHeight: 60,

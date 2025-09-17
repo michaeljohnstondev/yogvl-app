@@ -2,12 +2,12 @@ import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { StyleSheet } from 'react-native';
 
-const UserStatsGrid = ({ stats, onStatPress, isOwnProfile = false }) => {
+const VibeStatsGrid = ({ stats, onStatPress, enableTouch = false }) => {
   return (
     <View style={styles.quickStats}>
       {stats.map((stat, index) => {
         const StatComponent =
-          stat.onPress && isOwnProfile ? TouchableOpacity : View;
+          stat.onPress && enableTouch ? TouchableOpacity : View;
 
         return (
           <StatComponent
@@ -44,4 +44,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default UserStatsGrid;
+export default VibeStatsGrid;

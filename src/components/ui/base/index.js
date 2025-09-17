@@ -12,6 +12,8 @@ export { default as VibeSeparator } from './VibeSeparator';
 export { default as VibeAnalogClock } from './VibeAnalogClock';
 export { default as VibeHelpButton } from './VibeHelpButton';
 export { default as VibeLoadingScreen } from './VibeLoadingScreen';
+export { default as VibeCard } from './VibeCard';
+export { default as VibeStatsGrid } from './VibeStatsGrid';
 export {
   default as VibeAlertContext,
   VibeAlertProvider,
