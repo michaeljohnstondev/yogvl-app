@@ -78,6 +78,13 @@ const EventDetailScreen = memo(function EventDetailScreen({
     isSubscribed
   );
 
+  // Simple admin logging for clarity
+  useEffect(() => {
+    if (event && currentUserId && userData?.isAdmin && event.createdBy !== currentUserId) {
+      console.log('[EventDetailScreen] Admin viewing event:', event.title);
+    }
+  }, [event, currentUserId, userData?.isAdmin]);
+
   const { eventStatus, statusColor, isEventPast, isFullEvent } =
     useEventStatus(event);
 
@@ -448,6 +455,8 @@ const EventDetailScreen = memo(function EventDetailScreen({
             currentUserId
           );
 
+          // Data loaded successfully
+
           setEvent(eventData.event);
           setIsSubscribed(eventData.isSubscribed);
           setCreatorData(eventData.creatorData);
@@ -507,6 +516,15 @@ const EventDetailScreen = memo(function EventDetailScreen({
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
+      {/* Admin Banner */}
+      {userData?.isAdmin && !permissions.isCreator && !permissions.isCohost && (
+        <View style={styles.adminBanner}>
+          <Text style={styles.adminBannerText}>
+            👑 ADMIN VIEW - You're viewing this event with admin privileges
+          </Text>
+        </View>
+      )}
+
       {/* Status Badges */}
       <EventStatusBadges
         event={event}
@@ -557,6 +575,7 @@ const EventDetailScreen = memo(function EventDetailScreen({
         eventId={eventId}
         studioId={studioId}
         vibeAlert={vibeAlert}
+        currentUserId={currentUserId}
       />
 
       {/* Subscription Modal */}
@@ -605,5 +624,22 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
     fontSize: 16,
     marginTop: 12,
+  },
+  adminBanner: {
+    backgroundColor: theme.colors.vibeYellow,
+    borderWidth: 2,
+    borderColor: theme.colors.vibeOrange,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginHorizontal: 20,
+    marginTop: 10,
+    borderRadius: theme.sizes.buttonRadius,
+    alignItems: 'center',
+  },
+  adminBannerText: {
+    color: theme.colors.background,
+    fontSize: 14,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
 });

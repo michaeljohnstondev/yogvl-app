@@ -90,6 +90,7 @@ export class AttendanceService {
       }
       return true;
     } catch (error) {
+      console.error('[AttendanceService] markAttended error:', error);
       throw error;
     }
   }
@@ -206,13 +207,14 @@ export class AttendanceService {
   // This function is no longer needed as attendance count is updated inline
 
   /**
-   * Check if user can mark attendance (is host of event)
+   * Check if user can mark attendance (is host, cohost, or admin)
    * @param {string} studioId - Studio ID
    * @param {string} eventId - Event ID
    * @param {string} userId - User ID
+   * @param {Object} userData - User data (optional, for admin check)
    * @returns {Promise<boolean>} Whether user can mark attendance
    */
-  static async canMarkAttendance(studioId, eventId, userId) {
+  static async canMarkAttendance(studioId, eventId, userId, userData = null) {
     try {
       const eventDoc = await getDoc(
         doc(db, 'studios', studioId, 'events', eventId)
@@ -223,8 +225,9 @@ export class AttendanceService {
       // Check if user is creator, cohost, or admin
       const isCreator = eventData.createdBy === userId;
       const isCohost = eventData.cohosts?.includes(userId) || false;
-      // Note: We don't have admin check here since we don't have userData
-      return isCreator || isCohost;
+      const isAdmin = userData?.isAdmin || false;
+
+      return isCreator || isCohost || isAdmin;
     } catch (error) {
       return false;
     }

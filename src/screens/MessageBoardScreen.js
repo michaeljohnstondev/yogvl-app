@@ -10,6 +10,7 @@ import {
   Platform,
   Alert,
   RefreshControl,
+  Pressable,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useComments } from '../components/ui/comments/hooks/useComments';
@@ -204,9 +205,9 @@ export default function MessageBoardScreen({ route, navigation }) {
           <View style={[styles.messageCard, { borderColor: borderColor }]}>
             {/* Delete button - top right */}
             {canDelete && (
-              <TouchableOpacity onPress={onDelete} style={styles.deleteButton}>
+              <Pressable onPress={onDelete} style={styles.deleteButton}>
                 <Text style={styles.deleteButtonText}>✕</Text>
-              </TouchableOpacity>
+              </Pressable>
             )}
 
             {/* Profile Avatar */}

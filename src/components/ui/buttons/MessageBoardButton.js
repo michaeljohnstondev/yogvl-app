@@ -1,7 +1,7 @@
 // FILE: components/ui/MessageBoardButton.js
 
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useComments } from '../comments/hooks/useComments';
 import theme from '../../../theme/themes';
 
@@ -38,10 +38,9 @@ export default function MessageBoardButton({
   };
 
   return (
-    <TouchableOpacity
+    <Pressable
       style={styles.container}
       onPress={handlePress}
-      activeOpacity={0.7}
     >
       <View style={styles.content}>
         <View style={styles.header}>
@@ -67,7 +66,7 @@ export default function MessageBoardButton({
           </View>
         </View>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

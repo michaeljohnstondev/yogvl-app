@@ -90,6 +90,7 @@ export const sendGuestInvitation = async (
       inviterId,
       inviterName,
       eventId,
+      studioId, // Add studioId for proper event lookup
       eventTitle,
       invitationId: `${inviterId}_${recipientId}_${eventId}_${Date.now()}`, // For notification tracking
     });

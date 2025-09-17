@@ -192,6 +192,16 @@ export default function NotificationsScreen({ navigation }) {
       try {
         const { invitationId, eventId, studioId } = notification.data;
 
+        // Validate required data for guest invitation acceptance
+        if (!eventId) {
+          throw new Error('Missing eventId in notification data');
+        }
+        if (!studioId) {
+          throw new Error('Missing studioId in notification data');
+        }
+
+        console.log(`[NotificationsScreen] Accepting guest invitation for event ${eventId} in studio ${studioId}`);
+
         // Check if this is an event creation invitation (has studioId) or direct guest invitation
         if (studioId && notification.actions) {
           // Event creation invitation - use invitations.js system
@@ -200,11 +210,11 @@ export default function NotificationsScreen({ navigation }) {
           );
           await acceptInvitation(invitationId, currentUserId, studioId);
         } else {
-          // Direct guest invitation - use friendService.js system
+          // Direct guest invitation - use guestInvitationsService.js system with correct parameters
           const { acceptGuestInvitation } = await import(
-            '../services/friendService'
+            '../services/shared/guestInvitationsService'
           );
-          await acceptGuestInvitation(invitationId, currentUserId, eventId);
+          await acceptGuestInvitation(currentUserId, eventId, studioId); // Fixed parameter order
         }
 
         // Delete notification after successful acceptance (no longer needed)
@@ -213,13 +223,19 @@ export default function NotificationsScreen({ navigation }) {
         vibeAlert.success('Success', "You're attending this event! 🎉");
       } catch (error) {
         console.error('Error accepting guest invitation:', error);
-        vibeAlert.error(
-          'Error',
-          'Failed to accept invitation. Please try again.'
-        );
+
+        // Provide more specific error messages based on the error
+        let errorMessage = 'Failed to accept invitation. Please try again.';
+        if (error.message?.includes('Event not found')) {
+          errorMessage = 'This event is no longer available.';
+        } else if (error.message?.includes('Missing')) {
+          errorMessage = 'Invalid invitation data. Please try again.';
+        }
+
+        vibeAlert.error('Error', errorMessage);
       }
     },
-    [currentUserId]
+    [currentUserId, vibeAlert, handleNotificationDelete]
   );
 
   // Handle guest invitation decline

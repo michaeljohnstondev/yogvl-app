@@ -13,6 +13,7 @@ import {
  * @param {string} params.inviterId - User sending invitation
  * @param {string} params.inviterName - Inviter's display name
  * @param {string} params.eventId - Event ID
+ * @param {string} params.studioId - Studio ID containing the event
  * @param {string} params.eventTitle - Event title
  * @param {string} params.invitationId - Invitation ID
  * @param {string} [params.message] - Custom invitation message
@@ -23,6 +24,7 @@ export const notifyEventInvitation = async ({
   inviterId,
   inviterName,
   eventId,
+  studioId,
   eventTitle,
   invitationId,
   message = null,
@@ -33,6 +35,7 @@ export const notifyEventInvitation = async ({
       !inviterId ||
       !inviterName ||
       !eventId ||
+      !studioId ||
       !eventTitle ||
       !invitationId
     ) {
@@ -56,6 +59,7 @@ export const notifyEventInvitation = async ({
       message: notificationMessage,
       data: {
         eventId,
+        studioId, // Add studioId for proper event lookup
         eventTitle,
         inviterId,
         inviterName,

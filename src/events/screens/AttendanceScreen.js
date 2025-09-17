@@ -48,11 +48,16 @@ export default function AttendanceScreen({ route, navigation }) {
     try {
       setLoading(true);
 
-      // Check if user can mark attendance (is host)
+      // Check if user can mark attendance (is host or admin)
+      // First get current user data to check admin status
+      const userDoc = await getDoc(doc(db, 'users', currentUserId));
+      const userData = userDoc.exists() ? userDoc.data() : null;
+
       const canMark = await AttendanceService.canMarkAttendance(
         studioId,
         eventId,
-        currentUserId
+        currentUserId,
+        userData
       );
       setCanMarkAttendance(canMark);
 
@@ -140,6 +145,7 @@ export default function AttendanceScreen({ route, navigation }) {
       vibeAlert.success('Success', 'User marked as attended.');
       await loadAttendanceData(); // Refresh data
     } catch (error) {
+      console.error('[AttendanceScreen] handleMarkAttended error:', error);
       vibeAlert.error('Error', 'Failed to mark attendance.');
     } finally {
       setSaving(false);

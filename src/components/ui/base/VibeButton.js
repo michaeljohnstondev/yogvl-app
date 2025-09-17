@@ -81,7 +81,6 @@ const styles = StyleSheet.create({
   // Default variant styles
   gradientBorder: {
     borderRadius: theme.sizes.buttonRadius,
-    padding: 2,
     marginVertical: 10,
   },
   buttonContent: {

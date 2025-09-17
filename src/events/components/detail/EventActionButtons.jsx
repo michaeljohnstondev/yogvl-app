@@ -21,7 +21,20 @@ const EventActionButtons = memo(function EventActionButtons({
   eventId,
   studioId,
   vibeAlert,
+  currentUserId, // Add currentUserId prop for validation
 }) {
+  // Simplified validation for admin view
+  React.useEffect(() => {
+    if (
+      event &&
+      permissions &&
+      permissions.isAdmin &&
+      !permissions.isCreator &&
+      !permissions.isCohost
+    ) {
+      console.log('[EventActionButtons] Admin viewing event:', event.title);
+    }
+  }, [event, permissions]);
   const handleInviteGuests = () => {
     if (permissions.canEdit) {
       // Host invite
@@ -95,12 +108,46 @@ const EventActionButtons = memo(function EventActionButtons({
 
   if (!event) return null;
 
+  // Additional safeguard: Double-check permissions before rendering
+  const isActualCreator = event.createdBy === currentUserId;
+  const isActualCohost = event.cohosts?.includes(currentUserId) || false;
+  const isActualAdmin = permissions?.isAdmin || false;
+  const shouldShowHostView =
+    permissions?.canEdit &&
+    (isActualCreator || isActualCohost || isActualAdmin);
+  const shouldShowGuestView = !shouldShowHostView;
+
+  // Log warning if there's a mismatch
+  if (permissions?.canEdit && !shouldShowHostView) {
+    console.warn('[EventActionButtons] BLOCKED INCORRECT HOST VIEW:', {
+      permissionsCanEdit: permissions.canEdit,
+      isActualCreator,
+      isActualCohost,
+      isActualAdmin,
+      shouldShowHostView,
+    });
+  }
+
   return (
     <View style={styles.container}>
       {/* Action Buttons for Active Events */}
       <View style={styles.buttonContainer}>
+        {/* Admin Join/Leave button (show for admins who aren't creators) */}
+        {!isEventPast &&
+          permissions?.isAdmin &&
+          !isActualCreator &&
+          !isActualCohost && (
+            <VibeButton
+              label={isSubscribed ? 'LEAVE EVENT' : 'JOIN EVENT'}
+              onPress={onSubscribe}
+              disabled={
+                isLoading || (!isSubscribed && !joinConstraints.canJoin)
+              }
+            />
+          )}
+
         {/* Non-host user buttons */}
-        {!isEventPast && !permissions.canEdit && (
+        {!isEventPast && shouldShowGuestView && (
           <>
             {/* Invite guests button for non-hosts (public events or private with guest invites allowed) */}
             {(!event?.isPrivate ||
@@ -108,7 +155,6 @@ const EventActionButtons = memo(function EventActionButtons({
               <VibeButton
                 label="INVITE GUESTS"
                 onPress={handleInviteGuests}
-                style={styles.inviteButton}
               />
             )}
 
@@ -119,24 +165,18 @@ const EventActionButtons = memo(function EventActionButtons({
               disabled={
                 isLoading || (!isSubscribed && !joinConstraints.canJoin)
               }
-              style={[
-                styles.joinLeaveButton,
-                (isLoading || (!isSubscribed && !joinConstraints.canJoin)) &&
-                  styles.disabledButton,
-              ]}
             />
           </>
         )}
 
         {/* Host buttons for active events */}
-        {!isEventPast && permissions.canEdit && (
+        {!isEventPast && shouldShowHostView && (
           <>
             {/* Manage Attendance */}
             {permissions.canManageAttendance && (
               <VibeButton
                 label="MANAGE ATTENDANCE"
                 onPress={handleManageAttendance}
-                style={styles.actionButton}
               />
             )}
 
@@ -144,14 +184,12 @@ const EventActionButtons = memo(function EventActionButtons({
             <VibeButton
               label="INVITE GUESTS"
               onPress={handleInviteGuests}
-              style={[styles.inviteButton, styles.tightButton]}
             />
 
             {/* Edit Event */}
             <VibeButton
               label="EDIT EVENT"
               onPress={handleEditEvent}
-              style={[styles.actionButton, styles.tightButton]}
             />
 
             {/* Delete Event */}
@@ -159,11 +197,6 @@ const EventActionButtons = memo(function EventActionButtons({
               <VibeButton
                 label="DELETE EVENT"
                 onPress={onDelete}
-                style={[
-                  styles.actionButton,
-                  styles.tightButton,
-                  styles.dangerButton,
-                ]}
               />
             )}
           </>
@@ -174,12 +207,11 @@ const EventActionButtons = memo(function EventActionButtons({
       {isEventPast && (
         <View style={styles.pastEventContainer}>
           {/* Save as Template for hosts */}
-          {permissions.canEdit && (
+          {shouldShowHostView && (
             <VibeButton
               label="SAVE AS TEMPLATE"
               onPress={handleSaveAsTemplate}
               variant="outline"
-              style={styles.templateButton}
             />
           )}
 
@@ -192,7 +224,6 @@ const EventActionButtons = memo(function EventActionButtons({
                 event.status === 'completed' ? 'VIEW RECAP' : 'EVENT RECAP'
               }
               onPress={onEventRecap}
-              style={styles.recapButton}
             />
           )}
         </View>
@@ -209,35 +240,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   buttonContainer: {
-    gap: 12,
-  },
-  actionButton: {
-    borderRadius: theme.sizes.buttonRadius,
-    borderWidth: 2,
-    borderColor: theme.colors.vibeBlue,
-    backgroundColor: theme.colors.vibeBackgroundBlue,
-  },
-  primaryActionButton: {
-    borderColor: theme.colors.vibeGreen,
-    backgroundColor: theme.colors.vibeBackgroundGreen,
-  },
-  inviteButton: {
-    borderRadius: theme.sizes.buttonRadius,
-  },
-  joinLeaveButton: {
-    borderRadius: theme.sizes.buttonRadius,
-  },
-  tightButton: {
-    marginVertical: 4,
-  },
-  disabledButton: {
-    opacity: 0.5,
-    borderColor: theme.colors.textSecondary,
-    backgroundColor: theme.colors.vibeBackgroundBlue,
-  },
-  dangerButton: {
-    borderColor: theme.colors.vibeRed,
-    backgroundColor: 'rgba(255, 68, 68, 0.1)',
+    gap: 0,
   },
   pastEventContainer: {
     marginTop: 20,
@@ -245,13 +248,5 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: theme.colors.vibeBlue,
     gap: 12,
-  },
-  templateButton: {
-    borderColor: theme.colors.vibePurple,
-    backgroundColor: theme.colors.vibeBackgroundPurple,
-  },
-  recapButton: {
-    borderColor: theme.colors.vibeYellow,
-    backgroundColor: theme.colors.vibeBackgroundYellow,
   },
 });
