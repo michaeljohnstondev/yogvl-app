@@ -786,12 +786,26 @@ function UserProfile({ navigation, route }) {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Top buttons row */}
-        <View style={styles.topButtonsRow}>
+        {/* Profile Header with Buttons and Picture */}
+        <View style={styles.profileHeaderSection}>
           <CloseButton
-            onPress={() => navigation.goBack()}
+            onPress={isEditing ? () => setIsEditing(false) : () => navigation.goBack()}
             style={styles.closeButton}
           />
+
+          <View style={styles.profilePictureContainer}>
+            <TouchableOpacity
+              onPress={isOwnProfile ? handleProfilePicturePress : undefined}
+            >
+              <ProfileAvatar
+                userData={displayUserData}
+                size={120}
+                isLoading={uploadingPhoto}
+                showBorder={true}
+              />
+            </TouchableOpacity>
+          </View>
+
           {(() => {
             const actionButtons = ProfileActionButtons({
               isOwnProfile,
@@ -800,23 +814,11 @@ function UserProfile({ navigation, route }) {
               isEditing,
               setIsEditing,
               onReportUser: handleReportUser,
+              onSave: handleSave,
+              isSaving,
             });
             return actionButtons.topButtons;
           })()}
-        </View>
-
-        {/* Centered Profile Picture */}
-        <View style={styles.profilePictureSection}>
-          <TouchableOpacity
-            onPress={isOwnProfile ? handleProfilePicturePress : undefined}
-          >
-            <ProfileAvatar
-              userData={displayUserData}
-              size={120}
-              isLoading={uploadingPhoto}
-              showBorder={true}
-            />
-          </TouchableOpacity>
         </View>
 
         {/* Profile Info Section */}
@@ -838,21 +840,23 @@ function UserProfile({ navigation, route }) {
         {/* Bio Section - Only show if has content OR in edit mode */}
         {(displayUserData?.bio || isEditing) && (
           <ProfileSectionCard title="About Me">
-            {isEditing ? (
-              <VibeInput
-                placeholder="Tell others about yourself..."
-                value={editedData.bio}
-                onChangeText={(text) =>
-                  setEditedData((prev) => ({ ...prev, bio: text }))
-                }
-                multiline
-                numberOfLines={4}
-                maxLength={300}
-                style={styles.bioInput}
-              />
-            ) : (
-              <Text style={styles.aboutText}>{displayUserData?.bio}</Text>
-            )}
+            <ContactItem isLast={true}>
+              {isEditing ? (
+                <VibeInput
+                  placeholder="Tell others about yourself..."
+                  value={editedData.bio}
+                  onChangeText={(text) =>
+                    setEditedData((prev) => ({ ...prev, bio: text }))
+                  }
+                  multiline
+                  numberOfLines={4}
+                  maxLength={300}
+                  style={styles.bioInput}
+                />
+              ) : (
+                <Text style={[styles.contactText, { textAlign: 'center' }]}>{displayUserData?.bio}</Text>
+              )}
+            </ContactItem>
           </ProfileSectionCard>
         )}
 
@@ -1051,16 +1055,7 @@ function UserProfile({ navigation, route }) {
         )}
 
         {/* Bottom Action Buttons */}
-        {isEditing ? (
-          <View style={styles.buttonContainer}>
-            <VibeButton
-              label={isSaving ? 'SAVING...' : 'SAVE CHANGES'}
-              onPress={handleSave}
-              style={styles.saveButton}
-              disabled={isSaving}
-            />
-          </View>
-        ) : (
+        {!isEditing && (
           (() => {
             const actionButtons = ProfileActionButtons({
               isOwnProfile,

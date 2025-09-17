@@ -28,6 +28,9 @@ const ProfileActionButtons = ({
   onPrivacySettings,
   onLogout,
   onDeleteAccount,
+  // Edit mode save props
+  onSave,
+  isSaving,
 }) => {
   // Top row buttons (close, report, edit)
   const renderTopButtons = () => {
@@ -50,25 +53,29 @@ const ProfileActionButtons = ({
     );
 
     return (
-      <View style={styles.topButtonsRightSide}>
-        {/* Report button - only for other users */}
-        {shouldShowReport && (
-          <TouchableOpacity style={styles.reportButton} onPress={onReportUser}>
-            <Text style={styles.reportButtonText}>⚠️</Text>
-          </TouchableOpacity>
-        )}
+      <View style={styles.topButtonsContainer}>
+        <View style={styles.topButtonsRightSide}>
+          {/* Report button - only for other users */}
+          {shouldShowReport && (
+            <TouchableOpacity style={styles.reportButton} onPress={onReportUser}>
+              <Text style={styles.reportButtonText}>⚠️</Text>
+            </TouchableOpacity>
+          )}
 
-        {/* Edit button - only for own profile */}
-        {isOwnProfile && (
-          <TouchableOpacity
-            onPress={() => setIsEditing(!isEditing)}
-            style={styles.editButton}
-          >
-            <Text style={styles.editButtonText}>
-              {isEditing ? 'Cancel' : 'Edit'}
-            </Text>
-          </TouchableOpacity>
-        )}
+          {/* Edit/Save button - only for own profile */}
+          {isOwnProfile && (
+            <TouchableOpacity
+              onPress={isEditing ? onSave : () => setIsEditing(!isEditing)}
+              style={styles.editButton}
+              disabled={isEditing && isSaving}
+            >
+              <Text style={styles.editButtonText}>
+                {isEditing ? (isSaving ? 'Saving...' : 'Save') : 'Edit'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
       </View>
     );
   };
@@ -138,10 +145,17 @@ const ProfileActionButtons = ({
 };
 
 const styles = StyleSheet.create({
+  topButtonsContainer: {
+    alignItems: 'flex-end',
+    gap: 8,
+  },
   topButtonsRightSide: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  saveButtonContainer: {
+    marginTop: 4,
   },
   reportButton: {
     padding: 8,
@@ -155,7 +169,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: theme.colors.vibeBlue,
+    backgroundColor: theme.colors.vibeBlue, // Should be blue #00C6FF
   },
   editButtonText: {
     color: theme.colors.white,

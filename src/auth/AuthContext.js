@@ -34,6 +34,7 @@ export const AuthProvider = ({ children, user, userData }) => {
     user?.uid,
     userData?.userdata?.contactInfo?.firstName,
     userData?.userdata?.contactInfo?.lastName,
+    userData?.userdata?.contactInfo?.profilePicture,
     userData?.userdata?.studios?.default?.studioId,
   ]);
 

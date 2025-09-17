@@ -591,10 +591,34 @@ export const getFollowers = async (userId, limitCount = 50) => {
     );
     const snapshot = await getDocs(q);
 
-    return snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    // Get full user profiles for each follower relationship
+    const followerIds = snapshot.docs.map(doc => doc.id);
+    if (followerIds.length === 0) return [];
+
+    const userProfiles = await Promise.all(
+      followerIds.map(async (followerId) => {
+        try {
+          const userRef = doc(db, 'users', followerId);
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            // Check if current user follows back this follower
+            const followsBack = await checkIfFollowing(userId, followerId);
+            return {
+              id: followerId,
+              ...userSnap.data(),
+              isFollowing: followsBack, // Whether the current user follows this follower back
+            };
+          }
+          return null;
+        } catch (err) {
+          console.error(`[followService] Error fetching follower profile ${followerId}:`, err);
+          return null;
+        }
+      })
+    );
+
+    // Filter out null results (deleted/missing users)
+    return userProfiles.filter(user => user !== null);
   } catch (error) {
     console.error('Error getting followers:', error);
     return [];
@@ -614,11 +638,32 @@ export const getFollowing = async (userId, limitCount = 50) => {
     );
     const snapshot = await getDocs(q);
 
-    return snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-      isFollowing: true, // All users in following list are by definition being followed
-    }));
+    // Get full user profiles for each follow relationship
+    const followingIds = snapshot.docs.map(doc => doc.id);
+    if (followingIds.length === 0) return [];
+
+    const userProfiles = await Promise.all(
+      followingIds.map(async (targetUserId) => {
+        try {
+          const userRef = doc(db, 'users', targetUserId);
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            return {
+              id: targetUserId,
+              ...userSnap.data(),
+              isFollowing: true, // All users in following list are being followed
+            };
+          }
+          return null;
+        } catch (err) {
+          console.error(`[followService] Error fetching user profile ${targetUserId}:`, err);
+          return null;
+        }
+      })
+    );
+
+    // Filter out null results (deleted/missing users)
+    return userProfiles.filter(user => user !== null);
   } catch (error) {
     console.error('Error getting following:', error);
     return [];

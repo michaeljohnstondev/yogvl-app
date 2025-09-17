@@ -55,6 +55,19 @@ export const styles = StyleSheet.create({
   reportButtonText: {
     fontSize: 18,
   },
+  profileHeaderSection: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingTop: 20,
+    paddingHorizontal: 24,
+    paddingBottom: 12,
+  },
+  profilePictureContainer: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
   profilePictureSection: {
     alignItems: 'center',
     paddingVertical: 12,

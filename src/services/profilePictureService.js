@@ -5,11 +5,9 @@ import {
   uploadBytesResumable,
   getDownloadURL,
   deleteObject,
-  getStorage,
 } from '../lib/firebase';
 import { doc, updateDoc } from '../lib/firebase';
-import { db } from '../auth/services/firebase';
-import app from '../auth/services/firebase';
+import { db, storage } from '../auth/services/firebase';
 
 /**
  * Upload profile picture to Firebase Storage and update user profile
@@ -35,7 +33,6 @@ export const uploadProfilePicture = async (
       if (oldImageUrl && oldImageUrl.includes('firebase')) {
         try {
           console.log('Deleting old profile picture:', oldImageUrl);
-          const storage = getStorage(app);
           const url = new URL(oldImageUrl);
           const pathMatch = url.pathname.match(/\/o\/(.+?)\?/);
           if (pathMatch) {
@@ -57,16 +54,9 @@ export const uploadProfilePicture = async (
       }
     }
 
-    // Initialize storage directly to ensure it's available
-    let storage;
-    try {
-      storage = getStorage(app);
-      console.log('Storage initialized successfully');
-      console.log('Storage app:', storage.app.name);
-    } catch (storageInitError) {
-      console.error('Failed to initialize storage:', storageInitError);
-      throw new Error('Storage initialization failed');
-    }
+    // Storage is already initialized and available
+    console.log('Using pre-initialized storage');
+    console.log('Storage app:', storage.app.name);
 
     // Convert image to blob using fetch (simpler approach)
     const response = await fetch(imageUri);
@@ -118,12 +108,15 @@ export const uploadProfilePicture = async (
 
               // Update user profile in Firestore
               const userRef = doc(db, 'users', userId);
-              await updateDoc(userRef, {
+              const updateData = {
                 'userdata.contactInfo.profilePicture': downloadURL,
                 'userdata.metadata.updatedAt': new Date(),
-              });
+              };
 
-              console.log('Profile updated in Firestore');
+              console.log('Updating user profile with:', updateData);
+              await updateDoc(userRef, updateData);
+
+              console.log('Profile updated in Firestore with URL:', downloadURL);
               resolve({ success: true, imageUrl: downloadURL });
             } catch (urlError) {
               console.error('Error getting download URL:', urlError);
@@ -166,8 +159,7 @@ export const removeProfilePicture = async (userId, userData = null) => {
       return { success: false, error: 'Missing userId' };
     }
 
-    // Initialize storage
-    const storage = getStorage(app);
+    // Use pre-initialized storage
 
     // Get current profile picture URL to delete the correct file
     const currentImageUrl = userData?.userdata?.contactInfo?.profilePicture;
