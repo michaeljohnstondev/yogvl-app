@@ -543,6 +543,7 @@ const EventDetailScreen = memo(function EventDetailScreen({
         userInterests={userInterests}
         eventInterests={eventInterests}
         showPrivacyFlash={showPrivacyFlash}
+        isAdmin={userData?.isAdmin}
         onInterestToggle={handleInterestToggleWithFeedback}
         onPrivacyIconPress={handlePrivacyIconPress}
         onShowHostProfile={handleShowHostProfile}

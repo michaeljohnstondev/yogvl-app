@@ -15,6 +15,7 @@ function EventInfoSection({
   userInterests,
   eventInterests,
   showPrivacyFlash,
+  isAdmin,
   onInterestToggle,
   onPrivacyIconPress,
   onShowHostProfile,
@@ -92,6 +93,7 @@ function EventInfoSection({
   const handleAttendeesPress = useCallback(() => {
     const canViewAttendees =
       (isHostOrCohost && (event?.subscriberCount || 0) > 1) ||
+      (isAdmin && (event?.subscriberCount || 0) > 1) ||
       friendAttendees.length > 0;
 
     if (canViewAttendees && onShowAttendeesModal) {
@@ -99,13 +101,16 @@ function EventInfoSection({
     }
   }, [
     isHostOrCohost,
+    isAdmin,
     event?.subscriberCount,
     friendAttendees.length,
     onShowAttendeesModal,
   ]);
 
   const canViewAttendees =
-    (isHostOrCohost && attendeeCount > 0) || friendAttendees.length > 0;
+    (isHostOrCohost && attendeeCount > 0) ||
+    (isAdmin && attendeeCount > 0) ||
+    friendAttendees.length > 0;
 
   return (
     <View style={styles.infoSection}>
@@ -266,11 +271,11 @@ function EventInfoSection({
           >
             <Text style={styles.infoIcon}>👥</Text>
             <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Attendees</Text>
+              <Text style={styles.infoLabel}>
+                Attendees{event.maxGuests ? ` (${event.maxGuests} max)` : ''}
+              </Text>
               <Text style={styles.infoValue}>
                 {attendeeDisplayText}
-                {event.maxGuests && ` / ${event.maxGuests} max`}
-                {isHostOrCohost && attendeeCount > 0 && ' (tap to view all)'}
               </Text>
               <View style={styles.eventBadges}>
                 {event.hasFee && event.entryFee && (

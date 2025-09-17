@@ -239,46 +239,56 @@ function UserProfile({ navigation, route }) {
   };
 
   const openCamera = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      vibeAlert.error(
-        'Permission needed',
-        'Camera permission is required to take photos.'
-      );
-      return;
-    }
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        vibeAlert.error(
+          'Permission needed',
+          'Camera permission is required to take photos.'
+        );
+        return;
+      }
 
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: 'images',
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
 
-    if (!result.canceled && result.assets[0]) {
-      handleImageUpload(result.assets[0].uri);
+      if (!result.canceled && result.assets?.[0]) {
+        handleImageUpload(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('[UserProfile] Camera error:', error);
+      vibeAlert.error('Error', 'Failed to open camera. Please try again.');
     }
   };
 
   const openImageLibrary = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      vibeAlert.error(
-        'Permission needed',
-        'Photo library permission is required to choose photos.'
-      );
-      return;
-    }
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        vibeAlert.error(
+          'Permission needed',
+          'Photo library permission is required to choose photos.'
+        );
+        return;
+      }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: 'images',
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
 
-    if (!result.canceled && result.assets[0]) {
-      handleImageUpload(result.assets[0].uri);
+      if (!result.canceled && result.assets?.[0]) {
+        handleImageUpload(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('[UserProfile] Image library error:', error);
+      vibeAlert.error('Error', 'Failed to open photo library. Please try again.');
     }
   };
 
