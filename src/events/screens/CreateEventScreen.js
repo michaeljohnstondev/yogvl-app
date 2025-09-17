@@ -240,7 +240,7 @@ export default function CreateEventScreen({ navigation, route }) {
       formData.location.trim() ||
       formData.address.trim() ||
       formData.details.trim() ||
-      formData.maxGuests.toString().trim();
+      (formData.maxGuests ? formData.maxGuests.toString().trim() : '');
 
     // Check for any configuration changes from defaults (compare against DEFAULT values)
     const hasConfigChanges =
@@ -431,7 +431,7 @@ export default function CreateEventScreen({ navigation, route }) {
           location: templateFormData.location || '',
           address: templateFormData.address || '',
           details: templateFormData.details || '',
-          maxGuests: templateFormData.maxGuests || '',
+          maxGuests: templateFormData.maxGuests ? templateFormData.maxGuests.toString() : '',
           hasFee: templateFormData.hasFee || false,
           entryFee: templateFormData.entryFee || '',
           isPrivate: templateFormData.isPrivate || false,

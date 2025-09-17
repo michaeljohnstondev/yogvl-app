@@ -9,6 +9,9 @@ export const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
+  scrollContent: {
+    paddingBottom: 30, // Bottom spacing requirement for comfortable scrolling
+  },
   avatarWrapper: {
     flexDirection: 'row',
     alignItems: 'center',

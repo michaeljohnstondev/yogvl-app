@@ -1,11 +1,9 @@
 // Test file for CustomTemplateService - Simple validation test
 // This can be run manually to validate the service
 
-import CustomTemplateService from '../services/CustomTemplateService';
-
 console.log('Testing CustomTemplateService...');
 
-// Mock Firebase functions for testing
+// Mock Firebase functions for testing (unused - kept for reference)
 const mockFirebase = {
   doc: () => ({}),
   getDoc: async () => ({

@@ -55,7 +55,12 @@ export const createQuery = (collectionRef, ...constraints) => {
   return query(collectionRef, ...constraints);
 };
 
-export const createOrderedQuery = (collectionRef, field, direction = 'asc', limitCount = null) => {
+export const createOrderedQuery = (
+  collectionRef,
+  field,
+  direction = 'asc',
+  limitCount = null
+) => {
   const constraints = [orderBy(field, direction)];
   if (limitCount) {
     constraints.push(limit(limitCount));
@@ -63,8 +68,18 @@ export const createOrderedQuery = (collectionRef, field, direction = 'asc', limi
   return query(collectionRef, ...constraints);
 };
 
-export const createFilteredQuery = (collectionRef, field, operator, value, ...additionalConstraints) => {
-  return query(collectionRef, where(field, operator, value), ...additionalConstraints);
+export const createFilteredQuery = (
+  collectionRef,
+  field,
+  operator,
+  value,
+  ...additionalConstraints
+) => {
+  return query(
+    collectionRef,
+    where(field, operator, value),
+    ...additionalConstraints
+  );
 };
 
 // Common document reference patterns
@@ -82,7 +97,12 @@ export const createBatch = (db) => {
 };
 
 // Common pagination helper
-export const createPaginatedQuery = (collectionRef, lastDoc, limitCount = 10, ...constraints) => {
+export const createPaginatedQuery = (
+  collectionRef,
+  lastDoc,
+  limitCount = 10,
+  ...constraints
+) => {
   const queryConstraints = [...constraints, limit(limitCount)];
   if (lastDoc) {
     queryConstraints.push(startAfter(lastDoc));

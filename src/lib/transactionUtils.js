@@ -7,7 +7,7 @@ import {
   arrayUnion,
   arrayRemove,
   increment,
-  Timestamp
+  Timestamp,
 } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 
@@ -28,7 +28,7 @@ export const atomicArrayOperation = async ({
   arrayField,
   items,
   additionalUpdates = {},
-  validator = null
+  validator = null,
 }) => {
   try {
     const itemsArray = Array.isArray(items) ? items : [items];
@@ -52,7 +52,12 @@ export const atomicArrayOperation = async ({
 
       // Custom validation if provided
       if (validator) {
-        const validationResult = validator(docData, currentArray, itemsArray, operation);
+        const validationResult = validator(
+          docData,
+          currentArray,
+          itemsArray,
+          operation
+        );
         if (!validationResult.valid) {
           throw new Error(validationResult.error);
         }
@@ -63,14 +68,18 @@ export const atomicArrayOperation = async ({
 
       if (operation === 'add') {
         // Check for duplicates when adding
-        const newItems = itemsArray.filter(item => !currentArray.includes(item));
+        const newItems = itemsArray.filter(
+          (item) => !currentArray.includes(item)
+        );
         if (newItems.length === 0) {
           throw new Error('All items already exist in array');
         }
         updates[arrayField] = arrayUnion(...newItems);
       } else if (operation === 'remove') {
         // Check items exist when removing
-        const itemsToRemove = itemsArray.filter(item => currentArray.includes(item));
+        const itemsToRemove = itemsArray.filter((item) =>
+          currentArray.includes(item)
+        );
         if (itemsToRemove.length === 0) {
           throw new Error('No items to remove from array');
         }
@@ -85,7 +94,7 @@ export const atomicArrayOperation = async ({
         success: true,
         operation,
         items: itemsArray,
-        updatedFields: Object.keys(updates)
+        updatedFields: Object.keys(updates),
       };
     });
   } catch (error) {
@@ -111,7 +120,7 @@ export const atomicStateTransition = async ({
   toField,
   items,
   additionalUpdates = {},
-  validator = null
+  validator = null,
 }) => {
   try {
     const itemsArray = Array.isArray(items) ? items : [items];
@@ -131,29 +140,38 @@ export const atomicStateTransition = async ({
 
       // Validation
       if (validator) {
-        const validationResult = validator(docData, fromArray, toArray, itemsArray);
+        const validationResult = validator(
+          docData,
+          fromArray,
+          toArray,
+          itemsArray
+        );
         if (!validationResult.valid) {
           throw new Error(validationResult.error);
         }
       }
 
       // Check items exist in source array
-      const validItems = itemsArray.filter(item => fromArray.includes(item));
+      const validItems = itemsArray.filter((item) => fromArray.includes(item));
       if (validItems.length === 0) {
         throw new Error('No valid items to transition');
       }
 
       // Check items don't already exist in destination
-      const duplicateItems = validItems.filter(item => toArray.includes(item));
+      const duplicateItems = validItems.filter((item) =>
+        toArray.includes(item)
+      );
       if (duplicateItems.length > 0) {
-        throw new Error(`Items already exist in destination: ${duplicateItems.join(', ')}`);
+        throw new Error(
+          `Items already exist in destination: ${duplicateItems.join(', ')}`
+        );
       }
 
       // Perform atomic transition
       const updates = {
         [fromField]: arrayRemove(...validItems),
         [toField]: arrayUnion(...validItems),
-        ...additionalUpdates
+        ...additionalUpdates,
       };
 
       transaction.update(docRef, updates);
@@ -164,7 +182,7 @@ export const atomicStateTransition = async ({
         fromField,
         toField,
         fromCount: fromArray.length - validItems.length,
-        toCount: toArray.length + validItems.length
+        toCount: toArray.length + validItems.length,
       };
     });
   } catch (error) {
@@ -197,7 +215,7 @@ export const atomicBatchUpdate = async (operations) => {
         documentData[documentPath] = {
           ref: docRef,
           exists: docSnap.exists(),
-          data: docSnap.exists() ? docSnap.data() : null
+          data: docSnap.exists() ? docSnap.data() : null,
         };
       }
 
@@ -213,7 +231,9 @@ export const atomicBatchUpdate = async (operations) => {
         if (validator) {
           const validationResult = validator(docInfo.data);
           if (!validationResult.valid) {
-            throw new Error(`Validation failed for ${documentPath}: ${validationResult.error}`);
+            throw new Error(
+              `Validation failed for ${documentPath}: ${validationResult.error}`
+            );
           }
         }
       }
@@ -225,19 +245,19 @@ export const atomicBatchUpdate = async (operations) => {
 
         transaction.update(docInfo.ref, {
           ...updates,
-          lastUpdated: Timestamp.now()
+          lastUpdated: Timestamp.now(),
         });
 
         results.push({
           documentPath,
-          updatedFields: Object.keys(updates)
+          updatedFields: Object.keys(updates),
         });
       }
 
       return {
         success: true,
         operationsCount: operations.length,
-        results
+        results,
       };
     });
   } catch (error) {
@@ -281,22 +301,25 @@ export const validators = {
 
     switch (requiredRole) {
       case 'host':
-        return { valid: isCreator, error: 'Only event creator can perform this action' };
+        return {
+          valid: isCreator,
+          error: 'Only event creator can perform this action',
+        };
       case 'host_or_cohost':
         return {
           valid: isCreator || isCohost,
-          error: 'Only event creator or cohosts can perform this action'
+          error: 'Only event creator or cohosts can perform this action',
         };
       case 'attendee':
         const isSubscriber = eventData.subscribers?.includes(userId);
         return {
           valid: isCreator || isCohost || isSubscriber,
-          error: 'Only event attendees can perform this action'
+          error: 'Only event attendees can perform this action',
         };
       default:
         return { valid: false, error: 'Invalid role specified' };
     }
-  }
+  },
 };
 
 /**
@@ -314,11 +337,15 @@ export const withTransactionErrorHandling = (transactionFn, operationName) => {
 
       // Transform Firebase errors to user-friendly messages
       if (error.code === 'failed-precondition') {
-        throw new Error('Operation failed due to concurrent modification. Please try again.');
+        throw new Error(
+          'Operation failed due to concurrent modification. Please try again.'
+        );
       }
 
       if (error.code === 'aborted') {
-        throw new Error('Operation was aborted due to conflict. Please try again.');
+        throw new Error(
+          'Operation was aborted due to conflict. Please try again.'
+        );
       }
 
       if (error.code === 'deadline-exceeded') {
@@ -335,5 +362,5 @@ export default {
   atomicStateTransition,
   atomicBatchUpdate,
   validators,
-  withTransactionErrorHandling
+  withTransactionErrorHandling,
 };

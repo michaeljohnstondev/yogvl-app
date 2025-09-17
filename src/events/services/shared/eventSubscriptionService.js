@@ -8,13 +8,16 @@ import {
   arrayUnion,
   arrayRemove,
   increment,
-  runTransaction
+  runTransaction,
 } from 'firebase/firestore';
 import { db } from '../../../auth/services/firebase';
-import { updateEventSubscription, updateEventUnsubscription } from '../../lib/userMetrics';
+import {
+  updateEventSubscription,
+  updateEventUnsubscription,
+} from '../../lib/userMetrics';
 import {
   notifyHostOfEventJoin,
-  notifyHostOfEventLeave
+  notifyHostOfEventLeave,
 } from '../../../services/shared/eventNotificationsService';
 import { fetchEventDetails } from './eventCoreService';
 
@@ -26,7 +29,12 @@ import { fetchEventDetails } from './eventCoreService';
  * @param {Object} [notificationSettings] - User notification preferences
  * @returns {Promise<Object>} Updated event state
  */
-export const subscribeToEvent = async (userId, eventId, studioId, notificationSettings = {}) => {
+export const subscribeToEvent = async (
+  userId,
+  eventId,
+  studioId,
+  notificationSettings = {}
+) => {
   try {
     const eventRef = doc(db, 'studios', studioId, 'events', eventId);
     const userRef = doc(db, 'users', userId);
@@ -76,7 +84,9 @@ export const subscribeToEvent = async (userId, eventId, studioId, notificationSe
         subscriberCount: increment(1),
       });
 
-      console.log(`[EventSubscription] User ${userId} subscribed to event ${eventId}`);
+      console.log(
+        `[EventSubscription] User ${userId} subscribed to event ${eventId}`
+      );
 
       // Return data for local state update
       return {
@@ -97,7 +107,12 @@ export const subscribeToEvent = async (userId, eventId, studioId, notificationSe
         await updateEventSubscription(userId, eventId);
 
         // Add notification subscription with user's settings
-        await addEventNotificationSubscription(userId, eventId, studioId, notificationSettings);
+        await addEventNotificationSubscription(
+          userId,
+          eventId,
+          studioId,
+          notificationSettings
+        );
 
         // Notify host of new subscription
         const eventData = await fetchEventDetails(studioId, eventId);
@@ -113,11 +128,14 @@ export const subscribeToEvent = async (userId, eventId, studioId, notificationSe
             eventId: eventId,
             eventTitle: eventData.title,
             subscriberId: userId,
-            subscriberName: userName
+            subscriberName: userName,
           });
         }
       } catch (error) {
-        console.error('[EventSubscription] Background subscription operations failed:', error);
+        console.error(
+          '[EventSubscription] Background subscription operations failed:',
+          error
+        );
       }
     }, 0);
 
@@ -162,10 +180,12 @@ export const unsubscribeFromEvent = async (userId, eventId, studioId) => {
         subscriberCount: increment(-1),
       });
 
-      console.log(`[EventSubscription] User ${userId} unsubscribed from event ${eventId}`);
+      console.log(
+        `[EventSubscription] User ${userId} unsubscribed from event ${eventId}`
+      );
 
       return {
-        subscribers: currentSubscribers.filter(id => id !== userId),
+        subscribers: currentSubscribers.filter((id) => id !== userId),
         subscriberCount: Math.max(0, (eventData.subscriberCount || 1) - 1),
       };
     });
@@ -176,7 +196,7 @@ export const unsubscribeFromEvent = async (userId, eventId, studioId) => {
         // Remove from user's subscribed events (both locations)
         await updateDoc(userRef, {
           subscribedEvents: arrayRemove(eventId),
-          'userdata.metrics.events.subscribedEvents': arrayRemove(eventId)
+          'userdata.metrics.events.subscribedEvents': arrayRemove(eventId),
         });
 
         // Update user metrics
@@ -199,11 +219,14 @@ export const unsubscribeFromEvent = async (userId, eventId, studioId) => {
             eventId: eventId,
             eventTitle: eventData.title,
             unsubscriberId: userId,
-            unsubscriberName: userName
+            unsubscriberName: userName,
           });
         }
       } catch (error) {
-        console.error('[EventSubscription] Background unsubscription operations failed:', error);
+        console.error(
+          '[EventSubscription] Background unsubscription operations failed:',
+          error
+        );
       }
     }, 0);
 
@@ -222,11 +245,27 @@ export const unsubscribeFromEvent = async (userId, eventId, studioId) => {
  * @param {Object} settings - Notification settings
  * @returns {Promise<void>}
  */
-export const addEventNotificationSubscription = async (userId, eventId, studioId, settings) => {
+export const addEventNotificationSubscription = async (
+  userId,
+  eventId,
+  studioId,
+  settings
+) => {
   try {
+    console.log(
+      `[EventSubscription] Adding notification subscription for user ${userId}, event ${eventId}:`,
+      settings
+    );
+
     // Try to import scheduled notification service if it exists
     try {
-      const { ScheduledNotificationService } = await import('../../services/scheduledNotifications');
+      const { ScheduledNotificationService } = await import(
+        '../../../services/scheduledNotifications'
+      );
+
+      console.log(
+        '[EventSubscription] ScheduledNotificationService imported successfully'
+      );
 
       await ScheduledNotificationService.subscribeToEventNotifications(
         userId,
@@ -234,13 +273,28 @@ export const addEventNotificationSubscription = async (userId, eventId, studioId
         studioId,
         settings
       );
+
+      console.log(
+        `[EventSubscription] Successfully subscribed user ${userId} to event ${eventId} notifications`
+      );
     } catch (importError) {
-      // Service doesn't exist yet, just log for now
-      console.log(`[EventSubscription] Notification subscription added for user ${userId}, event ${eventId}:`, settings);
+      console.error(
+        '[EventSubscription] Error importing or using ScheduledNotificationService:',
+        importError
+      );
+      // For now, log the settings that would have been applied
+      console.log(
+        `[EventSubscription] Notification subscription added for user ${userId}, event ${eventId}:`,
+        settings
+      );
     }
   } catch (error) {
-    console.error('[EventSubscription] Error adding notification subscription:', error);
-    // Don't throw - this is a background operation
+    console.error(
+      '[EventSubscription] Error adding notification subscription:',
+      error
+    );
+    // Re-throw error for proper error handling upstream
+    throw error;
   }
 };
 
@@ -252,18 +306,45 @@ export const addEventNotificationSubscription = async (userId, eventId, studioId
  */
 export const removeEventNotificationSubscription = async (userId, eventId) => {
   try {
+    console.log(
+      `[EventSubscription] Removing notification subscription for user ${userId}, event ${eventId}`
+    );
+
     // Try to import scheduled notification service if it exists
     try {
-      const { ScheduledNotificationService } = await import('../../services/scheduledNotifications');
+      const { ScheduledNotificationService } = await import(
+        '../../../services/scheduledNotifications'
+      );
 
-      await ScheduledNotificationService.unsubscribeFromEventNotifications(userId, eventId);
+      console.log(
+        '[EventSubscription] ScheduledNotificationService imported successfully for removal'
+      );
+
+      await ScheduledNotificationService.unsubscribeFromEventNotifications(
+        userId,
+        eventId
+      );
+
+      console.log(
+        `[EventSubscription] Successfully unsubscribed user ${userId} from event ${eventId} notifications`
+      );
     } catch (importError) {
+      console.error(
+        '[EventSubscription] Error importing or using ScheduledNotificationService for removal:',
+        importError
+      );
       // Service doesn't exist yet, just log for now
-      console.log(`[EventSubscription] Notification subscription removed for user ${userId}, event ${eventId}`);
+      console.log(
+        `[EventSubscription] Notification subscription removed for user ${userId}, event ${eventId}`
+      );
     }
   } catch (error) {
-    console.error('[EventSubscription] Error removing notification subscription:', error);
-    // Don't throw - this is a background operation
+    console.error(
+      '[EventSubscription] Error removing notification subscription:',
+      error
+    );
+    // Re-throw error for proper error handling upstream
+    throw error;
   }
 };
 
@@ -287,7 +368,10 @@ export const isUserSubscribedToEvent = async (userId, eventId, studioId) => {
     const subscribers = eventData.subscribers || [];
     return subscribers.includes(userId);
   } catch (error) {
-    console.error('[EventSubscription] Error checking subscription status:', error);
+    console.error(
+      '[EventSubscription] Error checking subscription status:',
+      error
+    );
     return false;
   }
 };
@@ -313,11 +397,15 @@ export const getEventSubscriptionStats = async (eventId, studioId) => {
       subscriberCount: eventData.subscriberCount || 0,
       subscriberIds: eventData.subscribers || [],
       maxGuests: eventData.maxGuests || null,
-      isAtCapacity: eventData.maxGuests ?
-        (eventData.subscriberCount || 0) >= eventData.maxGuests : false
+      isAtCapacity: eventData.maxGuests
+        ? (eventData.subscriberCount || 0) >= eventData.maxGuests
+        : false,
     };
   } catch (error) {
-    console.error('[EventSubscription] Error getting subscription stats:', error);
+    console.error(
+      '[EventSubscription] Error getting subscription stats:',
+      error
+    );
     throw error;
   }
 };

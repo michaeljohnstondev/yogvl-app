@@ -86,7 +86,10 @@ const HostProfileScreen = ({ navigation, route }) => {
         setVisibleContactInfo(contactInfo);
         setCanViewStats(statsVisible);
       } catch (error) {
-        console.error('[HostProfile] Error loading visible contact info:', error.message);
+        console.error(
+          '[HostProfile] Error loading visible contact info:',
+          error.message
+        );
         // Security: Never fallback to raw data on privacy service failure
         setVisibleContactInfo({
           firstName: 'User',
@@ -215,7 +218,9 @@ const HostProfileScreen = ({ navigation, route }) => {
   const displayName =
     hostData.displayName ||
     `${visibleContactInfo.firstName || contactInfo.firstName || ''} ${visibleContactInfo.lastName || contactInfo.lastName || ''}`.trim() ||
-    safeEmailSplit(visibleContactInfo.email || contactInfo.email || hostData.email) ||
+    safeEmailSplit(
+      visibleContactInfo.email || contactInfo.email || hostData.email
+    ) ||
     'Unknown Host';
 
   const stats = getUserEventStats(hostData);
@@ -373,31 +378,22 @@ const HostProfileScreen = ({ navigation, route }) => {
         {/* Profile Info - No Card */}
         <View style={styles.profileSection}>
           {/* Close button - left side */}
-          <TouchableOpacity
-            onPress={handleBack}
-            style={styles.closeButton}
-          >
+          <TouchableOpacity onPress={handleBack} style={styles.closeButton}>
             <Text style={styles.closeButtonText}>✕</Text>
           </TouchableOpacity>
 
           {/* Report button - only show for other users' profiles */}
-          {hostData?.id &&
-            currentUserId &&
-            hostData.id !== currentUserId && (
-              <TouchableOpacity
-                onPress={handleReport}
-                style={styles.reportButtonTop}
-              >
-                <Text style={styles.reportButtonText}>⚠️</Text>
-              </TouchableOpacity>
-            )}
+          {hostData?.id && currentUserId && hostData.id !== currentUserId && (
+            <TouchableOpacity
+              onPress={handleReport}
+              style={styles.reportButtonTop}
+            >
+              <Text style={styles.reportButtonText}>⚠️</Text>
+            </TouchableOpacity>
+          )}
 
           <View style={styles.avatarContainer}>
-            <ProfileAvatar
-              userData={hostData}
-              size={120}
-              showBorder={true}
-            />
+            <ProfileAvatar userData={hostData} size={120} showBorder={true} />
           </View>
 
           <Text style={styles.hostName}>{displayName}</Text>

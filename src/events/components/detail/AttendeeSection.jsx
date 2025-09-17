@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   FlatList,
 } from 'react-native';
-import { ProfileAvatar } from '../../../components/ui/profile';
+import { UserAvatar } from '../../../components/ui/profile';
 import CloseButton from '../../../components/ui/buttons/CloseButton';
 import theme from '../../../theme/themes';
 
@@ -54,15 +54,12 @@ export default function AttendeeSection({
 
   const renderAttendeeItem = ({ item: attendee, index }) => (
     <View key={attendee.id || index} style={styles.attendeeItem}>
-      <TouchableOpacity
-        style={styles.attendeeContent}
-        onPress={() => handleProfilePress(attendee.id)}
-        activeOpacity={0.7}
-      >
-        <ProfileAvatar
-          userData={attendee.userData}
+      <View style={styles.attendeeContent}>
+        <UserAvatar
+          userId={attendee.id}
           size={40}
-          showBorder={true}
+          style={styles.avatarStyle}
+          onPress={() => handleProfilePress(attendee.id)}
         />
         <View style={styles.attendeeInfo}>
           <Text style={styles.attendeeName}>{attendee.displayName}</Text>
@@ -73,7 +70,7 @@ export default function AttendeeSection({
             <Text style={styles.cohostBadge}>Co-host</Text>
           )}
         </View>
-      </TouchableOpacity>
+      </View>
 
       {canKickAttendee(attendee) && (
         <TouchableOpacity
@@ -138,7 +135,8 @@ export default function AttendeeSection({
           {attendees.length > 0 && (
             <View style={styles.modalFooter}>
               <Text style={styles.attendeeCount}>
-                {attendees.length} {attendees.length === 1 ? 'attendee' : 'attendees'}
+                {attendees.length}{' '}
+                {attendees.length === 1 ? 'attendee' : 'attendees'}
               </Text>
             </View>
           )}
@@ -206,6 +204,9 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  avatarStyle: {
+    // No additional margin needed - let attendeeInfo handle spacing
   },
   attendeeInfo: {
     marginLeft: 12,

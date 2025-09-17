@@ -14,7 +14,13 @@ import { useVibeAlert } from '../../../components/ui/base/VibeAlertContext';
  * @param {Object} options - Hook configuration options
  * @returns {Object} Hook interface with host actions and state
  */
-export const useHostActions = (studioId, eventId, userId, userStatus, options = {}) => {
+export const useHostActions = (
+  studioId,
+  eventId,
+  userId,
+  userStatus,
+  options = {}
+) => {
   const { onActionComplete = () => {} } = options;
 
   const [submitting, setSubmitting] = useState(false);
@@ -26,47 +32,63 @@ export const useHostActions = (studioId, eventId, userId, userStatus, options = 
   const canPerformHostActions = userStatus?.isHost && !submitting;
 
   // Complete event with attendance data
-  const completeEvent = useCallback(async (attendeeIds, noShowIds = []) => {
-    if (!canPerformHostActions) {
-      vibeAlert.error('Error', 'Only the event host can complete an event');
-      return false;
-    }
+  const completeEvent = useCallback(
+    async (attendeeIds, noShowIds = []) => {
+      if (!canPerformHostActions) {
+        vibeAlert.error('Error', 'Only the event host can complete an event');
+        return false;
+      }
 
-    try {
-      setSubmitting(true);
-      setActionInProgress('completing');
+      try {
+        setSubmitting(true);
+        setActionInProgress('completing');
 
-      await PostEventService.completeEvent(studioId, eventId, userId, attendeeIds, noShowIds);
+        await PostEventService.completeEvent(
+          studioId,
+          eventId,
+          userId,
+          attendeeIds,
+          noShowIds
+        );
 
-      vibeAlert.success(
-        'Event Completed!',
-        `Event completed with ${attendeeIds.length} attendee${attendeeIds.length === 1 ? '' : 's'}.`
-      );
+        vibeAlert.success(
+          'Event Completed!',
+          `Event completed with ${attendeeIds.length} attendee${attendeeIds.length === 1 ? '' : 's'}.`
+        );
 
-      // Notify parent component
-      onActionComplete({
-        action: 'complete',
-        success: true,
-        data: { attendeeIds, noShowIds },
-      });
+        // Notify parent component
+        onActionComplete({
+          action: 'complete',
+          success: true,
+          data: { attendeeIds, noShowIds },
+        });
 
-      return true;
-    } catch (error) {
-      console.error('[useHostActions] Error completing event:', error);
-      vibeAlert.error('Error', error.message || 'Failed to complete event');
+        return true;
+      } catch (error) {
+        console.error('[useHostActions] Error completing event:', error);
+        vibeAlert.error('Error', error.message || 'Failed to complete event');
 
-      onActionComplete({
-        action: 'complete',
-        success: false,
-        error,
-      });
+        onActionComplete({
+          action: 'complete',
+          success: false,
+          error,
+        });
 
-      return false;
-    } finally {
-      setSubmitting(false);
-      setActionInProgress(null);
-    }
-  }, [canPerformHostActions, studioId, eventId, userId, vibeAlert, onActionComplete]);
+        return false;
+      } finally {
+        setSubmitting(false);
+        setActionInProgress(null);
+      }
+    },
+    [
+      canPerformHostActions,
+      studioId,
+      eventId,
+      userId,
+      vibeAlert,
+      onActionComplete,
+    ]
+  );
 
   // Delete event
   const deleteEvent = useCallback(async () => {
@@ -81,7 +103,10 @@ export const useHostActions = (studioId, eventId, userId, userStatus, options = 
 
       await PostEventService.deleteEvent(studioId, eventId, userId);
 
-      vibeAlert.success('Event Deleted', 'The event has been permanently deleted.');
+      vibeAlert.success(
+        'Event Deleted',
+        'The event has been permanently deleted.'
+      );
 
       onActionComplete({
         action: 'delete',
@@ -104,7 +129,14 @@ export const useHostActions = (studioId, eventId, userId, userStatus, options = 
       setSubmitting(false);
       setActionInProgress(null);
     }
-  }, [canPerformHostActions, studioId, eventId, userId, vibeAlert, onActionComplete]);
+  }, [
+    canPerformHostActions,
+    studioId,
+    eventId,
+    userId,
+    vibeAlert,
+    onActionComplete,
+  ]);
 
   return {
     // State

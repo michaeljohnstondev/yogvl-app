@@ -3,7 +3,7 @@
 import {
   notificationEngine,
   NOTIFICATION_TYPES,
-  NOTIFICATION_PRIORITY
+  NOTIFICATION_PRIORITY,
 } from './NotificationEngine';
 
 /**
@@ -17,14 +17,18 @@ import {
 export const notifyNewFollower = async ({
   targetUserId,
   followerId,
-  followerName
+  followerName,
 }) => {
   try {
     if (!targetUserId || !followerId || !followerName) {
-      throw new Error('Missing required parameters for new follower notification');
+      throw new Error(
+        'Missing required parameters for new follower notification'
+      );
     }
 
-    console.log(`[SocialNotifications] Sending new follower notification to ${targetUserId}`);
+    console.log(
+      `[SocialNotifications] Sending new follower notification to ${targetUserId}`
+    );
 
     const notificationId = await notificationEngine.createNotification({
       userId: targetUserId,
@@ -34,21 +38,25 @@ export const notifyNewFollower = async ({
       data: {
         followerId,
         followerName,
-        actionType: 'follow'
+        actionType: 'follow',
       },
-      priority: NOTIFICATION_PRIORITY.NORMAL
+      priority: NOTIFICATION_PRIORITY.NORMAL,
+      senderId: followerId,
     });
 
     return {
       success: true,
       notificationId,
-      message: 'New follower notification sent successfully'
+      message: 'New follower notification sent successfully',
     };
   } catch (error) {
-    console.error('[SocialNotifications] Error sending new follower notification:', error);
+    console.error(
+      '[SocialNotifications] Error sending new follower notification:',
+      error
+    );
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 };
@@ -64,14 +72,18 @@ export const notifyNewFollower = async ({
 export const notifyFriendRequestAccepted = async ({
   requesterId,
   accepterId,
-  accepterName
+  accepterName,
 }) => {
   try {
     if (!requesterId || !accepterId || !accepterName) {
-      throw new Error('Missing required parameters for friend request accepted notification');
+      throw new Error(
+        'Missing required parameters for friend request accepted notification'
+      );
     }
 
-    console.log(`[SocialNotifications] Sending friend request accepted notification to ${requesterId}`);
+    console.log(
+      `[SocialNotifications] Sending friend request accepted notification to ${requesterId}`
+    );
 
     const notificationId = await notificationEngine.createNotification({
       userId: requesterId,
@@ -81,21 +93,25 @@ export const notifyFriendRequestAccepted = async ({
       data: {
         accepterId,
         accepterName,
-        actionType: 'friend_accepted'
+        actionType: 'friend_accepted',
       },
-      priority: NOTIFICATION_PRIORITY.NORMAL
+      priority: NOTIFICATION_PRIORITY.NORMAL,
+      senderId: accepterId,
     });
 
     return {
       success: true,
       notificationId,
-      message: 'Friend request accepted notification sent successfully'
+      message: 'Friend request accepted notification sent successfully',
     };
   } catch (error) {
-    console.error('[SocialNotifications] Error sending friend request accepted notification:', error);
+    console.error(
+      '[SocialNotifications] Error sending friend request accepted notification:',
+      error
+    );
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 };
@@ -111,14 +127,18 @@ export const notifyFriendRequestAccepted = async ({
 export const notifyFriendRequest = async ({
   targetUserId,
   requesterId,
-  requesterName
+  requesterName,
 }) => {
   try {
     if (!targetUserId || !requesterId || !requesterName) {
-      throw new Error('Missing required parameters for friend request notification');
+      throw new Error(
+        'Missing required parameters for friend request notification'
+      );
     }
 
-    console.log(`[SocialNotifications] Sending friend request notification to ${targetUserId}`);
+    console.log(
+      `[SocialNotifications] Sending friend request notification to ${targetUserId}`
+    );
 
     const notificationId = await notificationEngine.createNotification({
       userId: targetUserId,
@@ -128,21 +148,25 @@ export const notifyFriendRequest = async ({
       data: {
         requesterId,
         requesterName,
-        actionType: 'friend_request'
+        actionType: 'friend_request',
       },
-      priority: NOTIFICATION_PRIORITY.NORMAL
+      priority: NOTIFICATION_PRIORITY.NORMAL,
+      senderId: requesterId,
     });
 
     return {
       success: true,
       notificationId,
-      message: 'Friend request notification sent successfully'
+      message: 'Friend request notification sent successfully',
     };
   } catch (error) {
-    console.error('[SocialNotifications] Error sending friend request notification:', error);
+    console.error(
+      '[SocialNotifications] Error sending friend request notification:',
+      error
+    );
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 };
@@ -160,57 +184,66 @@ export const notifyMutualFollow = async ({
   user1Id,
   user1Name,
   user2Id,
-  user2Name
+  user2Name,
 }) => {
   try {
     if (!user1Id || !user1Name || !user2Id || !user2Name) {
-      throw new Error('Missing required parameters for mutual follow notification');
+      throw new Error(
+        'Missing required parameters for mutual follow notification'
+      );
     }
 
-    console.log(`[SocialNotifications] Sending mutual follow notifications between ${user1Id} and ${user2Id}`);
+    console.log(
+      `[SocialNotifications] Sending mutual follow notifications between ${user1Id} and ${user2Id}`
+    );
 
     // Send notification to both users in parallel
     const [notification1, notification2] = await Promise.allSettled([
-      createNotification({
+      notificationEngine.createNotification({
         userId: user1Id,
         type: NOTIFICATION_TYPES.FRIEND_ACCEPTED,
-        title: 'You\'re Now Friends!',
+        title: "You're Now Friends!",
         message: `You and ${user2Name} are now mutual followers`,
         data: {
           friendId: user2Id,
           friendName: user2Name,
-          actionType: 'mutual_follow'
+          actionType: 'mutual_follow',
         },
-        priority: NOTIFICATION_PRIORITY.NORMAL
+        priority: NOTIFICATION_PRIORITY.NORMAL,
+        senderId: user2Id, // System triggered by user2's action
       }),
-      createNotification({
+      notificationEngine.createNotification({
         userId: user2Id,
         type: NOTIFICATION_TYPES.FRIEND_ACCEPTED,
-        title: 'You\'re Now Friends!',
+        title: "You're Now Friends!",
         message: `You and ${user1Name} are now mutual followers`,
         data: {
           friendId: user1Id,
           friendName: user1Name,
-          actionType: 'mutual_follow'
+          actionType: 'mutual_follow',
         },
-        priority: NOTIFICATION_PRIORITY.NORMAL
-      })
+        priority: NOTIFICATION_PRIORITY.NORMAL,
+        senderId: user1Id, // System triggered by user1's action
+      }),
     ]);
 
-    const successCount = [notification1, notification2].filter(result =>
-      result.status === 'fulfilled'
+    const successCount = [notification1, notification2].filter(
+      (result) => result.status === 'fulfilled'
     ).length;
 
     return {
       success: successCount > 0,
       notificationsSent: successCount,
-      message: `Mutual follow notifications sent to ${successCount}/2 users`
+      message: `Mutual follow notifications sent to ${successCount}/2 users`,
     };
   } catch (error) {
-    console.error('[SocialNotifications] Error sending mutual follow notifications:', error);
+    console.error(
+      '[SocialNotifications] Error sending mutual follow notifications:',
+      error
+    );
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 };
@@ -232,14 +265,16 @@ export const notifyMention = async ({
   mentionerName,
   context,
   contextId,
-  contextTitle
+  contextTitle,
 }) => {
   try {
     if (!mentionedUserId || !mentionerUserId || !mentionerName || !context) {
       throw new Error('Missing required parameters for mention notification');
     }
 
-    console.log(`[SocialNotifications] Sending mention notification to ${mentionedUserId}`);
+    console.log(
+      `[SocialNotifications] Sending mention notification to ${mentionedUserId}`
+    );
 
     let message;
     switch (context) {
@@ -264,21 +299,25 @@ export const notifyMention = async ({
         context,
         contextId,
         contextTitle,
-        actionType: 'mention'
+        actionType: 'mention',
       },
-      priority: NOTIFICATION_PRIORITY.NORMAL
+      priority: NOTIFICATION_PRIORITY.NORMAL,
+      senderId: mentionerUserId,
     });
 
     return {
       success: true,
       notificationId,
-      message: 'Mention notification sent successfully'
+      message: 'Mention notification sent successfully',
     };
   } catch (error) {
-    console.error('[SocialNotifications] Error sending mention notification:', error);
+    console.error(
+      '[SocialNotifications] Error sending mention notification:',
+      error
+    );
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 };

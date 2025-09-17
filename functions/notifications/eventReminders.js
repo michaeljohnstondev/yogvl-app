@@ -20,7 +20,10 @@ exports.sendEventReminders = functions.scheduler.onSchedule(
       console.log('Starting event reminder check...');
 
       // Get all studios to check events
-      const studiosSnapshot = await admin.firestore().collection('studios').get();
+      const studiosSnapshot = await admin
+        .firestore()
+        .collection('studios')
+        .get();
 
       for (const studioDoc of studiosSnapshot.docs) {
         const studioId = studioDoc.id;
@@ -30,7 +33,11 @@ exports.sendEventReminders = functions.scheduler.onSchedule(
           .firestore()
           .collection(`studios/${studioId}/events`)
           .where('eventDateTime', '>=', admin.firestore.Timestamp.fromDate(now))
-          .where('eventDateTime', '<=', admin.firestore.Timestamp.fromDate(in24Hours))
+          .where(
+            'eventDateTime',
+            '<=',
+            admin.firestore.Timestamp.fromDate(in24Hours)
+          )
           .get();
 
         for (const eventDoc of eventsSnapshot.docs) {
@@ -51,7 +58,10 @@ exports.sendEventReminders = functions.scheduler.onSchedule(
             reminderType = '15m';
           } else if (timeDiff <= 61 * 60 * 1000 && timeDiff > 59 * 60 * 1000) {
             reminderType = '1h';
-          } else if (timeDiff <= 24.25 * 60 * 60 * 1000 && timeDiff > 23.75 * 60 * 60 * 1000) {
+          } else if (
+            timeDiff <= 24.25 * 60 * 60 * 1000 &&
+            timeDiff > 23.75 * 60 * 60 * 1000
+          ) {
             reminderType = '24h';
           }
 
@@ -87,7 +97,9 @@ exports.sendEventReminders = functions.scheduler.onSchedule(
             reminderType,
           });
 
-          console.log(`Sent ${reminderType} reminders for event ${eventId} to ${subscribers.length} subscribers`);
+          console.log(
+            `Sent ${reminderType} reminders for event ${eventId} to ${subscribers.length} subscribers`
+          );
         }
       }
 
@@ -111,11 +123,15 @@ async function sendRemindersToSubscribers({
   // Get FCM tokens for all subscribers
   const userTokenPromises = subscribers.map(async (subscriberId) => {
     try {
-      const userDoc = await admin.firestore().doc(`users/${subscriberId}`).get();
+      const userDoc = await admin
+        .firestore()
+        .doc(`users/${subscriberId}`)
+        .get();
       if (!userDoc.exists) return null;
 
       const userData = userDoc.data();
-      const attendingPrefs = userData?.userdata?.settings?.notifications?.attending || {};
+      const attendingPrefs =
+        userData?.userdata?.settings?.notifications?.attending || {};
 
       // Check if user wants reminder notifications
       if (attendingPrefs.reminders === false) {
@@ -182,9 +198,14 @@ async function sendRemindersToSubscribers({
     const batch = messages.slice(i, i + batchSize);
     try {
       const response = await admin.messaging().sendEach(batch);
-      console.log(`Sent reminder batch ${i / batchSize + 1}: ${response.successCount}/${batch.length} successful`);
+      console.log(
+        `Sent reminder batch ${i / batchSize + 1}: ${response.successCount}/${batch.length} successful`
+      );
     } catch (error) {
-      console.error(`Error sending reminder batch ${i / batchSize + 1}:`, error);
+      console.error(
+        `Error sending reminder batch ${i / batchSize + 1}:`,
+        error
+      );
     }
   }
 }

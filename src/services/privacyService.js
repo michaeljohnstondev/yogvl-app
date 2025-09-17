@@ -1,5 +1,6 @@
 // privacyService.js - Privacy checking utilities
-import { checkIfFollowing, checkIfMutualFollows } from './followService';
+import { checkIfMutualFollows } from './followService';
+import { blockingService } from './blockingService';
 import {
   collection,
   query,
@@ -102,8 +103,56 @@ export const getVisibleContactInfo = async (viewerId, targetUserData) => {
  * @returns {Promise<boolean>} Whether stats should be visible
  */
 export const canViewUserStats = async (viewerId, targetUserData) => {
-  // Everyone can see attendance stats now (no privacy controls)
-  return true;
+  try {
+    const targetUserId = targetUserData?.uid;
+
+    // Parameter validation
+    if (
+      !viewerId ||
+      !targetUserId ||
+      typeof viewerId !== 'string' ||
+      typeof targetUserId !== 'string'
+    ) {
+      console.warn(
+        '[privacyService] Invalid parameters for canViewUserStats:',
+        { viewerId, targetUserId }
+      );
+      return false;
+    }
+
+    // User can always see their own stats
+    if (viewerId === targetUserId) {
+      return true;
+    }
+
+    // Check if users are blocked (no access if blocked)
+    const blockStatus = await blockingService.isBlocked(viewerId, targetUserId);
+    if (blockStatus.isBlocked) {
+      console.log(
+        '[privacyService] Access denied - users have blocking relationship'
+      );
+      return false;
+    }
+
+    // Get privacy settings (secure defaults)
+    const privacySettings = targetUserData?.userdata?.settings?.privacy || {};
+    const showStats = privacySettings.showStats || 'friends'; // Default to friends-only
+    const showEventHistory = privacySettings.showEventHistory || 'friends'; // Default to friends-only
+
+    // Most restrictive setting wins for stats visibility
+    const mostRestrictive =
+      showStats === 'never' || showEventHistory === 'never'
+        ? 'never'
+        : showStats === 'friends' || showEventHistory === 'friends'
+          ? 'friends'
+          : 'always';
+
+    return await canViewUserInfo(viewerId, targetUserId, mostRestrictive);
+  } catch (error) {
+    console.error('[privacyService] Error checking stats visibility:', error);
+    // Default to secure behavior on error
+    return false;
+  }
 };
 
 /**
@@ -113,19 +162,113 @@ export const canViewUserStats = async (viewerId, targetUserData) => {
  * @returns {Promise<boolean>} Whether event history should be visible
  */
 export const canViewEventHistory = async (viewerId, targetUserData) => {
-  // Everyone can see event history now (no activity privacy)
-  return true;
+  try {
+    const targetUserId = targetUserData?.uid;
+
+    // Parameter validation
+    if (
+      !viewerId ||
+      !targetUserId ||
+      typeof viewerId !== 'string' ||
+      typeof targetUserId !== 'string'
+    ) {
+      console.warn(
+        '[privacyService] Invalid parameters for canViewEventHistory:',
+        { viewerId, targetUserId }
+      );
+      return false;
+    }
+
+    // User can always see their own event history
+    if (viewerId === targetUserId) {
+      return true;
+    }
+
+    // Check if users are blocked (no access if blocked)
+    const blockStatus = await blockingService.isBlocked(viewerId, targetUserId);
+    if (blockStatus.isBlocked) {
+      console.log(
+        '[privacyService] Access denied - users have blocking relationship'
+      );
+      return false;
+    }
+
+    // Get privacy settings (secure defaults)
+    const privacySettings = targetUserData?.userdata?.settings?.privacy || {};
+    const showMyAttendance =
+      privacySettings.showMyAttendance !== undefined
+        ? privacySettings.showMyAttendance
+        : true;
+    const canSeeMyEvents = privacySettings.canSeeMyEvents || 'friends'; // Default to friends-only
+
+    // If attendance is completely hidden, deny access
+    if (!showMyAttendance) {
+      return false;
+    }
+
+    // Check event visibility based on privacy setting
+    return await canViewUserInfo(viewerId, targetUserId, canSeeMyEvents);
+  } catch (error) {
+    console.error(
+      '[privacyService] Error checking event history visibility:',
+      error
+    );
+    // Default to secure behavior on error
+    return false;
+  }
 };
 
 /**
  * Check if user can see follower counts
  * @param {string} viewerId - ID of user trying to view counts
  * @param {Object} targetUserData - Target user's full data
- * @returns {boolean} Whether follower counts should be visible
+ * @returns {Promise<boolean>} Whether follower counts should be visible
  */
-export const canViewFollowerCounts = (viewerId, targetUserData) => {
-  // Anyone can see follower counts now (no privacy controls)
-  return true;
+export const canViewFollowerCounts = async (viewerId, targetUserData) => {
+  try {
+    const targetUserId = targetUserData?.uid;
+
+    // Parameter validation
+    if (
+      !viewerId ||
+      !targetUserId ||
+      typeof viewerId !== 'string' ||
+      typeof targetUserId !== 'string'
+    ) {
+      console.warn(
+        '[privacyService] Invalid parameters for canViewFollowerCounts:',
+        { viewerId, targetUserId }
+      );
+      return false;
+    }
+
+    // User can always see their own follower counts
+    if (viewerId === targetUserId) {
+      return true;
+    }
+
+    // Check if users are blocked (no access if blocked)
+    const blockStatus = await blockingService.isBlocked(viewerId, targetUserId);
+    if (blockStatus.isBlocked) {
+      console.log(
+        '[privacyService] Access denied - users have blocking relationship'
+      );
+      return false;
+    }
+
+    // Get privacy settings (secure defaults)
+    const privacySettings = targetUserData?.userdata?.settings?.privacy || {};
+    const showFollowerCounts = privacySettings.showFollowerCounts || 'friends'; // Default to friends-only
+
+    return await canViewUserInfo(viewerId, targetUserId, showFollowerCounts);
+  } catch (error) {
+    console.error(
+      '[privacyService] Error checking follower counts visibility:',
+      error
+    );
+    // Default to secure behavior on error
+    return false;
+  }
 };
 
 /**
@@ -134,8 +277,30 @@ export const canViewFollowerCounts = (viewerId, targetUserData) => {
  * @returns {boolean} Whether profile should appear in searches/discovery
  */
 export const isProfileDiscoverable = (userData) => {
-  // All profiles are discoverable now (no profile visibility setting)
-  return true;
+  try {
+    // Get privacy settings (secure defaults)
+    const privacySettings = userData?.userdata?.settings?.privacy || {};
+
+    // Check basic profile visibility
+    const profileVisibility =
+      privacySettings.profileVisibility !== undefined
+        ? privacySettings.profileVisibility
+        : true;
+    const showInSearch =
+      privacySettings.showInSearch !== undefined
+        ? privacySettings.showInSearch
+        : true;
+
+    // Profile must be visible and searchable to be discoverable
+    return profileVisibility && showInSearch;
+  } catch (error) {
+    console.error(
+      '[privacyService] Error checking profile discoverability:',
+      error
+    );
+    // Default to secure behavior on error
+    return false;
+  }
 };
 
 /**
@@ -161,7 +326,7 @@ export const filterUsersForDisplay = async (viewerId, users) => {
       visibleContactInfo,
       canViewStats: await canViewUserStats(viewerId, user),
       canViewHistory: await canViewEventHistory(viewerId, user),
-      canViewFollowerCounts: canViewFollowerCounts(viewerId, user),
+      canViewFollowerCounts: await canViewFollowerCounts(viewerId, user),
     });
   }
 
@@ -386,5 +551,241 @@ export const canUserAccessEvent = async (
   } catch (error) {
     console.error('Error checking event access:', error);
     return { canAccess: false, reason: 'Error checking access' };
+  }
+};
+
+/**
+ * Check if user can view another user's bio/about section
+ * @param {string} viewerId - ID of user trying to view bio
+ * @param {Object} targetUserData - Target user's full data
+ * @returns {Promise<boolean>} Whether bio should be visible
+ */
+export const canViewUserBio = async (viewerId, targetUserData) => {
+  try {
+    const targetUserId = targetUserData?.uid;
+
+    // Parameter validation
+    if (
+      !viewerId ||
+      !targetUserId ||
+      typeof viewerId !== 'string' ||
+      typeof targetUserId !== 'string'
+    ) {
+      console.warn('[privacyService] Invalid parameters for canViewUserBio:', {
+        viewerId,
+        targetUserId,
+      });
+      return false;
+    }
+
+    // User can always see their own bio
+    if (viewerId === targetUserId) {
+      return true;
+    }
+
+    // Check if users are blocked (no access if blocked)
+    const blockStatus = await blockingService.isBlocked(viewerId, targetUserId);
+    if (blockStatus.isBlocked) {
+      console.log(
+        '[privacyService] Access denied - users have blocking relationship'
+      );
+      return false;
+    }
+
+    // Get privacy settings (secure defaults)
+    const privacySettings = targetUserData?.userdata?.settings?.privacy || {};
+    const bioVisibility = privacySettings.bioVisibility || 'always'; // Bio is typically more open by default
+
+    return await canViewUserInfo(viewerId, targetUserId, bioVisibility);
+  } catch (error) {
+    console.error('[privacyService] Error checking bio visibility:', error);
+    // Default to secure behavior on error
+    return false;
+  }
+};
+
+/**
+ * Check if user can view another user's profile picture
+ * @param {string} viewerId - ID of user trying to view profile picture
+ * @param {Object} targetUserData - Target user's full data
+ * @returns {Promise<boolean>} Whether profile picture should be visible
+ */
+export const canViewProfilePicture = async (viewerId, targetUserData) => {
+  try {
+    const targetUserId = targetUserData?.uid;
+
+    // Parameter validation
+    if (
+      !viewerId ||
+      !targetUserId ||
+      typeof viewerId !== 'string' ||
+      typeof targetUserId !== 'string'
+    ) {
+      console.warn(
+        '[privacyService] Invalid parameters for canViewProfilePicture:',
+        { viewerId, targetUserId }
+      );
+      return false;
+    }
+
+    // User can always see their own profile picture
+    if (viewerId === targetUserId) {
+      return true;
+    }
+
+    // Check if users are blocked (no access if blocked)
+    const blockStatus = await blockingService.isBlocked(viewerId, targetUserId);
+    if (blockStatus.isBlocked) {
+      console.log(
+        '[privacyService] Access denied - users have blocking relationship'
+      );
+      return false;
+    }
+
+    // Get privacy settings (secure defaults)
+    const privacySettings = targetUserData?.userdata?.settings?.privacy || {};
+    const profilePictureVisibility =
+      privacySettings.profilePictureVisibility || 'always'; // Profile pictures typically public
+
+    // Also check display settings
+    const displaySettings = targetUserData?.userdata?.settings?.display || {};
+    const showProfilePicture =
+      displaySettings.showProfilePicture !== undefined
+        ? displaySettings.showProfilePicture
+        : true;
+
+    // If user has disabled showing profile picture, respect that setting
+    if (!showProfilePicture) {
+      return false;
+    }
+
+    return await canViewUserInfo(
+      viewerId,
+      targetUserId,
+      profilePictureVisibility
+    );
+  } catch (error) {
+    console.error(
+      '[privacyService] Error checking profile picture visibility:',
+      error
+    );
+    // Default to secure behavior on error
+    return false;
+  }
+};
+
+/**
+ * Check if user can access another user's profile at all (main gate-keeper function)
+ * @param {string} viewerId - ID of user trying to access profile
+ * @param {Object} targetUserData - Target user's full data
+ * @returns {Promise<{canAccess: boolean, reason: string}>} Access result with reason
+ */
+export const canAccessUserProfile = async (viewerId, targetUserData) => {
+  try {
+    const targetUserId = targetUserData?.uid;
+
+    // Parameter validation
+    if (
+      !viewerId ||
+      !targetUserId ||
+      typeof viewerId !== 'string' ||
+      typeof targetUserId !== 'string'
+    ) {
+      console.warn(
+        '[privacyService] Invalid parameters for canAccessUserProfile:',
+        { viewerId, targetUserId }
+      );
+      return { canAccess: false, reason: 'Invalid parameters' };
+    }
+
+    // User can always access their own profile
+    if (viewerId === targetUserId) {
+      return { canAccess: true, reason: 'Own profile' };
+    }
+
+    // Check if users are blocked (critical security check)
+    const blockStatus = await blockingService.isBlocked(viewerId, targetUserId);
+    if (blockStatus.isBlocked) {
+      if (blockStatus.blockedBy === 'current') {
+        return { canAccess: false, reason: 'You have blocked this user' };
+      } else {
+        return { canAccess: false, reason: 'This user has blocked you' };
+      }
+    }
+
+    // Check if profile is discoverable
+    if (!isProfileDiscoverable(targetUserData)) {
+      return { canAccess: false, reason: 'Profile is private' };
+    }
+
+    // Get privacy settings (secure defaults)
+    const privacySettings = targetUserData?.userdata?.settings?.privacy || {};
+    const profileVisibility =
+      privacySettings.profileVisibility !== undefined
+        ? privacySettings.profileVisibility
+        : true;
+
+    // If profile visibility is completely disabled
+    if (!profileVisibility) {
+      return { canAccess: false, reason: 'Profile is private' };
+    }
+
+    // Additional privacy check for search visibility
+    const showInSearch =
+      privacySettings.showInSearch !== undefined
+        ? privacySettings.showInSearch
+        : true;
+
+    // For discovery contexts, check search visibility
+    // (This could be enhanced to pass context about how profile was accessed)
+    if (!showInSearch) {
+      // Still allow access if users are friends
+      const areFriends = await checkIfMutualFollows(viewerId, targetUserId);
+      if (!areFriends) {
+        return { canAccess: false, reason: 'Profile not discoverable' };
+      }
+    }
+
+    return { canAccess: true, reason: 'Access granted' };
+  } catch (error) {
+    console.error('[privacyService] Error checking profile access:', error);
+    // Default to secure behavior on error
+    return { canAccess: false, reason: 'Error checking access' };
+  }
+};
+
+/**
+ * Enhanced isProfileDiscoverable with better privacy controls
+ * @param {Object} userData - User's data to check
+ * @returns {boolean} Whether profile should appear in searches/discovery
+ */
+export const isProfileDiscoverableEnhanced = (userData) => {
+  try {
+    // Get privacy settings (secure defaults)
+    const privacySettings = userData?.userdata?.settings?.privacy || {};
+
+    // Check multiple privacy settings
+    const profileVisibility =
+      privacySettings.profileVisibility !== undefined
+        ? privacySettings.profileVisibility
+        : true;
+    const showInSearch =
+      privacySettings.showInSearch !== undefined
+        ? privacySettings.showInSearch
+        : true;
+    const allowSuggestions =
+      privacySettings.allowSuggestions !== undefined
+        ? privacySettings.allowSuggestions
+        : true;
+
+    // Profile must pass all discoverability checks
+    return profileVisibility && showInSearch && allowSuggestions;
+  } catch (error) {
+    console.error(
+      '[privacyService] Error checking enhanced profile discoverability:',
+      error
+    );
+    // Default to secure behavior on error
+    return false;
   }
 };

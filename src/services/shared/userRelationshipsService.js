@@ -177,7 +177,10 @@ export const getFriendRequestStatus = async (userId1, userId2) => {
 
     return null;
   } catch (error) {
-    console.error('[UserRelationships] Error checking friend request status:', error);
+    console.error(
+      '[UserRelationships] Error checking friend request status:',
+      error
+    );
     return null;
   }
 };
@@ -194,7 +197,13 @@ export const addToFavorites = async (currentUserId, targetUserId) => {
       throw new Error('Cannot favorite yourself');
     }
 
-    const favoriteRef = doc(db, 'users', currentUserId, 'favorites', targetUserId);
+    const favoriteRef = doc(
+      db,
+      'users',
+      currentUserId,
+      'favorites',
+      targetUserId
+    );
 
     // Get target user data for caching
     const targetUserDoc = await getDoc(doc(db, 'users', targetUserId));
@@ -210,7 +219,8 @@ export const addToFavorites = async (currentUserId, targetUserId) => {
       userData: {
         firstName: targetUserData?.userdata?.contactInfo?.firstName || '',
         lastName: targetUserData?.userdata?.contactInfo?.lastName || '',
-        displayName: targetUserData?.userdata?.contactInfo?.displayName || 'Unknown User',
+        displayName:
+          targetUserData?.userdata?.contactInfo?.displayName || 'Unknown User',
         email: targetUserData?.email || null,
       },
     });
@@ -230,7 +240,13 @@ export const addToFavorites = async (currentUserId, targetUserId) => {
  */
 export const removeFromFavorites = async (currentUserId, targetUserId) => {
   try {
-    const favoriteRef = doc(db, 'users', currentUserId, 'favorites', targetUserId);
+    const favoriteRef = doc(
+      db,
+      'users',
+      currentUserId,
+      'favorites',
+      targetUserId
+    );
 
     const favoriteDoc = await getDoc(favoriteRef);
     if (!favoriteDoc.exists()) {
@@ -253,7 +269,13 @@ export const removeFromFavorites = async (currentUserId, targetUserId) => {
  */
 export const checkIfFavorite = async (currentUserId, targetUserId) => {
   try {
-    const favoriteRef = doc(db, 'users', currentUserId, 'favorites', targetUserId);
+    const favoriteRef = doc(
+      db,
+      'users',
+      currentUserId,
+      'favorites',
+      targetUserId
+    );
     const favoriteDoc = await getDoc(favoriteRef);
     return favoriteDoc.exists();
   } catch (error) {
@@ -273,16 +295,30 @@ export const removeFriend = async (currentUserId, targetUserId) => {
     const batch = writeBatch(db);
 
     // Remove friend from current user's friends
-    const currentUserFriendRef = doc(db, 'users', currentUserId, 'friends', targetUserId);
+    const currentUserFriendRef = doc(
+      db,
+      'users',
+      currentUserId,
+      'friends',
+      targetUserId
+    );
     batch.delete(currentUserFriendRef);
 
     // Remove current user from target's friends
-    const targetUserFriendRef = doc(db, 'users', targetUserId, 'friends', currentUserId);
+    const targetUserFriendRef = doc(
+      db,
+      'users',
+      targetUserId,
+      'friends',
+      currentUserId
+    );
     batch.delete(targetUserFriendRef);
 
     await batch.commit();
 
-    console.log(`[UserRelationships] Removed friendship between ${currentUserId} and ${targetUserId}`);
+    console.log(
+      `[UserRelationships] Removed friendship between ${currentUserId} and ${targetUserId}`
+    );
     return { success: true };
   } catch (error) {
     console.error('[UserRelationships] Error removing friend:', error);
@@ -308,7 +344,7 @@ export const clearFriendshipData = async (userId1, userId2) => {
       doc(db, 'users', userId2, 'favorites', userId1),
     ];
 
-    friendRefs.forEach(ref => batch.delete(ref));
+    friendRefs.forEach((ref) => batch.delete(ref));
 
     // Find and remove any pending friend requests
     const friendRequestQueries = [
@@ -327,12 +363,14 @@ export const clearFriendshipData = async (userId1, userId2) => {
       getDocs(friendRequestQueries[1]),
     ]);
 
-    requests1.forEach(doc => batch.delete(doc.ref));
-    requests2.forEach(doc => batch.delete(doc.ref));
+    requests1.forEach((doc) => batch.delete(doc.ref));
+    requests2.forEach((doc) => batch.delete(doc.ref));
 
     await batch.commit();
 
-    console.log(`[UserRelationships] Cleared all friendship data between ${userId1} and ${userId2}`);
+    console.log(
+      `[UserRelationships] Cleared all friendship data between ${userId1} and ${userId2}`
+    );
     return { success: true };
   } catch (error) {
     console.error('[UserRelationships] Error clearing friendship data:', error);

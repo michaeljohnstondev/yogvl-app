@@ -43,10 +43,13 @@ export const getUserInterests = async (userId) => {
           'preferences.interests': [],
         });
       } catch (error) {
-        console.error('[InterestService] Failed to initialize user preferences:', {
-          userId: 'present',
-          error: error.message
-        });
+        console.error(
+          '[InterestService] Failed to initialize user preferences:',
+          {
+            userId: 'present',
+            error: error.message,
+          }
+        );
       }
     }
 
@@ -55,7 +58,7 @@ export const getUserInterests = async (userId) => {
   } catch (error) {
     console.error('[InterestService] Failed to get user interests:', {
       userId: 'present',
-      error: error.message
+      error: error.message,
     });
     return [];
   }
@@ -72,7 +75,7 @@ export const addUserInterest = async (userId, interest) => {
     if (!userId || !interest) {
       console.error('[InterestService] Missing required parameters:', {
         hasUserId: !!userId,
-        hasInterest: !!interest
+        hasInterest: !!interest,
       });
       return false;
     }
@@ -81,7 +84,7 @@ export const addUserInterest = async (userId, interest) => {
     const sanitizedInterest = sanitizeInterest(interest);
     if (!sanitizedInterest) {
       console.error('[InterestService] Invalid interest after sanitization:', {
-        original: interest.substring(0, 50) + '...'
+        original: interest.substring(0, 50) + '...',
       });
       return false;
     }
@@ -111,7 +114,7 @@ export const addUserInterest = async (userId, interest) => {
         const interests = userData?.preferences?.interests || [];
 
         // Find and replace the interest with new capitalization
-        const updatedInterests = interests.map(interest =>
+        const updatedInterests = interests.map((interest) =>
           interest.toLowerCase() === sanitizedInterest.toLowerCase()
             ? sanitizedInterest
             : interest
@@ -126,10 +129,13 @@ export const addUserInterest = async (userId, interest) => {
 
     // Validate user doesn't exceed interest limit
     if (currentInterests.length >= 50) {
-      console.error('[InterestService] User has reached maximum interest limit:', {
-        userId: 'present',
-        currentCount: currentInterests.length
-      });
+      console.error(
+        '[InterestService] User has reached maximum interest limit:',
+        {
+          userId: 'present',
+          currentCount: currentInterests.length,
+        }
+      );
       return false;
     }
 
@@ -143,7 +149,7 @@ export const addUserInterest = async (userId, interest) => {
     console.error('[InterestService] Failed to add interest:', {
       userId: 'present',
       interest: sanitizedInterest?.substring(0, 20) + '...',
-      error: error.message
+      error: error.message,
     });
     return false;
   }
@@ -158,17 +164,20 @@ export const addUserInterest = async (userId, interest) => {
 export const removeUserInterest = async (userId, interest) => {
   try {
     if (!userId || !interest) {
-      console.error('[InterestService] Missing required parameters for removal:', {
-        hasUserId: !!userId,
-        hasInterest: !!interest
-      });
+      console.error(
+        '[InterestService] Missing required parameters for removal:',
+        {
+          hasUserId: !!userId,
+          hasInterest: !!interest,
+        }
+      );
       return false;
     }
 
     // Validate userId format for basic security
     if (!userId.match(/^[a-zA-Z0-9]{28}$/)) {
       console.error('[InterestService] Invalid user ID format for removal:', {
-        userIdLength: userId.length
+        userIdLength: userId.length,
       });
       return false;
     }
@@ -176,9 +185,12 @@ export const removeUserInterest = async (userId, interest) => {
     // Sanitize input for consistency
     const sanitizedInterest = sanitizeInterest(interest);
     if (!sanitizedInterest) {
-      console.error('[InterestService] Invalid interest for removal after sanitization:', {
-        original: interest.substring(0, 50) + '...'
-      });
+      console.error(
+        '[InterestService] Invalid interest for removal after sanitization:',
+        {
+          original: interest.substring(0, 50) + '...',
+        }
+      );
       return false;
     }
 
@@ -187,7 +199,7 @@ export const removeUserInterest = async (userId, interest) => {
     // Get current interests to ensure we're removing the exact stored value
     const currentInterests = await getUserInterests(userId);
     const exactMatch = currentInterests.find(
-      existing => existing.toLowerCase() === sanitizedInterest.toLowerCase()
+      (existing) => existing.toLowerCase() === sanitizedInterest.toLowerCase()
     );
 
     if (!exactMatch) {
@@ -205,7 +217,7 @@ export const removeUserInterest = async (userId, interest) => {
     console.error('[InterestService] Failed to remove interest:', {
       userId: 'present',
       interest: interest?.substring(0, 20) + '...',
-      error: error.message
+      error: error.message,
     });
     return false;
   }

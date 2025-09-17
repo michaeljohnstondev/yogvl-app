@@ -14,7 +14,10 @@ export const safeArrayIncludes = (array, item) => {
   try {
     return array.includes(item);
   } catch (error) {
-    console.warn('[SafeArrayIncludes] Error with includes, falling back to manual check:', error);
+    console.warn(
+      '[SafeArrayIncludes] Error with includes, falling back to manual check:',
+      error
+    );
     // Manual fallback if includes() fails
     for (let i = 0; i < array.length; i++) {
       if (array[i] === item) return true;
@@ -50,17 +53,23 @@ export const initializeIndexOfFix = () => {
   // Override Array.prototype.includes to add safety
   const originalIncludes = Array.prototype.includes;
 
-  Array.prototype.includes = function(searchElement, fromIndex) {
+  Array.prototype.includes = function (searchElement, fromIndex) {
     try {
       // Validate this is actually an array
       if (!this || !Array.isArray(this)) {
-        console.warn('[IndexOfFix] includes() called on non-array:', typeof this);
+        console.warn(
+          '[IndexOfFix] includes() called on non-array:',
+          typeof this
+        );
         return false;
       }
 
       return originalIncludes.call(this, searchElement, fromIndex);
     } catch (error) {
-      console.warn('[IndexOfFix] Error in includes(), using manual check:', error);
+      console.warn(
+        '[IndexOfFix] Error in includes(), using manual check:',
+        error
+      );
 
       // Manual fallback implementation
       const array = this;

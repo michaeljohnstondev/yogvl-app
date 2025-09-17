@@ -1,8 +1,5 @@
 import React, { memo } from 'react';
-import {
-  View,
-  StyleSheet,
-} from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { VibeButton } from '../../../components/ui';
 import theme from '../../../theme/themes';
 
@@ -106,7 +103,8 @@ const EventActionButtons = memo(function EventActionButtons({
         {!isEventPast && !permissions.canEdit && (
           <>
             {/* Invite guests button for non-hosts (public events or private with guest invites allowed) */}
-            {(!event?.isPrivate || (event?.allowGuestInvites && isSubscribed)) && (
+            {(!event?.isPrivate ||
+              (event?.allowGuestInvites && isSubscribed)) && (
               <VibeButton
                 label="INVITE GUESTS"
                 onPress={handleInviteGuests}
@@ -118,10 +116,13 @@ const EventActionButtons = memo(function EventActionButtons({
             <VibeButton
               label={isSubscribed ? 'LEAVE EVENT' : 'JOIN EVENT'}
               onPress={onSubscribe}
-              disabled={isLoading || (!isSubscribed && !joinConstraints.canJoin)}
+              disabled={
+                isLoading || (!isSubscribed && !joinConstraints.canJoin)
+              }
               style={[
                 styles.joinLeaveButton,
-                (isLoading || (!isSubscribed && !joinConstraints.canJoin)) && styles.disabledButton,
+                (isLoading || (!isSubscribed && !joinConstraints.canJoin)) &&
+                  styles.disabledButton,
               ]}
             />
           </>
@@ -158,7 +159,11 @@ const EventActionButtons = memo(function EventActionButtons({
               <VibeButton
                 label="DELETE EVENT"
                 onPress={onDelete}
-                style={[styles.actionButton, styles.tightButton, styles.dangerButton]}
+                style={[
+                  styles.actionButton,
+                  styles.tightButton,
+                  styles.dangerButton,
+                ]}
               />
             )}
           </>
@@ -179,9 +184,13 @@ const EventActionButtons = memo(function EventActionButtons({
           )}
 
           {/* Event Recap for hosts/cohosts/admins */}
-          {(permissions.isCreator || permissions.isCohost || permissions.isAdmin) && (
+          {(permissions.isCreator ||
+            permissions.isCohost ||
+            permissions.isAdmin) && (
             <VibeButton
-              label={event.status === 'completed' ? 'VIEW RECAP' : 'EVENT RECAP'}
+              label={
+                event.status === 'completed' ? 'VIEW RECAP' : 'EVENT RECAP'
+              }
               onPress={onEventRecap}
               style={styles.recapButton}
             />

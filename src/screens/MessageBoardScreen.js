@@ -1,6 +1,6 @@
 // FILE: screens/MessageBoardScreen.js
 
-import React, { useState, useRef, useEffect, memo } from 'react';
+import React, { useRef, useEffect, memo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,6 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  TouchableOpacity,
-  TextInput,
   Alert,
   RefreshControl,
 } from 'react-native';
@@ -20,14 +18,16 @@ import VibeScreen from '../components/ui/base/VibeScreen';
 import { CloseButton } from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
 import { FormatDate, getRelativeTimeString } from '../lib/formatDate';
+import { usePrivacyValidation } from '../hooks/usePrivacyValidation';
+import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
+import MessageInput from './MessageBoard/components/MessageInput';
 import theme from '../theme/themes';
 
 export default function MessageBoardScreen({ route, navigation }) {
   const { eventId, eventTitle } = route.params;
   const { currentUserId, userData } = useAuth();
-  const [messageText, setMessageText] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  // Removed reply state - no longer using threading
+  const vibeAlert = useVibeAlert();
+  const { validateAndNavigate } = usePrivacyValidation(currentUserId);
   const flatListRef = useRef(null);
 
   const {
@@ -51,40 +51,78 @@ export default function MessageBoardScreen({ route, navigation }) {
     }
   }, [messages.length]);
 
-  // Handle sending message
-  const handleSendMessage = async () => {
-    if (!messageText.trim() || submitting) return;
-
-    const success = await sendMessage(messageText.trim());
-    if (success) {
-      setMessageText('');
-      setIsTyping(false);
-    }
-  };
+  // Handle sending message from isolated input component
+  const handleSendMessage = useCallback(
+    async (messageText) => {
+      const success = await sendMessage(messageText);
+      if (success) {
+        // Auto-scroll to bottom when new message is sent
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
+      return success;
+    },
+    [sendMessage]
+  );
 
   // Removed reply handlers - no longer using threading
 
-  // Handle message deletion
-  const handleDeleteMessage = async (messageId, messageUserId) => {
-    Alert.alert(
-      'Delete Message',
-      'Are you sure you want to delete this message?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            const success = await deleteMessage(messageId, messageUserId);
-            if (!success && error) {
-              Alert.alert('Error', error);
-              clearError();
-            }
-          },
+  // Handle profile navigation with privacy validation
+  const handleProfileNavigation = useCallback(
+    async (userId) => {
+      if (!userId || userId === currentUserId) {
+        // Navigate to own profile directly
+        navigation.navigate('UserProfile', { userId: currentUserId });
+        return;
+      }
+
+      await validateAndNavigate(
+        userId,
+        // On access granted - navigate to profile
+        () => {
+          console.log('[MessageBoard] Navigating to profile:', userId);
+          navigation.navigate('UserProfile', { userId });
         },
-      ]
-    );
-  };
+        // On access denied - show feedback
+        (validation) => {
+          console.log(
+            '[MessageBoard] Profile access denied:',
+            validation.reason
+          );
+          if (validation.shouldShowFeedback && validation.message) {
+            vibeAlert.error('Profile Unavailable', validation.message);
+          }
+        }
+      );
+    },
+    [currentUserId, navigation, validateAndNavigate, vibeAlert]
+  );
+
+  // Handle message deletion
+  const handleDeleteMessage = useCallback(
+    async (messageId, messageUserId) => {
+      Alert.alert(
+        'Delete Message',
+        'Are you sure you want to delete this message?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              const success = await deleteMessage(messageId, messageUserId);
+              if (!success && error) {
+                Alert.alert('Error', error);
+                clearError();
+              }
+            },
+          },
+        ]
+      );
+    },
+    [deleteMessage, error, clearError]
+  );
 
   // Format message timestamp
   const formatMessageTime = (timestamp) => {
@@ -92,100 +130,133 @@ export default function MessageBoardScreen({ route, navigation }) {
   };
 
   // Check if user can delete message
-  const canDeleteMessage = (message) => {
-    // User can delete their own message
-    if (currentUserId === message.userId) return true;
+  const canDeleteMessage = useCallback(
+    (message) => {
+      // User can delete their own message
+      if (currentUserId === message.userId) return true;
 
-    // Host can delete any message
-    const userRole = getCurrentUserRole();
-    if (userRole === 'host') return true;
+      // Host can delete any message
+      const userRole = getCurrentUserRole();
+      if (userRole === 'host') return true;
 
-    // Admin can delete any message (if we add admin role later)
-    if (userRole === 'admin') return true;
+      // Admin can delete any message (if we add admin role later)
+      if (userRole === 'admin') return true;
 
-    return false;
-  };
+      return false;
+    },
+    [currentUserId, getCurrentUserRole]
+  );
 
   // Get border color based on user role
-  const getBorderColor = (message) => {
-    // Current user gets green border
-    if (message.userId === currentUserId) {
-      return theme.colors.vibeGreen;
-    }
+  const getBorderColor = useCallback(
+    (message) => {
+      // Current user gets green border
+      if (message.userId === currentUserId) {
+        return theme.colors.vibeGreen;
+      }
 
-    // Admin gets purple border
-    const userRole = message.userRole || 'attendee';
-    if (userRole === 'admin') {
-      return theme.colors.vibePurple;
-    }
+      // Admin gets purple border
+      const userRole = message.userRole || 'attendee';
+      if (userRole === 'admin') {
+        return theme.colors.vibePurple;
+      }
 
-    // Host or cohost gets orange border
-    if (userRole === 'host') {
-      return theme.colors.vibeOrange;
-    }
+      // Host or cohost gets orange border
+      if (userRole === 'host') {
+        return theme.colors.vibeOrange;
+      }
 
-    // Everyone else gets blue border
-    return theme.colors.vibeBlue;
-  };
+      // Everyone else gets blue border
+      return theme.colors.vibeBlue;
+    },
+    [currentUserId]
+  );
 
-  // Message item component
-  const MessageItem = memo(({ message, isCurrentUser }) => {
-    const borderColor = getBorderColor(message);
+  // Create stable delete handlers for each message
+  const createDeleteHandler = useCallback(
+    (messageId, messageUserId) => {
+      return () => handleDeleteMessage(messageId, messageUserId);
+    },
+    [handleDeleteMessage]
+  );
 
-    return (
-      <View style={styles.messageContainer}>
-        {/* Message Card */}
-        <View
-          style={[
-            styles.messageCard,
-            { borderColor: borderColor },
-          ]}
-        >
-          {/* Delete button - top right */}
-          {canDeleteMessage(message) && (
-            <TouchableOpacity
-              onPress={() =>
-                handleDeleteMessage(message.id, message.userId)
-              }
-              style={styles.deleteButton}
-            >
-              <Text style={styles.deleteButtonText}>✕</Text>
-            </TouchableOpacity>
-          )}
+  // Create stable avatar press handlers for each message
+  const createAvatarPressHandler = useCallback(
+    (userId) => {
+      return () => handleProfileNavigation(userId);
+    },
+    [handleProfileNavigation]
+  );
 
-          {/* Profile Avatar */}
-          <View style={styles.avatarContainer}>
-            <UserAvatar
-              userId={message.userId}
-              size={44}
-            />
-          </View>
+  // Message item component with pre-computed values
+  const MessageItem = memo(
+    ({
+      message,
+      isCurrentUser,
+      borderColor,
+      canDelete,
+      onDelete,
+      onAvatarPress,
+    }) => {
+      return (
+        <View style={styles.messageContainer}>
+          {/* Message Card */}
+          <View style={[styles.messageCard, { borderColor: borderColor }]}>
+            {/* Delete button - top right */}
+            {canDelete && (
+              <TouchableOpacity onPress={onDelete} style={styles.deleteButton}>
+                <Text style={styles.deleteButtonText}>✕</Text>
+              </TouchableOpacity>
+            )}
 
-          {/* Message Content */}
-          <View style={styles.messageContentContainer}>
-            {/* Sender name */}
-            <Text style={styles.senderName}>
-              {message.userName || 'Anonymous'}
-              {message.userRole === 'host' && ' (Host)'}
-              {message.userRole === 'admin' && ' (Admin)'}
-            </Text>
+            {/* Profile Avatar */}
+            <View style={styles.avatarContainer}>
+              <UserAvatar
+                userId={message.userId}
+                size={44}
+                onPress={onAvatarPress}
+              />
+            </View>
 
-            {/* Message text */}
-            <Text style={styles.messageText}>
-              {message.content}
-            </Text>
-
-            {/* Message footer */}
-            <View style={styles.messageFooter}>
-              <Text style={styles.messageTime}>
-                {formatMessageTime(message.timestamp)}
+            {/* Message Content */}
+            <View style={styles.messageContentContainer}>
+              {/* Sender name */}
+              <Text style={styles.senderName}>
+                {message.userName || 'Anonymous'}
+                {message.userRole === 'host' && ' (Host)'}
+                {message.userRole === 'admin' && ' (Admin)'}
               </Text>
+
+              {/* Message text */}
+              <Text style={styles.messageText}>{message.content}</Text>
+
+              {/* Message footer */}
+              <View style={styles.messageFooter}>
+                <Text style={styles.messageTime}>
+                  {formatMessageTime(message.timestamp)}
+                </Text>
+              </View>
             </View>
           </View>
         </View>
-      </View>
-    );
-  });
+      );
+    },
+    (prevProps, nextProps) => {
+      // Custom comparison - only re-render if these specific props change
+      return (
+        prevProps.message.id === nextProps.message.id &&
+        prevProps.message.content === nextProps.message.content &&
+        prevProps.message.timestamp === nextProps.message.timestamp &&
+        prevProps.isCurrentUser === nextProps.isCurrentUser &&
+        prevProps.borderColor === nextProps.borderColor &&
+        prevProps.canDelete === nextProps.canDelete &&
+        prevProps.onDelete === nextProps.onDelete &&
+        prevProps.onAvatarPress === nextProps.onAvatarPress
+      );
+    }
+  );
+
+  MessageItem.displayName = 'MessageItem';
 
   // Empty state component
   const EmptyState = () => (
@@ -224,6 +295,10 @@ export default function MessageBoardScreen({ route, navigation }) {
             <MessageItem
               message={item}
               isCurrentUser={item.userId === currentUserId}
+              borderColor={getBorderColor(item)}
+              canDelete={canDeleteMessage(item)}
+              onDelete={createDeleteHandler(item.id, item.userId)}
+              onAvatarPress={createAvatarPressHandler(item.userId)}
             />
           )}
           ListEmptyComponent={!loading ? <EmptyState /> : null}
@@ -244,71 +319,12 @@ export default function MessageBoardScreen({ route, navigation }) {
           }}
         />
 
-
-        {/* Message Input */}
-        <View style={styles.inputContainer}>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.textInput}
-              value={messageText}
-              onChangeText={(text) => {
-                setMessageText(text);
-                setIsTyping(text.length > 0);
-              }}
-              placeholder="Type a message..."
-              placeholderTextColor={theme.colors.textSecondary}
-              multiline
-              maxLength={500}
-              onFocus={() => {
-                // Scroll to bottom when keyboard opens
-                setTimeout(() => {
-                  flatListRef.current?.scrollToEnd({ animated: true });
-                }, 300);
-              }}
-            />
-
-            <TouchableOpacity
-              style={[
-                styles.sendButton,
-                (!messageText.trim() || submitting) &&
-                  styles.sendButtonDisabled,
-              ]}
-              onPress={handleSendMessage}
-              disabled={!messageText.trim() || submitting}
-            >
-              <LinearGradient
-                colors={
-                  messageText.trim() && !submitting
-                    ? theme.colors.buttonGradient
-                    : [theme.colors.darkGray, theme.colors.darkGray]
-                }
-                style={styles.sendButtonGradient}
-              >
-                <Text
-                  style={[
-                    styles.sendButtonText,
-                    (!messageText.trim() || submitting) &&
-                      styles.sendButtonTextDisabled,
-                  ]}
-                >
-                  {submitting ? '⏳' : '➤'}
-                </Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-
-          {/* Character count */}
-          {messageText.length > 400 && (
-            <Text
-              style={[
-                styles.charCount,
-                messageText.length >= 500 && styles.charCountWarning,
-              ]}
-            >
-              {messageText.length}/500
-            </Text>
-          )}
-        </View>
+        {/* Message Input - Isolated Component */}
+        <MessageInput
+          onSendMessage={handleSendMessage}
+          submitting={submitting}
+          disabled={false}
+        />
       </KeyboardAvoidingView>
     </VibeScreen>
   );
@@ -348,7 +364,7 @@ const styles = StyleSheet.create({
   },
   messagesContent: {
     paddingVertical: 16,
-    paddingBottom: 8,
+    paddingBottom: 30, // Bottom spacing requirement for comfortable scrolling
   },
   messageContainer: {
     marginBottom: 20,
@@ -401,11 +417,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1,
+    // UI Restrictions: NO borders, NO background colors on close/report buttons
   },
   deleteButtonText: {
     fontSize: 12,
     color: theme.colors.vibeRed || '#FF4444',
     fontWeight: 'bold',
+    // Simple clean text only - no borders or backgrounds
   },
   emptyState: {
     alignItems: 'center',

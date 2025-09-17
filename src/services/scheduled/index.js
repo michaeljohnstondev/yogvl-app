@@ -2,7 +2,10 @@
 
 // Import all modules
 import { ScheduledNotificationCore } from './scheduledNotificationCore';
-import { EventReminderTemplates, REMINDER_INTERVALS } from './eventReminderTemplates';
+import {
+  EventReminderTemplates,
+  REMINDER_INTERVALS,
+} from './eventReminderTemplates';
 import { NotificationProcessor } from './notificationProcessor';
 import { NotificationValidator } from './notificationValidator';
 
@@ -23,9 +26,100 @@ export class ScheduledNotificationService {
   // ========== EVENT REMINDERS ==========
 
   /**
+   * Subscribe user to event notifications with specific settings
+   */
+  static async subscribeToEventNotifications(
+    userId,
+    eventId,
+    studioId,
+    notificationSettings
+  ) {
+    try {
+      console.log(
+        `[ScheduledNotificationService] Subscribing user ${userId} to event ${eventId} notifications:`,
+        notificationSettings
+      );
+
+      // Schedule reminders based on user's settings
+      if (notificationSettings.eventReminders) {
+        // Fetch the full event data needed for scheduling
+        const { doc, getDoc } = await import('../../lib/firebase/firestore');
+        const { db } = await import('../../auth/services/firebase');
+
+        const eventRef = doc(db, 'studios', studioId, 'events', eventId);
+        const eventDoc = await getDoc(eventRef);
+
+        if (!eventDoc.exists()) {
+          throw new Error(`Event ${eventId} not found`);
+        }
+
+        const eventData = {
+          id: eventId,
+          studioId,
+          ...eventDoc.data(),
+        };
+
+        // Schedule standard reminders if enabled
+        await EventReminderTemplates.scheduleEventRemindersForUser(
+          eventData,
+          userId,
+          notificationSettings
+        );
+      }
+
+      return {
+        success: true,
+        userId,
+        eventId,
+        settingsApplied: notificationSettings,
+      };
+    } catch (error) {
+      console.error(
+        '[ScheduledNotificationService] Error subscribing to event notifications:',
+        error
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Unsubscribe user from event notifications
+   */
+  static async unsubscribeFromEventNotifications(userId, eventId) {
+    try {
+      console.log(
+        `[ScheduledNotificationService] Unsubscribing user ${userId} from event ${eventId} notifications`
+      );
+
+      // Cancel any scheduled notifications for this user and event
+      await NotificationProcessor.cancelUserEventNotifications(
+        userId,
+        eventId,
+        'User unsubscribed from event'
+      );
+
+      return {
+        success: true,
+        userId,
+        eventId,
+        message: 'Successfully unsubscribed from event notifications',
+      };
+    } catch (error) {
+      console.error(
+        '[ScheduledNotificationService] Error unsubscribing from event notifications:',
+        error
+      );
+      throw error;
+    }
+  }
+
+  /**
    * Schedule event reminder notifications with custom templates
    */
-  static async scheduleEventRemindersWithCustomTemplates(eventData, customReminderTemplates = []) {
+  static async scheduleEventRemindersWithCustomTemplates(
+    eventData,
+    customReminderTemplates = []
+  ) {
     return EventReminderTemplates.scheduleEventRemindersWithCustomTemplates(
       eventData,
       customReminderTemplates
@@ -58,15 +152,26 @@ export class ScheduledNotificationService {
   /**
    * Cancel scheduled notifications for a specific user and event
    */
-  static async cancelUserEventNotifications(userId, eventId, reason = 'Event cancelled') {
-    return NotificationProcessor.cancelUserEventNotifications(userId, eventId, reason);
+  static async cancelUserEventNotifications(
+    userId,
+    eventId,
+    reason = 'Event cancelled'
+  ) {
+    return NotificationProcessor.cancelUserEventNotifications(
+      userId,
+      eventId,
+      reason
+    );
   }
 
   /**
    * Get scheduled notifications for a user
    */
   static async getUserScheduledNotifications(userId, includeSent = false) {
-    return NotificationProcessor.getUserScheduledNotifications(userId, includeSent);
+    return NotificationProcessor.getUserScheduledNotifications(
+      userId,
+      includeSent
+    );
   }
 
   /**

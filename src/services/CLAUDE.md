@@ -6,7 +6,7 @@
 ### PRIMARY SERVICE AGENTS
 When ANY service is modified, Claude MUST automatically use these agents:
 
-1. **firebase-efficiency-guardian** 
+1. **firebase-efficiency-guardian**
    - Review Firebase usage patterns and queries
    - Audit for resource-draining background processes
    - Optimize database operations and listeners
@@ -50,6 +50,45 @@ When ANY service is modified, Claude MUST automatically use these agents:
    - Ensure data encryption and secure transmission
    - Review service access patterns for privacy compliance
 
+## NOTIFICATION ARCHITECTURE RULES
+
+**⚠️ CRITICAL: These notification rules are ABSOLUTE and must NEVER be violated**
+
+### ❌ FORBIDDEN NOTIFICATION TECHNOLOGIES
+- **expo-notifications** - NEVER import or use in any capacity
+- **@expo/notifications** - NEVER import or use
+- **react-native-push-notification** - NEVER import or use
+- **@react-native-community/push-notification-ios** - NEVER import or use
+- **Any third-party notification libraries** - NEVER import or use
+
+### ✅ APPROVED NOTIFICATION TECHNOLOGY STACK
+- **@react-native-firebase/messaging** - ONLY approved push notification system
+- **Firebase Cloud Functions** - ONLY approved backend notification processing
+- **FCM (Firebase Cloud Messaging)** - ONLY approved notification delivery method
+
+### Notification System Architecture
+```
+User Action → NotificationEngine → Cloud Functions → FCM → Device
+```
+**NO OTHER NOTIFICATION PATHS ARE PERMITTED**
+
+### Notification Flow Requirements:
+1. **Client Side**: Use NotificationEngine.createNotification()
+2. **Backend**: Cloud Functions process FCM triggers
+3. **Delivery**: FCM handles all notification display (foreground + background)
+4. **Handling**: @react-native-firebase/messaging handles received notifications
+
+### Forbidden Notification Patterns:
+```javascript
+// ❌ NEVER DO THIS
+import * as Notifications from 'expo-notifications'
+await Notifications.scheduleNotificationAsync(...)
+
+// ✅ ONLY DO THIS
+import messaging from '@react-native-firebase/messaging'
+await notificationEngine.createNotification(...)
+```
+
 ## SERVICE ARCHITECTURE PRINCIPLES
 
 ### What Services SHOULD Contain:
@@ -66,12 +105,17 @@ When ANY service is modified, Claude MUST automatically use these agents:
 - ❌ Screen navigation logic
 - ❌ UI state management
 - ❌ Component-specific logic
+- ❌ expo-notifications imports or usage
 
 ## SERVICE PATTERNS
 
 ### Standard Service Structure:
 ```javascript
 // src/services/ServiceName.js
+
+// ⚠️  WARNING: DO NOT USE expo-notifications IN THIS PROJECT
+// ⚠️  Use Firebase Cloud Messaging (@react-native-firebase/messaging) ONLY
+// ⚠️  All push notifications must go through FCM Cloud Functions
 
 // External dependencies
 import { db } from '../auth/services/firebase'
@@ -86,10 +130,10 @@ class ServiceName {
   async read(id) { }
   async update(id, data) { }
   async delete(id) { }
-  
+
   // Business logic methods
   async businessOperation(params) { }
-  
+
   // Helper methods (private)
   _validateInput(data) { }
   _transformData(data) { }
@@ -129,16 +173,19 @@ export default new ServiceName()
 1. Check DATABASE.md for schema requirements
 2. Run `duplicate-code-guardian` for similar services
 3. Review existing service patterns
+4. **SCAN FOR EXPO-NOTIFICATIONS IMPORTS** - Automatic rejection if found
 
 ### During Modification:
 1. `firebase-efficiency-guardian` monitors queries
 2. `database-guardian` validates schema compliance
 3. `code-organization-monitor` tracks complexity
+4. **VALIDATE FCM-ONLY NOTIFICATION USAGE**
 
 ### Post-Modification:
 1. `code-cleanup-auditor` removes unused code
 2. Test all Firebase operations
 3. Verify error handling works properly
+4. **CONFIRM NO EXPO-NOTIFICATIONS IMPORTS**
 
 ## SERVICE CATEGORIES
 
@@ -149,7 +196,7 @@ export default new ServiceName()
 
 ### Core Services (`src/services/`):
 - User management
-- Notifications
+- **Notifications (FCM-ONLY)**
 - Admin operations
 - Shared business logic
 
@@ -177,6 +224,36 @@ try {
 - Validation errors
 - Database constraint errors
 
+## NOTIFICATION-SPECIFIC REQUIREMENTS
+
+### Notification Service Rules:
+1. **ONLY use @react-native-firebase/messaging**
+2. **ALL notifications must go through NotificationEngine**
+3. **NO direct FCM calls - use Cloud Functions**
+4. **NO expo-notifications imports or usage**
+5. **NO manual notification display code**
+
+### Approved Notification Flow:
+```javascript
+// ✅ CORRECT: Client creates notification trigger
+await notificationEngine.createNotification({
+  userId,
+  type: 'admin_notification',
+  title,
+  message,
+  data
+})
+
+// ✅ CORRECT: Cloud Function processes and sends FCM
+// (Happens automatically in Cloud Functions)
+
+// ✅ CORRECT: FCM handles display
+messaging().onMessage(async (remoteMessage) => {
+  console.log('Message received:', remoteMessage)
+  // FCM automatically displays notification
+})
+```
+
 ## PERFORMANCE GUIDELINES
 
 ### Caching Strategy:
@@ -200,6 +277,15 @@ try {
 - Avoid circular dependencies
 - Use dependency injection when needed
 
+## AGENT ENFORCEMENT FOR NOTIFICATIONS
+
+When ANY notification-related code is detected, agents MUST:
+
+1. **Scan for Forbidden Imports**: Auto-reject expo-notifications
+2. **Enforce FCM-Only**: Ensure @react-native-firebase/messaging usage
+3. **Validate Architecture**: Confirm NotificationEngine → Cloud Functions → FCM flow
+4. **Block Non-FCM Patterns**: Reject direct notification display code
+
 ## SUCCESS CRITERIA
 
 A service modification is complete when:
@@ -211,5 +297,7 @@ A service modification is complete when:
 - ✅ No unused code remains
 - ✅ Performance optimized
 - ✅ Follows BVS service patterns
+- ✅ **NO expo-notifications imports anywhere**
+- ✅ **ONLY FCM-based notification architecture**
 
-**Remember**: Services are the data layer. Keep them focused on external operations and business logic, not UI concerns.
+**Remember**: Services are the data layer. Keep them focused on external operations and business logic, not UI concerns. For notifications: FCM-ONLY, NO EXCEPTIONS.

@@ -7,8 +7,6 @@ import {
   notifyCohostInvitation,
   notifyHostOfEventJoin,
   notifyHostOfEventLeave,
-  notifyFriendRequest,
-  notifyFriendAccepted,
 } from '../services/notifications';
 
 // Mock test data

@@ -11,12 +11,12 @@ import {
   query,
   where,
   getDocs,
-  runTransaction
+  runTransaction,
 } from 'firebase/firestore';
 import { db } from '../../../auth/services/firebase';
 import {
   notifySubscribersOfCancellation,
-  getEventSubscribers
+  getEventSubscribers,
 } from '../../../services/shared/eventNotificationsService';
 
 /**
@@ -86,10 +86,13 @@ export const deleteEvent = async (studioId, eventId, currentUserId) => {
               eventTitle: eventData.title || 'Event',
               subscriberIds: eventData.subscribers,
               hostName,
-              reason: 'Event has been deleted'
+              reason: 'Event has been deleted',
             });
           } catch (notificationError) {
-            console.error('[EventCore] Failed to send cancellation notifications:', notificationError);
+            console.error(
+              '[EventCore] Failed to send cancellation notifications:',
+              notificationError
+            );
           }
         }, 0);
       }
@@ -99,34 +102,40 @@ export const deleteEvent = async (studioId, eventId, currentUserId) => {
 
       // Clean up subscriber references
       if (eventData.subscribers) {
-        eventData.subscribers.forEach(userId => {
+        eventData.subscribers.forEach((userId) => {
           userCleanupPromises.push(
             updateDoc(doc(db, 'users', userId), {
               'userdata.subscribedEvents': arrayRemove(eventId),
-              'userdata.metrics.events.subscribedEvents': arrayRemove(eventId)
-            }).catch(err => console.warn(`Failed to clean up user ${userId}:`, err))
+              'userdata.metrics.events.subscribedEvents': arrayRemove(eventId),
+            }).catch((err) =>
+              console.warn(`Failed to clean up user ${userId}:`, err)
+            )
           );
         });
       }
 
       // Clean up invitation references
       if (eventData.invitations) {
-        eventData.invitations.forEach(userId => {
+        eventData.invitations.forEach((userId) => {
           userCleanupPromises.push(
             updateDoc(doc(db, 'users', userId), {
               'userdata.invitedEvents': arrayRemove(eventId),
-              'userdata.metrics.events.invitedEvents': arrayRemove(eventId)
-            }).catch(err => console.warn(`Failed to clean up invited user ${userId}:`, err))
+              'userdata.metrics.events.invitedEvents': arrayRemove(eventId),
+            }).catch((err) =>
+              console.warn(`Failed to clean up invited user ${userId}:`, err)
+            )
           );
         });
       }
 
       // Execute cleanup (fire and forget)
       setTimeout(() => {
-        Promise.allSettled(userCleanupPromises).then(results => {
-          const failed = results.filter(r => r.status === 'rejected').length;
+        Promise.allSettled(userCleanupPromises).then((results) => {
+          const failed = results.filter((r) => r.status === 'rejected').length;
           if (failed > 0) {
-            console.warn(`[EventCore] ${failed} user cleanup operations failed`);
+            console.warn(
+              `[EventCore] ${failed} user cleanup operations failed`
+            );
           } else {
             console.log('[EventCore] User cleanup completed successfully');
           }
@@ -138,7 +147,7 @@ export const deleteEvent = async (studioId, eventId, currentUserId) => {
 
       return {
         success: true,
-        notifiedUsers: eventData.subscribers?.length || 0
+        notifiedUsers: eventData.subscribers?.length || 0,
       };
     });
   } catch (error) {
@@ -168,7 +177,10 @@ export const kickAttendee = async (studioId, eventId, attendeeId, hostId) => {
       const eventData = eventSnap.data();
 
       // Verify host permissions
-      if (eventData.createdBy !== hostId && !eventData.cohosts?.includes(hostId)) {
+      if (
+        eventData.createdBy !== hostId &&
+        !eventData.cohosts?.includes(hostId)
+      ) {
         throw new Error('Only event host or cohosts can kick attendees');
       }
 
@@ -186,20 +198,24 @@ export const kickAttendee = async (studioId, eventId, attendeeId, hostId) => {
       // Remove from event subscribers
       transaction.update(eventRef, {
         subscribers: arrayRemove(attendeeId),
-        subscriberCount: increment(-1)
+        subscriberCount: increment(-1),
       });
 
       // Remove from user's subscribed events
       const userRef = doc(db, 'users', attendeeId);
       transaction.update(userRef, {
         'userdata.subscribedEvents': arrayRemove(eventId),
-        'userdata.metrics.events.subscribedEvents': arrayRemove(eventId)
+        'userdata.metrics.events.subscribedEvents': arrayRemove(eventId),
       });
 
       // Send notification to kicked user (fire and forget)
       setTimeout(async () => {
         try {
-          const { NOTIFICATION_TYPES, NOTIFICATION_PRIORITY, notificationEngine } = await import('../../../services/shared/NotificationEngine');
+          const {
+            NOTIFICATION_TYPES,
+            NOTIFICATION_PRIORITY,
+            notificationEngine,
+          } = await import('../../../services/shared/NotificationEngine');
 
           const hostDoc = await getDoc(doc(db, 'users', hostId));
           const hostName = hostDoc.exists()
@@ -216,20 +232,25 @@ export const kickAttendee = async (studioId, eventId, attendeeId, hostId) => {
               eventTitle: eventData.title,
               hostId,
               hostName,
-              actionType: 'kicked'
+              actionType: 'kicked',
             },
-            priority: NOTIFICATION_PRIORITY.HIGH
+            priority: NOTIFICATION_PRIORITY.HIGH,
           });
         } catch (notificationError) {
-          console.error('[EventCore] Failed to send kick notification:', notificationError);
+          console.error(
+            '[EventCore] Failed to send kick notification:',
+            notificationError
+          );
         }
       }, 0);
 
-      console.log(`[EventCore] User ${attendeeId} kicked from event ${eventId} by ${hostId}`);
+      console.log(
+        `[EventCore] User ${attendeeId} kicked from event ${eventId} by ${hostId}`
+      );
 
       return {
         success: true,
-        remainingSubscribers: currentSubscribers.length - 1
+        remainingSubscribers: currentSubscribers.length - 1,
       };
     });
   } catch (error) {
@@ -250,10 +271,12 @@ export const getEventInvitationStatus = async (eventId, studioId) => {
     const eventSnap = await getDoc(eventRef);
 
     if (!eventSnap.exists()) {
-      console.warn(`[EventCore] Event ${eventId} not found for invitation status`);
+      console.warn(
+        `[EventCore] Event ${eventId} not found for invitation status`
+      );
       return {
         invitations: [],
-        subscribers: []
+        subscribers: [],
       };
     }
 
@@ -262,14 +285,14 @@ export const getEventInvitationStatus = async (eventId, studioId) => {
     return {
       invitations: eventData.invitations || [],
       subscribers: eventData.subscribers || [],
-      cohosts: eventData.cohosts || []
+      cohosts: eventData.cohosts || [],
     };
   } catch (error) {
     console.error('[EventCore] Error getting event invitation status:', error);
     return {
       invitations: [],
       subscribers: [],
-      cohosts: []
+      cohosts: [],
     };
   }
 };
@@ -282,7 +305,12 @@ export const getEventInvitationStatus = async (eventId, studioId) => {
  * @param {string} currentUserId - User making the update
  * @returns {Promise<Object>} Success result
  */
-export const updateEventDetails = async (studioId, eventId, updates, currentUserId) => {
+export const updateEventDetails = async (
+  studioId,
+  eventId,
+  updates,
+  currentUserId
+) => {
   try {
     return await runTransaction(db, async (transaction) => {
       const eventRef = doc(db, 'studios', studioId, 'events', eventId);
@@ -295,15 +323,26 @@ export const updateEventDetails = async (studioId, eventId, updates, currentUser
       const eventData = eventSnap.data();
 
       // Only event creator or cohosts can update
-      if (eventData.createdBy !== currentUserId && !eventData.cohosts?.includes(currentUserId)) {
+      if (
+        eventData.createdBy !== currentUserId &&
+        !eventData.cohosts?.includes(currentUserId)
+      ) {
         throw new Error('Only event creator or cohosts can update event');
       }
 
       // Apply updates
       const validUpdates = {};
-      const allowedFields = ['title', 'description', 'location', 'dateTime', 'endDateTime', 'maxGuests', 'isPrivate'];
+      const allowedFields = [
+        'title',
+        'description',
+        'location',
+        'dateTime',
+        'endDateTime',
+        'maxGuests',
+        'isPrivate',
+      ];
 
-      Object.keys(updates).forEach(key => {
+      Object.keys(updates).forEach((key) => {
         if (allowedFields.includes(key) && updates[key] !== undefined) {
           validUpdates[key] = updates[key];
         }
@@ -317,11 +356,14 @@ export const updateEventDetails = async (studioId, eventId, updates, currentUser
 
       transaction.update(eventRef, validUpdates);
 
-      console.log(`[EventCore] Event ${eventId} updated by ${currentUserId}:`, Object.keys(validUpdates));
+      console.log(
+        `[EventCore] Event ${eventId} updated by ${currentUserId}:`,
+        Object.keys(validUpdates)
+      );
 
       return {
         success: true,
-        updatedFields: Object.keys(validUpdates)
+        updatedFields: Object.keys(validUpdates),
       };
     });
   } catch (error) {

@@ -22,7 +22,9 @@ export const compareInterestsIgnoreCase = (interest1, interest2) => {
  */
 export const hasInterest = (interests, targetInterest) => {
   if (!Array.isArray(interests) || !targetInterest) return false;
-  return interests.some(interest => compareInterestsIgnoreCase(interest, targetInterest));
+  return interests.some((interest) =>
+    compareInterestsIgnoreCase(interest, targetInterest)
+  );
 };
 
 /**
@@ -39,7 +41,9 @@ export const toggleInterestInArray = (interests, targetInterest) => {
 
   if (exists) {
     // Remove the interest (case-insensitive)
-    return interests.filter(interest => !compareInterestsIgnoreCase(interest, targetInterest));
+    return interests.filter(
+      (interest) => !compareInterestsIgnoreCase(interest, targetInterest)
+    );
   } else {
     // Add the new interest
     return [...interests, targetInterest];
@@ -80,5 +84,5 @@ export const validateInterestsArray = (interests) => {
   return interests
     .slice(0, 50)
     .map(sanitizeInterest)
-    .filter(interest => interest !== null);
+    .filter((interest) => interest !== null);
 };

@@ -1,5 +1,10 @@
 import { useMemo } from 'react';
-import { getEventStatus, getStatusColor, isPastEvent, isEventFull } from '../lib/eventUtils';
+import {
+  getEventStatus,
+  getStatusColor,
+  isPastEvent,
+  isEventFull,
+} from '../lib/eventUtils';
 
 /**
  * Custom hook for calculating event status information

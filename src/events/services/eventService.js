@@ -61,12 +61,7 @@ export const eventService = {
  */
 
 // Core operations
-export {
-  fetchEventDetails,
-  deleteEvent,
-  kickAttendee,
-  updateEventDetails,
-};
+export { fetchEventDetails, deleteEvent, kickAttendee, updateEventDetails };
 
 // Invitation operations
 export {

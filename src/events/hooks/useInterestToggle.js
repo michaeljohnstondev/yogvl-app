@@ -1,6 +1,9 @@
 import { useCallback, useState } from 'react';
 import { toggleInterestInArray, hasInterest } from '../../lib/interestUtils';
-import { addUserInterest, removeUserInterest } from '../../services/interestService';
+import {
+  addUserInterest,
+  removeUserInterest,
+} from '../../services/interestService';
 
 /**
  * Custom hook for managing interest toggle functionality
@@ -11,7 +14,11 @@ import { addUserInterest, removeUserInterest } from '../../services/interestServ
  * @param {function} setUserInterests - State setter for user interests
  * @returns {Object} - Hook interface with toggle handler and loading state
  */
-export const useInterestToggle = (currentUserId, userInterests, setUserInterests) => {
+export const useInterestToggle = (
+  currentUserId,
+  userInterests,
+  setUserInterests
+) => {
   const [isTogglingInterest, setIsTogglingInterest] = useState(false);
 
   /**
@@ -19,50 +26,56 @@ export const useInterestToggle = (currentUserId, userInterests, setUserInterests
    * @param {string} interest - Interest to toggle
    * @returns {Promise<void>}
    */
-  const handleInterestToggle = useCallback(async (interest) => {
-    // Prevent concurrent operations
-    if (isTogglingInterest || !currentUserId || !interest) return;
+  const handleInterestToggle = useCallback(
+    async (interest) => {
+      // Prevent concurrent operations
+      if (isTogglingInterest || !currentUserId || !interest) return;
 
-    setIsTogglingInterest(true);
+      setIsTogglingInterest(true);
 
-    const wasInterested = hasInterest(userInterests, interest);
+      const wasInterested = hasInterest(userInterests, interest);
 
-    // Optimistic update - immediately reflect change in UI
-    setUserInterests(prev => toggleInterestInArray(prev, interest));
+      // Optimistic update - immediately reflect change in UI
+      setUserInterests((prev) => toggleInterestInArray(prev, interest));
 
-    try {
-      // Perform Firebase operation
-      if (wasInterested) {
-        await removeUserInterest(currentUserId, interest);
-      } else {
-        await addUserInterest(currentUserId, interest);
+      try {
+        // Perform Firebase operation
+        if (wasInterested) {
+          await removeUserInterest(currentUserId, interest);
+        } else {
+          await addUserInterest(currentUserId, interest);
+        }
+      } catch (error) {
+        console.error('[useInterestToggle] Interest update failed:', {
+          userId: 'present',
+          interest: interest.substring(0, 20) + '...',
+          action: wasInterested ? 'remove' : 'add',
+          error: error.message,
+        });
+
+        // Revert optimistic update on error
+        setUserInterests((prev) => toggleInterestInArray(prev, interest));
+
+        // Re-throw error so component can handle UI feedback
+        throw error;
+      } finally {
+        setIsTogglingInterest(false);
       }
-    } catch (error) {
-      console.error('[useInterestToggle] Interest update failed:', {
-        userId: 'present',
-        interest: interest.substring(0, 20) + '...',
-        action: wasInterested ? 'remove' : 'add',
-        error: error.message
-      });
-
-      // Revert optimistic update on error
-      setUserInterests(prev => toggleInterestInArray(prev, interest));
-
-      // Re-throw error so component can handle UI feedback
-      throw error;
-    } finally {
-      setIsTogglingInterest(false);
-    }
-  }, [currentUserId, userInterests, setUserInterests, isTogglingInterest]);
+    },
+    [currentUserId, userInterests, setUserInterests, isTogglingInterest]
+  );
 
   /**
    * Checks if a specific interest is currently selected
    * @param {string} interest - Interest to check
    * @returns {boolean} - True if interest is selected
    */
-  const isInterestSelected = useCallback((interest) => {
-    return hasInterest(userInterests, interest);
-  }, [userInterests]);
+  const isInterestSelected = useCallback(
+    (interest) => {
+      return hasInterest(userInterests, interest);
+    },
+    [userInterests]
+  );
 
   return {
     handleInterestToggle,

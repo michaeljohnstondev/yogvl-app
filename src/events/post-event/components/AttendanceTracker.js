@@ -60,7 +60,6 @@ const AttendanceTracker = ({
     );
   };
 
-
   return (
     <View style={styles.container}>
       {/* Stats Header */}

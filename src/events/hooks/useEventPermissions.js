@@ -1,5 +1,8 @@
 import { useMemo } from 'react';
-import { getUserEventPermissions, validateEventJoinConstraints } from '../lib/eventUtils';
+import {
+  getUserEventPermissions,
+  validateEventJoinConstraints,
+} from '../lib/eventUtils';
 
 /**
  * Custom hook for calculating event permissions and join constraints
@@ -11,7 +14,12 @@ import { getUserEventPermissions, validateEventJoinConstraints } from '../lib/ev
  * @param {boolean} isSubscribed - Whether user is subscribed to event
  * @returns {Object} - Permissions and join constraints
  */
-export const useEventPermissions = (currentUserId, userData, event, isSubscribed) => {
+export const useEventPermissions = (
+  currentUserId,
+  userData,
+  event,
+  isSubscribed
+) => {
   // Memoize permissions calculation
   const permissions = useMemo(() => {
     if (!currentUserId || !userData || !event) {

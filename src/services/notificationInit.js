@@ -16,21 +16,11 @@ export const initializeNotificationServices = () => {
       '[NotificationInit] Notification services initialized (background polling disabled)'
     );
 
-    // Run one-time cleanup of old notifications
-    ScheduledNotificationService.cleanupOldNotifications(30)
-      .then((result) => {
-        if (result.deletedCount > 0) {
-          console.log(
-            `[NotificationInit] 🧹 Cleaned up ${result.deletedCount} old scheduled notifications`
-          );
-        }
-      })
-      .catch((error) => {
-        console.warn(
-          '[NotificationInit] Failed to cleanup old notifications:',
-          error
-        );
-      });
+    // NOTE: Old notification cleanup is now user-scoped and should be called
+    // when a user logs in, not during app initialization
+    console.log(
+      '[NotificationInit] Global cleanup disabled - use user-scoped cleanup after login'
+    );
 
     return true;
   } catch (error) {

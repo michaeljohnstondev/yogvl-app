@@ -27,14 +27,18 @@ exports.onFollowNotificationTrigger = functions.firestore.onDocumentCreated(
       const { targetUserId, followerId, followerName } = triggerData;
 
       // Get target user's notification preferences
-      const targetUserDoc = await admin.firestore().doc(`users/${targetUserId}`).get();
+      const targetUserDoc = await admin
+        .firestore()
+        .doc(`users/${targetUserId}`)
+        .get();
       if (!targetUserDoc.exists) {
         console.log('Target user document not found');
         return;
       }
 
       const targetUserData = targetUserDoc.data();
-      const socialPrefs = targetUserData?.userdata?.settings?.notifications?.social || {};
+      const socialPrefs =
+        targetUserData?.userdata?.settings?.notifications?.social || {};
 
       // Check if user wants follow notifications
       if (socialPrefs.follows === false) {
@@ -100,14 +104,18 @@ exports.onFriendRequestTrigger = functions.firestore.onDocumentCreated(
       const { targetUserId, requesterId, requesterName } = triggerData;
 
       // Get target user's notification preferences
-      const targetUserDoc = await admin.firestore().doc(`users/${targetUserId}`).get();
+      const targetUserDoc = await admin
+        .firestore()
+        .doc(`users/${targetUserId}`)
+        .get();
       if (!targetUserDoc.exists) {
         console.log('Target user document not found');
         return;
       }
 
       const targetUserData = targetUserDoc.data();
-      const socialPrefs = targetUserData?.userdata?.settings?.notifications?.social || {};
+      const socialPrefs =
+        targetUserData?.userdata?.settings?.notifications?.social || {};
 
       // Check if user wants friend request notifications
       if (socialPrefs.friendRequests === false) {
@@ -188,11 +196,15 @@ exports.onMutualFollowTrigger = functions.firestore.onDocumentCreated(
 
       for (const notification of notifications) {
         try {
-          const userDoc = await admin.firestore().doc(`users/${notification.userId}`).get();
+          const userDoc = await admin
+            .firestore()
+            .doc(`users/${notification.userId}`)
+            .get();
           if (!userDoc.exists) continue;
 
           const userData = userDoc.data();
-          const socialPrefs = userData?.userdata?.settings?.notifications?.social || {};
+          const socialPrefs =
+            userData?.userdata?.settings?.notifications?.social || {};
 
           // Check if user wants mutual follow notifications
           if (socialPrefs.mutualFollows === false) continue;
@@ -220,9 +232,14 @@ exports.onMutualFollowTrigger = functions.firestore.onDocumentCreated(
             },
           });
 
-          console.log(`Sent mutual follow notification to ${notification.userId}`);
+          console.log(
+            `Sent mutual follow notification to ${notification.userId}`
+          );
         } catch (error) {
-          console.error(`Error sending mutual follow notification to ${notification.userId}:`, error);
+          console.error(
+            `Error sending mutual follow notification to ${notification.userId}:`,
+            error
+          );
         }
       }
     } catch (error) {

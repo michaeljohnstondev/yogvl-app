@@ -55,7 +55,9 @@
       "Bash(timeout 30 npx expo export --dev)",
       "Bash(npx reset-cache:*)",
       "Bash(tasklist)",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "Bash(taskkill:*)",
+      "Bash(npx tsc:*)"
     ],
     "deny": [],
     "ask": [],

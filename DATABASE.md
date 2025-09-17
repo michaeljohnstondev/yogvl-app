@@ -48,7 +48,20 @@ Based on actual user data from your system:
       display: object,        // Display preferences
       notifications: object,  // Notification settings
       preferences: object,    // General preferences
-      privacy: object         // Privacy settings
+      privacy: {              // Privacy settings (actual schema)
+        // Contact Information Visibility
+        emailVisibility: string,         // 'never', 'friends', 'followers', 'always'
+        phoneVisibility: string,         // 'never', 'friends', 'followers', 'always'
+        locationVisibility: string,      // 'never', 'friends', 'followers', 'always'
+
+        // Profile Visibility
+        profileVisibility: boolean,      // Whether profile is accessible to others
+        bioVisibility: string,           // 'never', 'friends', 'followers', 'always'
+        profilePictureVisibility: string, // 'never', 'friends', 'followers', 'always'
+
+        // Event Privacy
+        requireFollowForEvents: boolean  // Whether friends-only events are required
+      }
     },
 
     // Studio associations

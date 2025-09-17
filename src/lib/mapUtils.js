@@ -3,7 +3,10 @@ import { Linking, Alert, Platform } from 'react-native';
 export const mapUtils = {
   openMapsWithLocation(location, address) {
     if (!location && !address) {
-      Alert.alert('No Location', 'This event does not have a location specified.');
+      Alert.alert(
+        'No Location',
+        'This event does not have a location specified.'
+      );
       return;
     }
 
@@ -64,7 +67,10 @@ export const mapUtils = {
 
   openDirections(startLocation, endLocation, endAddress) {
     if (!endLocation && !endAddress) {
-      Alert.alert('No Destination', 'Cannot provide directions without a destination.');
+      Alert.alert(
+        'No Destination',
+        'Cannot provide directions without a destination.'
+      );
       return;
     }
 
@@ -172,7 +178,9 @@ export const mapUtils = {
       }
 
       // Format: "latitude: xx, longitude: yy"
-      const namedFormat = cleanString.match(/latitude:\s*(-?\d+\.?\d*),?\s*longitude:\s*(-?\d+\.?\d*)/i);
+      const namedFormat = cleanString.match(
+        /latitude:\s*(-?\d+\.?\d*),?\s*longitude:\s*(-?\d+\.?\d*)/i
+      );
       if (namedFormat) {
         return {
           latitude: parseFloat(namedFormat[1]),
@@ -189,7 +197,10 @@ export const mapUtils = {
 
   openWithCoordinates(latitude, longitude, label = 'Event Location') {
     if (typeof latitude !== 'number' || typeof longitude !== 'number') {
-      Alert.alert('Invalid Coordinates', 'Cannot open maps with invalid coordinates');
+      Alert.alert(
+        'Invalid Coordinates',
+        'Cannot open maps with invalid coordinates'
+      );
       return;
     }
 
@@ -216,8 +227,10 @@ export const mapUtils = {
     const dLon = this.deg2rad(lon2 - lon1);
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(this.deg2rad(lat1)) * Math.cos(this.deg2rad(lat2)) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      Math.cos(this.deg2rad(lat1)) *
+        Math.cos(this.deg2rad(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distance = R * c; // Distance in km
 

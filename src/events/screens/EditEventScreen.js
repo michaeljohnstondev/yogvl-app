@@ -385,7 +385,7 @@ export default function EditEventScreen({ navigation, route }) {
       formData.location.trim() !== (eventData.location || '').trim() ||
       formData.address.trim() !== (eventData.address || '').trim() ||
       formData.details.trim() !== (eventData.details || '').trim() ||
-      formData.maxGuests.toString().trim() !==
+      (formData.maxGuests ? formData.maxGuests.toString().trim() : '') !==
         (eventData.maxGuests?.toString() || '').trim();
 
     // Check for configuration changes
@@ -567,7 +567,7 @@ export default function EditEventScreen({ navigation, route }) {
           location: templateFormData.location || '',
           address: templateFormData.address || '',
           details: templateFormData.details || '',
-          maxGuests: templateFormData.maxGuests || '',
+          maxGuests: templateFormData.maxGuests ? templateFormData.maxGuests.toString() : '',
           hasFee: templateFormData.hasFee || false,
           entryFee: templateFormData.entryFee || '',
           isPrivate: templateFormData.isPrivate || false,

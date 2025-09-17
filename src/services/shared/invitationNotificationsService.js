@@ -3,7 +3,7 @@
 import {
   notificationEngine,
   NOTIFICATION_TYPES,
-  NOTIFICATION_PRIORITY
+  NOTIFICATION_PRIORITY,
 } from './NotificationEngine';
 
 /**
@@ -25,14 +25,25 @@ export const notifyEventInvitation = async ({
   eventId,
   eventTitle,
   invitationId,
-  message = null
+  message = null,
 }) => {
   try {
-    if (!guestId || !inviterId || !inviterName || !eventId || !eventTitle || !invitationId) {
-      throw new Error('Missing required parameters for event invitation notification');
+    if (
+      !guestId ||
+      !inviterId ||
+      !inviterName ||
+      !eventId ||
+      !eventTitle ||
+      !invitationId
+    ) {
+      throw new Error(
+        'Missing required parameters for event invitation notification'
+      );
     }
 
-    console.log(`[InvitationNotifications] Sending event invitation notification to ${guestId}`);
+    console.log(
+      `[InvitationNotifications] Sending event invitation notification to ${guestId}`
+    );
 
     const notificationMessage = message
       ? `${inviterName} invited you to "${eventTitle}": ${message}`
@@ -50,21 +61,24 @@ export const notifyEventInvitation = async ({
         inviterName,
         invitationId,
         customMessage: message,
-        actionType: 'invitation_received'
+        actionType: 'invitation_received',
       },
-      priority: NOTIFICATION_PRIORITY.NORMAL
+      priority: NOTIFICATION_PRIORITY.NORMAL,
     });
 
     return {
       success: true,
       notificationId,
-      message: 'Event invitation notification sent successfully'
+      message: 'Event invitation notification sent successfully',
     };
   } catch (error) {
-    console.error('[InvitationNotifications] Error sending event invitation notification:', error);
+    console.error(
+      '[InvitationNotifications] Error sending event invitation notification:',
+      error
+    );
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 };
@@ -86,14 +100,25 @@ export const notifyInvitationAccepted = async ({
   guestName,
   eventId,
   eventTitle,
-  invitationId
+  invitationId,
 }) => {
   try {
-    if (!hostId || !guestId || !guestName || !eventId || !eventTitle || !invitationId) {
-      throw new Error('Missing required parameters for invitation accepted notification');
+    if (
+      !hostId ||
+      !guestId ||
+      !guestName ||
+      !eventId ||
+      !eventTitle ||
+      !invitationId
+    ) {
+      throw new Error(
+        'Missing required parameters for invitation accepted notification'
+      );
     }
 
-    console.log(`[InvitationNotifications] Sending invitation accepted notification to ${hostId}`);
+    console.log(
+      `[InvitationNotifications] Sending invitation accepted notification to ${hostId}`
+    );
 
     const notificationId = await notificationEngine.createNotification({
       userId: hostId,
@@ -106,21 +131,24 @@ export const notifyInvitationAccepted = async ({
         guestId,
         guestName,
         invitationId,
-        actionType: 'invitation_accepted'
+        actionType: 'invitation_accepted',
       },
-      priority: NOTIFICATION_PRIORITY.NORMAL
+      priority: NOTIFICATION_PRIORITY.NORMAL,
     });
 
     return {
       success: true,
       notificationId,
-      message: 'Invitation accepted notification sent successfully'
+      message: 'Invitation accepted notification sent successfully',
     };
   } catch (error) {
-    console.error('[InvitationNotifications] Error sending invitation accepted notification:', error);
+    console.error(
+      '[InvitationNotifications] Error sending invitation accepted notification:',
+      error
+    );
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 };
@@ -142,14 +170,25 @@ export const notifyInvitationDeclined = async ({
   guestName,
   eventId,
   eventTitle,
-  invitationId
+  invitationId,
 }) => {
   try {
-    if (!hostId || !guestId || !guestName || !eventId || !eventTitle || !invitationId) {
-      throw new Error('Missing required parameters for invitation declined notification');
+    if (
+      !hostId ||
+      !guestId ||
+      !guestName ||
+      !eventId ||
+      !eventTitle ||
+      !invitationId
+    ) {
+      throw new Error(
+        'Missing required parameters for invitation declined notification'
+      );
     }
 
-    console.log(`[InvitationNotifications] Sending invitation declined notification to ${hostId}`);
+    console.log(
+      `[InvitationNotifications] Sending invitation declined notification to ${hostId}`
+    );
 
     const notificationId = await notificationEngine.createNotification({
       userId: hostId,
@@ -162,21 +201,24 @@ export const notifyInvitationDeclined = async ({
         guestId,
         guestName,
         invitationId,
-        actionType: 'invitation_declined'
+        actionType: 'invitation_declined',
       },
-      priority: NOTIFICATION_PRIORITY.LOW
+      priority: NOTIFICATION_PRIORITY.LOW,
     });
 
     return {
       success: true,
       notificationId,
-      message: 'Invitation declined notification sent successfully'
+      message: 'Invitation declined notification sent successfully',
     };
   } catch (error) {
-    console.error('[InvitationNotifications] Error sending invitation declined notification:', error);
+    console.error(
+      '[InvitationNotifications] Error sending invitation declined notification:',
+      error
+    );
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 };
@@ -198,14 +240,25 @@ export const notifyCohostInvitation = async ({
   hostName,
   eventId,
   eventTitle,
-  invitationId
+  invitationId,
 }) => {
   try {
-    if (!inviteeId || !hostId || !hostName || !eventId || !eventTitle || !invitationId) {
-      throw new Error('Missing required parameters for cohost invitation notification');
+    if (
+      !inviteeId ||
+      !hostId ||
+      !hostName ||
+      !eventId ||
+      !eventTitle ||
+      !invitationId
+    ) {
+      throw new Error(
+        'Missing required parameters for cohost invitation notification'
+      );
     }
 
-    console.log(`[InvitationNotifications] Sending cohost invitation notification to ${inviteeId}`);
+    console.log(
+      `[InvitationNotifications] Sending cohost invitation notification to ${inviteeId}`
+    );
 
     const notificationId = await notificationEngine.createNotification({
       userId: inviteeId,
@@ -218,21 +271,24 @@ export const notifyCohostInvitation = async ({
         hostId,
         hostName,
         invitationId,
-        actionType: 'cohost_invitation'
+        actionType: 'cohost_invitation',
       },
-      priority: NOTIFICATION_PRIORITY.HIGH
+      priority: NOTIFICATION_PRIORITY.HIGH,
     });
 
     return {
       success: true,
       notificationId,
-      message: 'Cohost invitation notification sent successfully'
+      message: 'Cohost invitation notification sent successfully',
     };
   } catch (error) {
-    console.error('[InvitationNotifications] Error sending cohost invitation notification:', error);
+    console.error(
+      '[InvitationNotifications] Error sending cohost invitation notification:',
+      error
+    );
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 };
@@ -254,14 +310,25 @@ export const notifyCohostAccepted = async ({
   cohostName,
   eventId,
   eventTitle,
-  invitationId
+  invitationId,
 }) => {
   try {
-    if (!hostId || !cohostId || !cohostName || !eventId || !eventTitle || !invitationId) {
-      throw new Error('Missing required parameters for cohost accepted notification');
+    if (
+      !hostId ||
+      !cohostId ||
+      !cohostName ||
+      !eventId ||
+      !eventTitle ||
+      !invitationId
+    ) {
+      throw new Error(
+        'Missing required parameters for cohost accepted notification'
+      );
     }
 
-    console.log(`[InvitationNotifications] Sending cohost accepted notification to ${hostId}`);
+    console.log(
+      `[InvitationNotifications] Sending cohost accepted notification to ${hostId}`
+    );
 
     const notificationId = await notificationEngine.createNotification({
       userId: hostId,
@@ -274,21 +341,24 @@ export const notifyCohostAccepted = async ({
         cohostId,
         cohostName,
         invitationId,
-        actionType: 'cohost_accepted'
+        actionType: 'cohost_accepted',
       },
-      priority: NOTIFICATION_PRIORITY.NORMAL
+      priority: NOTIFICATION_PRIORITY.NORMAL,
     });
 
     return {
       success: true,
       notificationId,
-      message: 'Cohost accepted notification sent successfully'
+      message: 'Cohost accepted notification sent successfully',
     };
   } catch (error) {
-    console.error('[InvitationNotifications] Error sending cohost accepted notification:', error);
+    console.error(
+      '[InvitationNotifications] Error sending cohost accepted notification:',
+      error
+    );
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 };
@@ -312,22 +382,36 @@ export const sendBulkInvitationNotifications = async ({
   eventId,
   eventTitle,
   invitationIds,
-  message = null
+  message = null,
 }) => {
   try {
-    if (!recipientIds || !Array.isArray(recipientIds) || !inviterId || !inviterName || !eventId || !eventTitle || !invitationIds) {
-      throw new Error('Missing required parameters for bulk invitation notifications');
+    if (
+      !recipientIds ||
+      !Array.isArray(recipientIds) ||
+      !inviterId ||
+      !inviterName ||
+      !eventId ||
+      !eventTitle ||
+      !invitationIds
+    ) {
+      throw new Error(
+        'Missing required parameters for bulk invitation notifications'
+      );
     }
 
     if (recipientIds.length === 0) {
-      console.log('[InvitationNotifications] No recipients to send invitations to');
+      console.log(
+        '[InvitationNotifications] No recipients to send invitations to'
+      );
       return { success: true, notificationsSent: 0 };
     }
 
-    console.log(`[InvitationNotifications] Sending bulk invitation notifications to ${recipientIds.length} recipients`);
+    console.log(
+      `[InvitationNotifications] Sending bulk invitation notifications to ${recipientIds.length} recipients`
+    );
 
     // Send notifications to all recipients in parallel
-    const notificationPromises = recipientIds.map(recipientId =>
+    const notificationPromises = recipientIds.map((recipientId) =>
       notifyEventInvitation({
         guestId: recipientId,
         inviterId,
@@ -335,29 +419,36 @@ export const sendBulkInvitationNotifications = async ({
         eventId,
         eventTitle,
         invitationId: invitationIds[recipientId],
-        message
-      }).catch(error => {
-        console.error(`[InvitationNotifications] Failed to notify recipient ${recipientId}:`, error);
+        message,
+      }).catch((error) => {
+        console.error(
+          `[InvitationNotifications] Failed to notify recipient ${recipientId}:`,
+          error
+        );
         return { success: false };
       })
     );
 
     const results = await Promise.allSettled(notificationPromises);
-    const successCount = results.filter(result =>
-      result.status === 'fulfilled' && result.value?.success === true
+    const successCount = results.filter(
+      (result) =>
+        result.status === 'fulfilled' && result.value?.success === true
     ).length;
 
     return {
       success: successCount > 0,
       notificationsSent: successCount,
       totalRecipients: recipientIds.length,
-      message: `Bulk invitation notifications sent to ${successCount}/${recipientIds.length} recipients`
+      message: `Bulk invitation notifications sent to ${successCount}/${recipientIds.length} recipients`,
     };
   } catch (error) {
-    console.error('[InvitationNotifications] Error sending bulk invitation notifications:', error);
+    console.error(
+      '[InvitationNotifications] Error sending bulk invitation notifications:',
+      error
+    );
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 };

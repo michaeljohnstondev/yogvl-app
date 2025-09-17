@@ -218,9 +218,6 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
     textAlign: 'center',
     marginBottom: 40,
-    textShadowColor: theme.shadows.textGlow.textShadowColor,
-    textShadowOffset: theme.shadows.textGlow.textShadowOffset,
-    textShadowRadius: theme.shadows.textGlow.textShadowRadius,
   },
   authToggle: {
     width: '100%',

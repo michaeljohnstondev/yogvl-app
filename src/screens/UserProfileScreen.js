@@ -33,6 +33,7 @@ import {
   getUserRelationshipStatus,
 } from '../services/followService';
 import { useFollowActions } from '../hooks/useFollowActions';
+import { usePrivacyValidation } from '../hooks/usePrivacyValidation';
 import {
   deleteUserAccount,
   getUserDeletionPreview,
@@ -55,6 +56,8 @@ import { styles } from './UserProfileScreen.styles';
 function UserProfile({ navigation, route }) {
   const { userData, logout, currentUserId } = useAuth();
   const vibeAlert = useVibeAlert();
+  const { validateProfileAccess, clearValidationCache } =
+    usePrivacyValidation(currentUserId);
 
   // Check if viewing someone else's profile or own profile
   const targetUserId = route?.params?.userId || currentUserId;
@@ -109,6 +112,8 @@ function UserProfile({ navigation, route }) {
 
           if (result.success) {
             setIsBlocked(true);
+            // Clear validation cache for this user to ensure fresh checks
+            clearValidationCache(targetUserId);
             vibeAlert.success('User Blocked', 'This user has been blocked');
             // Navigate back since we blocked them
             setTimeout(() => navigation.goBack(), 1500);
@@ -521,7 +526,93 @@ function UserProfile({ navigation, route }) {
     }
   };
 
-  // Fetch target user's data if viewing someone else's profile
+  // STEP 1: Early privacy validation - check access before expensive operations
+  useEffect(() => {
+    const validateAccess = async () => {
+      if (isOwnProfile || !targetUserId || !currentUserId) {
+        return; // Skip validation for own profile or invalid IDs
+      }
+
+      console.log('[UserProfile] Validating privacy access for:', targetUserId);
+
+      try {
+        const validation = await validateProfileAccess(targetUserId, {
+          showGenericMessage: true,
+          useCache: true,
+        });
+
+        if (!validation.canAccess) {
+          console.log(
+            '[UserProfile] Access denied:',
+            validation.reason,
+            validation.message
+          );
+
+          // Provide specific error titles and messages based on denial reason
+          let errorTitle = 'Profile Unavailable';
+          let errorMessage = validation.message;
+
+          switch (validation.reason) {
+            case 'blocked_by_user':
+              errorTitle = 'User Not Available';
+              errorMessage = 'This user is not available.';
+              break;
+            case 'user_blocked':
+              errorTitle = 'Blocked User';
+              errorMessage =
+                'You have blocked this user. To view their profile, you need to unblock them first.';
+              break;
+            case 'profile_not_found':
+              errorTitle = 'User Not Found';
+              errorMessage = 'This user profile no longer exists.';
+              break;
+            case 'network_error':
+              errorTitle = 'Connection Error';
+              errorMessage =
+                'Unable to verify profile access. Please check your connection and try again.';
+              break;
+            default:
+              errorTitle = 'Profile Unavailable';
+              errorMessage =
+                validation.message ||
+                'Unable to access this profile at this time.';
+          }
+
+          vibeAlert.error(errorTitle, errorMessage);
+
+          // Navigate back after showing error
+          setTimeout(() => navigation.goBack(), 1500);
+          return;
+        }
+
+        console.log('[UserProfile] Access granted for:', targetUserId);
+
+        // Update relationship status from validation result if available
+        if (validation.relationshipStatus) {
+          setIsFollowing(validation.relationshipStatus.isFollowing);
+          setIsBlocked(validation.relationshipStatus.isBlocked);
+        }
+      } catch (error) {
+        console.error('[UserProfile] Error during privacy validation:', error);
+        vibeAlert.error(
+          'Error',
+          'Unable to load user profile. Please try again.'
+        );
+        setTimeout(() => navigation.goBack(), 1500);
+      }
+    };
+
+    validateAccess();
+  }, [
+    targetUserId,
+    isOwnProfile,
+    currentUserId,
+    navigation,
+    vibeAlert,
+    validateProfileAccess,
+  ]);
+
+  // STEP 2: Fetch target user's data if viewing someone else's profile (after privacy check)
   useEffect(() => {
     const fetchTargetUserData = async () => {
       if (isOwnProfile || !targetUserId || !currentUserId) {
@@ -584,13 +675,21 @@ function UserProfile({ navigation, route }) {
     loadFollowStats();
   }, [currentUserId, targetUserId, isOwnProfile]);
 
-  // OPTIMIZED: Single useEffect for all relationship status checks
+  // STEP 3: Additional relationship status checks (only if privacy validation didn't provide them)
   useEffect(() => {
-    const checkAllRelationshipStatus = async () => {
+    const checkAdditionalRelationshipStatus = async () => {
       if (isOwnProfile || !currentUserId || !targetUserId) return;
 
+      // Skip if we already have relationship status from privacy validation
+      if (isFollowing !== false || isBlocked !== false) {
+        console.log(
+          '[UserProfile] Skipping additional relationship check - already have status'
+        );
+        return;
+      }
+
       try {
-        // Single optimized call that gets follow + block status in 3 Firebase reads instead of 4-5
+        console.log('[UserProfile] Fetching additional relationship status');
         const relationshipStatus = await getUserRelationshipStatus(
           currentUserId,
           targetUserId
@@ -598,7 +697,7 @@ function UserProfile({ navigation, route }) {
 
         if (!relationshipStatus.success) {
           console.error(
-            '[UserProfile] Failed to get relationship status:',
+            '[UserProfile] Failed to get additional relationship status:',
             relationshipStatus.error
           );
           return;
@@ -606,26 +705,16 @@ function UserProfile({ navigation, route }) {
 
         setIsFollowing(relationshipStatus.isFollowing);
         setIsBlocked(relationshipStatus.isBlocked);
-
-        // Handle blocked by target user - redirect away from profile
-        if (relationshipStatus.isBlockedBy) {
-          console.log(
-            '[UserProfile] Access denied - user is blocked by target'
-          );
-          vibeAlert.error('User Not Available', 'This user is not available.');
-          setTimeout(() => navigation.goBack(), 1500);
-          return;
-        }
       } catch (error) {
         console.error(
-          '[UserProfile] Error checking relationship status:',
+          '[UserProfile] Error checking additional relationship status:',
           error
         );
       }
     };
 
-    checkAllRelationshipStatus();
-  }, [currentUserId, targetUserId, isOwnProfile, navigation, vibeAlert]);
+    checkAdditionalRelationshipStatus();
+  }, [currentUserId, targetUserId, isOwnProfile, isFollowing, isBlocked]);
 
   const formatPhoneNumber = (phoneNumber) => {
     if (!phoneNumber) return null;
@@ -684,6 +773,7 @@ function UserProfile({ navigation, route }) {
       {/* Main Profile Content */}
       <ScrollView
         style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* Top buttons row */}
@@ -979,9 +1069,9 @@ function UserProfile({ navigation, route }) {
               onBlock: handleBlockUser,
               onUnblock: handleBlockUser, // Same handler for now
               // Own profile actions
-              onSettings: () => navigation.navigate('Settings'),
+              onSettings: () => navigation.navigate('Privacy'),
               onNotificationSettings: () =>
-                navigation.navigate('Notifications'),
+                navigation.navigate('NotificationSettings'),
               onPrivacySettings: () => navigation.navigate('Privacy'),
               onLogout: handleLogout,
               onDeleteAccount: handleDeleteAccount,

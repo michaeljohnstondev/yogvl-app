@@ -96,32 +96,11 @@ export const getDefaultPrivacySettings = () => ({
 
   // Profile Visibility
   profileVisibility: true,
-
-  // Follow Privacy (removed - anyone can follow anyone)
+  bioVisibility: 'always', // Bio is typically more open
+  profilePictureVisibility: 'always', // Profile pictures typically public
 
   // Event Privacy
-  canSeeMyEvents: 'followers',
-  canInviteMe: 'followers',
-  showMyAttendance: true,
-  allowDirectInvites: true,
-
-  // Content Sharing
-  allowEventSharing: true,
-  allowProfileSharing: true,
-  showInSearch: true,
-  allowSuggestions: true,
-
-  // Account Security
-  twoFactorAuth: false,
-  requirePasswordForSensitiveActions: false,
-  sessionTimeout: 30, // days
-  logSecurityEvents: true,
-
-  // Data & Analytics
-  allowAnalytics: true,
-  shareUsageData: false,
-  allowPersonalization: true,
-  exportDataEnabled: true,
+  requireFollowForEvents: false,
 });
 
 /**

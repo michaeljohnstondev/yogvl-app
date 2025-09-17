@@ -4,7 +4,14 @@ import { VibeLoadingScreen } from './components/ui/base';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as Linking from 'expo-linking';
-import { getAuth, onAuthStateChanged, getDoc, doc, onSnapshot, getFirestore } from './lib/firebase';
+import {
+  getAuth,
+  onAuthStateChanged,
+  getDoc,
+  doc,
+  onSnapshot,
+  getFirestore,
+} from './lib/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import app, { auth as firebaseAuth } from './auth/services/firebase';
@@ -26,13 +33,10 @@ import {
   InterestsScreen,
   AdminScreen,
   HostProfileScreen,
-  MessageBoardScreen
+  MessageBoardScreen,
 } from './screens';
 
-import {
-  ContactInfoScreen,
-  LocationScreen
-} from './auth/screens';
+import { ContactInfoScreen, LocationScreen } from './auth/screens';
 
 import {
   CreateEventScreen,
@@ -42,7 +46,7 @@ import {
   InvitationsScreen,
   AttendanceScreen,
   EditEventScreen,
-  EventWrapUpScreen
+  EventWrapUpScreen,
 } from './events/screens';
 
 const Stack = createNativeStackNavigator();
@@ -224,7 +228,7 @@ export default function Navigation() {
             const newUserData = doc.data();
 
             // Only update state if navigation-relevant fields changed
-            setUserData(prevUserData => {
+            setUserData((prevUserData) => {
               if (!prevUserData) {
                 // First load - always update
                 return newUserData;
@@ -234,18 +238,22 @@ export default function Navigation() {
               const { preferences: prevPrefs, ...prevRest } = prevUserData;
               const { preferences: newPrefs, ...newRest } = newUserData;
 
-              const { interests: prevInterests, ...prevPrefsRest } = prevPrefs || {};
-              const { interests: newInterests, ...newPrefsRest } = newPrefs || {};
+              const { interests: prevInterests, ...prevPrefsRest } =
+                prevPrefs || {};
+              const { interests: newInterests, ...newPrefsRest } =
+                newPrefs || {};
 
               // Deep comparison of non-interest data
-              const navigationDataChanged = JSON.stringify(prevRest) !== JSON.stringify(newRest) ||
-                                          JSON.stringify(prevPrefsRest) !== JSON.stringify(newPrefsRest);
+              const navigationDataChanged =
+                JSON.stringify(prevRest) !== JSON.stringify(newRest) ||
+                JSON.stringify(prevPrefsRest) !== JSON.stringify(newPrefsRest);
 
               if (navigationDataChanged) {
                 return newUserData;
               } else {
                 // Only interests changed - don't trigger re-render
-                if (__DEV__) console.log('[Navigation] Ignored interest-only update');
+                if (__DEV__)
+                  console.log('[Navigation] Ignored interest-only update');
                 return prevUserData;
               }
             });
@@ -358,9 +366,18 @@ export default function Navigation() {
 
   // Log navigation state for debugging
   if (__DEV__) {
-    console.log('[Navigation] Auth state:', user ? 'authenticated' : 'unauthenticated');
-    console.log('[Navigation] Contact info:', userStatus.hasContactInfo ? 'complete' : 'missing');
-    console.log('[Navigation] Location:', userStatus.hasLocation ? 'set' : 'missing');
+    console.log(
+      '[Navigation] Auth state:',
+      user ? 'authenticated' : 'unauthenticated'
+    );
+    console.log(
+      '[Navigation] Contact info:',
+      userStatus.hasContactInfo ? 'complete' : 'missing'
+    );
+    console.log(
+      '[Navigation] Location:',
+      userStatus.hasLocation ? 'set' : 'missing'
+    );
     console.log('[Navigation] User data updated');
   }
 
@@ -461,10 +478,7 @@ export default function Navigation() {
                 name="MessageBoard"
                 component={MessageBoardScreen}
               />
-              <Stack.Screen
-                name="EventWrapUp"
-                component={EventWrapUpScreen}
-              />
+              <Stack.Screen name="EventWrapUp" component={EventWrapUpScreen} />
             </Stack.Navigator>
           )}
         </NavigationContainer>

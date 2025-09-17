@@ -1,11 +1,6 @@
 // services/scheduled/notificationValidator.js - Event Validation & Helper Functions
 
-import {
-  collection,
-  getDocs,
-  query,
-  where,
-} from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../auth/services/firebase';
 
 export class NotificationValidator {
@@ -64,7 +59,10 @@ export class NotificationValidator {
       const snapshot = await getDocs(eventQuery);
       return !snapshot.empty;
     } catch (error) {
-      console.error('[NotificationValidator] Error checking event existence:', error);
+      console.error(
+        '[NotificationValidator] Error checking event existence:',
+        error
+      );
       return false;
     }
   }
@@ -88,7 +86,10 @@ export class NotificationValidator {
       const eventData = snapshot.docs[0].data();
       return Boolean(eventData.cancelled);
     } catch (error) {
-      console.error('[NotificationValidator] Error checking event cancellation:', error);
+      console.error(
+        '[NotificationValidator] Error checking event cancellation:',
+        error
+      );
       return true; // Assume cancelled on error for safety
     }
   }
@@ -116,7 +117,10 @@ export class NotificationValidator {
 
       return eventTime < new Date();
     } catch (error) {
-      console.error('[NotificationValidator] Error checking event time:', error);
+      console.error(
+        '[NotificationValidator] Error checking event time:',
+        error
+      );
       return true; // Assume past on error for safety
     }
   }
@@ -151,7 +155,10 @@ export class NotificationValidator {
         valid: !eventData.cancelled && eventTime >= new Date(),
       };
     } catch (error) {
-      console.error('[NotificationValidator] Error getting event details:', error);
+      console.error(
+        '[NotificationValidator] Error getting event details:',
+        error
+      );
       return null;
     }
   }
@@ -180,7 +187,11 @@ export class NotificationValidator {
       errors.push('title must be a non-empty string');
     }
 
-    if (!message || typeof message !== 'string' || message.trim().length === 0) {
+    if (
+      !message ||
+      typeof message !== 'string' ||
+      message.trim().length === 0
+    ) {
       errors.push('message must be a non-empty string');
     }
 

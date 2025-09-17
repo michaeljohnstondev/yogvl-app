@@ -11,6 +11,7 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   getUserNotifications,
   markAllNotificationsAsRead,
@@ -107,11 +108,26 @@ export default function NotificationsScreen({ navigation }) {
   );
 
   // Handle notification delete
-  const handleNotificationDelete = useCallback((notificationId) => {
-    // With real-time listeners, we don't need to manually update state
-    // Firebase will automatically remove the deleted notification
-    console.log(`[NotificationsScreen] Notification ${notificationId} deleted`);
-  }, []);
+  const handleNotificationDelete = useCallback(async (notificationId) => {
+    if (!currentUserId) {
+      console.error('[NotificationsScreen] Cannot delete: no current user');
+      return;
+    }
+
+    try {
+      console.log(`[NotificationsScreen] Deleting notification ${notificationId}`);
+
+      // Call the actual delete service
+      await deleteNotification(currentUserId, notificationId);
+
+      console.log(`[NotificationsScreen] Successfully deleted notification ${notificationId}`);
+
+      // Real-time listeners will automatically update UI after successful deletion
+    } catch (error) {
+      console.error(`[NotificationsScreen] Failed to delete notification ${notificationId}:`, error);
+      vibeAlert.error('Delete Failed', 'Unable to delete notification. Please try again.');
+    }
+  }, [currentUserId, vibeAlert]);
 
   // Handle friend request acceptance
   const handleAcceptFriendRequest = useCallback(
@@ -126,8 +142,7 @@ export default function NotificationsScreen({ navigation }) {
         await acceptFriendRequest(notification.id, currentUserId, senderId);
 
         // Delete notification after successful acceptance
-        await deleteNotification(notification.id, notification.userId);
-        handleNotificationDelete(notification.id);
+        await handleNotificationDelete(notification.id);
 
         vibeAlert.success('Success', 'Friend request accepted! 🎉');
       } catch (error) {
@@ -154,8 +169,7 @@ export default function NotificationsScreen({ navigation }) {
         await declineFriendRequest(notification.id, currentUserId, senderId);
 
         // Delete notification after successful decline
-        await deleteNotification(notification.id, notification.userId);
-        handleNotificationDelete(notification.id);
+        await handleNotificationDelete(notification.id);
 
         vibeAlert.info(
           'Friend Request Declined',
@@ -194,8 +208,7 @@ export default function NotificationsScreen({ navigation }) {
         }
 
         // Delete notification after successful acceptance (no longer needed)
-        await deleteNotification(notification.id, notification.userId);
-        handleNotificationDelete(notification.id); // Update UI state
+        await handleNotificationDelete(notification.id);
 
         vibeAlert.success('Success', "You're attending this event! 🎉");
       } catch (error) {
@@ -231,8 +244,7 @@ export default function NotificationsScreen({ navigation }) {
         }
 
         // Delete notification after successful decline (no longer needed)
-        await deleteNotification(notification.id, notification.userId);
-        handleNotificationDelete(notification.id); // Update UI state
+        await handleNotificationDelete(notification.id);
 
         vibeAlert.info(
           'Invitation Declined',
@@ -262,8 +274,7 @@ export default function NotificationsScreen({ navigation }) {
         await acceptCohostInvitation(invitationId, currentUserId, eventId);
 
         // Delete notification after successful acceptance (no longer needed)
-        await deleteNotification(notification.id, notification.userId);
-        handleNotificationDelete(notification.id); // Update UI state
+        await handleNotificationDelete(notification.id);
 
         vibeAlert.success('Success', "You're now a co-host for this event! ⭐");
       } catch (error) {
@@ -290,8 +301,7 @@ export default function NotificationsScreen({ navigation }) {
         await declineCohostInvitation(invitationId, currentUserId);
 
         // Delete notification after successful decline
-        await deleteNotification(notification.id, notification.userId);
-        handleNotificationDelete(notification.id);
+        await handleNotificationDelete(notification.id);
 
         vibeAlert.info(
           'Invitation Declined',
@@ -393,7 +403,7 @@ export default function NotificationsScreen({ navigation }) {
 
   if (isLoading) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
         {/* Custom transparent header */}
         <View style={styles.header}>
           <View style={styles.headerContent}>
@@ -405,12 +415,12 @@ export default function NotificationsScreen({ navigation }) {
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading notifications...</Text>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       {/* Custom transparent header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
@@ -429,6 +439,12 @@ export default function NotificationsScreen({ navigation }) {
             style={styles.notificationsList}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
+            // Optimize for performance with many notifications
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={10}
+            windowSize={10}
+            // Ensure smooth scrolling
+            scrollEventThrottle={16}
             refreshControl={
               <RefreshControl
                 refreshing={isRefreshing}
@@ -454,7 +470,7 @@ export default function NotificationsScreen({ navigation }) {
           </ScrollView>
         )}
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -499,6 +515,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
+    paddingBottom: 50, // Extra bottom spacing for safe scrolling
   },
   emptyScrollView: {
     flex: 1,

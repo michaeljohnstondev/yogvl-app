@@ -1,9 +1,6 @@
 // services/scheduled/eventReminderTemplates.js - Event Reminder Templates & Intervals
 
-import {
-  NOTIFICATION_TYPES,
-  NOTIFICATION_PRIORITY,
-} from '../notifications';
+import { NOTIFICATION_TYPES, NOTIFICATION_PRIORITY } from '../notifications';
 import { ScheduledNotificationCore } from './scheduledNotificationCore';
 
 // Reminder intervals (in minutes before event)
@@ -138,26 +135,27 @@ export class EventReminderTemplates {
             interval.message ||
             `"${title}" ${this.getTimeMessage(interval.minutes)}`;
 
-          const scheduleId = await ScheduledNotificationCore.scheduleNotification({
-            userId,
-            eventId,
-            type: NOTIFICATION_TYPES.EVENT_REMINDER,
-            title: customTitle,
-            message: customMessage,
-            data: {
+          const scheduleId =
+            await ScheduledNotificationCore.scheduleNotification({
+              userId,
               eventId,
-              eventTitle: title,
-              eventTime: eventTime.toISOString(),
-              reminderType: interval.key,
-              isHost: userId === createdBy,
-              customTemplate: interval.template || null,
-            },
-            scheduledFor: reminderTime,
-            priority:
-              interval.minutes <= 60
-                ? NOTIFICATION_PRIORITY.HIGH
-                : NOTIFICATION_PRIORITY.NORMAL,
-          });
+              type: NOTIFICATION_TYPES.EVENT_REMINDER,
+              title: customTitle,
+              message: customMessage,
+              data: {
+                eventId,
+                eventTitle: title,
+                eventTime: eventTime.toISOString(),
+                reminderType: interval.key,
+                isHost: userId === createdBy,
+                customTemplate: interval.template || null,
+              },
+              scheduledFor: reminderTime,
+              priority:
+                interval.minutes <= 60
+                  ? NOTIFICATION_PRIORITY.HIGH
+                  : NOTIFICATION_PRIORITY.NORMAL,
+            });
 
           notifications.push({
             scheduleId,
@@ -176,6 +174,147 @@ export class EventReminderTemplates {
     } catch (error) {
       console.error(
         '[EventReminderTemplates] Error scheduling event reminders with custom templates:',
+        error
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Schedule event reminder notifications for a specific user based on their settings
+   */
+  static async scheduleEventRemindersForUser(
+    eventData,
+    userId,
+    notificationSettings
+  ) {
+    try {
+      const {
+        id: eventId,
+        title,
+        eventTimestamp,
+        studioId,
+      } = eventData;
+
+      if (!eventTimestamp) {
+        throw new Error('Event must have a timestamp to schedule reminders');
+      }
+
+      const eventTime = eventTimestamp.toDate
+        ? eventTimestamp.toDate()
+        : new Date(eventTimestamp);
+      const notifications = [];
+
+      // Determine which reminders to schedule based on user settings
+      const remindersToSchedule = [];
+
+      // Day before reminder
+      if (notificationSettings.dayBeforeReminder) {
+        remindersToSchedule.push({
+          key: 'ONE_DAY',
+          minutes: REMINDER_INTERVALS.ONE_DAY,
+          title: 'Event Tomorrow!',
+        });
+      }
+
+      // Main reminder based on user's preferred timing
+      const reminderTiming = notificationSettings.reminderTiming || '1hour';
+      let mainReminderMinutes;
+      let mainReminderTitle;
+
+      switch (reminderTiming) {
+        case '4hours':
+          mainReminderMinutes = REMINDER_INTERVALS.FOUR_HOURS;
+          mainReminderTitle = 'Event in 4 Hours';
+          break;
+        case '1hour':
+          mainReminderMinutes = REMINDER_INTERVALS.ONE_HOUR;
+          mainReminderTitle = 'Event Starting Soon!';
+          break;
+        case '30minutes':
+          mainReminderMinutes = REMINDER_INTERVALS.THIRTY_MINUTES;
+          mainReminderTitle = 'Event Starting in 30 Minutes!';
+          break;
+        case '10minutes':
+          mainReminderMinutes = REMINDER_INTERVALS.TEN_MINUTES;
+          mainReminderTitle = 'Event Starting Now!';
+          break;
+        default:
+          mainReminderMinutes = REMINDER_INTERVALS.ONE_HOUR;
+          mainReminderTitle = 'Event Starting Soon!';
+      }
+
+      remindersToSchedule.push({
+        key: `MAIN_${reminderTiming.toUpperCase()}`,
+        minutes: mainReminderMinutes,
+        title: mainReminderTitle,
+      });
+
+      // Custom reminder templates
+      if (notificationSettings.reminderTemplates?.length > 0) {
+        const customIntervals = this.convertCustomTemplates(
+          notificationSettings.reminderTemplates
+        );
+        remindersToSchedule.push(...customIntervals);
+      }
+
+      // Schedule each reminder
+      for (const reminder of remindersToSchedule) {
+        const reminderTime = new Date(
+          eventTime.getTime() - reminder.minutes * 60 * 1000
+        );
+
+        // Skip if reminder time is in the past
+        if (reminderTime <= new Date()) {
+          console.log(
+            `[EventReminderTemplates] Skipping ${reminder.key} reminder for user ${userId} - time has passed`
+          );
+          continue;
+        }
+
+        const scheduleId =
+          await ScheduledNotificationCore.scheduleNotification({
+            userId,
+            eventId,
+            type: NOTIFICATION_TYPES.EVENT_REMINDER,
+            title: `${reminder.title} 🎉`,
+            message: `"${title}" ${this.getTimeMessage(reminder.minutes)}`,
+            data: {
+              eventId,
+              eventTitle: title,
+              reminderType: reminder.key,
+              minutesBefore: reminder.minutes,
+              isCustomTemplate: reminder.key.startsWith('CUSTOM_'),
+            },
+            scheduledFor: reminderTime,
+            priority: NOTIFICATION_PRIORITY.NORMAL,
+          });
+
+        if (scheduleId) {
+          notifications.push({
+            scheduleId,
+            userId,
+            reminderType: reminder.key,
+            reminderTime,
+            title: reminder.title,
+          });
+
+          console.log(
+            `[EventReminderTemplates] Scheduled ${reminder.key} reminder for user ${userId} at ${reminderTime.toISOString()}`
+          );
+        }
+      }
+
+      return {
+        success: true,
+        eventId,
+        userId,
+        notificationsScheduled: notifications.length,
+        notifications,
+      };
+    } catch (error) {
+      console.error(
+        '[EventReminderTemplates] Error scheduling reminders for user:',
         error
       );
       throw error;
@@ -225,25 +364,26 @@ export class EventReminderTemplates {
 
         // Schedule for each user
         for (const userId of allUsers) {
-          const scheduleId = await ScheduledNotificationCore.scheduleNotification({
-            userId,
-            eventId,
-            type: NOTIFICATION_TYPES.EVENT_REMINDER,
-            title: `${interval.title} 🎉`,
-            message: `"${title}" ${this.getTimeMessage(interval.minutes)}`,
-            data: {
+          const scheduleId =
+            await ScheduledNotificationCore.scheduleNotification({
+              userId,
               eventId,
-              eventTitle: title,
-              eventTime: eventTime.toISOString(),
-              reminderType: interval.key,
-              isHost: userId === createdBy,
-            },
-            scheduledFor: reminderTime,
-            priority:
-              interval.minutes <= 60
-                ? NOTIFICATION_PRIORITY.HIGH
-                : NOTIFICATION_PRIORITY.NORMAL,
-          });
+              type: NOTIFICATION_TYPES.EVENT_REMINDER,
+              title: `${interval.title} 🎉`,
+              message: `"${title}" ${this.getTimeMessage(interval.minutes)}`,
+              data: {
+                eventId,
+                eventTitle: title,
+                eventTime: eventTime.toISOString(),
+                reminderType: interval.key,
+                isHost: userId === createdBy,
+              },
+              scheduledFor: reminderTime,
+              priority:
+                interval.minutes <= 60
+                  ? NOTIFICATION_PRIORITY.HIGH
+                  : NOTIFICATION_PRIORITY.NORMAL,
+            });
 
           notifications.push({
             scheduleId,
@@ -260,7 +400,10 @@ export class EventReminderTemplates {
         notifications,
       };
     } catch (error) {
-      console.error('[EventReminderTemplates] Error scheduling event reminders:', error);
+      console.error(
+        '[EventReminderTemplates] Error scheduling event reminders:',
+        error
+      );
       throw error;
     }
   }

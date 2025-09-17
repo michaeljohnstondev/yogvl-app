@@ -1,16 +1,24 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Alert, ScrollView, Clipboard } from 'react-native';
 import { VibeButton } from '../';
 import fcmService from '../../../services/fcmServiceWrapper';
 import {
   notifyNewFollower,
-  notifyGuestInvitation,
+  notifyEventInvitation,
   notifyCohostInvitation,
   notifyHostOfEventJoin,
 } from '../../../services/notifications';
+import { notificationEngine } from '../../../services/shared/NotificationEngine';
 import { useAuth } from '../../../auth/AuthContext';
 import theme from '../../../theme/themes';
 import { useScheduledNotifications } from '../../../hooks/useScheduledNotifications';
+import {
+  testNotificationBanner,
+  testAllNotificationTypes,
+  NotificationTestButtons
+} from '../../../services/notificationTester';
+import { useEventForm } from '../../../events/hooks/useEventForm';
+import { ScheduledNotificationCore } from '../../../services/scheduled/scheduledNotificationCore';
 
 export default function NotificationTester() {
   const [testing, setTesting] = useState(false);
@@ -25,6 +33,41 @@ export default function NotificationTester() {
     upcomingReminders,
     pendingCount,
   } = useScheduledNotifications();
+  const { submitEvent } = useEventForm();
+
+  const logTokenToConsole = async () => {
+    try {
+      const token = await fcmService.getExpoPushToken();
+
+      console.log('');
+      console.log('==========================================');
+      console.log('🔥 FCM TOKEN FOR FIREBASE CONSOLE:');
+      console.log('==========================================');
+      console.log(token);
+      console.log('==========================================');
+      console.log('');
+
+      setPushToken(token);
+      Alert.alert('Token Logged!', 'Check your console for the FCM token');
+    } catch (error) {
+      console.error('Failed to get FCM token:', error);
+      Alert.alert('Error', 'Failed to get FCM token');
+    }
+  };
+
+  const copyTokenToClipboard = async () => {
+    try {
+      if (!pushToken) {
+        Alert.alert('No Token', 'Please run "Log FCM Token" first to get token');
+        return;
+      }
+
+      await Clipboard.setString(pushToken);
+      Alert.alert('Copied!', 'FCM token copied to clipboard for Firebase Console testing');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to copy token to clipboard');
+    }
+  };
 
   const testNotificationSetup = async () => {
     setTesting(true);
@@ -48,6 +91,13 @@ export default function NotificationTester() {
       const token = await fcmService.getExpoPushToken();
       setPushToken(token);
       console.log('🎫 Push Token:', token?.substring(0, 50) + '...');
+      console.log('');
+      console.log('==========================================');
+      console.log('🔥 FCM TOKEN FOR FIREBASE CONSOLE:');
+      console.log('==========================================');
+      console.log(token);
+      console.log('==========================================');
+      console.log('');
 
       if (!token) {
         Alert.alert(
@@ -73,12 +123,16 @@ export default function NotificationTester() {
         }
       }
 
-      // Test 4: Send local notification
-      await fcmService.sendLocalNotification(
-        'Big Vibe Studios',
-        'Test notification - your push notifications are working! 🎉',
-        { type: 'test', timestamp: Date.now() }
-      );
+      // Test 4: Send test notification using NotificationEngine
+      const testResult = await notificationEngine.createNotification({
+        userId: currentUserId,
+        type: 'admin_notification',
+        title: 'Big Vibe Studios',
+        message: 'Test notification - your push notifications are working! 🎉',
+        data: { type: 'test', timestamp: Date.now() },
+      });
+
+      console.log('🧪 Test notification result:', testResult);
 
       Alert.alert(
         'Test Complete!',
@@ -136,7 +190,7 @@ export default function NotificationTester() {
           title: 'Event Updated 📝',
           body: 'Host updated details for "Test Party"',
           data: {
-            type: 'event_updated',
+            type: 'event_update',
             eventId: 'test_event_123',
             screen: 'EventDetail',
           },
@@ -163,7 +217,7 @@ export default function NotificationTester() {
           title: 'Big Vibe Studios 🎊',
           body: 'This is a general app notification test',
           data: {
-            type: 'general',
+            type: 'admin_notification',
             screen: 'Home',
           },
         },
@@ -171,18 +225,29 @@ export default function NotificationTester() {
           title: 'Background Test! 📱',
           body: 'Close the app now and this should appear in your notification tray',
           data: {
-            type: 'general',
+            type: 'admin_notification',
             screen: 'Home',
           },
         },
       };
 
       const notif = testNotifications[type];
-      await fcmService.sendLocalNotification(
-        notif.title,
-        notif.body,
-        notif.data
-      );
+
+      // Use NotificationEngine for consistent notification sending
+      // For testing, send to a dummy user ID to avoid "send to self" restrictions
+      // In a real scenario, you'd send to a different test user or a specific target.
+      const testRecipientId = currentUserId; // Use current user as recipient for testing
+
+      const testResult = await notificationEngine.createNotification({
+        userId: testRecipientId,
+        type: notif.data.type,
+        title: notif.title,
+        message: notif.body,
+        data: notif.data,
+        senderId: currentUserId, // Admin sending test notification
+      });
+
+      console.log(`🧪 ${type} notification result:`, testResult);
 
       Alert.alert(
         'Test Sent!',
@@ -292,24 +357,24 @@ export default function NotificationTester() {
       });
       console.log('✅ Follower notification result:', followerResult);
 
-      // Test guest invitation notification
-      console.log('🧪 Testing guest invitation notification...');
-      const guestResult = await notifyGuestInvitation({
-        recipientId: currentUserId,
+      // Test event invitation notification (replaces notifyGuestInvitation)
+      console.log('🧪 Testing event invitation notification...');
+      const guestResult = await notifyEventInvitation({
+        guestId: currentUserId,
         inviterId: 'test_inviter_456',
         inviterName: 'Test Host',
         eventId: 'test_event_789',
         eventTitle: 'Test Party Event',
         invitationId: 'test_invitation_101',
       });
-      console.log('✅ Guest invitation result:', guestResult);
+      console.log('✅ Event invitation result:', guestResult);
 
       // Test cohost invitation notification
       console.log('🧪 Testing cohost invitation notification...');
       const cohostResult = await notifyCohostInvitation({
-        recipientId: currentUserId,
-        inviterId: 'test_inviter_456',
-        inviterName: 'Test Host',
+        inviteeId: currentUserId,
+        hostId: 'test_inviter_456',
+        hostName: 'Test Host',
         eventId: 'test_event_789',
         eventTitle: 'Test Party Event',
         invitationId: 'test_cohost_102',
@@ -331,6 +396,427 @@ export default function NotificationTester() {
         error
       );
       Alert.alert('Test Failed', `Error: ${error.message}`);
+    } finally {
+      setTestingType(null);
+    }
+  };
+
+  const createTestEventWithNotifications = async () => {
+    setTestingType('test_event_creation');
+    try {
+      if (!currentUserId || !user) {
+        Alert.alert(
+          'Error',
+          'You must be logged in with complete user data to create test events.'
+        );
+        return;
+      }
+
+      console.log('\n🎉 === CREATING REAL TEST EVENT WITH NOTIFICATIONS ===\n');
+
+      // Calculate event time (5 minutes from now)
+      const eventTime = new Date();
+      eventTime.setMinutes(eventTime.getMinutes() + 5);
+
+      // Calculate notification time (4 minutes 50 seconds from now = 10 seconds before event)
+      const notificationTime = new Date();
+      notificationTime.setMinutes(notificationTime.getMinutes() + 4);
+      notificationTime.setSeconds(notificationTime.getSeconds() + 50);
+
+      console.log('📅 Event scheduled for:', eventTime.toLocaleString());
+      console.log('🔔 Notification scheduled for:', notificationTime.toLocaleString());
+
+      // Create test event data
+      const testFormData = {
+        title: '🧪 Test Event - Notification Testing',
+        location: 'Test Location - Admin Testing Suite',
+        address: '123 Test Street, Test City, TC 12345',
+        description: 'Automated test event created for notification testing. This event will trigger notifications in ~10 seconds.',
+        isPrivate: false,
+        maxGuests: 10,
+        hasRsvpDeadline: false,
+        contactInfo: '',
+        entryFee: '',
+        notificationSettings: {
+          enabled: true,
+          notifyOnJoin: true,
+          notifyOnLeave: true,
+          newComments: true,
+          hostChanges: true,
+          eventReminders: true,
+          reminderTiming: '10seconds',
+          dayBeforeReminder: false,
+          hostComments: true,
+          reminderTemplates: [
+            {
+              id: 'test_10sec',
+              amount: 10,
+              unit: 'seconds',
+              enabled: true,
+              label: '10 sec (TEST)',
+            }
+          ],
+        },
+      };
+
+      // Create date/time values object
+      const testDateTimeValues = {
+        event: {
+          value: eventTime,
+          selected: true,
+        },
+        rsvpDeadline: {
+          value: null,
+          selected: false,
+        },
+      };
+
+      // Mock validation functions
+      const mockValidateForm = () => ({ isValid: true, errors: {} });
+      const mockValidateDateTime = () => ({ isValid: true, message: '' });
+
+      // Mock VibeAlert for the submitEvent function
+      const mockVibeAlert = {
+        success: (title, message, actions) => {
+          console.log(`✅ ${title}: ${message}`);
+          if (actions && actions[0] && actions[0].onPress) {
+            actions[0].onPress();
+          }
+        },
+        error: (title, message) => {
+          console.error(`❌ ${title}: ${message}`);
+        },
+        confirm: (title, message, onConfirm, onCancel) => {
+          console.log(`❓ ${title}: ${message}`);
+          onConfirm();
+        },
+      };
+
+      // Mock navigation
+      const mockNavigation = {
+        goBack: () => {
+          console.log('📱 Navigation: Going back to previous screen');
+        },
+      };
+
+      console.log('🔨 Creating test event...');
+
+      // Submit the event using the real useEventForm hook
+      await submitEvent({
+        currentUserId,
+        userData: user,
+        formData: testFormData,
+        dateTimeValues: testDateTimeValues,
+        validateForm: mockValidateForm,
+        validateDateTime: mockValidateDateTime,
+        loadSuggestions: () => {}, // No-op
+        resetForm: () => {}, // No-op
+        resetDateTime: () => {}, // No-op
+        navigation: mockNavigation,
+        isEditing: false,
+        eventId: null,
+        selectedInvitations: {}, // No invitations for this test
+        vibeAlert: mockVibeAlert,
+        onSuccess: (invitationSummary) => {
+          console.log('🎊 Event creation completed!');
+          console.log('📊 Summary:', invitationSummary || 'Event created successfully');
+
+          // Schedule manual test notification for comparison
+          ScheduledNotificationCore.scheduleNotification({
+            userId: currentUserId,
+            type: 'event_reminder',
+            title: '🧪 Manual Test Notification',
+            message: 'This is a manually scheduled test notification for comparison with the automatic event reminder.',
+            data: {
+              type: 'event_reminder',
+              screen: 'Home',
+              isTest: true,
+              testType: 'manual_comparison',
+            },
+            scheduledFor: notificationTime,
+          }).then((scheduleId) => {
+            console.log('📬 Manual test notification scheduled:', scheduleId);
+          }).catch((error) => {
+            console.error('❌ Failed to schedule manual test notification:', error);
+          });
+        },
+      });
+
+      Alert.alert(
+        'Test Event Created! 🎉',
+        `Created a real test event scheduled for ${eventTime.toLocaleTimeString()}.\n\nNotifications will be sent in ~${Math.round((notificationTime.getTime() - Date.now()) / 1000)} seconds.\n\nBoth automatic event reminders and manual test notifications will be triggered.\n\nClose the app now to test background notifications!`,
+        [
+          {
+            text: 'Close App to Test Background',
+            onPress: () => {
+              console.log('📱 User should close app now for background notification testing');
+            },
+          },
+        ]
+      );
+
+    } catch (error) {
+      console.error('[NotificationTester] Test event creation failed:', error);
+      Alert.alert(
+        'Test Event Creation Failed',
+        `Error: ${error.message}\n\nCheck console for details.`
+      );
+    } finally {
+      setTestingType(null);
+    }
+  };
+
+  /**
+   * Create comprehensive test event with real notifications
+   * Tests the complete notification pipeline end-to-end
+   */
+  const sendImmediateTestNotification = async () => {
+    setTestingType('immediate_test');
+    try {
+      if (!currentUserId) {
+        Alert.alert('Error', 'You must be logged in to send notifications.');
+        return;
+      }
+
+      console.log('🚀 [ImmediateTest] Sending immediate FCM notification...');
+
+      // Send immediate notification using the NotificationEngine
+      const result = await NotificationEngine.sendNotificationToUser({
+        userId: currentUserId,
+        title: '🚀 Immediate Test Notification!',
+        message: 'This notification was sent immediately - no waiting required!',
+        data: {
+          type: 'test_immediate',
+          screen: 'Home',
+          isTest: true,
+        },
+      });
+
+      console.log('✅ [ImmediateTest] Notification sent:', result);
+
+      Alert.alert(
+        'Notification Sent!',
+        'Check your notification tray right now - the notification should appear immediately!',
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('[NotificationTester] Immediate test failed:', error);
+      Alert.alert('Test Failed', `Error: ${error.message}`);
+    } finally {
+      setTestingType(null);
+    }
+  };
+
+  const testInvitationNotification = async () => {
+    setTestingType('invitation_test');
+    try {
+      if (!currentUserId) {
+        Alert.alert('Error', 'You must be logged in to test invitations.');
+        return;
+      }
+
+      console.log('💌 [InvitationTest] Testing invitation notification...');
+
+      // Send test invitation notification to self
+      const { notifyEventInvitation } = await import('../../../services/shared/invitationNotificationsService');
+
+      const result = await notifyEventInvitation({
+        guestId: currentUserId,
+        inviterId: currentUserId,
+        inviterName: user?.userdata?.contactInfo?.displayName || 'Test Host',
+        eventId: 'test_event_invitation',
+        eventTitle: 'Test Event - Invitation Notification',
+        invitationId: `test_inv_${Date.now()}`,
+      });
+
+      console.log('✅ [InvitationTest] Invitation notification sent:', result);
+
+      Alert.alert(
+        'Invitation Notification Sent!',
+        'Check your notifications - you should receive an event invitation!',
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('[NotificationTester] Invitation test failed:', error);
+      Alert.alert('Test Failed', `Error: ${error.message}`);
+    } finally {
+      setTestingType(null);
+    }
+  };
+
+  const createComprehensiveTestEvent = async () => {
+    setTestingType('comprehensive_test');
+    try {
+      if (!currentUserId) {
+        Alert.alert('Error', 'You must be logged in to create test events.');
+        return;
+      }
+
+      // For testing purposes, be more flexible with profile requirements
+      const hostName = user?.userdata?.contactInfo?.displayName ||
+                      user?.userdata?.contactInfo?.email ||
+                      user?.email ||
+                      `Test User ${currentUserId.substring(0, 6)}`;
+
+      console.log('🎉 [ComprehensiveTest] Starting comprehensive test event creation...');
+
+      // Event time: 16 minutes from now (meets 15 minute minimum requirement)
+      const eventTime = new Date();
+      eventTime.setMinutes(eventTime.getMinutes() + 16);
+
+      // Notification time: 10 seconds from now (for quick testing!)
+      const notificationTime = new Date();
+      notificationTime.setSeconds(notificationTime.getSeconds() + 10);
+
+      // Create test event form data (matches the working function structure)
+      const testFormData = {
+        title: 'Test Event - Notifications',
+        location: 'Test Location',
+        address: '123 Test Street, Test City, TC 12345',
+        description: 'Comprehensive test event for notification pipeline validation. This event will test both foreground and background notification delivery.',
+        isPrivate: false,
+        maxGuests: 10,
+        hasRsvpDeadline: false,
+        contactInfo: '',
+        entryFee: '',
+        notificationSettings: {
+          enabled: true,
+          notifyOnJoin: true,
+          notifyOnLeave: true,
+          newComments: true,
+          hostChanges: true,
+          eventReminders: true,
+          reminderTiming: '10seconds',
+          dayBeforeReminder: false,
+          hostComments: true,
+          reminderTemplates: [
+            {
+              id: 'comprehensive_test_10sec',
+              amount: 10,
+              unit: 'seconds',
+              enabled: true,
+              label: '10 sec before (COMPREHENSIVE TEST)',
+            }
+          ],
+        },
+      };
+
+      // Create date/time values object
+      const testDateTimeValues = {
+        event: {
+          value: eventTime,
+          selected: true,
+        },
+        rsvpDeadline: {
+          value: null,
+          selected: false,
+        },
+      };
+
+      // Mock validation functions
+      const mockValidateForm = () => ({ isValid: true, errors: {} });
+      const mockValidateDateTime = () => ({ isValid: true, message: '' });
+
+      // Mock VibeAlert for the submitEvent function
+      const mockVibeAlert = {
+        success: (title, message, actions) => {
+          console.log(`✅ ${title}: ${message}`);
+          if (actions && actions[0] && actions[0].onPress) {
+            actions[0].onPress();
+          }
+        },
+        error: (title, message) => {
+          console.error(`❌ ${title}: ${message}`);
+        },
+        confirm: (title, message, onConfirm, onCancel) => {
+          console.log(`❓ ${title}: ${message}`);
+          onConfirm();
+        },
+      };
+
+      // Mock navigation
+      const mockNavigation = {
+        goBack: () => {
+          console.log('📱 Navigation: Going back to previous screen');
+        },
+      };
+
+      console.log('🎉 [ComprehensiveTest] Creating event at:', eventTime.toLocaleString());
+      console.log('🎉 [ComprehensiveTest] Notification scheduled for:', notificationTime.toLocaleString());
+
+      console.log('🔨 Creating comprehensive test event...');
+
+      // Submit the event using the correct parameter structure
+      await submitEvent({
+        currentUserId,
+        userData: user,
+        formData: testFormData,
+        dateTimeValues: testDateTimeValues,
+        validateForm: mockValidateForm,
+        validateDateTime: mockValidateDateTime,
+        loadSuggestions: () => {}, // No-op
+        resetForm: () => {}, // No-op
+        resetDateTime: () => {}, // No-op
+        navigation: mockNavigation,
+        isEditing: false,
+        eventId: null,
+        selectedInvitations: {}, // No invitations for this test
+        vibeAlert: mockVibeAlert,
+        onSuccess: (invitationSummary) => {
+          console.log('🎊 Comprehensive test event creation completed!');
+          console.log('📊 Summary:', invitationSummary || 'Event created successfully');
+
+          // Schedule additional test notification using manual scheduling
+          ScheduledNotificationCore.scheduleNotification({
+            userId: currentUserId,
+            type: 'event_reminder',
+            title: 'COMPREHENSIVE TEST: Event Starting Soon! ⏰',
+            message: `Your test event "${testFormData.title}" starts in 10 seconds! This tests the complete notification pipeline.`,
+            data: {
+              type: 'event_reminder',
+              screen: 'EventDetail',
+              isComprehensiveTest: true,
+              testType: 'comprehensive',
+            },
+            scheduledFor: notificationTime,
+            priority: 'high',
+          }).then((scheduleId) => {
+            console.log('🎉 [ComprehensiveTest] ✅ Manual notification scheduled:', scheduleId);
+          }).catch((error) => {
+            console.error('❌ Failed to schedule manual test notification:', error);
+          });
+        },
+      });
+
+      console.log('🎉 [ComprehensiveTest] ✅ Event creation process completed');
+
+      Alert.alert(
+        'Comprehensive Test Event Created! 🎉',
+        `✅ Event: "${testFormData.title}"\n` +
+        `⏰ Starts: ${eventTime.toLocaleTimeString()}\n` +
+        `🔔 Notification: ${notificationTime.toLocaleTimeString()}\n\n` +
+        `TESTING INSTRUCTIONS:\n` +
+        `1. Close this app NOW for background testing\n` +
+        `2. Wait ~4min 50sec for notification\n` +
+        `3. Test both notification tray delivery\n` +
+        `4. Open app to test foreground banners\n\n` +
+        `This tests the COMPLETE notification pipeline!`,
+        [
+          {
+            text: 'Close App Now for Background Test!',
+            onPress: () => {
+              console.log('🎉 [ComprehensiveTest] User should close app now for background testing');
+            },
+          },
+        ]
+      );
+
+    } catch (error) {
+      console.error('🎉 [ComprehensiveTest] ❌ Test failed:', error);
+      Alert.alert(
+        'Comprehensive Test Failed',
+        `Error: ${error.message}\n\nCheck console for details.`
+      );
     } finally {
       setTestingType(null);
     }
@@ -382,8 +868,19 @@ export default function NotificationTester() {
         <View style={styles.statusContainer}>
           <Text style={styles.statusTitle}>Push Token:</Text>
           <Text style={styles.tokenText}>{pushToken.substring(0, 30)}...</Text>
+          <VibeButton
+            label="📋 Copy Full Token for Firebase Console"
+            onPress={copyTokenToClipboard}
+            style={[styles.copyButton, { backgroundColor: theme.colors.vibeBlue }]}
+          />
         </View>
       )}
+
+      <VibeButton
+        label="📝 Log FCM Token to Console"
+        onPress={logTokenToConsole}
+        style={[styles.testButton, { backgroundColor: theme.colors.vibeBlue }]}
+      />
 
       <VibeButton
         label={testing ? 'Setting up...' : '🔧 Test Setup & Permissions'}
@@ -404,6 +901,67 @@ export default function NotificationTester() {
             style={[styles.typeButton, { backgroundColor: type.color }]}
           />
         ))}
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Foreground Banner Testing:</Text>
+        <Text style={styles.sectionNote}>
+          Test notification banners that appear when app is in foreground
+        </Text>
+
+        <VibeButton
+          label="🔔 Test Info Banner"
+          onPress={() => testNotificationBanner('info')}
+          style={[styles.typeButton, { backgroundColor: theme.colors.vibeBlue }]}
+        />
+
+        <VibeButton
+          label="✅ Test Success Banner"
+          onPress={() => testNotificationBanner('success')}
+          style={[styles.typeButton, { backgroundColor: theme.colors.vibeGreen }]}
+        />
+
+        <VibeButton
+          label="❌ Test Error Banner"
+          onPress={() => testNotificationBanner('error')}
+          style={[styles.typeButton, { backgroundColor: theme.colors.vibeRed }]}
+        />
+
+        <VibeButton
+          label="⚠️ Test Warning Banner"
+          onPress={() => testNotificationBanner('warning')}
+          style={[styles.typeButton, { backgroundColor: theme.colors.vibeOrange }]}
+        />
+
+        <VibeButton
+          label="📅 Test Event Reminder Banner"
+          onPress={() => testNotificationBanner('event_reminder')}
+          style={[styles.typeButton, { backgroundColor: '#FF6B35' }]}
+        />
+
+        <VibeButton
+          label="👤 Test Follow Banner"
+          onPress={() => testNotificationBanner('follow_notification')}
+          style={[styles.typeButton, { backgroundColor: theme.colors.vibePink }]}
+        />
+
+        <VibeButton
+          label="🎉 Test Invitation Banner"
+          onPress={() => testNotificationBanner('invitation_received')}
+          style={[styles.typeButton, { backgroundColor: theme.colors.vibePurple }]}
+        />
+
+        <VibeButton
+          label="🚨 Test Admin Banner"
+          onPress={() => testNotificationBanner('admin_notification')}
+          style={[styles.typeButton, { backgroundColor: theme.colors.vibeOrange }]}
+        />
+
+        <VibeButton
+          label="🎊 Test All Banner Types"
+          onPress={testAllNotificationTypes}
+          style={[styles.typeButton, { backgroundColor: theme.colors.vibeCyan }]}
+        />
       </View>
 
       <View style={styles.section}>
@@ -478,6 +1036,62 @@ export default function NotificationTester() {
             { backgroundColor: theme.colors.vibePink },
           ]}
         />
+
+        <VibeButton
+          label={
+            testingType === 'test_event_creation'
+              ? 'Creating Event...'
+              : '🎉 Create Real Test Event (5min + Notifications)'
+          }
+          onPress={createTestEventWithNotifications}
+          disabled={testingType === 'test_event_creation'}
+          style={[
+            styles.typeButton,
+            { backgroundColor: theme.colors.vibeGreen },
+          ]}
+        />
+
+        <VibeButton
+          label={
+            testingType === 'immediate_test'
+              ? 'Sending...'
+              : '⚡ IMMEDIATE TEST - Send Notification NOW!'
+          }
+          onPress={sendImmediateTestNotification}
+          disabled={testingType === 'immediate_test'}
+          style={[
+            styles.typeButton,
+            { backgroundColor: theme.colors.vibeGreen, borderColor: theme.colors.vibeYellow, borderWidth: 2 },
+          ]}
+        />
+
+        <VibeButton
+          label={
+            testingType === 'invitation_test'
+              ? 'Sending...'
+              : '💌 INVITATION TEST - Event Invitation Notification'
+          }
+          onPress={testInvitationNotification}
+          disabled={testingType === 'invitation_test'}
+          style={[
+            styles.typeButton,
+            { backgroundColor: theme.colors.vibePink, borderColor: theme.colors.vibeBlue, borderWidth: 2 },
+          ]}
+        />
+
+        <VibeButton
+          label={
+            testingType === 'comprehensive_test'
+              ? 'Creating Comprehensive Test...'
+              : '🚀 COMPREHENSIVE TEST - Real Event + 10sec Notifications'
+          }
+          onPress={createComprehensiveTestEvent}
+          disabled={testingType === 'comprehensive_test'}
+          style={[
+            styles.typeButton,
+            { backgroundColor: theme.colors.vibeBlue, borderColor: theme.colors.vibeGreen, borderWidth: 2 },
+          ]}
+        />
       </View>
 
       <Text style={styles.note}>
@@ -488,6 +1102,7 @@ export default function NotificationTester() {
         linking
         {'\n\n'}⏰ Scheduled Tests: Test automatic event reminders & background
         processing
+        {'\n\n'}🎉 Real Event Test: Creates actual event with real scheduling (5min) and notification reminders (10sec before event). Tests complete notification flow.
         {'\n\n'}
         Tap notifications to test navigation to different screens!
       </Text>
@@ -527,6 +1142,12 @@ const styles = StyleSheet.create({
     color: theme.colors.gray,
     fontSize: 12,
     fontFamily: 'monospace',
+    marginBottom: 8,
+  },
+  copyButton: {
+    marginTop: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
   },
   reminderText: {
     color: theme.colors.gray,
@@ -545,6 +1166,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 12,
     textAlign: 'center',
+  },
+  sectionNote: {
+    color: theme.colors.gray,
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: 12,
+    fontStyle: 'italic',
   },
   typeButton: {
     marginVertical: 8,

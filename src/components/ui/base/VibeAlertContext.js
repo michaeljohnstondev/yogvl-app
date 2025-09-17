@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useMemo, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import theme from '../../../theme/themes';
+import VibeNotificationBanner from '../notifications/VibeNotificationBanner';
 
 const VibeAlertContext = createContext();
 
@@ -14,8 +15,9 @@ export const useVibeAlert = () => {
 
 export const VibeAlertProvider = ({ children }) => {
   const [alert, setAlert] = useState(null);
+  const [banner, setBanner] = useState(null);
 
-  const showAlert = (
+  const showAlert = useCallback((
     title,
     message,
     buttons = [{ text: 'OK' }],
@@ -23,14 +25,39 @@ export const VibeAlertProvider = ({ children }) => {
   ) => {
     console.log('🚨 Context showAlert called:', { title, message, type });
     setAlert({ title, message, buttons, type, visible: true });
-  };
+  }, []);
 
-  const hideAlert = () => {
+  const hideAlert = useCallback(() => {
     console.log('🚨 Context hideAlert called');
     setAlert(null);
+  }, []);
+
+  const showBanner = (
+    title,
+    message,
+    type = 'info',
+    onPress = null,
+    autoHide = true,
+    duration = 4000
+  ) => {
+    console.log('🔔 Banner showBanner called:', { title, message, type });
+    setBanner({
+      title,
+      message,
+      type,
+      onPress,
+      autoHide,
+      duration,
+      visible: true,
+    });
   };
 
-  const alertMethods = {
+  const hideBanner = () => {
+    console.log('🔔 Banner hideBanner called');
+    setBanner(null);
+  };
+
+  const alertMethods = useMemo(() => ({
     alert: (title, message, buttons) =>
       showAlert(title, message, buttons, 'info'),
     info: (title, message, buttons) =>
@@ -76,7 +103,12 @@ export const VibeAlertProvider = ({ children }) => {
         'subscribe'
       );
     },
-  };
+    // Banner notification methods
+    banner: showBanner,
+    hideBanner,
+    notificationBanner: (title, message, type, onPress) =>
+      showBanner(title, message, type, onPress, true, 4000),
+  }), [showAlert, showBanner, hideBanner]);
 
   const getAlertColors = (type) => {
     switch (type) {
@@ -120,6 +152,18 @@ export const VibeAlertProvider = ({ children }) => {
   return (
     <VibeAlertContext.Provider value={alertMethods}>
       {children}
+      {banner && (
+        <VibeNotificationBanner
+          title={banner.title}
+          message={banner.message}
+          type={banner.type}
+          visible={banner.visible}
+          onPress={banner.onPress}
+          onDismiss={hideBanner}
+          autoHide={banner.autoHide}
+          duration={banner.duration}
+        />
+      )}
       {alert && (
         <View style={styles.overlay}>
           <View style={styles.alertContainer}>

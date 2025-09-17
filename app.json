@@ -4,7 +4,6 @@
     "slug": "bvs-app",
     "version": "1.0.0",
     "scheme": "bvs-app",
-    "newArchEnabled": false,
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -53,7 +52,7 @@
       [
         "@react-native-firebase/messaging",
         {
-          "android_notification_icon": "./assets/notification-icon.png",
+          "android_notification_icon": "./assets/adaptive-icon.png",
           "android_notification_color": "#00D4FF"
         }
       ],

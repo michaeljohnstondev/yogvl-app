@@ -7,11 +7,12 @@ import {
   arrayUnion,
   arrayRemove,
   increment,
-  runTransaction
+  runTransaction,
 } from 'firebase/firestore';
 import { db } from '../../../auth/services/firebase';
 import { updateEventSubscription } from '../../lib/userMetrics';
 import { notifyHostOfEventJoin } from '../../../services/shared/eventNotificationsService';
+import { notifyEventInvitation, sendBulkInvitationNotifications } from '../../../services/shared/invitationNotificationsService';
 import { fetchEventDetails } from './eventCoreService';
 
 /**
@@ -27,7 +28,7 @@ export const addUserToInvitations = async (userId, eventId, studioId) => {
     const userRef = doc(db, 'users', userId);
 
     // Use atomic transaction to ensure consistency
-    return await runTransaction(db, async (transaction) => {
+    const result = await runTransaction(db, async (transaction) => {
       const eventSnap = await transaction.get(eventRef);
 
       if (!eventSnap.exists()) {
@@ -48,22 +49,58 @@ export const addUserToInvitations = async (userId, eventId, studioId) => {
 
       // Add to event's invitations array
       transaction.update(eventRef, {
-        invitations: arrayUnion(userId)
+        invitations: arrayUnion(userId),
       });
 
       // Add to user's invitedEvents array
       transaction.update(userRef, {
-        'userdata.metrics.events.invitedEvents': arrayUnion(eventId)
+        'userdata.metrics.events.invitedEvents': arrayUnion(eventId),
       });
 
-      console.log(`[EventInvitations] Added user ${userId} to event ${eventId} invitations`);
+      console.log(
+        `[EventInvitations] Added user ${userId} to event ${eventId} invitations`
+      );
 
       return {
-        invitations: [...currentInvitations, userId]
+        invitations: [...currentInvitations, userId],
+        eventData, // Return event data for notification
       };
     });
+
+    // AFTER transaction completes successfully, send notification
+    try {
+      const hostData = await getDoc(doc(db, 'users', result.eventData.createdBy));
+
+      if (hostData.exists()) {
+        const hostUserData = hostData.data();
+        const hostName = hostUserData?.userdata?.contactInfo?.displayName ||
+                        hostUserData?.userdata?.contactInfo?.firstName ||
+                        'Event Host';
+
+        // Send invitation notification (fire-and-forget to not block response)
+        notifyEventInvitation({
+          guestId: userId,
+          inviterId: result.eventData.createdBy,
+          inviterName: hostName,
+          eventId: eventId,
+          eventTitle: result.eventData.title,
+          invitationId: `inv_${eventId}_${userId}_${Date.now()}`,
+        }).catch((error) => {
+          console.error('[EventInvitations] Failed to send invitation notification:', error);
+          // Don't throw - notification failure shouldn't affect the invitation result
+        });
+      }
+    } catch (notificationError) {
+      console.error('[EventInvitations] Error preparing invitation notification:', notificationError);
+      // Don't throw - notification failure shouldn't affect the invitation result
+    }
+
+    return result;
   } catch (error) {
-    console.error('[EventInvitations] Error adding user to invitations:', error);
+    console.error(
+      '[EventInvitations] Error adding user to invitations:',
+      error
+    );
     throw error;
   }
 };
@@ -98,22 +135,27 @@ export const removeUserFromInvitations = async (userId, eventId, studioId) => {
 
       // Remove from event's invitations array
       transaction.update(eventRef, {
-        invitations: arrayRemove(userId)
+        invitations: arrayRemove(userId),
       });
 
       // Remove from user's invitedEvents array
       transaction.update(userRef, {
-        'userdata.metrics.events.invitedEvents': arrayRemove(eventId)
+        'userdata.metrics.events.invitedEvents': arrayRemove(eventId),
       });
 
-      console.log(`[EventInvitations] Removed user ${userId} from event ${eventId} invitations`);
+      console.log(
+        `[EventInvitations] Removed user ${userId} from event ${eventId} invitations`
+      );
 
       return {
-        invitations: currentInvitations.filter(id => id !== userId)
+        invitations: currentInvitations.filter((id) => id !== userId),
       };
     });
   } catch (error) {
-    console.error('[EventInvitations] Error removing user from invitations:', error);
+    console.error(
+      '[EventInvitations] Error removing user from invitations:',
+      error
+    );
     throw error;
   }
 };
@@ -126,7 +168,12 @@ export const removeUserFromInvitations = async (userId, eventId, studioId) => {
  * @param {Object} [notificationSettings] - User notification preferences
  * @returns {Promise<Object>} Updated event state
  */
-export const acceptInvitationAndSubscribe = async (userId, eventId, studioId, notificationSettings = {}) => {
+export const acceptInvitationAndSubscribe = async (
+  userId,
+  eventId,
+  studioId,
+  notificationSettings = {}
+) => {
   try {
     const eventRef = doc(db, 'studios', studioId, 'events', eventId);
     const userRef = doc(db, 'users', userId);
@@ -157,22 +204,24 @@ export const acceptInvitationAndSubscribe = async (userId, eventId, studioId, no
       transaction.update(eventRef, {
         invitations: arrayRemove(userId),
         subscribers: arrayUnion(userId),
-        subscriberCount: increment(1)
+        subscriberCount: increment(1),
       });
 
       // Update user arrays atomically
       transaction.update(userRef, {
         'userdata.metrics.events.invitedEvents': arrayRemove(eventId),
         'userdata.metrics.events.subscribedEvents': arrayUnion(eventId),
-        subscribedEvents: arrayUnion(eventId)
+        subscribedEvents: arrayUnion(eventId),
       });
 
-      console.log(`[EventInvitations] User ${userId} accepted invitation and subscribed to event ${eventId}`);
+      console.log(
+        `[EventInvitations] User ${userId} accepted invitation and subscribed to event ${eventId}`
+      );
 
       return {
-        invitations: currentInvitations.filter(id => id !== userId),
+        invitations: currentInvitations.filter((id) => id !== userId),
         subscribers: [...currentSubscribers, userId],
-        subscriberCount: (eventData.subscriberCount || 0) + 1
+        subscriberCount: (eventData.subscriberCount || 0) + 1,
       };
     });
 
@@ -183,8 +232,16 @@ export const acceptInvitationAndSubscribe = async (userId, eventId, studioId, no
         await updateEventSubscription(userId, eventId);
 
         // Add notification subscription if needed
-        if (notificationSettings && Object.keys(notificationSettings).length > 0) {
-          await addEventNotificationSubscription(userId, eventId, studioId, notificationSettings);
+        if (
+          notificationSettings &&
+          Object.keys(notificationSettings).length > 0
+        ) {
+          await addEventNotificationSubscription(
+            userId,
+            eventId,
+            studioId,
+            notificationSettings
+          );
         }
 
         // Notify host of acceptance
@@ -201,11 +258,14 @@ export const acceptInvitationAndSubscribe = async (userId, eventId, studioId, no
             eventId: eventId,
             eventTitle: eventData.title,
             subscriberId: userId,
-            subscriberName: userName
+            subscriberName: userName,
           });
         }
       } catch (error) {
-        console.error('[EventInvitations] Background acceptance operations failed:', error);
+        console.error(
+          '[EventInvitations] Background acceptance operations failed:',
+          error
+        );
       }
     }, 0);
 
@@ -246,17 +306,19 @@ export const declineInvitation = async (userId, eventId, studioId) => {
 
       // Remove from both arrays
       transaction.update(eventRef, {
-        invitations: arrayRemove(userId)
+        invitations: arrayRemove(userId),
       });
 
       transaction.update(userRef, {
-        'userdata.metrics.events.invitedEvents': arrayRemove(eventId)
+        'userdata.metrics.events.invitedEvents': arrayRemove(eventId),
       });
 
-      console.log(`[EventInvitations] User ${userId} declined invitation to event ${eventId}`);
+      console.log(
+        `[EventInvitations] User ${userId} declined invitation to event ${eventId}`
+      );
 
       return {
-        invitations: currentInvitations.filter(id => id !== userId)
+        invitations: currentInvitations.filter((id) => id !== userId),
       };
     });
   } catch (error) {
@@ -281,7 +343,7 @@ export const bulkAddUsersToInvitations = async (userIds, eventId, studioId) => {
     const eventRef = doc(db, 'studios', studioId, 'events', eventId);
 
     // Use atomic transaction for bulk invitation
-    return await runTransaction(db, async (transaction) => {
+    const result = await runTransaction(db, async (transaction) => {
       const eventSnap = await transaction.get(eventRef);
 
       if (!eventSnap.exists()) {
@@ -293,9 +355,10 @@ export const bulkAddUsersToInvitations = async (userIds, eventId, studioId) => {
       const currentSubscribers = eventData.subscribers || [];
 
       // Filter out users that are already invited or subscribed
-      const eligibleUserIds = userIds.filter(userId =>
-        !currentInvitations.includes(userId) &&
-        !currentSubscribers.includes(userId)
+      const eligibleUserIds = userIds.filter(
+        (userId) =>
+          !currentInvitations.includes(userId) &&
+          !currentSubscribers.includes(userId)
       );
 
       if (eligibleUserIds.length === 0) {
@@ -304,28 +367,72 @@ export const bulkAddUsersToInvitations = async (userIds, eventId, studioId) => {
 
       // Update event's invitations array
       transaction.update(eventRef, {
-        invitations: arrayUnion(...eligibleUserIds)
+        invitations: arrayUnion(...eligibleUserIds),
       });
 
       // Update each user's invitedEvents array
       for (const userId of eligibleUserIds) {
         const userRef = doc(db, 'users', userId);
         transaction.update(userRef, {
-          'userdata.metrics.events.invitedEvents': arrayUnion(eventId)
+          'userdata.metrics.events.invitedEvents': arrayUnion(eventId),
         });
       }
 
-      console.log(`[EventInvitations] Bulk invited ${eligibleUserIds.length} users to event ${eventId}`);
+      console.log(
+        `[EventInvitations] Bulk invited ${eligibleUserIds.length} users to event ${eventId}`
+      );
 
       return {
         invitations: [...currentInvitations, ...eligibleUserIds],
         addedCount: eligibleUserIds.length,
         eligibleUserIds,
-        skippedCount: userIds.length - eligibleUserIds.length
+        skippedCount: userIds.length - eligibleUserIds.length,
+        eventData, // Return event data for notification
       };
     });
+
+    // AFTER transaction completes successfully, send bulk notifications
+    if (result.eligibleUserIds.length > 0) {
+      try {
+        const hostData = await getDoc(doc(db, 'users', result.eventData.createdBy));
+
+        if (hostData.exists()) {
+          const hostUserData = hostData.data();
+          const hostName = hostUserData?.userdata?.contactInfo?.displayName ||
+                          hostUserData?.userdata?.contactInfo?.firstName ||
+                          'Event Host';
+
+          // Create invitation IDs map for bulk notifications
+          const invitationIds = {};
+          result.eligibleUserIds.forEach(userId => {
+            invitationIds[userId] = `inv_${eventId}_${userId}_${Date.now()}`;
+          });
+
+          // Send bulk invitation notifications (fire-and-forget)
+          sendBulkInvitationNotifications({
+            recipientIds: result.eligibleUserIds,
+            inviterId: result.eventData.createdBy,
+            inviterName: hostName,
+            eventId: eventId,
+            eventTitle: result.eventData.title,
+            invitationIds,
+          }).catch((error) => {
+            console.error('[EventInvitations] Failed to send bulk invitation notifications:', error);
+            // Don't throw - notification failure shouldn't affect the invitation result
+          });
+        }
+      } catch (notificationError) {
+        console.error('[EventInvitations] Error preparing bulk invitation notifications:', notificationError);
+        // Don't throw - notification failure shouldn't affect the invitation result
+      }
+    }
+
+    return result;
   } catch (error) {
-    console.error('[EventInvitations] Error bulk adding users to invitations:', error);
+    console.error(
+      '[EventInvitations] Error bulk adding users to invitations:',
+      error
+    );
     throw error;
   }
 };
@@ -338,14 +445,25 @@ export const bulkAddUsersToInvitations = async (userIds, eventId, studioId) => {
  * @param {Object} settings - Notification settings
  * @returns {Promise<boolean>} Success status
  */
-const addEventNotificationSubscription = async (userId, eventId, studioId, settings) => {
+const addEventNotificationSubscription = async (
+  userId,
+  eventId,
+  studioId,
+  settings
+) => {
   try {
     // This would integrate with the notification system
     // For now, just log the subscription
-    console.log(`[EventInvitations] Added notification subscription for user ${userId}, event ${eventId}:`, settings);
+    console.log(
+      `[EventInvitations] Added notification subscription for user ${userId}, event ${eventId}:`,
+      settings
+    );
     return true;
   } catch (error) {
-    console.error('[EventInvitations] Error adding notification subscription:', error);
+    console.error(
+      '[EventInvitations] Error adding notification subscription:',
+      error
+    );
     return false;
   }
 };

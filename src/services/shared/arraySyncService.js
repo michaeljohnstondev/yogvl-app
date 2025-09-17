@@ -11,7 +11,7 @@ import {
   query,
   where,
   getDocs,
-  writeBatch
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '../../auth/services/firebase';
 
@@ -28,7 +28,12 @@ import { db } from '../../auth/services/firebase';
  * @param {string} operation - 'add' or 'remove'
  * @returns {Promise<Object>} Sync result
  */
-export const syncInvitationArrays = async (userId, eventId, studioId, operation) => {
+export const syncInvitationArrays = async (
+  userId,
+  eventId,
+  studioId,
+  operation
+) => {
   try {
     return await runTransaction(db, async (transaction) => {
       const eventRef = doc(db, 'studios', studioId, 'events', eventId);
@@ -36,7 +41,7 @@ export const syncInvitationArrays = async (userId, eventId, studioId, operation)
 
       const [eventSnap, userSnap] = await Promise.all([
         transaction.get(eventRef),
-        transaction.get(userRef)
+        transaction.get(userRef),
       ]);
 
       if (!eventSnap.exists()) {
@@ -51,7 +56,7 @@ export const syncInvitationArrays = async (userId, eventId, studioId, operation)
       const userData = userSnap.data();
 
       const eventInvitations = eventData.invitations || [];
-      const userInvitedEvents = userData.userdata?.invitedEvents || [];
+      const userInvitedEvents = userData.userdata?.pendingInvitations || [];
 
       if (operation === 'add') {
         // Add to both arrays if not already present
@@ -67,12 +72,13 @@ export const syncInvitationArrays = async (userId, eventId, studioId, operation)
 
         if (!userInvitedEvents.includes(eventId)) {
           transaction.update(userRef, {
-            'userdata.invitedEvents': arrayUnion(eventId)
+            'userdata.pendingInvitations': arrayUnion(eventId),
           });
         }
 
-        console.log(`[ArraySync] Added invitation sync: user ${userId} ↔ event ${eventId}`);
-
+        console.log(
+          `[ArraySync] Added invitation sync: user ${userId} ↔ event ${eventId}`
+        );
       } else if (operation === 'remove') {
         // Remove from both arrays
         const updates = {};
@@ -87,11 +93,13 @@ export const syncInvitationArrays = async (userId, eventId, studioId, operation)
 
         if (userInvitedEvents.includes(eventId)) {
           transaction.update(userRef, {
-            'userdata.invitedEvents': arrayRemove(eventId)
+            'userdata.pendingInvitations': arrayRemove(eventId),
           });
         }
 
-        console.log(`[ArraySync] Removed invitation sync: user ${userId} ↔ event ${eventId}`);
+        console.log(
+          `[ArraySync] Removed invitation sync: user ${userId} ↔ event ${eventId}`
+        );
       }
 
       return {
@@ -99,7 +107,7 @@ export const syncInvitationArrays = async (userId, eventId, studioId, operation)
         operation,
         userId,
         eventId,
-        synchronized: true
+        synchronized: true,
       };
     });
   } catch (error) {
@@ -116,7 +124,12 @@ export const syncInvitationArrays = async (userId, eventId, studioId, operation)
  * @param {string} operation - 'add' or 'remove'
  * @returns {Promise<Object>} Sync result
  */
-export const syncSubscriptionArrays = async (userId, eventId, studioId, operation) => {
+export const syncSubscriptionArrays = async (
+  userId,
+  eventId,
+  studioId,
+  operation
+) => {
   try {
     return await runTransaction(db, async (transaction) => {
       const eventRef = doc(db, 'studios', studioId, 'events', eventId);
@@ -124,7 +137,7 @@ export const syncSubscriptionArrays = async (userId, eventId, studioId, operatio
 
       const [eventSnap, userSnap] = await Promise.all([
         transaction.get(eventRef),
-        transaction.get(userRef)
+        transaction.get(userRef),
       ]);
 
       if (!eventSnap.exists()) {
@@ -140,7 +153,6 @@ export const syncSubscriptionArrays = async (userId, eventId, studioId, operatio
 
       const eventSubscribers = eventData.subscribers || [];
       const userSubscribedEvents = userData.userdata?.subscribedEvents || [];
-      const userTopLevelSubscribed = userData.subscribedEvents || [];
 
       if (operation === 'add') {
         // Add to event subscribers if not present
@@ -154,47 +166,47 @@ export const syncSubscriptionArrays = async (userId, eventId, studioId, operatio
           transaction.update(eventRef, eventUpdates);
         }
 
-        // Add to both user arrays
+        // Add to user nested array
         const userUpdates = {};
         if (!userSubscribedEvents.includes(eventId)) {
           userUpdates['userdata.subscribedEvents'] = arrayUnion(eventId);
-        }
-        if (!userTopLevelSubscribed.includes(eventId)) {
-          userUpdates.subscribedEvents = arrayUnion(eventId);
         }
 
         if (Object.keys(userUpdates).length > 0) {
           transaction.update(userRef, userUpdates);
         }
 
-        console.log(`[ArraySync] Added subscription sync: user ${userId} ↔ event ${eventId}`);
-
+        console.log(
+          `[ArraySync] Added subscription sync: user ${userId} ↔ event ${eventId}`
+        );
       } else if (operation === 'remove') {
         // Remove from event subscribers
         const eventUpdates = {};
         if (eventSubscribers.includes(userId)) {
           eventUpdates.subscribers = arrayRemove(userId);
-          eventUpdates.subscriberCount = Math.max(0, (eventData.subscriberCount || 1) - 1);
+          eventUpdates.subscriberCount = Math.max(
+            0,
+            (eventData.subscriberCount || 1) - 1
+          );
         }
 
         if (Object.keys(eventUpdates).length > 0) {
           transaction.update(eventRef, eventUpdates);
         }
 
-        // Remove from both user arrays
+        // Remove from user nested array
         const userUpdates = {};
         if (userSubscribedEvents.includes(eventId)) {
           userUpdates['userdata.subscribedEvents'] = arrayRemove(eventId);
-        }
-        if (userTopLevelSubscribed.includes(eventId)) {
-          userUpdates.subscribedEvents = arrayRemove(eventId);
         }
 
         if (Object.keys(userUpdates).length > 0) {
           transaction.update(userRef, userUpdates);
         }
 
-        console.log(`[ArraySync] Removed subscription sync: user ${userId} ↔ event ${eventId}`);
+        console.log(
+          `[ArraySync] Removed subscription sync: user ${userId} ↔ event ${eventId}`
+        );
       }
 
       return {
@@ -202,7 +214,7 @@ export const syncSubscriptionArrays = async (userId, eventId, studioId, operatio
         operation,
         userId,
         eventId,
-        synchronized: true
+        synchronized: true,
       };
     });
   } catch (error) {
@@ -218,7 +230,11 @@ export const syncSubscriptionArrays = async (userId, eventId, studioId, operatio
  * @param {string} studioId - Studio ID
  * @returns {Promise<Object>} Transition result
  */
-export const atomicInvitationToSubscription = async (userId, eventId, studioId) => {
+export const atomicInvitationToSubscription = async (
+  userId,
+  eventId,
+  studioId
+) => {
   try {
     return await runTransaction(db, async (transaction) => {
       const eventRef = doc(db, 'studios', studioId, 'events', eventId);
@@ -226,7 +242,7 @@ export const atomicInvitationToSubscription = async (userId, eventId, studioId) 
 
       const [eventSnap, userSnap] = await Promise.all([
         transaction.get(eventRef),
-        transaction.get(userRef)
+        transaction.get(userRef),
       ]);
 
       if (!eventSnap.exists()) {
@@ -242,9 +258,8 @@ export const atomicInvitationToSubscription = async (userId, eventId, studioId) 
 
       const eventInvitations = eventData.invitations || [];
       const eventSubscribers = eventData.subscribers || [];
-      const userInvitedEvents = userData.userdata?.invitedEvents || [];
+      const userInvitedEvents = userData.userdata?.pendingInvitations || [];
       const userSubscribedEvents = userData.userdata?.subscribedEvents || [];
-      const userTopLevelSubscribed = userData.subscribedEvents || [];
 
       // Validation
       if (!eventInvitations.includes(userId)) {
@@ -260,28 +275,32 @@ export const atomicInvitationToSubscription = async (userId, eventId, studioId) 
       transaction.update(eventRef, {
         invitations: arrayRemove(userId),
         subscribers: arrayUnion(userId),
-        subscriberCount: (eventData.subscriberCount || 0) + 1
+        subscriberCount: (eventData.subscriberCount || 0) + 1,
       });
 
-      // User updates - sync all arrays
+      // User updates - use only nested arrays per DATABASE.md schema
       transaction.update(userRef, {
-        'userdata.invitedEvents': arrayRemove(eventId),
+        'userdata.pendingInvitations': arrayRemove(eventId),
         'userdata.subscribedEvents': arrayUnion(eventId),
-        subscribedEvents: arrayUnion(eventId)
       });
 
-      console.log(`[ArraySync] Atomic transition: user ${userId} invitation → subscription for event ${eventId}`);
+      console.log(
+        `[ArraySync] Atomic transition: user ${userId} invitation → subscription for event ${eventId}`
+      );
 
       return {
         success: true,
         userId,
         eventId,
         transitioned: true,
-        newSubscriberCount: (eventData.subscriberCount || 0) + 1
+        newSubscriberCount: (eventData.subscriberCount || 0) + 1,
       };
     });
   } catch (error) {
-    console.error('[ArraySync] Error in atomic invitation to subscription:', error);
+    console.error(
+      '[ArraySync] Error in atomic invitation to subscription:',
+      error
+    );
     throw error;
   }
 };
@@ -293,7 +312,11 @@ export const atomicInvitationToSubscription = async (userId, eventId, studioId) 
  * @param {string} studioId - Studio to audit (required if eventId provided)
  * @returns {Promise<Object>} Audit results and repairs
  */
-export const auditAndRepairArraySync = async (userId = null, eventId = null, studioId = null) => {
+export const auditAndRepairArraySync = async (
+  userId = null,
+  eventId = null,
+  studioId = null
+) => {
   try {
     const issues = [];
     const repairs = [];
@@ -305,7 +328,7 @@ export const auditAndRepairArraySync = async (userId = null, eventId = null, stu
 
       const [eventSnap, userSnap] = await Promise.all([
         getDoc(eventRef),
-        getDoc(userRef)
+        getDoc(userRef),
       ]);
 
       if (eventSnap.exists() && userSnap.exists()) {
@@ -314,7 +337,7 @@ export const auditAndRepairArraySync = async (userId = null, eventId = null, stu
 
         const eventInvitations = eventData.invitations || [];
         const eventSubscribers = eventData.subscribers || [];
-        const userInvitedEvents = userData.userdata?.invitedEvents || [];
+        const userInvitedEvents = userData.userdata?.pendingInvitations || [];
         const userSubscribedEvents = userData.userdata?.subscribedEvents || [];
 
         // Check invitation sync
@@ -327,17 +350,23 @@ export const auditAndRepairArraySync = async (userId = null, eventId = null, stu
             userId,
             eventId,
             eventHasUser: userInEventInvitations,
-            userHasEvent: eventInUserInvitations
+            userHasEvent: eventInUserInvitations,
           });
 
           // Repair by removing from both (safer than adding)
           if (userInEventInvitations) {
             await updateDoc(eventRef, { invitations: arrayRemove(userId) });
-            repairs.push(`Removed user ${userId} from event ${eventId} invitations`);
+            repairs.push(
+              `Removed user ${userId} from event ${eventId} invitations`
+            );
           }
           if (eventInUserInvitations) {
-            await updateDoc(userRef, { 'userdata.invitedEvents': arrayRemove(eventId) });
-            repairs.push(`Removed event ${eventId} from user ${userId} invited events`);
+            await updateDoc(userRef, {
+              'userdata.pendingInvitations': arrayRemove(eventId),
+            });
+            repairs.push(
+              `Removed event ${eventId} from user ${userId} pending invitations`
+            );
           }
         }
 
@@ -351,22 +380,25 @@ export const auditAndRepairArraySync = async (userId = null, eventId = null, stu
             userId,
             eventId,
             eventHasUser: userInEventSubscribers,
-            userHasEvent: eventInUserSubscriptions
+            userHasEvent: eventInUserSubscriptions,
           });
 
           // Repair by syncing both directions
           if (userInEventSubscribers && !eventInUserSubscriptions) {
             await updateDoc(userRef, {
               'userdata.subscribedEvents': arrayUnion(eventId),
-              subscribedEvents: arrayUnion(eventId)
             });
-            repairs.push(`Added event ${eventId} to user ${userId} subscriptions`);
+            repairs.push(
+              `Added event ${eventId} to user ${userId} subscriptions`
+            );
           } else if (!userInEventSubscribers && eventInUserSubscriptions) {
             await updateDoc(eventRef, {
               subscribers: arrayUnion(userId),
-              subscriberCount: (eventData.subscriberCount || 0) + 1
+              subscriberCount: (eventData.subscriberCount || 0) + 1,
             });
-            repairs.push(`Added user ${userId} to event ${eventId} subscribers`);
+            repairs.push(
+              `Added user ${userId} to event ${eventId} subscribers`
+            );
           }
         }
       }
@@ -377,7 +409,7 @@ export const auditAndRepairArraySync = async (userId = null, eventId = null, stu
       issuesFound: issues.length,
       issues,
       repairsApplied: repairs.length,
-      repairs
+      repairs,
     };
   } catch (error) {
     console.error('[ArraySync] Error in audit and repair:', error);

@@ -3,7 +3,11 @@
 
 import { doc, getDoc } from '../../lib/firebase';
 import { db } from '../../auth/services/firebase';
-import { notificationEngine, NOTIFICATION_TYPES, NOTIFICATION_PRIORITY } from './NotificationEngine';
+import {
+  notificationEngine,
+  NOTIFICATION_TYPES,
+  NOTIFICATION_PRIORITY,
+} from './NotificationEngine';
 
 /**
  * Notify event host when someone subscribes to their event
@@ -14,20 +18,26 @@ export const notifyHostOfNewSubscription = async ({
   eventId,
   eventTitle,
   subscriberId,
-  subscriberName
+  subscriberName,
 }) => {
   try {
     if (!hostId || !eventId || !subscriberId || !subscriberName) {
-      throw new Error('Missing required parameters for host subscription notification');
+      throw new Error(
+        'Missing required parameters for host subscription notification'
+      );
     }
 
     // Don't notify if host subscribes to their own event
     if (hostId === subscriberId) {
-      console.log('[HostNotifications] Skipping self-subscription notification');
+      console.log(
+        '[HostNotifications] Skipping self-subscription notification'
+      );
       return { success: true, skipped: true, reason: 'Self-subscription' };
     }
 
-    console.log(`[HostNotifications] Notifying host ${hostId} of new subscription by ${subscriberName}`);
+    console.log(
+      `[HostNotifications] Notifying host ${hostId} of new subscription by ${subscriberName}`
+    );
 
     const result = await notificationEngine.createNotification({
       userId: hostId,
@@ -37,22 +47,24 @@ export const notifyHostOfNewSubscription = async ({
         eventTitle,
         subscriberId,
         subscriberName,
-        actionType: 'subscribe'
+        actionType: 'subscribe',
       },
-      priority: NOTIFICATION_PRIORITY.NORMAL
+      priority: NOTIFICATION_PRIORITY.NORMAL,
     });
 
     return {
       success: true,
       notificationId: result.notificationId,
-      message: 'Host subscription notification sent successfully'
+      message: 'Host subscription notification sent successfully',
     };
-
   } catch (error) {
-    console.error('[HostNotifications] Error sending subscription notification:', error);
+    console.error(
+      '[HostNotifications] Error sending subscription notification:',
+      error
+    );
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 };
@@ -66,20 +78,26 @@ export const notifyHostOfUnsubscription = async ({
   eventId,
   eventTitle,
   unsubscriberId,
-  unsubscriberName
+  unsubscriberName,
 }) => {
   try {
     if (!hostId || !eventId || !unsubscriberId || !unsubscriberName) {
-      throw new Error('Missing required parameters for host unsubscription notification');
+      throw new Error(
+        'Missing required parameters for host unsubscription notification'
+      );
     }
 
     // Don't notify if host unsubscribes from their own event
     if (hostId === unsubscriberId) {
-      console.log('[HostNotifications] Skipping self-unsubscription notification');
+      console.log(
+        '[HostNotifications] Skipping self-unsubscription notification'
+      );
       return { success: true, skipped: true, reason: 'Self-unsubscription' };
     }
 
-    console.log(`[HostNotifications] Notifying host ${hostId} of unsubscription by ${unsubscriberName}`);
+    console.log(
+      `[HostNotifications] Notifying host ${hostId} of unsubscription by ${unsubscriberName}`
+    );
 
     const result = await notificationEngine.createNotification({
       userId: hostId,
@@ -89,22 +107,24 @@ export const notifyHostOfUnsubscription = async ({
         eventTitle,
         unsubscriberId,
         unsubscriberName,
-        actionType: 'unsubscribe'
+        actionType: 'unsubscribe',
       },
-      priority: NOTIFICATION_PRIORITY.LOW // Lower priority than subscriptions
+      priority: NOTIFICATION_PRIORITY.LOW, // Lower priority than subscriptions
     });
 
     return {
       success: true,
       notificationId: result.notificationId,
-      message: 'Host unsubscription notification sent successfully'
+      message: 'Host unsubscription notification sent successfully',
     };
-
   } catch (error) {
-    console.error('[HostNotifications] Error sending unsubscription notification:', error);
+    console.error(
+      '[HostNotifications] Error sending unsubscription notification:',
+      error
+    );
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 };
@@ -128,7 +148,8 @@ export const getEventHostDetails = async (studioId, eventId) => {
 
     const eventData = eventDoc.data();
     const hostId = eventData.hostUserId;
-    const eventTitle = eventData.eventName || eventData.title || 'Untitled Event';
+    const eventTitle =
+      eventData.eventName || eventData.title || 'Untitled Event';
 
     if (!hostId) {
       throw new Error('Event has no host user ID');
@@ -143,24 +164,27 @@ export const getEventHostDetails = async (studioId, eventId) => {
       return {
         hostId,
         eventTitle,
-        hostName: 'Event Host'
+        hostName: 'Event Host',
       };
     }
 
     const hostData = hostDoc.data();
-    const hostName = hostData.userdata?.contactInfo?.displayName ||
-                    hostData.userdata?.contactInfo?.firstName ||
-                    'Event Host';
+    const hostName =
+      hostData.userdata?.contactInfo?.displayName ||
+      hostData.userdata?.contactInfo?.firstName ||
+      'Event Host';
 
     return {
       hostId,
       eventTitle,
       hostName,
-      eventData
+      eventData,
     };
-
   } catch (error) {
-    console.error('[HostNotifications] Error getting event host details:', error);
+    console.error(
+      '[HostNotifications] Error getting event host details:',
+      error
+    );
     throw error;
   }
 };
@@ -174,7 +198,7 @@ export const batchNotifyHostOfSubscriptionChanges = async ({
   eventId,
   eventTitle,
   subscriptions = [],
-  unsubscriptions = []
+  unsubscriptions = [],
 }) => {
   try {
     const notifications = [];
@@ -189,9 +213,9 @@ export const batchNotifyHostOfSubscriptionChanges = async ({
           eventTitle,
           subscriberId: userId,
           subscriberName: userName,
-          actionType: 'subscribe'
+          actionType: 'subscribe',
         },
-        priority: NOTIFICATION_PRIORITY.NORMAL
+        priority: NOTIFICATION_PRIORITY.NORMAL,
       });
     });
 
@@ -205,9 +229,9 @@ export const batchNotifyHostOfSubscriptionChanges = async ({
           eventTitle,
           unsubscriberId: userId,
           unsubscriberName: userName,
-          actionType: 'unsubscribe'
+          actionType: 'unsubscribe',
         },
-        priority: NOTIFICATION_PRIORITY.LOW
+        priority: NOTIFICATION_PRIORITY.LOW,
       });
     });
 
@@ -215,21 +239,24 @@ export const batchNotifyHostOfSubscriptionChanges = async ({
       return { success: true, sent: 0, message: 'No notifications to send' };
     }
 
-    const result = await notificationEngine.sendBatchNotifications(notifications);
+    const result =
+      await notificationEngine.sendBatchNotifications(notifications);
 
     return {
       success: true,
       sent: result.sent,
       total: result.total,
       subscriptionNotifications: subscriptions.length,
-      unsubscriptionNotifications: unsubscriptions.length
+      unsubscriptionNotifications: unsubscriptions.length,
     };
-
   } catch (error) {
-    console.error('[HostNotifications] Error sending batch notifications:', error);
+    console.error(
+      '[HostNotifications] Error sending batch notifications:',
+      error
+    );
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 };
@@ -238,5 +265,5 @@ export default {
   notifyHostOfNewSubscription,
   notifyHostOfUnsubscription,
   getEventHostDetails,
-  batchNotifyHostOfSubscriptionChanges
+  batchNotifyHostOfSubscriptionChanges,
 };

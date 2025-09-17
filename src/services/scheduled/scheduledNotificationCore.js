@@ -1,37 +1,19 @@
 // services/scheduled/scheduledNotificationCore.js - Core Scheduling Service
 
-import {
-  doc,
-  setDoc,
-  Timestamp,
-} from 'firebase/firestore';
+import { doc, setDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../../auth/services/firebase';
-// Local constants to avoid import resolution issues
-const NOTIFICATION_TYPES = {
-  EVENT_REMINDER: 'event_reminder',
-  EVENT_UPDATE: 'event_update',
-  EVENT_CANCELLED: 'event_cancelled',
-  EVENT_JOIN: 'event_join',
-  EVENT_LEAVE: 'event_leave'
-};
-
-const NOTIFICATION_PRIORITY = {
-  LOW: 'low',
-  NORMAL: 'normal',
-  HIGH: 'high',
-  URGENT: 'urgent'
-};
-
-const DELIVERY_CHANNELS = {
-  PUSH: 'push',
-  IN_APP: 'in_app',
-  EMAIL: 'email'
-};
+import {
+  NOTIFICATION_TYPES,
+  NOTIFICATION_PRIORITY,
+  DELIVERY_CHANNELS,
+} from '../notifications';
 
 /**
  * SCHEDULED NOTIFICATION DATA MODEL:
  *
- * Collection: /users/{userId}/scheduledNotifications/{scheduleId}
+ * Collection: /scheduledNotifications/{scheduleId}
+ * ⚠️  SCALABLE APPROACH: Global collection instead of user subcollections
+ * This allows efficient querying across ALL users for due notifications
  * {
  *   id: string,
  *   userId: string,
@@ -66,10 +48,9 @@ export class ScheduledNotificationCore {
   }) {
     try {
       const scheduleId = `sched_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      // SCALABLE: Use global collection instead of user subcollections
       const scheduledNotificationRef = doc(
         db,
-        'users',
-        userId,
         'scheduledNotifications',
         scheduleId
       );

@@ -8,7 +8,6 @@ import {
   getDocs,
   updateDoc,
   serverTimestamp,
-  writeBatch,
   increment,
 } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';

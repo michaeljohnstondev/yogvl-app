@@ -22,7 +22,8 @@ export const extractDisplayName = (userData, fallback = 'Unknown User') => {
     userData.userdata?.contactInfo?.displayName,
     userData.displayName, // Some legacy data might have this
     userData.userdata?.profile?.displayName, // Alternative location
-    userData.userdata?.contactInfo?.firstName && userData.userdata?.contactInfo?.lastName
+    userData.userdata?.contactInfo?.firstName &&
+    userData.userdata?.contactInfo?.lastName
       ? `${userData.userdata.contactInfo.firstName} ${userData.userdata.contactInfo.lastName}`.trim()
       : null,
     userData.userdata?.contactInfo?.firstName,
@@ -193,7 +194,7 @@ export const validateUserDataCompleteness = (userData) => {
       isComplete: false,
       hasWarnings: false,
       issues: ['User data is null or undefined'],
-      warnings: []
+      warnings: [],
     };
   }
 
@@ -223,7 +224,7 @@ export const validateUserDataCompleteness = (userData) => {
     isComplete: issues.length === 0,
     hasWarnings: warnings.length > 0,
     issues,
-    warnings
+    warnings,
   };
 };
 
@@ -268,7 +269,11 @@ export const safeUserDataAccess = (userData, path, fallback = null) => {
 
     return current;
   } catch (error) {
-    console.error('[UserDisplayUtils] Error accessing user data path:', path, error);
+    console.error(
+      '[UserDisplayUtils] Error accessing user data path:',
+      path,
+      error
+    );
     return fallback;
   }
 };

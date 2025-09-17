@@ -65,11 +65,14 @@ exports.onAdminAnnouncement = functions.firestore.onDocumentCreated(
       });
 
       // Mark announcement as sent
-      await admin.firestore().doc(`admin/announcements/${announcementId}`).update({
-        sent: true,
-        sentAt: admin.firestore.FieldValue.serverTimestamp(),
-        recipientCount: targetUsers.length,
-      });
+      await admin
+        .firestore()
+        .doc(`admin/announcements/${announcementId}`)
+        .update({
+          sent: true,
+          sentAt: admin.firestore.FieldValue.serverTimestamp(),
+          recipientCount: targetUsers.length,
+        });
 
       console.log(`Admin announcement sent to ${targetUsers.length} users`);
     } catch (error) {
@@ -109,7 +112,8 @@ exports.onMaintenanceNotification = functions.firestore.onDocumentCreated(
 
       // Format maintenance message
       const maintenanceTime = new Date(scheduledFor).toLocaleString();
-      const formattedMessage = message ||
+      const formattedMessage =
+        message ||
         `Scheduled maintenance on ${maintenanceTime}. Estimated duration: ${estimatedDuration || 'TBD'}`;
 
       // Send high priority maintenance notifications
@@ -135,7 +139,9 @@ exports.onMaintenanceNotification = functions.firestore.onDocumentCreated(
         recipientCount: targetUsers.length,
       });
 
-      console.log(`Maintenance notification sent to ${targetUsers.length} users`);
+      console.log(
+        `Maintenance notification sent to ${targetUsers.length} users`
+      );
     } catch (error) {
       console.error('Error processing maintenance notification:', error);
     }
@@ -165,7 +171,9 @@ exports.onAppUpdateNotification = functions.firestore.onDocumentCreated(
       } = updateData;
 
       // Get users who need the update
-      const targetUsers = required ? await getAllActiveUsers() : await getOptionalUpdateUsers();
+      const targetUsers = required
+        ? await getAllActiveUsers()
+        : await getOptionalUpdateUsers();
 
       if (targetUsers.length === 0) {
         console.log('No users found for update notification');
@@ -174,7 +182,8 @@ exports.onAppUpdateNotification = functions.firestore.onDocumentCreated(
 
       // Format update message
       const updateTitle = title || `App Update Available (v${version})`;
-      const updateMessage = message ||
+      const updateMessage =
+        message ||
         `New features: ${features.join(', ')}. ${required ? 'This update is required.' : 'Update when convenient.'}`;
 
       // Send update notifications
@@ -200,7 +209,9 @@ exports.onAppUpdateNotification = functions.firestore.onDocumentCreated(
         recipientCount: targetUsers.length,
       });
 
-      console.log(`App update notification sent to ${targetUsers.length} users`);
+      console.log(
+        `App update notification sent to ${targetUsers.length} users`
+      );
     } catch (error) {
       console.error('Error processing app update notification:', error);
     }
@@ -210,7 +221,14 @@ exports.onAppUpdateNotification = functions.firestore.onDocumentCreated(
 /**
  * Helper function to send notifications in batches
  */
-async function sendBatchNotifications({ targetUsers, title, message, type, priority, data }) {
+async function sendBatchNotifications({
+  targetUsers,
+  title,
+  message,
+  type,
+  priority,
+  data,
+}) {
   const messages = targetUsers.map(({ userId, fcmToken }) => ({
     token: fcmToken,
     notification: { title, message },
@@ -236,7 +254,9 @@ async function sendBatchNotifications({ targetUsers, title, message, type, prior
     try {
       const response = await admin.messaging().sendEach(batch);
       totalSent += response.successCount;
-      console.log(`Batch ${i / batchSize + 1}: ${response.successCount}/${batch.length} successful`);
+      console.log(
+        `Batch ${i / batchSize + 1}: ${response.successCount}/${batch.length} successful`
+      );
     } catch (error) {
       console.error(`Error sending batch ${i / batchSize + 1}:`, error);
     }
@@ -256,7 +276,7 @@ async function getAllActiveUsers() {
     .where('deviceInfo.notificationsEnabled', '==', true)
     .get();
 
-  return usersSnapshot.docs.map(doc => ({
+  return usersSnapshot.docs.map((doc) => ({
     userId: doc.id,
     fcmToken: doc.data().deviceInfo.fcmToken,
   }));
@@ -285,7 +305,7 @@ async function getActiveUsers() {
     .where('lastSeen', '>=', admin.firestore.Timestamp.fromDate(thirtyDaysAgo))
     .get();
 
-  return usersSnapshot.docs.map(doc => ({
+  return usersSnapshot.docs.map((doc) => ({
     userId: doc.id,
     fcmToken: doc.data().deviceInfo.fcmToken,
   }));
@@ -303,7 +323,7 @@ async function getBetaUsers() {
     .where('userdata.isBetaTester', '==', true)
     .get();
 
-  return usersSnapshot.docs.map(doc => ({
+  return usersSnapshot.docs.map((doc) => ({
     userId: doc.id,
     fcmToken: doc.data().deviceInfo.fcmToken,
   }));

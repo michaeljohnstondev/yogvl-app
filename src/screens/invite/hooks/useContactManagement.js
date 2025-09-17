@@ -1,8 +1,5 @@
 import { useState, useEffect } from 'react';
-import {
-  doc,
-  getDoc,
-} from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../auth/services/firebase';
 import { getDeviceContacts } from '../../../lib/contactService';
 import { getStudioUsers } from '../../../services/userService';
@@ -49,10 +46,11 @@ export const useContactManagement = (
     initializeData();
   }, [currentUserId, userData, eventId, studioId]);
 
-
   const loadAppUsers = async () => {
     if (!currentUserId || !userData?.userdata?.studios?.default?.studioId) {
-      console.log('[useContactManagement] Missing user data, skipping app users load');
+      console.log(
+        '[useContactManagement] Missing user data, skipping app users load'
+      );
       return;
     }
 
@@ -86,7 +84,7 @@ export const useContactManagement = (
             const cohostSet = new Set(cohosts);
 
             // Simple filtering logic using arrays
-            const filteredUsers = allUsers.filter(user => {
+            const filteredUsers = allUsers.filter((user) => {
               if (!user.id) return false;
               if (user.id === hostId) return false;
               if (cohostSet.has(user.id)) return false;
@@ -102,7 +100,10 @@ export const useContactManagement = (
             setAppUsers(allUsers);
           }
         } catch (eventError) {
-          console.error('[useContactManagement] Failed to load event data for filtering:', eventError);
+          console.error(
+            '[useContactManagement] Failed to load event data for filtering:',
+            eventError
+          );
           // Fallback to showing all users if event data can't be loaded
           setAppUsers(allUsers);
         }

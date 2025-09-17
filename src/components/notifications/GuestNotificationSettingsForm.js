@@ -1,5 +1,5 @@
 // Guest/attendee notification settings form component with custom reminder templates
-import React, { useState } from 'react';
+import React, { useState, memo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import { VibeButton } from '../ui';
 import CustomTemplateService from '../../services/CustomTemplateService';
 import theme from '../../theme/themes';
 
-export default function GuestNotificationSettingsForm({
+const GuestNotificationSettingsForm = memo(function GuestNotificationSettingsForm({
   settings,
   onUpdateSettings,
   showCriticalUpdates = true,
@@ -33,7 +33,7 @@ export default function GuestNotificationSettingsForm({
   const [customUnit, setCustomUnit] = useState('hours');
   const [isAddingReminder, setIsAddingReminder] = useState(false);
 
-  const handleShowAddForm = () => {
+  const handleShowAddForm = useCallback(() => {
     setShowAddCustomForm(true);
     // Scroll down to show the form
     setTimeout(() => {
@@ -44,7 +44,7 @@ export default function GuestNotificationSettingsForm({
         });
       }
     }, 150);
-  };
+  }, [scrollViewRef]);
 
   // Default reminder templates for guests
   const defaultReminderTemplates = [
@@ -479,7 +479,9 @@ export default function GuestNotificationSettingsForm({
       )}
     </>
   );
-}
+});
+
+export default GuestNotificationSettingsForm;
 
 const styles = StyleSheet.create({
   section: {

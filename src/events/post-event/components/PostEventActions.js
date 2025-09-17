@@ -14,7 +14,7 @@ import {
   followUser,
   unfollowUser,
   checkIfFollowing,
-  checkIfMutualFollows
+  checkIfMutualFollows,
 } from '../../../services/followService';
 import { VibeButton } from '../../../components/ui';
 import theme from '../../../theme/themes';
@@ -50,7 +50,7 @@ const PostEventActions = ({
         // Use service functions instead of direct Firebase calls
         const [iFollowThem, isMutualFriend] = await Promise.all([
           checkIfFollowing(currentUserId, user.id),
-          checkIfMutualFollows(currentUserId, user.id)
+          checkIfMutualFollows(currentUserId, user.id),
         ]);
 
         return [user.id, iFollowThem, isMutualFriend];
@@ -94,7 +94,10 @@ const PostEventActions = ({
         await followUser(currentUserId, targetUserId, userData);
         setFollowingStatus((prev) => ({ ...prev, [targetUserId]: true }));
         // Check if it's now mutual using service function
-        const isMutual = await checkIfMutualFollows(currentUserId, targetUserId);
+        const isMutual = await checkIfMutualFollows(
+          currentUserId,
+          targetUserId
+        );
         setMutualFollowStatus((prev) => ({
           ...prev,
           [targetUserId]: isMutual,

@@ -15,7 +15,14 @@ import { useVibeAlert } from '../../../components/ui/base/VibeAlertContext';
  * @param {Object} options - Hook configuration options
  * @returns {Object} Hook interface with guest actions and state
  */
-export const useGuestActions = (studioId, eventId, userId, eventData, userStatus, options = {}) => {
+export const useGuestActions = (
+  studioId,
+  eventId,
+  userId,
+  eventData,
+  userStatus,
+  options = {}
+) => {
   const { onActionComplete = () => {} } = options;
 
   const [submitting, setSubmitting] = useState(false);
@@ -24,104 +31,137 @@ export const useGuestActions = (studioId, eventId, userId, eventData, userStatus
   const vibeAlert = useVibeAlert();
 
   // Check if user can perform guest actions
-  const canPerformGuestActions = !userStatus?.isHost && eventData && !submitting;
+  const canPerformGuestActions =
+    !userStatus?.isHost && eventData && !submitting;
 
   // Report attendance (guest only)
-  const reportAttendance = useCallback(async (attended) => {
-    if (!canPerformGuestActions) {
-      vibeAlert.error('Error', 'Hosts cannot self-report attendance');
-      return false;
-    }
+  const reportAttendance = useCallback(
+    async (attended) => {
+      if (!canPerformGuestActions) {
+        vibeAlert.error('Error', 'Hosts cannot self-report attendance');
+        return false;
+      }
 
-    try {
-      setSubmitting(true);
-      setActionInProgress('reporting');
+      try {
+        setSubmitting(true);
+        setActionInProgress('reporting');
 
-      await PostEventService.handleGuestAttendanceReport(studioId, eventId, userId, attended);
+        await PostEventService.handleGuestAttendanceReport(
+          studioId,
+          eventId,
+          userId,
+          attended
+        );
 
-      const message = attended
-        ? 'Thanks for confirming you attended!'
-        : 'Thanks for letting us know you missed it.';
+        const message = attended
+          ? 'Thanks for confirming you attended!'
+          : 'Thanks for letting us know you missed it.';
 
-      vibeAlert.success('Thanks!', message);
+        vibeAlert.success('Thanks!', message);
 
-      onActionComplete({
-        action: 'reportAttendance',
-        success: true,
-        data: { attended },
-      });
+        onActionComplete({
+          action: 'reportAttendance',
+          success: true,
+          data: { attended },
+        });
 
-      return true;
-    } catch (error) {
-      console.error('[useGuestActions] Error reporting attendance:', error);
-      vibeAlert.error('Error', error.message || 'Failed to report attendance');
+        return true;
+      } catch (error) {
+        console.error('[useGuestActions] Error reporting attendance:', error);
+        vibeAlert.error(
+          'Error',
+          error.message || 'Failed to report attendance'
+        );
 
-      onActionComplete({
-        action: 'reportAttendance',
-        success: false,
-        error,
-      });
+        onActionComplete({
+          action: 'reportAttendance',
+          success: false,
+          error,
+        });
 
-      return false;
-    } finally {
-      setSubmitting(false);
-      setActionInProgress(null);
-    }
-  }, [canPerformGuestActions, studioId, eventId, userId, vibeAlert, onActionComplete]);
+        return false;
+      } finally {
+        setSubmitting(false);
+        setActionInProgress(null);
+      }
+    },
+    [
+      canPerformGuestActions,
+      studioId,
+      eventId,
+      userId,
+      vibeAlert,
+      onActionComplete,
+    ]
+  );
 
   // Submit host rating (guest only)
-  const submitHostRating = useCallback(async (rating) => {
-    if (!canPerformGuestActions) {
-      vibeAlert.error('Error', 'You cannot rate yourself');
-      return false;
-    }
+  const submitHostRating = useCallback(
+    async (rating) => {
+      if (!canPerformGuestActions) {
+        vibeAlert.error('Error', 'You cannot rate yourself');
+        return false;
+      }
 
-    // Validate rating input
-    if (!rating || rating < 1 || rating > 5 || !Number.isInteger(rating)) {
-      vibeAlert.error('Error', 'Please provide a valid rating between 1 and 5 stars');
-      return false;
-    }
+      // Validate rating input
+      if (!rating || rating < 1 || rating > 5 || !Number.isInteger(rating)) {
+        vibeAlert.error(
+          'Error',
+          'Please provide a valid rating between 1 and 5 stars'
+        );
+        return false;
+      }
 
-    try {
-      setSubmitting(true);
-      setActionInProgress('rating');
+      try {
+        setSubmitting(true);
+        setActionInProgress('rating');
 
-      await PostEventService.submitHostRating(
-        studioId,
-        eventId,
-        eventData.createdBy,
-        userId,
-        rating
-      );
+        await PostEventService.submitHostRating(
+          studioId,
+          eventId,
+          eventData.createdBy,
+          userId,
+          rating
+        );
 
-      vibeAlert.success(
-        'Thank you!',
-        `You rated the host ${rating} star${rating !== 1 ? 's' : ''}!`
-      );
+        vibeAlert.success(
+          'Thank you!',
+          `You rated the host ${rating} star${rating !== 1 ? 's' : ''}!`
+        );
 
-      onActionComplete({
-        action: 'submitRating',
-        success: true,
-        data: { rating },
-      });
+        onActionComplete({
+          action: 'submitRating',
+          success: true,
+          data: { rating },
+        });
 
-      return true;
-    } catch (error) {
-      console.error('[useGuestActions] Error submitting rating:', error);
-      vibeAlert.error('Error', error.message || 'Failed to submit rating');
+        return true;
+      } catch (error) {
+        console.error('[useGuestActions] Error submitting rating:', error);
+        vibeAlert.error('Error', error.message || 'Failed to submit rating');
 
-      onActionComplete({
-        action: 'submitRating',
-        success: false,
-        error,
-      });
+        onActionComplete({
+          action: 'submitRating',
+          success: false,
+          error,
+        });
 
-      return false;
-    } finally {
-      setSubmitting(false);
-      setActionInProgress(null);
-    }
-  }, [canPerformGuestActions, studioId, eventId, eventData?.createdBy, userId, vibeAlert, onActionComplete]);
+        return false;
+      } finally {
+        setSubmitting(false);
+        setActionInProgress(null);
+      }
+    },
+    [
+      canPerformGuestActions,
+      studioId,
+      eventId,
+      eventData?.createdBy,
+      userId,
+      vibeAlert,
+      onActionComplete,
+    ]
+  );
 
   return {
     // State

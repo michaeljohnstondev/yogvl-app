@@ -15,7 +15,10 @@ import {
   increment,
 } from 'firebase/firestore';
 import { db } from '../../auth/services/firebase';
-import { notifyCohostInvitation, notifyCohostAccepted } from './invitationNotificationsService';
+import {
+  notifyCohostInvitation,
+  notifyCohostAccepted,
+} from './invitationNotificationsService';
 
 /**
  * Send cohost invitation
@@ -104,7 +107,10 @@ export const sendCohostInvitation = async (
 
     return { success: true, invitationId };
   } catch (error) {
-    console.error('[CohostInvitations] Error sending cohost invitation:', error);
+    console.error(
+      '[CohostInvitations] Error sending cohost invitation:',
+      error
+    );
     throw error;
   }
 };
@@ -185,10 +191,7 @@ export const acceptCohostInvitation = async (
       'Someone';
     const eventTitle = eventData?.title || 'Untitled Event';
 
-    console.log(
-      '[CohostInvitations] Extracted accepter name:',
-      accepterName
-    );
+    console.log('[CohostInvitations] Extracted accepter name:', accepterName);
 
     // Update invitation status
     batch.update(invitationRef, {
@@ -237,7 +240,10 @@ export const acceptCohostInvitation = async (
 
     return { success: true };
   } catch (error) {
-    console.error('[CohostInvitations] Error accepting cohost invitation:', error);
+    console.error(
+      '[CohostInvitations] Error accepting cohost invitation:',
+      error
+    );
     throw error;
   }
 };
@@ -265,7 +271,10 @@ export const declineCohostInvitation = async (invitationId, recipientId) => {
 
     return { success: true };
   } catch (error) {
-    console.error('[CohostInvitations] Error declining cohost invitation:', error);
+    console.error(
+      '[CohostInvitations] Error declining cohost invitation:',
+      error
+    );
     throw error;
   }
 };
@@ -376,7 +385,10 @@ export const removeCohostFromEvent = async (
     );
     return { success: true };
   } catch (error) {
-    console.error('[CohostInvitations] Error removing cohost from event:', error);
+    console.error(
+      '[CohostInvitations] Error removing cohost from event:',
+      error
+    );
     throw error;
   }
 };
@@ -400,7 +412,7 @@ export const getCohostInvitationStatus = async (userId, eventId) => {
     }
 
     // Return the most recent invitation
-    const invitations = snapshot.docs.map(doc => ({
+    const invitations = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     }));
@@ -409,7 +421,10 @@ export const getCohostInvitationStatus = async (userId, eventId) => {
     invitations.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
     return invitations[0];
   } catch (error) {
-    console.error('[CohostInvitations] Error getting cohost invitation status:', error);
+    console.error(
+      '[CohostInvitations] Error getting cohost invitation status:',
+      error
+    );
     return null;
   }
 };

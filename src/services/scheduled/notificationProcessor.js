@@ -22,11 +22,18 @@ export class NotificationProcessor {
   static async processPendingNotifications(userId = null) {
     try {
       if (!userId) {
-        console.warn('[NotificationProcessor] Processing notifications requires userId in user-scoped architecture');
-        return { success: false, error: 'userId required for user-scoped notifications' };
+        console.warn(
+          '[NotificationProcessor] Processing notifications requires userId in user-scoped architecture'
+        );
+        return {
+          success: false,
+          error: 'userId required for user-scoped notifications',
+        };
       }
 
-      console.log(`[NotificationProcessor] Processing pending scheduled notifications for user ${userId}...`);
+      console.log(
+        `[NotificationProcessor] Processing pending scheduled notifications for user ${userId}...`
+      );
 
       const now = new Date();
       const cutoffTime = new Date(now.getTime() + 5 * 60 * 1000); // 5 minutes buffer
@@ -43,11 +50,15 @@ export class NotificationProcessor {
       const snapshot = await getDocs(q);
 
       if (snapshot.empty) {
-        console.log('[NotificationProcessor] No pending notifications to process');
+        console.log(
+          '[NotificationProcessor] No pending notifications to process'
+        );
         return { success: true, processedCount: 0 };
       }
 
-      console.log(`[NotificationProcessor] Found ${snapshot.size} notifications to process`);
+      console.log(
+        `[NotificationProcessor] Found ${snapshot.size} notifications to process`
+      );
 
       const results = [];
       const batch = writeBatch(db);
@@ -58,9 +69,10 @@ export class NotificationProcessor {
         try {
           // Check if event still exists and hasn't been cancelled
           if (notification.eventId) {
-            const isEventValid = await NotificationValidator.validateEventForNotification(
-              notification.eventId
-            );
+            const isEventValid =
+              await NotificationValidator.validateEventForNotification(
+                notification.eventId
+              );
             if (!isEventValid) {
               // Cancel notification - event no longer exists or was cancelled
               batch.update(notificationDoc.ref, {
@@ -131,14 +143,19 @@ export class NotificationProcessor {
       // Commit all updates
       await batch.commit();
 
-      console.log(`[NotificationProcessor] Processed ${results.length} scheduled notifications`);
+      console.log(
+        `[NotificationProcessor] Processed ${results.length} scheduled notifications`
+      );
       return {
         success: true,
         processedCount: results.length,
         results,
       };
     } catch (error) {
-      console.error('[NotificationProcessor] Error processing pending notifications:', error);
+      console.error(
+        '[NotificationProcessor] Error processing pending notifications:',
+        error
+      );
       throw error;
     }
   }
@@ -148,17 +165,27 @@ export class NotificationProcessor {
    * TODO: Remove this global method and use Cloud Functions for cross-user operations
    */
   static async cancelEventNotifications(eventId, reason = 'Event cancelled') {
-    console.warn('[NotificationProcessor] cancelEventNotifications is deprecated. Use cancelUserEventNotifications for user-scoped operations.');
+    console.warn(
+      '[NotificationProcessor] cancelEventNotifications is deprecated. Use cancelUserEventNotifications for user-scoped operations.'
+    );
 
     // For backward compatibility, this method is temporarily disabled
     // In user-scoped architecture, notifications should be cancelled per-user
-    return { success: false, error: 'Global event notification cancellation not supported in user-scoped architecture. Use cancelUserEventNotifications.' };
+    return {
+      success: false,
+      error:
+        'Global event notification cancellation not supported in user-scoped architecture. Use cancelUserEventNotifications.',
+    };
   }
 
   /**
    * Cancel scheduled notifications for a specific user and event
    */
-  static async cancelUserEventNotifications(userId, eventId, reason = 'Event cancelled') {
+  static async cancelUserEventNotifications(
+    userId,
+    eventId,
+    reason = 'Event cancelled'
+  ) {
     try {
       const q = query(
         collection(db, 'users', userId, 'scheduledNotifications'),
@@ -192,7 +219,10 @@ export class NotificationProcessor {
         cancelledCount: snapshot.size,
       };
     } catch (error) {
-      console.error('[NotificationProcessor] Error cancelling event notifications:', error);
+      console.error(
+        '[NotificationProcessor] Error cancelling event notifications:',
+        error
+      );
       throw error;
     }
   }
@@ -228,7 +258,10 @@ export class NotificationProcessor {
 
       return notifications;
     } catch (error) {
-      console.error('[NotificationProcessor] Error getting user scheduled notifications:', error);
+      console.error(
+        '[NotificationProcessor] Error getting user scheduled notifications:',
+        error
+      );
       throw error;
     }
   }
@@ -240,8 +273,13 @@ export class NotificationProcessor {
   static async cleanupOldNotifications(userId, olderThanDays = 30) {
     try {
       if (!userId) {
-        console.warn('[NotificationProcessor] Cleanup requires userId in user-scoped architecture');
-        return { success: false, error: 'userId required for user-scoped cleanup' };
+        console.warn(
+          '[NotificationProcessor] Cleanup requires userId in user-scoped architecture'
+        );
+        return {
+          success: false,
+          error: 'userId required for user-scoped cleanup',
+        };
       }
 
       const cutoffDate = new Date();
@@ -266,14 +304,19 @@ export class NotificationProcessor {
 
       await batch.commit();
 
-      console.log(`[NotificationProcessor] Cleaned up ${snapshot.size} old notifications`);
+      console.log(
+        `[NotificationProcessor] Cleaned up ${snapshot.size} old notifications`
+      );
 
       return {
         success: true,
         deletedCount: snapshot.size,
       };
     } catch (error) {
-      console.error('[NotificationProcessor] Error cleaning up old notifications:', error);
+      console.error(
+        '[NotificationProcessor] Error cleaning up old notifications:',
+        error
+      );
       throw error;
     }
   }
@@ -282,26 +325,36 @@ export class NotificationProcessor {
    * Start the background processor (call this when app starts)
    */
   static startBackgroundProcessor() {
-    console.log('[NotificationProcessor] Starting scheduled notification background processor...');
+    console.log(
+      '[NotificationProcessor] Starting scheduled notification background processor...'
+    );
 
     // Process every 2 minutes
     const interval = 2 * 60 * 1000;
 
     // Initial processing
     this.processPendingNotifications().catch((error) => {
-      console.error('[NotificationProcessor] Initial notification processing failed:', error);
+      console.error(
+        '[NotificationProcessor] Initial notification processing failed:',
+        error
+      );
     });
 
     // Set up periodic processing
     const intervalId = setInterval(() => {
       this.processPendingNotifications().catch((error) => {
-        console.error('[NotificationProcessor] Periodic notification processing failed:', error);
+        console.error(
+          '[NotificationProcessor] Periodic notification processing failed:',
+          error
+        );
       });
     }, interval);
 
     // Return cleanup function
     return () => {
-      console.log('[NotificationProcessor] Stopping scheduled notification processor...');
+      console.log(
+        '[NotificationProcessor] Stopping scheduled notification processor...'
+      );
       clearInterval(intervalId);
     };
   }

@@ -1,10 +1,5 @@
 import React, { useState, useCallback, memo, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { FormatDate } from '../../../lib/formatDate';
 import { textUtils } from '../../../lib/textUtils';
 import { mapUtils } from '../../../lib/mapUtils';
@@ -32,16 +27,19 @@ function EventInfoSection({
   // Create optimized interest lookup to prevent repeated array searches
   const interestLookup = useMemo(() => {
     const lookup = new Map();
-    userInterests.forEach(interest => {
+    userInterests.forEach((interest) => {
       lookup.set(interest.toLowerCase(), true);
     });
     return lookup;
   }, [userInterests]);
 
   // Memoized function to check if user is interested in a topic
-  const isUserInterested = useCallback((interest) => {
-    return interestLookup.has(interest.toLowerCase());
-  }, [interestLookup]);
+  const isUserInterested = useCallback(
+    (interest) => {
+      return interestLookup.has(interest.toLowerCase());
+    },
+    [interestLookup]
+  );
 
   // Memoized generic interest state (for when no specific interests exist)
   const genericInterestState = useMemo(() => {
@@ -63,10 +61,10 @@ function EventInfoSection({
 
   // Format attendee display: "You + X others"
   const attendeeDisplayText = useMemo(() => {
-    if (attendeeCount === 0) return "No attendees yet";
+    if (attendeeCount === 0) return 'No attendees yet';
 
     if (attendeeCount === 1) {
-      return "You";
+      return 'You';
     }
 
     return `You + ${attendeeCount - 1} ${attendeeCount === 2 ? 'other' : 'others'}`;
@@ -78,11 +76,14 @@ function EventInfoSection({
     }
   }, [event.address, event.location]);
 
-  const handleInterestPress = useCallback((interest) => {
-    if (onInterestToggle) {
-      onInterestToggle(interest);
-    }
-  }, [onInterestToggle]);
+  const handleInterestPress = useCallback(
+    (interest) => {
+      if (onInterestToggle) {
+        onInterestToggle(interest);
+      }
+    },
+    [onInterestToggle]
+  );
 
   const handleGenericInterestPress = useCallback(() => {
     handleInterestPress(genericInterestState.interest);
@@ -96,9 +97,15 @@ function EventInfoSection({
     if (canViewAttendees && onShowAttendeesModal) {
       onShowAttendeesModal();
     }
-  }, [isHostOrCohost, event?.subscriberCount, friendAttendees.length, onShowAttendeesModal]);
+  }, [
+    isHostOrCohost,
+    event?.subscriberCount,
+    friendAttendees.length,
+    onShowAttendeesModal,
+  ]);
 
-  const canViewAttendees = (isHostOrCohost && attendeeCount > 0) || friendAttendees.length > 0;
+  const canViewAttendees =
+    (isHostOrCohost && attendeeCount > 0) || friendAttendees.length > 0;
 
   return (
     <View style={styles.infoSection}>
@@ -137,7 +144,9 @@ function EventInfoSection({
                       style={[
                         styles.starIcon,
                         {
-                          color: isInterested ? theme.colors.vibeYellow : theme.colors.textSecondary,
+                          color: isInterested
+                            ? theme.colors.vibeYellow
+                            : theme.colors.textSecondary,
                           fontSize: isInterested ? 20 : 26,
                           marginLeft: isInterested ? 2 : 0,
                         },
@@ -222,7 +231,9 @@ function EventInfoSection({
               creatorData={creatorData}
               showLabel={false}
               showReliability={false}
-              onPress={() => onShowHostProfile && onShowHostProfile(creatorData)}
+              onPress={() =>
+                onShowHostProfile && onShowHostProfile(creatorData)
+              }
             />
             {cohostData.length > 0 && (
               <View style={styles.cohostsContainer}>
@@ -232,7 +243,9 @@ function EventInfoSection({
                     creatorData={cohost}
                     showLabel={false}
                     showReliability={false}
-                    onPress={() => onShowHostProfile && onShowHostProfile(cohost)}
+                    onPress={() =>
+                      onShowHostProfile && onShowHostProfile(cohost)
+                    }
                     style={styles.cohostItem}
                   />
                 ))}

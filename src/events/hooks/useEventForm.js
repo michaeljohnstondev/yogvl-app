@@ -725,7 +725,9 @@ Hope to see you there! 🎉`;
           // Send all invitations
           if (guestInvitations.length > 0 || cohostInvitations.length > 0) {
             // Get event and host data for proper notification context
-            const { getDoc, doc } = await import('../../lib/firebase/firestore');
+            const { getDoc, doc } = await import(
+              '../../lib/firebase/firestore'
+            );
             const eventDoc = await getDoc(eventRef);
             const hostDoc = await getDoc(doc(db, 'users', currentUserId));
 

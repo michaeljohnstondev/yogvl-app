@@ -32,15 +32,21 @@ export const useEventWrapUpData = (studioId, eventId, userId, options = {}) => {
   const vibeAlert = useVibeAlert();
 
   // Memoize derived state for performance
-  const wrapUpData = useMemo(() => ({
-    event: eventData,
-    participants,
-    attendance,
-    userStatus,
-  }), [eventData, participants, attendance, userStatus]);
+  const wrapUpData = useMemo(
+    () => ({
+      event: eventData,
+      participants,
+      attendance,
+      userStatus,
+    }),
+    [eventData, participants, attendance, userStatus]
+  );
 
   const isHost = useMemo(() => userStatus.isHost, [userStatus.isHost]);
-  const canPerformActions = useMemo(() => eventData && !loading, [eventData, loading]);
+  const canPerformActions = useMemo(
+    () => eventData && !loading,
+    [eventData, loading]
+  );
 
   // Load event wrap-up data with useCallback for stable reference
   const loadWrapUpData = useCallback(async () => {
@@ -50,7 +56,11 @@ export const useEventWrapUpData = (studioId, eventId, userId, options = {}) => {
       setLoading(true);
       setError(null);
 
-      const data = await PostEventService.getEventWrapUpData(studioId, eventId, userId);
+      const data = await PostEventService.getEventWrapUpData(
+        studioId,
+        eventId,
+        userId
+      );
 
       setEventData(data.event);
       setParticipants(data.participants);
@@ -75,7 +85,7 @@ export const useEventWrapUpData = (studioId, eventId, userId, options = {}) => {
 
   // Update user status (for optimistic updates from other hooks)
   const updateUserStatus = useCallback((updates) => {
-    setUserStatus(prev => ({
+    setUserStatus((prev) => ({
       ...prev,
       ...updates,
     }));

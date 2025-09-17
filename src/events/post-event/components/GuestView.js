@@ -63,10 +63,7 @@ const GuestView = ({
       <View style={styles.content}>
         {/* Event Header */}
         <View
-          style={[
-            styles.headerCard,
-            { borderLeftColor: attendanceInfo.color },
-          ]}
+          style={[styles.headerCard, { borderLeftColor: attendanceInfo.color }]}
         >
           <Text style={styles.eventTitle}>{eventData.title}</Text>
           <Text style={styles.attendanceDescription}>
@@ -101,9 +98,7 @@ const GuestView = ({
                 disabled={submitting}
               >
                 <Text style={styles.reportingIcon}>😔</Text>
-                <Text style={styles.reportingButtonText}>
-                  Couldn't make it
-                </Text>
+                <Text style={styles.reportingButtonText}>Couldn't make it</Text>
                 <Text style={styles.reportingSubtext}>I had to miss it</Text>
               </TouchableOpacity>
             </View>
@@ -122,9 +117,7 @@ const GuestView = ({
               ]}
             >
               <Text style={styles.reportedIcon}>
-                {userStatus.hasReportedAttendance === 'attended'
-                  ? '✅'
-                  : '❌'}
+                {userStatus.hasReportedAttendance === 'attended' ? '✅' : '❌'}
               </Text>
               <Text style={styles.reportedText}>
                 {userStatus.hasReportedAttendance === 'attended'

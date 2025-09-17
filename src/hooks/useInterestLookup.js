@@ -12,7 +12,7 @@ export const useInterestLookup = (userInterests) => {
   const interestLookup = useMemo(() => {
     const lookup = new Map();
     if (Array.isArray(userInterests)) {
-      userInterests.forEach(interest => {
+      userInterests.forEach((interest) => {
         if (typeof interest === 'string') {
           lookup.set(interest.toLowerCase(), interest); // Store original case
         }
@@ -22,22 +22,31 @@ export const useInterestLookup = (userInterests) => {
   }, [userInterests]);
 
   // Fast O(1) interest check function
-  const isUserInterested = useCallback((interest) => {
-    if (!interest || typeof interest !== 'string') return false;
-    return interestLookup.has(interest.toLowerCase());
-  }, [interestLookup]);
+  const isUserInterested = useCallback(
+    (interest) => {
+      if (!interest || typeof interest !== 'string') return false;
+      return interestLookup.has(interest.toLowerCase());
+    },
+    [interestLookup]
+  );
 
   // Get the original case version of an interest
-  const getOriginalCase = useCallback((interest) => {
-    if (!interest || typeof interest !== 'string') return null;
-    return interestLookup.get(interest.toLowerCase()) || null;
-  }, [interestLookup]);
+  const getOriginalCase = useCallback(
+    (interest) => {
+      if (!interest || typeof interest !== 'string') return null;
+      return interestLookup.get(interest.toLowerCase()) || null;
+    },
+    [interestLookup]
+  );
 
   // Get interest statistics for debugging/metrics
-  const stats = useMemo(() => ({
-    totalInterests: interestLookup.size,
-    isEmpty: interestLookup.size === 0,
-  }), [interestLookup.size]);
+  const stats = useMemo(
+    () => ({
+      totalInterests: interestLookup.size,
+      isEmpty: interestLookup.size === 0,
+    }),
+    [interestLookup.size]
+  );
 
   return {
     isUserInterested,

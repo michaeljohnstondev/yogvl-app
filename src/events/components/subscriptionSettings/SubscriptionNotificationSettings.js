@@ -1,19 +1,20 @@
 // Subscription Notification Settings Modal for Event Attendees
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, memo, useCallback } from 'react';
 import { View, Text, StyleSheet, Modal, ScrollView } from 'react-native';
-import { doc, updateDoc } from '../../../lib/firebase';
+import { doc, updateDoc } from '../../../lib/firebase/firestore';
 import { db } from '../../../auth/services/firebase';
 import { useAuth } from '../../../auth/AuthContext';
 import { VibeButton, CloseButton } from '../../../components/ui';
 import GuestNotificationSettingsForm from '../../../components/notifications/GuestNotificationSettingsForm';
 import theme from '../../../theme/themes';
 
-export default function SubscriptionNotificationSettings({
+const SubscriptionNotificationSettings = memo(function SubscriptionNotificationSettings({
   visible,
   onClose,
   onSubscribe,
   eventData,
   userDefaults = {},
+  isSubscribed = false,
 }) {
   const { currentUserId } = useAuth();
   const scrollViewRef = useRef(null);
@@ -39,10 +40,10 @@ export default function SubscriptionNotificationSettings({
     reminderTemplates: attendingDefaults.reminderTemplates || [],
   });
 
-  const handleSubscribe = () => {
+  const handleSubscribe = useCallback(() => {
     onSubscribe(subscriptionSettings);
     onClose();
-  };
+  }, [onSubscribe, subscriptionSettings, onClose]);
 
   const saveAsDefaults = async () => {
     if (!currentUserId) return;
@@ -87,7 +88,9 @@ export default function SubscriptionNotificationSettings({
           <View style={styles.headerLeft}>
             <CloseButton onPress={onClose} />
           </View>
-          <Text style={styles.headerTitle}>Notification Preferences</Text>
+          <Text style={styles.headerTitle}>
+            {isSubscribed ? 'Notification Settings' : 'Notification Preferences'}
+          </Text>
           <View style={styles.headerRight} />
         </View>
 
@@ -111,18 +114,22 @@ export default function SubscriptionNotificationSettings({
           />
         </ScrollView>
 
-        {/* Subscribe Button */}
-        <View style={styles.footer}>
-          <VibeButton
-            label="SUBSCRIBE TO EVENT"
-            onPress={handleSubscribe}
-            style={styles.subscribeButton}
-          />
-        </View>
+        {/* Update Settings Button - Only show for subscribed users */}
+        {isSubscribed && (
+          <View style={styles.footer}>
+            <VibeButton
+              label="UPDATE SETTINGS"
+              onPress={handleSubscribe}
+              style={styles.subscribeButton}
+            />
+          </View>
+        )}
       </View>
     </Modal>
   );
-}
+});
+
+export default SubscriptionNotificationSettings;
 
 const styles = StyleSheet.create({
   container: {

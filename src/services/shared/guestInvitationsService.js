@@ -11,7 +11,7 @@ import {
 import { db } from '../../auth/services/firebase';
 import {
   notifyEventInvitation,
-  notifyInvitationAccepted
+  notifyInvitationAccepted,
 } from './invitationNotificationsService';
 
 /**
@@ -67,13 +67,13 @@ export const sendGuestInvitation = async (
 
     // Add user ID to event's invitations array
     batch.update(eventRef, {
-      invitations: arrayUnion(recipientId)
+      invitations: arrayUnion(recipientId),
     });
 
     // Add event ID to user's pending invitations array
     const userRef = doc(db, 'users', recipientId);
     batch.update(userRef, {
-      'userdata.pendingInvitations': arrayUnion(eventId)
+      'userdata.pendingInvitations': arrayUnion(eventId),
     });
 
     await batch.commit();
@@ -108,11 +108,7 @@ export const sendGuestInvitation = async (
  * @param {string} studioId - Studio ID containing the event
  * @returns {Promise<Object>} Success result
  */
-export const acceptGuestInvitation = async (
-  recipientId,
-  eventId,
-  studioId
-) => {
+export const acceptGuestInvitation = async (recipientId, eventId, studioId) => {
   try {
     // Get event document
     const eventRef = doc(db, 'studios', studioId, 'events', eventId);
@@ -142,14 +138,14 @@ export const acceptGuestInvitation = async (
     // Update event document: move from invitations to subscribers
     batch.update(eventRef, {
       invitations: arrayRemove(recipientId),
-      subscribers: arrayUnion(recipientId)
+      subscribers: arrayUnion(recipientId),
     });
 
     // Update user document: move from pending invitations to subscribed events
     const userRef = doc(db, 'users', recipientId);
     batch.update(userRef, {
       'userdata.pendingInvitations': arrayRemove(eventId),
-      'userdata.subscribedEvents': arrayUnion(eventId)
+      'userdata.subscribedEvents': arrayUnion(eventId),
     });
 
     await batch.commit();
@@ -176,7 +172,10 @@ export const acceptGuestInvitation = async (
 
     return { success: true };
   } catch (error) {
-    console.error('[GuestInvitations] Error accepting guest invitation:', error);
+    console.error(
+      '[GuestInvitations] Error accepting guest invitation:',
+      error
+    );
     throw error;
   }
 };
@@ -188,7 +187,11 @@ export const acceptGuestInvitation = async (
  * @param {string} studioId - Studio ID containing the event
  * @returns {Promise<Object>} Success result
  */
-export const declineGuestInvitation = async (recipientId, eventId, studioId) => {
+export const declineGuestInvitation = async (
+  recipientId,
+  eventId,
+  studioId
+) => {
   try {
     // Get event document
     const eventRef = doc(db, 'studios', studioId, 'events', eventId);
@@ -211,13 +214,13 @@ export const declineGuestInvitation = async (recipientId, eventId, studioId) => 
 
     // Remove user from event invitations array
     batch.update(eventRef, {
-      invitations: arrayRemove(recipientId)
+      invitations: arrayRemove(recipientId),
     });
 
     // Remove event from user's pending invitations array
     const userRef = doc(db, 'users', recipientId);
     batch.update(userRef, {
-      'userdata.pendingInvitations': arrayRemove(eventId)
+      'userdata.pendingInvitations': arrayRemove(eventId),
     });
 
     await batch.commit();
@@ -235,7 +238,10 @@ export const declineGuestInvitation = async (recipientId, eventId, studioId) => 
 
     return { success: true };
   } catch (error) {
-    console.error('[GuestInvitations] Error declining guest invitation:', error);
+    console.error(
+      '[GuestInvitations] Error declining guest invitation:',
+      error
+    );
     throw error;
   }
 };
@@ -247,7 +253,11 @@ export const declineGuestInvitation = async (recipientId, eventId, studioId) => 
  * @param {string} studioId - Studio ID containing the event
  * @returns {Promise<boolean>} True if user has pending invitation
  */
-export const getGuestInvitationStatus = async (recipientId, eventId, studioId) => {
+export const getGuestInvitationStatus = async (
+  recipientId,
+  eventId,
+  studioId
+) => {
   try {
     const eventRef = doc(db, 'studios', studioId, 'events', eventId);
     const eventDoc = await getDoc(eventRef);
@@ -261,7 +271,10 @@ export const getGuestInvitationStatus = async (recipientId, eventId, studioId) =
 
     return invitations.includes(recipientId);
   } catch (error) {
-    console.error('[GuestInvitations] Error checking guest invitation status:', error);
+    console.error(
+      '[GuestInvitations] Error checking guest invitation status:',
+      error
+    );
     return false;
   }
 };
@@ -276,8 +289,14 @@ export const getGuestInvitationStatus = async (recipientId, eventId, studioId) =
  * @param {number} [limit] - Limit results (ignored)
  * @returns {Promise<Array>} Empty array (function deprecated)
  */
-export const getUserGuestInvitations = async (userId, status = null, limit = 50) => {
-  console.warn('[GuestInvitations] getUserGuestInvitations is deprecated - use event-level queries instead');
+export const getUserGuestInvitations = async (
+  userId,
+  status = null,
+  limit = 50
+) => {
+  console.warn(
+    '[GuestInvitations] getUserGuestInvitations is deprecated - use event-level queries instead'
+  );
   return [];
 };
 

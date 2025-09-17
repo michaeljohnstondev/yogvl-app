@@ -57,7 +57,9 @@ const HostView = ({
   };
 
   const getScreenTitle = () => {
-    return eventData.status === 'completed' ? 'Event Completed' : 'Complete Event';
+    return eventData.status === 'completed'
+      ? 'Event Completed'
+      : 'Complete Event';
   };
 
   return (

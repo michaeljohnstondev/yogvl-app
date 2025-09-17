@@ -88,7 +88,7 @@ export const textUtils = {
     const hashtagRegex = /#[\w]+/g;
     const matches = text.match(hashtagRegex);
 
-    return matches ? matches.map(tag => tag.substring(1)) : [];
+    return matches ? matches.map((tag) => tag.substring(1)) : [];
   },
 
   formatEventCapacity(current, max) {
@@ -152,7 +152,7 @@ export const textUtils = {
       /^-+$/,
     ];
 
-    return !inappropriatePatterns.some(pattern => pattern.test(cleanTitle));
+    return !inappropriatePatterns.some((pattern) => pattern.test(cleanTitle));
   },
 
   formatTimeAgo(date) {

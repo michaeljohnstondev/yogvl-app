@@ -125,7 +125,9 @@ exports.onCommentNotificationTrigger = functions.firestore.onDocumentCreated(
             },
           });
 
-          console.log(`Sent batched comment notification (${recentComments.size} comments)`);
+          console.log(
+            `Sent batched comment notification (${recentComments.size} comments)`
+          );
         } else {
           // Single comment after delay - send individual notification
           title = 'New Comment';

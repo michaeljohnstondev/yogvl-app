@@ -519,13 +519,7 @@ export default function LocationScreen({ navigation }) {
           enableOnAndroid={true}
         >
           <View style={styles.headerRow}>
-            <Text
-              style={[
-                styles.title,
-                styles.titleFlexible,
-                theme.shadows.textGlow,
-              ]}
-            >
+            <Text style={[styles.title, styles.titleFlexible]}>
               Choose Your Studio
             </Text>
             {hasExistingStudio && (

@@ -486,7 +486,7 @@ export const acceptInvitation = async (
     const defaultNotificationSettings = {
       eventReminders: true,
       hostChanges: true,
-      reminderTiming: '1hour'
+      reminderTiming: '1hour',
     };
 
     await eventService.acceptInvitationAndSubscribe(
@@ -504,7 +504,13 @@ export const acceptInvitation = async (
     });
 
     // Update event pending invites count and invitation tracking
-    const eventRef = doc(db, 'studios', eventStudioId, 'events', invitation.eventId);
+    const eventRef = doc(
+      db,
+      'studios',
+      eventStudioId,
+      'events',
+      invitation.eventId
+    );
     await updateDoc(eventRef, {
       pendingInvites: increment(-1),
       invitationIds: arrayRemove(invitationId), // Remove from detailed tracking
@@ -594,7 +600,11 @@ export const declineInvitation = async (invitationId, userId) => {
       throw new Error('Studio information missing from invitation');
     }
 
-    await eventService.declineInvitation(userId, invitation.eventId, eventStudioId);
+    await eventService.declineInvitation(
+      userId,
+      invitation.eventId,
+      eventStudioId
+    );
 
     // Update invitation status after successful decline
     await updateDoc(inviteRef, {
@@ -604,7 +614,13 @@ export const declineInvitation = async (invitationId, userId) => {
     });
 
     // Update event pending invites count and invitation tracking
-    const eventRef = doc(db, 'studios', eventStudioId, 'events', invitation.eventId);
+    const eventRef = doc(
+      db,
+      'studios',
+      eventStudioId,
+      'events',
+      invitation.eventId
+    );
     await updateDoc(eventRef, {
       pendingInvites: increment(-1),
       invitationIds: arrayRemove(invitationId), // Remove from detailed tracking

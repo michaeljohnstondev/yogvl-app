@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, memo, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, memo, useMemo, useTransition } from 'react';
 import {
   View,
   Text,
@@ -20,9 +20,7 @@ import { toggleInterestInArray } from '../../lib/interestUtils';
 import { useInterestToggle } from '../hooks/useInterestToggle';
 import { useEventPermissions } from '../hooks/useEventPermissions';
 import { useEventStatus } from '../hooks/useEventStatus';
-import {
-  validateUserCanJoinEvent,
-} from '../lib/eventUtils';
+import { validateUserCanJoinEvent } from '../lib/eventUtils';
 import {
   getUserInterests,
   addUserInterest,
@@ -36,13 +34,17 @@ import EventActionButtons from '../components/detail/EventActionButtons';
 import AttendeeSection from '../components/detail/AttendeeSection';
 import theme from '../../theme/themes';
 
-const EventDetailScreen = memo(function EventDetailScreen({ route, navigation }) {
+const EventDetailScreen = memo(function EventDetailScreen({
+  route,
+  navigation,
+}) {
   const { eventId, studioId: routeStudioId } = route.params;
   const { currentUserId, userData } = useAuth();
   const vibeAlert = useVibeAlert();
 
   // Use studioId from route, or fallback to user's default studio
-  const studioId = routeStudioId || userData?.userdata?.studios?.default?.studioId;
+  const studioId =
+    routeStudioId || userData?.userdata?.studios?.default?.studioId;
 
   // State
   const [event, setEvent] = useState(null);
@@ -56,7 +58,11 @@ const EventDetailScreen = memo(function EventDetailScreen({ route, navigation })
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [showFriendsModal, setShowFriendsModal] = useState(false);
   const [showPrivacyFlash, setShowPrivacyFlash] = useState(false);
-  const [userNotificationSettings, setUserNotificationSettings] = useState(null);
+  const [userNotificationSettings, setUserNotificationSettings] =
+    useState(null);
+
+  // Use transition for non-urgent state updates
+  const [isPending, startTransition] = useTransition();
 
   // Custom hooks for performance optimization
   const { handleInterestToggle, isTogglingInterest } = useInterestToggle(
@@ -72,13 +78,17 @@ const EventDetailScreen = memo(function EventDetailScreen({ route, navigation })
     isSubscribed
   );
 
-  const { eventStatus, statusColor, isEventPast, isFullEvent } = useEventStatus(event);
+  const { eventStatus, statusColor, isEventPast, isFullEvent } =
+    useEventStatus(event);
 
-  // Filter out host from attendees list for modal display
+  // Filter out host and current user from attendees list for modal display
   const filteredAttendees = useMemo(() => {
     if (!event?.createdBy) return friendAttendees;
-    return friendAttendees.filter(attendee => attendee.id !== event.createdBy);
-  }, [friendAttendees, event?.createdBy]);
+    return friendAttendees.filter(
+      (attendee) =>
+        attendee.id !== event.createdBy && attendee.id !== currentUserId
+    );
+  }, [friendAttendees, event?.createdBy, currentUserId]);
 
   // Privacy flash timeout cleanup
   useEffect(() => {
@@ -97,7 +107,10 @@ const EventDetailScreen = memo(function EventDetailScreen({ route, navigation })
 
   // Handler functions
   const handleShowHostProfile = (hostData) => {
-    console.log('[EventDetailScreen] Navigating to HostProfile with hostData:', hostData);
+    console.log(
+      '[EventDetailScreen] Navigating to HostProfile with hostData:',
+      hostData
+    );
 
     // Ensure hostData has the expected structure
     if (!hostData || !hostData.id) {
@@ -118,25 +131,23 @@ const EventDetailScreen = memo(function EventDetailScreen({ route, navigation })
   }, []);
 
   const handleNotificationSettings = useCallback(() => {
-    setShowSubscriptionModal(true);
+    startTransition(() => {
+      setShowSubscriptionModal(true);
+    });
   }, []);
 
   const handleReportEvent = useCallback(() => {
     if (!event) return;
 
-    Alert.alert(
-      'Report Event',
-      'Why are you reporting this event?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Inappropriate Content',
-          onPress: () => submitReport('inappropriate_content'),
-        },
-        { text: 'Spam', onPress: () => submitReport('spam') },
-        { text: 'Other', onPress: () => submitReport('other') },
-      ]
-    );
+    Alert.alert('Report Event', 'Why are you reporting this event?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Inappropriate Content',
+        onPress: () => submitReport('inappropriate_content'),
+      },
+      { text: 'Spam', onPress: () => submitReport('spam') },
+      { text: 'Other', onPress: () => submitReport('other') },
+    ]);
   }, [event]);
 
   const submitReport = async (reason) => {
@@ -157,14 +168,20 @@ const EventDetailScreen = memo(function EventDetailScreen({ route, navigation })
   };
 
   // Interest toggle handler with error feedback
-  const handleInterestToggleWithFeedback = useCallback(async (interest) => {
-    try {
-      await handleInterestToggle(interest);
-    } catch (error) {
-      // Show user-friendly error feedback
-      vibeAlert.error('Error', 'Failed to update interest. Please try again.');
-    }
-  }, [handleInterestToggle, vibeAlert]);
+  const handleInterestToggleWithFeedback = useCallback(
+    async (interest) => {
+      try {
+        await handleInterestToggle(interest);
+      } catch (error) {
+        // Show user-friendly error feedback
+        vibeAlert.error(
+          'Error',
+          'Failed to update interest. Please try again.'
+        );
+      }
+    },
+    [handleInterestToggle, vibeAlert]
+  );
 
   const handleSubscribe = async () => {
     if (!event || !currentUserId || isLoading) return;
@@ -200,7 +217,8 @@ const EventDetailScreen = memo(function EventDetailScreen({ route, navigation })
   const subscribeWithDefaults = async () => {
     if (!event || !currentUserId) return;
 
-    const userNotificationDefaults = userData?.userdata?.settings?.notifications?.attending || {};
+    const userNotificationDefaults =
+      userData?.userdata?.settings?.notifications?.attending || {};
     const defaultSettings = {
       eventCancellation: true,
       hostChanges: userNotificationDefaults.hostChanges ?? true,
@@ -215,43 +233,95 @@ const EventDetailScreen = memo(function EventDetailScreen({ route, navigation })
     await handleSubscribeWithSettings(defaultSettings);
   };
 
-  const handleSubscribeWithSettings = async (notificationSettings) => {
+  const handleSubscribeWithSettings = useCallback(async (notificationSettings) => {
     if (!event || !currentUserId || isLoading) return;
 
     setIsLoading(true);
 
     try {
-      const result = await eventService.subscribeToEvent(
+      if (isSubscribed) {
+        // User is already subscribed, just update their notification settings
+        await eventService.addEventNotificationSubscription(
+          currentUserId,
+          eventId,
+          studioId,
+          notificationSettings
+        );
+
+        // Batch state updates to prevent multiple re-renders
+        startTransition(() => {
+          setShowSubscriptionModal(false);
+        });
+
+        vibeAlert.success(
+          'Settings Updated',
+          'Your notification settings have been updated!'
+        );
+      } else {
+        // User is not subscribed, subscribe them with settings
+        const result = await eventService.subscribeToEvent(
+          currentUserId,
+          eventId,
+          studioId,
+          notificationSettings
+        );
+
+        // Batch all state updates together
+        startTransition(() => {
+          setEvent((prev) => ({
+            ...prev,
+            subscribers: result.subscribers,
+            subscriberCount: result.subscriberCount,
+          }));
+          setIsSubscribed(true);
+          setShowSubscriptionModal(false);
+        });
+
+        vibeAlert.success(
+          'Joined Event',
+          'You have successfully joined this event!'
+        );
+      }
+    } catch (error) {
+      console.error('[EventDetailScreen] Error with subscription/settings:', error);
+      console.error('[EventDetailScreen] Error stack:', error.stack);
+      console.error('[EventDetailScreen] Error details:', {
+        message: error.message,
+        name: error.name,
+        isSubscribed,
         currentUserId,
         eventId,
         studioId,
         notificationSettings
-      );
-
-      setEvent(prev => ({
-        ...prev,
-        subscribers: result.subscribers,
-        subscriberCount: result.subscriberCount,
-      }));
-      setIsSubscribed(true);
-      setShowSubscriptionModal(false);
-
-      vibeAlert.success('Joined Event', 'You have successfully joined this event!');
-    } catch (error) {
-      console.error('[EventDetailScreen] Error subscribing to event:', error);
+      });
 
       if (error.message === 'ALREADY_SUBSCRIBED') {
-        vibeAlert.error('Already Subscribed', 'You are already subscribed to this event.');
+        vibeAlert.error(
+          'Already Subscribed',
+          'You are already subscribed to this event.'
+        );
         setIsSubscribed(true);
       } else {
-        vibeAlert.error('Error', 'Failed to join event. Please try again.');
+        const errorTitle = isSubscribed ? 'Settings Update Failed' : 'Join Event Failed';
+        let errorMessage = isSubscribed
+          ? 'Failed to update notification settings. Please try again.'
+          : 'Failed to join event. Please try again.';
+
+        // Add more specific error information for debugging
+        if (error.message && error.message.includes('import')) {
+          errorMessage += ' (Service import error)';
+        } else if (error.message && error.message.includes('not found')) {
+          errorMessage += ' (Event not found)';
+        }
+
+        vibeAlert.error(errorTitle, errorMessage);
       }
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [event, currentUserId, isLoading, isSubscribed, eventId, studioId, vibeAlert]);
 
-  const performUnsubscribe = async () => {
+  const performUnsubscribe = useCallback(async () => {
     if (!event || !currentUserId) return;
 
     try {
@@ -261,21 +331,27 @@ const EventDetailScreen = memo(function EventDetailScreen({ route, navigation })
         studioId
       );
 
-      setEvent(prev => ({
-        ...prev,
-        subscribers: result.subscribers,
-        subscriberCount: result.subscriberCount,
-      }));
-      setIsSubscribed(false);
+      // Batch state updates to prevent multiple re-renders
+      startTransition(() => {
+        setEvent((prev) => ({
+          ...prev,
+          subscribers: result.subscribers,
+          subscriberCount: result.subscriberCount,
+        }));
+        setIsSubscribed(false);
+      });
 
       vibeAlert.success('Left Event', 'You have left this event.');
     } catch (error) {
-      console.error('[EventDetailScreen] Error unsubscribing from event:', error);
+      console.error(
+        '[EventDetailScreen] Error unsubscribing from event:',
+        error
+      );
       vibeAlert.error('Error', 'Failed to leave event. Please try again.');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [event, currentUserId, eventId, studioId, vibeAlert]);
 
   const handleDelete = () => {
     if (!event) return;
@@ -317,17 +393,20 @@ const EventDetailScreen = memo(function EventDetailScreen({ route, navigation })
             currentUserId
           );
 
-          setEvent(prev => ({
+          setEvent((prev) => ({
             ...prev,
             subscribers: result.subscribers,
             subscriberCount: result.subscriberCount,
           }));
 
-          setFriendAttendees(prev =>
-            prev.filter(attendee => attendee.id !== attendeeId)
+          setFriendAttendees((prev) =>
+            prev.filter((attendee) => attendee.id !== attendeeId)
           );
 
-          vibeAlert.success('Attendee Removed', `${attendeeName} has been removed from the event.`);
+          vibeAlert.success(
+            'Attendee Removed',
+            `${attendeeName} has been removed from the event.`
+          );
         } catch (error) {
           console.error('[EventDetailScreen] Error kicking attendee:', error);
           vibeAlert.error('Error', 'Failed to remove attendee.');
@@ -373,19 +452,25 @@ const EventDetailScreen = memo(function EventDetailScreen({ route, navigation })
           setIsSubscribed(eventData.isSubscribed);
           setCreatorData(eventData.creatorData);
           setCohostData(eventData.cohostData);
-          setFriendAttendees(eventData.attendeesList);
+          // Filter out current user from attendees list
+          const filteredAttendees = eventData.attendeesList.filter(
+            (attendee) => attendee.id !== currentUserId
+          );
+          setFriendAttendees(filteredAttendees);
 
           // Load interests
           const [userInterestsData, eventInterestsData] = await Promise.all([
             getUserInterests(currentUserId),
-            extractInterestsFromEventTitle(eventData.event.title)
+            extractInterestsFromEventTitle(eventData.event.title),
           ]);
 
           setUserInterests(userInterestsData);
           setEventInterests(eventInterestsData);
-
         } catch (error) {
-          console.error('[EventDetailScreen] Error fetching event data:', error);
+          console.error(
+            '[EventDetailScreen] Error fetching event data:',
+            error
+          );
           vibeAlert.error(
             'Error',
             'Failed to load event details. Please try again.',
@@ -415,7 +500,6 @@ const EventDetailScreen = memo(function EventDetailScreen({ route, navigation })
       </View>
     );
   }
-
 
   return (
     <ScrollView
@@ -459,7 +543,7 @@ const EventDetailScreen = memo(function EventDetailScreen({ route, navigation })
         event={event}
         isEventPast={isEventPast}
         isSubscribed={isSubscribed}
-        isLoading={isLoading || isTogglingInterest}
+        isLoading={isLoading || isTogglingInterest || isPending}
         permissions={permissions}
         joinConstraints={joinConstraints}
         onSubscribe={handleSubscribe}
@@ -483,6 +567,7 @@ const EventDetailScreen = memo(function EventDetailScreen({ route, navigation })
         eventData={event}
         userDefaults={userData?.userdata?.settings?.notifications}
         currentUserId={currentUserId}
+        isSubscribed={isSubscribed}
       />
 
       {/* Attendees Modal */}
@@ -520,6 +605,5 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
     fontSize: 16,
     marginTop: 12,
-    ...theme.shadows.textGlow,
   },
 });

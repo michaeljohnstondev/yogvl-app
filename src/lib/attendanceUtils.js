@@ -10,7 +10,7 @@ import theme from '../theme/themes';
  * @returns {Object|null} Attendance record or null if not found
  */
 export const getAttendanceStatus = (userId, attendanceArray = []) => {
-  return attendanceArray.find(record => record.userId === userId) || null;
+  return attendanceArray.find((record) => record.userId === userId) || null;
 };
 
 /**
@@ -19,9 +19,16 @@ export const getAttendanceStatus = (userId, attendanceArray = []) => {
  * @param {Array} subscribersArray - Event subscribers array
  * @returns {Object} Attendance statistics
  */
-export const calculateAttendanceStats = (attendanceArray = [], subscribersArray = []) => {
-  const attendedCount = attendanceArray.filter(record => record.attended).length;
-  const noShowCount = attendanceArray.filter(record => !record.attended).length;
+export const calculateAttendanceStats = (
+  attendanceArray = [],
+  subscribersArray = []
+) => {
+  const attendedCount = attendanceArray.filter(
+    (record) => record.attended
+  ).length;
+  const noShowCount = attendanceArray.filter(
+    (record) => !record.attended
+  ).length;
   const totalParticipants = subscribersArray.length;
   const unmarkedCount = Math.max(0, totalParticipants - attendanceArray.length);
 
@@ -30,7 +37,8 @@ export const calculateAttendanceStats = (attendanceArray = [], subscribersArray 
     noShows: noShowCount,
     total: totalParticipants,
     unmarked: unmarkedCount,
-    attendanceRate: totalParticipants > 0 ? (attendedCount / totalParticipants) * 100 : 0
+    attendanceRate:
+      totalParticipants > 0 ? (attendedCount / totalParticipants) * 100 : 0,
   };
 };
 
@@ -97,7 +105,9 @@ export const validateAttendanceRecord = (attendanceRecord) => {
   if (!attendanceRecord || typeof attendanceRecord !== 'object') return false;
 
   const requiredFields = ['userId', 'attended', 'markedBy', 'markedAt'];
-  return requiredFields.every(field => attendanceRecord.hasOwnProperty(field));
+  return requiredFields.every((field) =>
+    attendanceRecord.hasOwnProperty(field)
+  );
 };
 
 /**
@@ -108,7 +118,12 @@ export const validateAttendanceRecord = (attendanceRecord) => {
  * @param {Object} options - Additional options
  * @returns {Object} Attendance record
  */
-export const createAttendanceRecord = (userId, attended, markedBy, options = {}) => {
+export const createAttendanceRecord = (
+  userId,
+  attended,
+  markedBy,
+  options = {}
+) => {
   return {
     userId,
     attended,
@@ -117,7 +132,7 @@ export const createAttendanceRecord = (userId, attended, markedBy, options = {})
     isHost: options.isHost || false,
     selfReported: options.selfReported || false,
     isSoloEvent: options.isSoloEvent || false,
-    ...options
+    ...options,
   };
 };
 
@@ -127,15 +142,24 @@ export const createAttendanceRecord = (userId, attended, markedBy, options = {})
  * @param {Object} criteria - Filter criteria
  * @returns {Array} Filtered attendance records
  */
-export const filterAttendanceRecords = (attendanceArray = [], criteria = {}) => {
-  return attendanceArray.filter(record => {
-    if (criteria.attended !== undefined && record.attended !== criteria.attended) {
+export const filterAttendanceRecords = (
+  attendanceArray = [],
+  criteria = {}
+) => {
+  return attendanceArray.filter((record) => {
+    if (
+      criteria.attended !== undefined &&
+      record.attended !== criteria.attended
+    ) {
       return false;
     }
     if (criteria.markedBy && record.markedBy !== criteria.markedBy) {
       return false;
     }
-    if (criteria.selfReported !== undefined && record.selfReported !== criteria.selfReported) {
+    if (
+      criteria.selfReported !== undefined &&
+      record.selfReported !== criteria.selfReported
+    ) {
       return false;
     }
     return true;

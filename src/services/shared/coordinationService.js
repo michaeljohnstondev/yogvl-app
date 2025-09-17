@@ -4,11 +4,25 @@ import { runTransaction } from '../../lib/firebase/firestore';
 import { db } from '../../auth/services/firebase';
 
 // Import the new split services
-import { atomicInvitationToSubscription, syncInvitationArrays, syncSubscriptionArrays } from './arraySyncService';
+import {
+  atomicInvitationToSubscription,
+  syncInvitationArrays,
+  syncSubscriptionArrays,
+} from './arraySyncService';
 import { notificationEngine } from './NotificationEngine';
-import { notifyHostOfEventJoin, notifyInvitationAccepted } from './eventNotificationsService';
-import { extractDisplayName, createUserDisplayObject } from '../../lib/userDisplayUtils';
-import { validateUserId, validateEventId, validateStudioId } from '../../lib/validationUtils';
+import {
+  notifyHostOfEventJoin,
+  notifyInvitationAccepted,
+} from './eventNotificationsService';
+import {
+  extractDisplayName,
+  createUserDisplayObject,
+} from '../../lib/userDisplayUtils';
+import {
+  validateUserId,
+  validateEventId,
+  validateStudioId,
+} from '../../lib/validationUtils';
 import { filterEligibleUsersForInvitation } from '../../lib/arrayOperationUtils';
 
 /**
@@ -33,7 +47,7 @@ export const coordinateEventInvitations = async ({
   eventId,
   studioId,
   eventData,
-  hostData
+  hostData,
 }) => {
   try {
     // Validation phase
@@ -60,15 +74,18 @@ export const coordinateEventInvitations = async ({
     const currentInvitations = eventData.invitations || [];
     const currentSubscribers = eventData.subscribers || [];
 
-    const eligibleUserIds = guestUserIds.filter(userId =>
-      !currentInvitations.includes(userId) && !currentSubscribers.includes(userId)
+    const eligibleUserIds = guestUserIds.filter(
+      (userId) =>
+        !currentInvitations.includes(userId) &&
+        !currentSubscribers.includes(userId)
     );
 
     if (eligibleUserIds.length === 0) {
       return {
         success: true,
         invitationsSent: 0,
-        message: 'No eligible users to invite (all already invited or subscribed)'
+        message:
+          'No eligible users to invite (all already invited or subscribed)',
       };
     }
 
@@ -76,7 +93,7 @@ export const coordinateEventInvitations = async ({
       invitationsSent: 0,
       notificationsSent: 0,
       errors: [],
-      successfulInvitations: []
+      successfulInvitations: [],
     };
 
     // Process invitations in batches to avoid overwhelming Firebase
@@ -101,9 +118,9 @@ export const coordinateEventInvitations = async ({
               eventTitle: eventData.title,
               hostId: hostUserId,
               hostName: hostDisplayName,
-              actionType: 'invitation'
+              actionType: 'invitation',
             },
-            priority: 'normal'
+            priority: 'normal',
           });
 
           results.invitationsSent++;
@@ -112,7 +129,10 @@ export const coordinateEventInvitations = async ({
 
           return { success: true, userId };
         } catch (error) {
-          console.error(`[Coordination] Failed to invite user ${userId}:`, error);
+          console.error(
+            `[Coordination] Failed to invite user ${userId}:`,
+            error
+          );
           results.errors.push({ userId, error: error.message });
           return { success: false, userId, error: error.message };
         }
@@ -121,17 +141,21 @@ export const coordinateEventInvitations = async ({
       await Promise.allSettled(batchPromises);
     }
 
-    console.log(`[Coordination] Invitation coordination complete: ${results.invitationsSent}/${eligibleUserIds.length} successful`);
+    console.log(
+      `[Coordination] Invitation coordination complete: ${results.invitationsSent}/${eligibleUserIds.length} successful`
+    );
 
     return {
       success: true,
       ...results,
       totalEligible: eligibleUserIds.length,
-      message: `Sent ${results.invitationsSent} invitations out of ${eligibleUserIds.length} eligible users`
+      message: `Sent ${results.invitationsSent} invitations out of ${eligibleUserIds.length} eligible users`,
     };
-
   } catch (error) {
-    console.error('[Coordination] Error coordinating event invitations:', error);
+    console.error(
+      '[Coordination] Error coordinating event invitations:',
+      error
+    );
     throw error;
   }
 };
@@ -151,7 +175,7 @@ export const coordinateInvitationAcceptance = async ({
   eventId,
   studioId,
   userData,
-  eventData
+  eventData,
 }) => {
   try {
     // Validation
@@ -171,10 +195,16 @@ export const coordinateInvitationAcceptance = async ({
     }
 
     // Perform atomic transition: invitation → subscription
-    const transitionResult = await atomicInvitationToSubscription(userId, eventId, studioId);
+    const transitionResult = await atomicInvitationToSubscription(
+      userId,
+      eventId,
+      studioId
+    );
 
     if (!transitionResult.success) {
-      throw new Error('Failed to complete invitation to subscription transition');
+      throw new Error(
+        'Failed to complete invitation to subscription transition'
+      );
     }
 
     // Background notifications (non-blocking)
@@ -189,7 +219,7 @@ export const coordinateInvitationAcceptance = async ({
             eventId,
             eventTitle: eventData.title || 'Event',
             subscriberId: userId,
-            subscriberName: userDisplayName
+            subscriberName: userDisplayName,
           });
         }
 
@@ -200,26 +230,32 @@ export const coordinateInvitationAcceptance = async ({
           guestName: userDisplayName,
           eventId,
           eventTitle: eventData.title || 'Event',
-          invitationId: `invitation_${userId}_${eventId}` // Generate ID for tracking
+          invitationId: `invitation_${userId}_${eventId}`, // Generate ID for tracking
         });
-
       } catch (notificationError) {
-        console.error('[Coordination] Background notifications failed:', notificationError);
+        console.error(
+          '[Coordination] Background notifications failed:',
+          notificationError
+        );
       }
     }, 0);
 
-    console.log(`[Coordination] Invitation acceptance coordinated for user ${userId}, event ${eventId}`);
+    console.log(
+      `[Coordination] Invitation acceptance coordinated for user ${userId}, event ${eventId}`
+    );
 
     return {
       success: true,
       userId,
       eventId,
       newSubscriberCount: transitionResult.newSubscriberCount,
-      message: 'Invitation accepted and subscription created successfully'
+      message: 'Invitation accepted and subscription created successfully',
     };
-
   } catch (error) {
-    console.error('[Coordination] Error coordinating invitation acceptance:', error);
+    console.error(
+      '[Coordination] Error coordinating invitation acceptance:',
+      error
+    );
     throw error;
   }
 };
@@ -241,7 +277,7 @@ export const coordinateEventSubscription = async ({
   studioId,
   userData,
   eventData,
-  notificationSettings = {}
+  notificationSettings = {},
 }) => {
   try {
     // Validation
@@ -256,7 +292,12 @@ export const coordinateEventSubscription = async ({
     }
 
     // Perform atomic subscription
-    const subscriptionResult = await syncSubscriptionArrays(userId, eventId, studioId, 'add');
+    const subscriptionResult = await syncSubscriptionArrays(
+      userId,
+      eventId,
+      studioId,
+      'add'
+    );
 
     if (!subscriptionResult.success) {
       throw new Error('Failed to complete subscription');
@@ -274,33 +315,45 @@ export const coordinateEventSubscription = async ({
             eventId,
             eventTitle: eventData.title || 'Event',
             subscriberId: userId,
-            subscriberName: userDisplayName
+            subscriberName: userDisplayName,
           });
         }
 
         // Set up notification preferences if provided
-        if (notificationSettings && Object.keys(notificationSettings).length > 0) {
+        if (
+          notificationSettings &&
+          Object.keys(notificationSettings).length > 0
+        ) {
           // This would integrate with notification preferences system
-          console.log(`[Coordination] Notification preferences set for user ${userId}:`, notificationSettings);
+          console.log(
+            `[Coordination] Notification preferences set for user ${userId}:`,
+            notificationSettings
+          );
         }
-
       } catch (backgroundError) {
-        console.error('[Coordination] Background subscription operations failed:', backgroundError);
+        console.error(
+          '[Coordination] Background subscription operations failed:',
+          backgroundError
+        );
       }
     }, 0);
 
-    console.log(`[Coordination] Event subscription coordinated for user ${userId}, event ${eventId}`);
+    console.log(
+      `[Coordination] Event subscription coordinated for user ${userId}, event ${eventId}`
+    );
 
     return {
       success: true,
       userId,
       eventId,
       synchronized: true,
-      message: 'Event subscription completed successfully'
+      message: 'Event subscription completed successfully',
     };
-
   } catch (error) {
-    console.error('[Coordination] Error coordinating event subscription:', error);
+    console.error(
+      '[Coordination] Error coordinating event subscription:',
+      error
+    );
     throw error;
   }
 };
@@ -320,7 +373,7 @@ export const coordinateEventUnsubscription = async ({
   eventId,
   studioId,
   userData,
-  eventData
+  eventData,
 }) => {
   try {
     // Validation
@@ -330,7 +383,12 @@ export const coordinateEventUnsubscription = async ({
     }
 
     // Perform atomic unsubscription
-    const unsubscriptionResult = await syncSubscriptionArrays(userId, eventId, studioId, 'remove');
+    const unsubscriptionResult = await syncSubscriptionArrays(
+      userId,
+      eventId,
+      studioId,
+      'remove'
+    );
 
     if (!unsubscriptionResult.success) {
       throw new Error('Failed to complete unsubscription');
@@ -348,31 +406,39 @@ export const coordinateEventUnsubscription = async ({
             eventId,
             eventTitle: eventData.title || 'Event',
             unsubscriberId: userId,
-            unsubscriberName: userDisplayName
+            unsubscriberName: userDisplayName,
           });
         }
 
         // Clean up notification preferences
         // This would remove user from event notification subscriptions
-        console.log(`[Coordination] Cleaned up notification preferences for user ${userId}, event ${eventId}`);
-
+        console.log(
+          `[Coordination] Cleaned up notification preferences for user ${userId}, event ${eventId}`
+        );
       } catch (backgroundError) {
-        console.error('[Coordination] Background unsubscription operations failed:', backgroundError);
+        console.error(
+          '[Coordination] Background unsubscription operations failed:',
+          backgroundError
+        );
       }
     }, 0);
 
-    console.log(`[Coordination] Event unsubscription coordinated for user ${userId}, event ${eventId}`);
+    console.log(
+      `[Coordination] Event unsubscription coordinated for user ${userId}, event ${eventId}`
+    );
 
     return {
       success: true,
       userId,
       eventId,
       synchronized: true,
-      message: 'Event unsubscription completed successfully'
+      message: 'Event unsubscription completed successfully',
     };
-
   } catch (error) {
-    console.error('[Coordination] Error coordinating event unsubscription:', error);
+    console.error(
+      '[Coordination] Error coordinating event unsubscription:',
+      error
+    );
     throw error;
   }
 };

@@ -456,11 +456,19 @@ export class PostEventService {
    * Build attendance array according to DATABASE.md schema
    * @private
    */
-  static buildAttendanceArray(attendeeIds, noShowIds, hostId, eventData, timestamp) {
+  static buildAttendanceArray(
+    attendeeIds,
+    noShowIds,
+    hostId,
+    eventData,
+    timestamp
+  ) {
     const attendance = [];
-    const allParticipants = [...new Set([...attendeeIds, ...noShowIds, hostId])];
+    const allParticipants = [
+      ...new Set([...attendeeIds, ...noShowIds, hostId]),
+    ];
 
-    allParticipants.forEach(userId => {
+    allParticipants.forEach((userId) => {
       const attended = attendeeIds.includes(userId);
       const isHost = userId === hostId;
 
@@ -472,7 +480,7 @@ export class PostEventService {
         markedAt: timestamp,
         selfReported: false,
         isSoloEvent: AttendanceService.isSoloEvent(eventData),
-        eventType: eventData.attendanceType || 'casual'
+        eventType: eventData.attendanceType || 'casual',
       });
     });
 
@@ -483,7 +491,12 @@ export class PostEventService {
    * Add reliability score updates to batch for atomic operation
    * @private
    */
-  static async addReliabilityUpdatesToBatch(batch, attendeeIds, noShowIds, eventData) {
+  static async addReliabilityUpdatesToBatch(
+    batch,
+    attendeeIds,
+    noShowIds,
+    eventData
+  ) {
     try {
       // Only update reliability for strict events
       if (eventData.attendanceType !== 'strict') {
@@ -491,27 +504,29 @@ export class PostEventService {
       }
 
       // Process no-shows (negative impact)
-      noShowIds.forEach(userId => {
+      noShowIds.forEach((userId) => {
         const userRef = doc(db, 'users', userId);
         batch.update(userRef, {
           'userdata.metrics.events.noShows': increment(1),
           'userdata.metrics.events.lastNoShow': Timestamp.now(),
-          'userdata.lastUpdated': Timestamp.now()
+          'userdata.lastUpdated': Timestamp.now(),
         });
       });
 
       // Process attendees (positive impact)
-      attendeeIds.forEach(userId => {
+      attendeeIds.forEach((userId) => {
         const userRef = doc(db, 'users', userId);
         batch.update(userRef, {
           'userdata.metrics.events.attended': increment(1),
           'userdata.metrics.events.lastAttended': Timestamp.now(),
-          'userdata.lastUpdated': Timestamp.now()
+          'userdata.lastUpdated': Timestamp.now(),
         });
       });
-
     } catch (error) {
-      console.error('[PostEventService] Error adding reliability updates to batch:', error);
+      console.error(
+        '[PostEventService] Error adding reliability updates to batch:',
+        error
+      );
       throw error;
     }
   }

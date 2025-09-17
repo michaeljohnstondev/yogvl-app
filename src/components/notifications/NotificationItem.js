@@ -1,16 +1,24 @@
 // FILE: components/notifications/NotificationItem.js
 
-import React, { useRef } from 'react';
+import React, { useRef, useCallback, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Alert,
-  Animated,
-  PanResponder,
   Dimensions,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  runOnJS,
+  withSpring,
+  withTiming,
+  interpolate,
+  Extrapolate,
+} from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { deleteNotification } from '../../services/notifications';
 import { useVibeAlert } from '../ui/base/VibeAlertContext';
 import theme from '../../theme/themes';
@@ -35,67 +43,118 @@ export default function NotificationItem({
   userData,
 }) {
   const vibeAlert = useVibeAlert();
-  const translateX = useRef(new Animated.Value(0)).current;
-  const lastOffset = useRef(0);
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (evt, gestureState) => {
-        // Only respond to horizontal gestures
-        return (
-          Math.abs(gestureState.dx) > Math.abs(gestureState.dy) &&
-          Math.abs(gestureState.dx) > 10
-        );
-      },
-      onPanResponderGrant: () => {
-        // Store the current offset when gesture starts
-        lastOffset.current = translateX._value;
-      },
-      onPanResponderMove: (evt, gestureState) => {
-        // Only allow swiping to the right (positive dx) for dismissing
-        const newTranslateX = Math.max(0, lastOffset.current + gestureState.dx);
-        translateX.setValue(newTranslateX);
-      },
-      onPanResponderRelease: (evt, gestureState) => {
-        const swipeThreshold = screenWidth * 0.3; // 30% of screen width
-        const velocity = gestureState.vx;
-        const offset = lastOffset.current + gestureState.dx;
+  // Reanimated 3 shared values for smooth animations
+  const translateX = useSharedValue(0);
+  const opacity = useSharedValue(1);
+  const scale = useSharedValue(1);
 
-        if (offset > swipeThreshold || velocity > 0.5) {
-          // Dismiss notification
-          Animated.timing(translateX, {
-            toValue: screenWidth,
-            duration: 200,
-            useNativeDriver: true,
-          }).start(() => {
-            handleSwipeDelete();
-          });
-        } else {
-          // Snap back to original position
-          Animated.spring(translateX, {
-            toValue: 0,
-            useNativeDriver: true,
-          }).start();
-          lastOffset.current = 0;
-        }
-      },
-    })
-  ).current;
+  // State for deletion handling
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const handleSwipeDelete = async () => {
+  // Handle swipe delete function
+  const handleSwipeDelete = useCallback(async () => {
+    if (isDeleting) return; // Prevent double deletion
+
+    setIsDeleting(true);
+
     try {
-      await deleteNotification(notification.id, notification.userId);
-      onDelete && onDelete(notification.id);
+      // Call parent's delete handler which will handle the service call
+      if (onDelete) {
+        await onDelete(notification.id);
+      } else {
+        // Fallback: direct service call if no parent handler
+        await deleteNotification(notification.userId, notification.id);
+      }
     } catch (error) {
-      // Reset position if delete fails
-      Animated.spring(translateX, {
-        toValue: 0,
-        useNativeDriver: true,
-      }).start();
-      lastOffset.current = 0;
+      console.error('[NotificationItem] Delete failed:', error);
+
+      // Reset position if delete fails with smooth animation
+      translateX.value = withSpring(0, {
+        damping: 20,
+        stiffness: 300,
+      });
+      opacity.value = withSpring(1, {
+        damping: 20,
+        stiffness: 300,
+      });
+      scale.value = withSpring(1, {
+        damping: 20,
+        stiffness: 300,
+      });
+
+      setIsDeleting(false);
       Alert.alert('Error', 'Failed to delete notification');
     }
-  };
+  }, [isDeleting, onDelete, notification.id, notification.userId, translateX, opacity, scale]);
+
+  // Create a worklet-safe delete function
+  const triggerDelete = useCallback(() => {
+    handleSwipeDelete();
+  }, [handleSwipeDelete]);
+
+  // Modern Reanimated 3 gesture handling with scroll compatibility
+  const panGesture = Gesture.Pan()
+    .activeOffsetX(10) // Require 10px horizontal movement before activating
+    .failOffsetY([-10, 10]) // Fail if vertical movement is too large (allows scroll)
+    .onStart(() => {
+      // Store initial position when gesture starts
+    })
+    .onUpdate((event) => {
+      // Only allow rightward swipe (positive translation)
+      if (event.translationX >= 0) {
+        translateX.value = event.translationX;
+
+        // Add subtle visual feedback during swipe
+        const progress = Math.min(event.translationX / (screenWidth * 0.15), 1);
+        opacity.value = interpolate(
+          progress,
+          [0, 0.5, 1],
+          [1, 0.8, 0.6],
+          Extrapolate.CLAMP
+        );
+        scale.value = interpolate(
+          progress,
+          [0, 1],
+          [1, 0.95],
+          Extrapolate.CLAMP
+        );
+      }
+    })
+    .onEnd((event) => {
+      // Improved threshold: 15% of screen or velocity > 300
+      const swipeThreshold = screenWidth * 0.15;
+      const velocityThreshold = 300;
+
+      const shouldDelete =
+        translateX.value > swipeThreshold ||
+        event.velocityX > velocityThreshold;
+
+      if (shouldDelete) {
+        // Quick delete animation - start delete immediately
+        runOnJS(triggerDelete)();
+
+        // Fast exit animation
+        translateX.value = withTiming(screenWidth, { duration: 150 });
+        opacity.value = withTiming(0, { duration: 150 });
+        scale.value = withTiming(0.8, { duration: 150 });
+      } else {
+        // Spring back with nice easing
+        translateX.value = withSpring(0, {
+          damping: 20,
+          stiffness: 300,
+        });
+        opacity.value = withSpring(1, {
+          damping: 20,
+          stiffness: 300,
+        });
+        scale.value = withSpring(1, {
+          damping: 20,
+          stiffness: 300,
+        });
+      }
+    });
+
 
   const handleDelete = async () => {
     Alert.alert(
@@ -108,8 +167,13 @@ export default function NotificationItem({
           style: 'destructive',
           onPress: async () => {
             try {
-              await deleteNotification(notification.id, notification.userId);
-              onDelete && onDelete(notification.id);
+              // Call parent's delete handler which will handle the service call
+              if (onDelete) {
+                await onDelete(notification.id);
+              } else {
+                // Fallback: direct service call if no parent handler
+                await deleteNotification(notification.userId, notification.id);
+              }
             } catch (error) {
               Alert.alert('Error', 'Failed to delete notification');
             }
@@ -141,8 +205,11 @@ export default function NotificationItem({
 
         // Delete notification immediately after successful follow (no confirmation dialog)
         try {
-          await deleteNotification(notification.id, notification.userId);
-          onDelete && onDelete(notification.id);
+          if (onDelete) {
+            await onDelete(notification.id);
+          } else {
+            await deleteNotification(notification.userId, notification.id);
+          }
         } catch (error) {
           console.error('Failed to delete follow back notification:', error);
         }
@@ -156,8 +223,11 @@ export default function NotificationItem({
         );
         // Delete notification immediately since it's no longer relevant
         try {
-          await deleteNotification(notification.id, notification.userId);
-          onDelete && onDelete(notification.id);
+          if (onDelete) {
+            await onDelete(notification.id);
+          } else {
+            await deleteNotification(notification.userId, notification.id);
+          }
         } catch (deleteError) {
           console.error(
             'Failed to delete already-following notification:',
@@ -195,8 +265,11 @@ export default function NotificationItem({
 
           // Delete notification immediately after successful join (no confirmation dialog)
           try {
-            await deleteNotification(notification.id, notification.userId);
-            onDelete && onDelete(notification.id);
+            if (onDelete) {
+              await onDelete(notification.id);
+            } else {
+              await deleteNotification(notification.userId, notification.id);
+            }
           } catch (error) {
             console.error(
               'Failed to delete event invitation notification:',
@@ -235,8 +308,11 @@ export default function NotificationItem({
         );
         // Delete notification immediately since it's no longer relevant
         try {
-          await deleteNotification(notification.id, notification.userId);
-          onDelete && onDelete(notification.id);
+          if (onDelete) {
+            await onDelete(notification.id);
+          } else {
+            await deleteNotification(notification.userId, notification.id);
+          }
         } catch (deleteError) {
           console.error(
             'Failed to delete already-attending notification:',
@@ -252,9 +328,11 @@ export default function NotificationItem({
     }
   };
 
-  const handlePress = () => {
+  const handlePress = useCallback(() => {
+    // Prevent press during delete animation
+    if (isDeleting) return;
     onPress && onPress(notification);
-  };
+  }, [isDeleting, onPress, notification]);
 
   const handleAcceptFriendRequest = async () => {
     try {
@@ -341,18 +419,45 @@ export default function NotificationItem({
     return date.toLocaleDateString();
   };
 
+  // Animated styles using Reanimated 3
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateX: translateX.value },
+        { scale: scale.value },
+      ],
+      opacity: opacity.value,
+    };
+  });
+
+  // Delete indicator background
+  const deleteBackgroundStyle = useAnimatedStyle(() => {
+    const progress = Math.min(translateX.value / (screenWidth * 0.15), 1);
+    return {
+      opacity: interpolate(
+        progress,
+        [0, 0.3, 1],
+        [0, 0.5, 1],
+        Extrapolate.CLAMP
+      ),
+    };
+  });
+
   return (
     <View style={styles.swipeContainer}>
+      {/* Delete indicator background */}
+      <Animated.View style={[styles.deleteBackground, deleteBackgroundStyle]}>
+        <View style={styles.deleteIndicator}>
+          <Text style={styles.deleteIcon}>🗑️</Text>
+          <Text style={styles.deleteText}>Delete</Text>
+        </View>
+      </Animated.View>
+
       {/* Main notification item */}
-      <Animated.View
-        style={[
-          styles.animatedContainer,
-          {
-            transform: [{ translateX }],
-          },
-        ]}
-        {...panResponder.panHandlers}
-      >
+      <GestureDetector gesture={panGesture}>
+        <Animated.View
+          style={[styles.animatedContainer, animatedStyle]}
+        >
         <TouchableOpacity
           style={styles.container}
           onPress={handlePress}
@@ -535,7 +640,8 @@ export default function NotificationItem({
             )}
           </View>
         </TouchableOpacity>
-      </Animated.View>
+        </Animated.View>
+      </GestureDetector>
     </View>
   );
 }
@@ -545,14 +651,39 @@ const styles = StyleSheet.create({
     position: 'relative',
     marginBottom: 8,
   },
+  deleteBackground: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 100,
+    backgroundColor: theme.colors.vibeRed,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
+    zIndex: 0,
+  },
+  deleteIndicator: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteIcon: {
+    fontSize: 20,
+    marginBottom: 4,
+  },
+  deleteText: {
+    color: theme.colors.white,
+    fontSize: 12,
+    fontWeight: '600',
+  },
   animatedContainer: {
     position: 'relative',
     zIndex: 1,
+    backgroundColor: theme.colors.darkGray,
+    borderRadius: 8,
   },
   container: {
     flexDirection: 'row',
-    backgroundColor: theme.colors.darkGray,
-    borderRadius: 8,
     position: 'relative',
     overflow: 'hidden',
   },

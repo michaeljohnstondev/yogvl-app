@@ -104,7 +104,8 @@ export const validateUserIdArray = (userIds, options = {}) => {
   for (const userId of userIds) {
     const validation = validateUserId(userId);
     if (validation.valid) {
-      if (!validIds.includes(userId)) { // Deduplicate
+      if (!validIds.includes(userId)) {
+        // Deduplicate
         validIds.push(userId);
       }
     } else {
@@ -117,7 +118,7 @@ export const validateUserIdArray = (userIds, options = {}) => {
       valid: false,
       error: `Invalid user IDs: ${invalidIds.join(', ')}`,
       invalidIds,
-      validIds
+      validIds,
     };
   }
 
@@ -135,10 +136,13 @@ export const validateNotificationData = (notificationData) => {
   }
 
   const required = ['userId', 'type', 'title', 'message'];
-  const missing = required.filter(field => !notificationData[field]);
+  const missing = required.filter((field) => !notificationData[field]);
 
   if (missing.length > 0) {
-    return { valid: false, error: `Missing required fields: ${missing.join(', ')}` };
+    return {
+      valid: false,
+      error: `Missing required fields: ${missing.join(', ')}`,
+    };
   }
 
   // Validate user ID
@@ -170,18 +174,22 @@ export const validateInvitationData = (invitationData) => {
   }
 
   const required = ['inviterId', 'recipientId', 'eventId'];
-  const missing = required.filter(field => !invitationData[field]);
+  const missing = required.filter((field) => !invitationData[field]);
 
   if (missing.length > 0) {
-    return { valid: false, error: `Missing required fields: ${missing.join(', ')}` };
+    return {
+      valid: false,
+      error: `Missing required fields: ${missing.join(', ')}`,
+    };
   }
 
   // Validate IDs
   for (const field of required) {
     if (field.includes('Id')) {
-      const validation = field === 'eventId'
-        ? validateEventId(invitationData[field])
-        : validateUserId(invitationData[field]);
+      const validation =
+        field === 'eventId'
+          ? validateEventId(invitationData[field])
+          : validateUserId(invitationData[field]);
 
       if (!validation.valid) {
         return { valid: false, error: `Invalid ${field}: ${validation.error}` };
@@ -191,7 +199,10 @@ export const validateInvitationData = (invitationData) => {
 
   // Validate optional message length
   if (invitationData.message && invitationData.message.length > 200) {
-    return { valid: false, error: 'Invitation message must be 200 characters or less' };
+    return {
+      valid: false,
+      error: 'Invitation message must be 200 characters or less',
+    };
   }
 
   return { valid: true };
@@ -210,23 +221,28 @@ export const validateServiceParams = (params, required = [], types = {}) => {
   }
 
   // Check required parameters
-  const missing = required.filter(param =>
-    params[param] === undefined || params[param] === null
+  const missing = required.filter(
+    (param) => params[param] === undefined || params[param] === null
   );
 
   if (missing.length > 0) {
-    return { valid: false, error: `Missing required parameters: ${missing.join(', ')}` };
+    return {
+      valid: false,
+      error: `Missing required parameters: ${missing.join(', ')}`,
+    };
   }
 
   // Check parameter types
   for (const [param, expectedType] of Object.entries(types)) {
     if (params[param] !== undefined) {
-      const actualType = Array.isArray(params[param]) ? 'array' : typeof params[param];
+      const actualType = Array.isArray(params[param])
+        ? 'array'
+        : typeof params[param];
 
       if (actualType !== expectedType) {
         return {
           valid: false,
-          error: `Parameter ${param} must be of type ${expectedType}, got ${actualType}`
+          error: `Parameter ${param} must be of type ${expectedType}, got ${actualType}`,
         };
       }
     }
@@ -249,11 +265,14 @@ export const validateDocumentPath = (documentPath) => {
 
   // Must have even number of parts (collection/doc pairs)
   if (parts.length % 2 !== 0) {
-    return { valid: false, error: 'Invalid document path - must be collection/doc pairs' };
+    return {
+      valid: false,
+      error: 'Invalid document path - must be collection/doc pairs',
+    };
   }
 
   // Each part must not be empty
-  if (parts.some(part => !part.trim())) {
+  if (parts.some((part) => !part.trim())) {
     return { valid: false, error: 'Document path parts cannot be empty' };
   }
 
@@ -267,36 +286,55 @@ export const validateDocumentPath = (documentPath) => {
  * @param {string} requiredRole - Required role ('creator', 'cohost', 'attendee')
  * @returns {Object} Validation result
  */
-export const validateEventPermission = (eventData, userId, requiredRole = 'creator') => {
+export const validateEventPermission = (
+  eventData,
+  userId,
+  requiredRole = 'creator'
+) => {
   if (!eventData || typeof eventData !== 'object') {
     return { valid: false, error: 'Event data is required' };
   }
 
   const userIdValidation = validateUserId(userId);
   if (!userIdValidation.valid) {
-    return { valid: false, error: `Invalid user ID: ${userIdValidation.error}` };
+    return {
+      valid: false,
+      error: `Invalid user ID: ${userIdValidation.error}`,
+    };
   }
 
   const isCreator = eventData.createdBy === userId;
-  const isCohost = Array.isArray(eventData.cohosts) && eventData.cohosts.includes(userId);
-  const isAttendee = Array.isArray(eventData.subscribers) && eventData.subscribers.includes(userId);
+  const isCohost =
+    Array.isArray(eventData.cohosts) && eventData.cohosts.includes(userId);
+  const isAttendee =
+    Array.isArray(eventData.subscribers) &&
+    eventData.subscribers.includes(userId);
 
   switch (requiredRole) {
     case 'creator':
       if (!isCreator) {
-        return { valid: false, error: 'Only event creator can perform this action' };
+        return {
+          valid: false,
+          error: 'Only event creator can perform this action',
+        };
       }
       break;
 
     case 'cohost':
       if (!isCreator && !isCohost) {
-        return { valid: false, error: 'Only event creator or cohosts can perform this action' };
+        return {
+          valid: false,
+          error: 'Only event creator or cohosts can perform this action',
+        };
       }
       break;
 
     case 'attendee':
       if (!isCreator && !isCohost && !isAttendee) {
-        return { valid: false, error: 'Only event attendees can perform this action' };
+        return {
+          valid: false,
+          error: 'Only event attendees can perform this action',
+        };
       }
       break;
 
@@ -318,7 +356,7 @@ export const sanitizeUserInput = (input, options = {}) => {
     maxLength = 1000,
     allowEmpty = false,
     trim = true,
-    removeHtml = true
+    removeHtml = true,
   } = options;
 
   if (!input) {
@@ -343,7 +381,10 @@ export const sanitizeUserInput = (input, options = {}) => {
   }
 
   if (sanitized.length > maxLength) {
-    return { valid: false, error: `Input must be ${maxLength} characters or less` };
+    return {
+      valid: false,
+      error: `Input must be ${maxLength} characters or less`,
+    };
   }
 
   if (!allowEmpty && sanitized.length === 0) {
@@ -368,7 +409,7 @@ export const withValidationErrorHandling = (validationFn, validationName) => {
       return {
         valid: false,
         error: 'Validation failed due to internal error',
-        internalError: error.message
+        internalError: error.message,
       };
     }
   };

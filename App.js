@@ -3,6 +3,7 @@ import { initializeIndexOfFix } from './src/lib/indexOfErrorFix';
 import Navigation from './src/Navigation';
 import { VibeAlertProvider, VibeScreen } from './src/components/ui/base';
 import { useEventEndNotifications } from './src/hooks/useEventEndNotifications';
+import { useNotificationDisplayInit } from './src/hooks/useNotificationDisplayInit';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import fcmService from './src/services/fcmServiceWrapper';
 import { initializeNotificationServices } from './src/services/notificationInit';
@@ -10,6 +11,8 @@ import { initializeNotificationServices } from './src/services/notificationInit'
 function AppWithNotifications() {
   // Initialize event end notification service
   useEventEndNotifications();
+  // Initialize notification display service with VibeAlert
+  useNotificationDisplayInit();
   // Initialize indexOf error prevention
   initializeIndexOfFix();
 

@@ -1,18 +1,12 @@
 // FILE: services/userService.js - User Data Service for Friend/User Management
 
 import {
-  collection,
-  query,
-  where,
-  getDocs,
   getDoc,
   doc,
   updateDoc,
   setDoc,
   arrayUnion,
   arrayRemove,
-  orderBy,
-  limit as firestoreLimit,
 } from '../lib/firebase';
 import { db } from '../auth/services/firebase';
 import { StudioStatsService } from './studioStatsService';

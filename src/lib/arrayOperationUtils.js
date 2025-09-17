@@ -54,7 +54,11 @@ export const uniqueArray = (array) => {
  * @param {Array} subscribedUsers - Users already subscribed
  * @returns {Array} Eligible users for invitation
  */
-export const filterEligibleUsersForInvitation = (allUsers, invitedUsers = [], subscribedUsers = []) => {
+export const filterEligibleUsersForInvitation = (
+  allUsers,
+  invitedUsers = [],
+  subscribedUsers = []
+) => {
   if (!Array.isArray(allUsers)) {
     console.warn('[ArrayUtils] allUsers is not an array:', allUsers);
     return [];
@@ -63,7 +67,7 @@ export const filterEligibleUsersForInvitation = (allUsers, invitedUsers = [], su
   const safeInvited = Array.isArray(invitedUsers) ? invitedUsers : [];
   const safeSubscribed = Array.isArray(subscribedUsers) ? subscribedUsers : [];
 
-  return allUsers.filter(user => {
+  return allUsers.filter((user) => {
     if (!user || !user.id) {
       return false;
     }
@@ -105,7 +109,7 @@ export const filterUsersWithLookup = (users, excludeIds = []) => {
 
   const excludeSet = createLookupSet(excludeIds);
 
-  return users.filter(user => {
+  return users.filter((user) => {
     return user && user.id && !excludeSet.has(user.id);
   });
 };
@@ -116,7 +120,7 @@ export const filterUsersWithLookup = (users, excludeIds = []) => {
  * @returns {Array} Merged array with unique values
  */
 export const mergeArraysUnique = (...arrays) => {
-  const validArrays = arrays.filter(arr => Array.isArray(arr));
+  const validArrays = arrays.filter((arr) => Array.isArray(arr));
   if (validArrays.length === 0) return [];
 
   const merged = validArrays.flat();
@@ -149,7 +153,7 @@ export const arrayIntersection = (array1, array2) => {
   if (!Array.isArray(array1) || !Array.isArray(array2)) return [];
 
   const set2 = createLookupSet(array2);
-  return array1.filter(item => set2.has(item));
+  return array1.filter((item) => set2.has(item));
 };
 
 /**
@@ -163,7 +167,7 @@ export const arrayDifference = (array1, array2) => {
   if (!Array.isArray(array2)) return array1;
 
   const set2 = createLookupSet(array2);
-  return array1.filter(item => !set2.has(item));
+  return array1.filter((item) => !set2.has(item));
 };
 
 /**
@@ -204,7 +208,11 @@ export const validateArrayOperation = ({ currentArray, item, operation }) => {
  * @param {Array} invitedArray - Array of invited user IDs
  * @returns {Array} Filtered user cards
  */
-export const filterUserCards = (users, subscribedArray = [], invitedArray = []) => {
+export const filterUserCards = (
+  users,
+  subscribedArray = [],
+  invitedArray = []
+) => {
   if (!Array.isArray(users)) {
     console.warn('[ArrayUtils] Users is not an array in filterUserCards');
     return [];
@@ -213,7 +221,7 @@ export const filterUserCards = (users, subscribedArray = [], invitedArray = []) 
   const filteredUsers = [];
 
   // foreach(user) as requested by user
-  users.forEach(user => {
+  users.forEach((user) => {
     if (!user || !user.id) {
       return; // Skip invalid user objects
     }
@@ -221,7 +229,10 @@ export const filterUserCards = (users, subscribedArray = [], invitedArray = []) 
     const userId = user.id;
 
     // if user is in the [subscribed] array or if user is in the [invited] array, return null
-    if (safeArrayIncludes(subscribedArray, userId) || safeArrayIncludes(invitedArray, userId)) {
+    if (
+      safeArrayIncludes(subscribedArray, userId) ||
+      safeArrayIncludes(invitedArray, userId)
+    ) {
       return; // return null - skip this user
     }
 

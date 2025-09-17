@@ -44,8 +44,16 @@ const safeArrayIncludes = (array, item) => {
 export const checkIfFollowing = async (followerId, targetUserId) => {
   try {
     // Add strict parameter validation
-    if (!followerId || !targetUserId || typeof followerId !== 'string' || typeof targetUserId !== 'string') {
-      console.warn('[followService] Invalid parameters for checkIfFollowing:', { followerId, targetUserId });
+    if (
+      !followerId ||
+      !targetUserId ||
+      typeof followerId !== 'string' ||
+      typeof targetUserId !== 'string'
+    ) {
+      console.warn('[followService] Invalid parameters for checkIfFollowing:', {
+        followerId,
+        targetUserId,
+      });
       return false;
     }
 
@@ -64,25 +72,33 @@ export const checkIfFollowing = async (followerId, targetUserId) => {
   }
 };
 
-
 /**
  * Get follow statistics for a user by counting actual subcollections
  */
 export const getFollowStats = async (userId) => {
   try {
     if (!userId || typeof userId !== 'string') {
-      console.warn('[followService] Invalid userId provided to getFollowStats:', userId);
+      console.warn(
+        '[followService] Invalid userId provided to getFollowStats:',
+        userId
+      );
       return { followingCount: 0, followerCount: 0, mutualCount: 0 };
     }
 
     // Get actual counts from subcollections for accuracy with additional error handling
     const [followingSnapshot, followersSnapshot] = await Promise.all([
-      getDocs(collection(db, 'users', userId, 'following')).catch(err => {
-        console.error('[followService] Error fetching following collection:', err);
+      getDocs(collection(db, 'users', userId, 'following')).catch((err) => {
+        console.error(
+          '[followService] Error fetching following collection:',
+          err
+        );
         return { size: 0 };
       }),
-      getDocs(collection(db, 'users', userId, 'followers')).catch(err => {
-        console.error('[followService] Error fetching followers collection:', err);
+      getDocs(collection(db, 'users', userId, 'followers')).catch((err) => {
+        console.error(
+          '[followService] Error fetching followers collection:',
+          err
+        );
         return { size: 0 };
       }),
     ]);
@@ -96,7 +112,10 @@ export const getFollowStats = async (userId) => {
       const mutualFollows = await getMutualFollows(userId);
       mutualCount = Array.isArray(mutualFollows) ? mutualFollows.length : 0;
     } catch (mutualError) {
-      console.error('[followService] Error getting mutual follows in getFollowStats:', mutualError);
+      console.error(
+        '[followService] Error getting mutual follows in getFollowStats:',
+        mutualError
+      );
       mutualCount = 0;
     }
 
@@ -121,8 +140,16 @@ export const getUserRelationshipStatus = async (
 ) => {
   try {
     // Add parameter validation
-    if (!currentUserId || !targetUserId || typeof currentUserId !== 'string' || typeof targetUserId !== 'string') {
-      console.warn('[followService] Invalid parameters for getUserRelationshipStatus:', { currentUserId, targetUserId });
+    if (
+      !currentUserId ||
+      !targetUserId ||
+      typeof currentUserId !== 'string' ||
+      typeof targetUserId !== 'string'
+    ) {
+      console.warn(
+        '[followService] Invalid parameters for getUserRelationshipStatus:',
+        { currentUserId, targetUserId }
+      );
       return {
         isFollowing: false,
         isBlocked: false,
@@ -186,8 +213,16 @@ export const getUserRelationshipStatus = async (
 export const checkIfMutualFollows = async (userId1, userId2) => {
   try {
     // Add strict parameter validation
-    if (!userId1 || !userId2 || typeof userId1 !== 'string' || typeof userId2 !== 'string') {
-      console.warn('[followService] Invalid parameters for checkIfMutualFollows:', { userId1, userId2 });
+    if (
+      !userId1 ||
+      !userId2 ||
+      typeof userId1 !== 'string' ||
+      typeof userId2 !== 'string'
+    ) {
+      console.warn(
+        '[followService] Invalid parameters for checkIfMutualFollows:',
+        { userId1, userId2 }
+      );
       return false;
     }
 
@@ -199,7 +234,7 @@ export const checkIfMutualFollows = async (userId1, userId2) => {
     // Check both directions in parallel for efficiency
     const [user1FollowsUser2, user2FollowsUser1] = await Promise.all([
       checkIfFollowing(userId1, userId2),
-      checkIfFollowing(userId2, userId1)
+      checkIfFollowing(userId2, userId1),
     ]);
 
     return user1FollowsUser2 && user2FollowsUser1;
@@ -215,7 +250,10 @@ export const checkIfMutualFollows = async (userId1, userId2) => {
 export const getMutualFollows = async (userId, limitCount = 50) => {
   try {
     if (!userId || typeof userId !== 'string') {
-      console.warn('[followService] Invalid userId provided to getMutualFollows:', userId);
+      console.warn(
+        '[followService] Invalid userId provided to getMutualFollows:',
+        userId
+      );
       return [];
     }
 
@@ -225,7 +263,7 @@ export const getMutualFollows = async (userId, limitCount = 50) => {
     }
 
     const targetUserIds = following
-      .filter(f => f && f.targetUserId) // Filter out any invalid entries
+      .filter((f) => f && f.targetUserId) // Filter out any invalid entries
       .map((f) => f.targetUserId);
 
     if (targetUserIds.length === 0) {
@@ -234,8 +272,13 @@ export const getMutualFollows = async (userId, limitCount = 50) => {
 
     // Batch check all follow relationships in parallel instead of sequential for loop
     const followBackPromises = targetUserIds.map((targetId) =>
-      getDoc(doc(db, 'users', targetId, 'followers', userId)).catch(err => {
-        console.error('[followService] Error checking follow back status for', targetId, ':', err);
+      getDoc(doc(db, 'users', targetId, 'followers', userId)).catch((err) => {
+        console.error(
+          '[followService] Error checking follow back status for',
+          targetId,
+          ':',
+          err
+        );
         return { exists: () => false };
       })
     );
@@ -243,12 +286,79 @@ export const getMutualFollows = async (userId, limitCount = 50) => {
     const followBackResults = await Promise.all(followBackPromises);
 
     const mutualFollows = [];
+    const userIdsNeedingData = [];
+
+    // First pass: identify users with incomplete data
     following.forEach((followedUser, index) => {
-      if (followedUser && followBackResults[index] && followBackResults[index].exists()) {
+      if (
+        followedUser &&
+        followBackResults[index] &&
+        followBackResults[index].exists()
+      ) {
+        // Check if we have profile picture data in cached targetData
+        if (!followedUser.targetData?.profilePicture) {
+          userIdsNeedingData.push(followedUser.targetUserId);
+        }
+      }
+    });
+
+    // Fetch current user data for users missing profile picture info
+    let currentUserDataMap = new Map();
+    if (userIdsNeedingData.length > 0) {
+      try {
+        const userDocs = await Promise.all(
+          userIdsNeedingData.map(userId =>
+            getDoc(doc(db, 'users', userId)).catch(err => {
+              console.error(`[followService] Error fetching user data for ${userId}:`, err);
+              return null;
+            })
+          )
+        );
+
+        userDocs.forEach((userDoc, index) => {
+          if (userDoc && userDoc.exists()) {
+            currentUserDataMap.set(userIdsNeedingData[index], userDoc.data());
+          }
+        });
+      } catch (error) {
+        console.error('[followService] Error fetching user data for mutual friends:', error);
+      }
+    }
+
+    // Second pass: build mutual follows with complete data
+    following.forEach((followedUser, index) => {
+      if (
+        followedUser &&
+        followBackResults[index] &&
+        followBackResults[index].exists()
+      ) {
+        const currentUserData = currentUserDataMap.get(followedUser.targetUserId);
+        const profilePicture = followedUser.targetData?.profilePicture ||
+                              currentUserData?.userdata?.contactInfo?.profilePicture ||
+                              null;
+
         mutualFollows.push({
           id: followedUser.targetUserId,
-          ...followedUser.targetData,
+          userdata: {
+            contactInfo: {
+              firstName: followedUser.targetData?.firstName ||
+                        currentUserData?.userdata?.contactInfo?.firstName || '',
+              lastName: followedUser.targetData?.lastName ||
+                       currentUserData?.userdata?.contactInfo?.lastName || '',
+              email: followedUser.targetData?.email ||
+                     currentUserData?.userdata?.contactInfo?.email || '',
+              profilePicture: profilePicture,
+            },
+            studios: followedUser.targetData?.studios ||
+                    currentUserData?.userdata?.studios || {},
+          },
+          displayName: followedUser.targetData?.displayName ||
+                      `${currentUserData?.userdata?.contactInfo?.firstName || ''} ${currentUserData?.userdata?.contactInfo?.lastName || ''}`.trim() ||
+                      'Unknown User',
+          email: followedUser.targetData?.email ||
+                 currentUserData?.userdata?.contactInfo?.email || '',
           isMutual: true,
+          isFollowing: true, // All mutual friends are by definition already being followed
           followedAt: followedUser.createdAt,
         });
       }
@@ -333,7 +443,9 @@ export const followUser = async (followerId, targetUserId, followerData) => {
         displayName:
           `${targetUserData?.userdata?.contactInfo?.firstName || ''} ${targetUserData?.userdata?.contactInfo?.lastName || ''}`.trim() ||
           'Unknown User',
-        avatar: null, // TODO: Add avatar system later
+        profilePicture: targetUserData?.userdata?.contactInfo?.profilePicture || null,
+        email: targetUserData?.userdata?.contactInfo?.email || targetUserData?.email || '',
+        studios: targetUserData?.userdata?.studios || {},
       },
     });
 
@@ -350,7 +462,9 @@ export const followUser = async (followerId, targetUserId, followerData) => {
         displayName:
           `${followerData?.userdata?.contactInfo?.firstName || ''} ${followerData?.userdata?.contactInfo?.lastName || ''}`.trim() ||
           'Unknown User',
-        avatar: null,
+        profilePicture: followerData?.userdata?.contactInfo?.profilePicture || null,
+        email: followerData?.userdata?.contactInfo?.email || followerData?.email || '',
+        studios: followerData?.userdata?.studios || {},
       },
     });
 
@@ -503,6 +617,7 @@ export const getFollowing = async (userId, limitCount = 50) => {
     return snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
+      isFollowing: true, // All users in following list are by definition being followed
     }));
   } catch (error) {
     console.error('Error getting following:', error);

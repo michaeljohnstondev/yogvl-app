@@ -85,7 +85,7 @@ export const usePastEventsManager = (
           location: templateFormData.location || '',
           address: templateFormData.address || '',
           details: templateFormData.details || '',
-          maxGuests: templateFormData.maxGuests || '',
+          maxGuests: templateFormData.maxGuests ? templateFormData.maxGuests.toString() : '',
           hasFee: templateFormData.hasFee || false,
           entryFee: templateFormData.entryFee || '',
           isPrivate: templateFormData.isPrivate || false,

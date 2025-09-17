@@ -62,13 +62,8 @@ const theme = {
     buttonRadius: 12,
     inputPadding: 16,
   },
-  shadows: {
-    textGlow: {
-      textShadowColor: '#00C6FF',
-      textShadowOffset: { width: 0, height: 0 },
-      textShadowRadius: 10,
-    },
-  },
+  // UI Restrictions: NO glow effects - Use sharp neon borders instead
+  // shadows: Removed - glow effects not allowed in punk aesthetic
 };
 
 export default theme;

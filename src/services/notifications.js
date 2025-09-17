@@ -1,12 +1,17 @@
 // FILE: services/notifications.js - Main Notification System Orchestrator
 // This file now coordinates between specialized notification services
+//
+// ⚠️  WARNING: DO NOT USE expo-notifications IN THIS PROJECT
+// ⚠️  Use Firebase Cloud Messaging (@react-native-firebase/messaging) ONLY
+// ⚠️  All push notifications must go through FCM Cloud Functions
+//
 
 // Import all notification services
 import {
   NOTIFICATION_TYPES,
   NOTIFICATION_PRIORITY,
   DELIVERY_CHANNELS,
-  notificationEngine
+  notificationEngine,
 } from './shared/NotificationEngine';
 
 import {
@@ -15,7 +20,7 @@ import {
   notifySubscribersOfEventUpdate,
   notifySubscribersOfCancellation,
   sendEventReminder,
-  getEventSubscribers
+  getEventSubscribers,
 } from './shared/eventNotificationsService';
 
 import {
@@ -23,7 +28,7 @@ import {
   notifyFriendRequestAccepted,
   notifyFriendRequest,
   notifyMutualFollow,
-  notifyMention
+  notifyMention,
 } from './shared/socialNotificationsService';
 
 import {
@@ -32,7 +37,7 @@ import {
   notifyInvitationDeclined,
   notifyCohostInvitation,
   notifyCohostAccepted,
-  sendBulkInvitationNotifications
+  sendBulkInvitationNotifications,
 } from './shared/invitationNotificationsService';
 
 /**
@@ -42,19 +47,21 @@ import {
  */
 
 // Core notification dispatch functions - redirected to NotificationEngine
-export const createNotification = notificationEngine.createNotification.bind(notificationEngine);
-export const getUserNotifications = notificationEngine.getUserNotifications.bind(notificationEngine);
-export const markNotificationAsRead = notificationEngine.markNotificationAsRead.bind(notificationEngine);
-export const markAllNotificationsAsRead = notificationEngine.markAllNotificationsAsRead.bind(notificationEngine);
-export const deleteNotification = notificationEngine.deleteNotification.bind(notificationEngine);
-export const cleanupExpiredNotifications = notificationEngine.cleanupExpiredNotifications.bind(notificationEngine);
+export const createNotification =
+  notificationEngine.createNotification.bind(notificationEngine);
+export const getUserNotifications =
+  notificationEngine.getUserNotifications.bind(notificationEngine);
+export const markNotificationAsRead =
+  notificationEngine.markNotificationAsRead.bind(notificationEngine);
+export const markAllNotificationsAsRead =
+  notificationEngine.markAllNotificationsAsRead.bind(notificationEngine);
+export const deleteNotification =
+  notificationEngine.deleteNotification.bind(notificationEngine);
+export const cleanupExpiredNotifications =
+  notificationEngine.cleanupExpiredNotifications.bind(notificationEngine);
 
 // Constants
-export {
-  NOTIFICATION_TYPES,
-  NOTIFICATION_PRIORITY,
-  DELIVERY_CHANNELS
-};
+export { NOTIFICATION_TYPES, NOTIFICATION_PRIORITY, DELIVERY_CHANNELS };
 
 // Event notification functions
 export {
@@ -63,7 +70,7 @@ export {
   notifySubscribersOfEventUpdate,
   notifySubscribersOfCancellation,
   sendEventReminder,
-  getEventSubscribers
+  getEventSubscribers,
 };
 
 // Social notification functions
@@ -72,7 +79,7 @@ export {
   notifyFriendRequestAccepted,
   notifyFriendRequest,
   notifyMutualFollow,
-  notifyMention
+  notifyMention,
 };
 
 // Invitation notification functions
@@ -82,7 +89,7 @@ export {
   notifyInvitationDeclined,
   notifyCohostInvitation,
   notifyCohostAccepted,
-  sendBulkInvitationNotifications
+  sendBulkInvitationNotifications,
 };
 
 /**

@@ -226,9 +226,7 @@ export default function ContactInfoScreen({ navigation }) {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.container}>
-          <Text style={[styles.title, theme.shadows.textGlow]}>
-            Complete Your Profile
-          </Text>
+          <Text style={styles.title}>Complete Your Profile</Text>
           <Text style={styles.subtitle}>
             Help others find and connect with you
           </Text>

@@ -1,18 +1,25 @@
 // FILE: services/fcmService.js - Firebase Cloud Messaging Service for Push Notifications
+//
+// ⚠️  WARNING: DO NOT USE expo-notifications IN THIS PROJECT
+// ⚠️  Use Firebase Cloud Messaging (@react-native-firebase/messaging) ONLY
+// ⚠️  Foreground notifications should be handled through FCM, not expo-notifications
+//
 
 import { Platform } from 'react-native';
-import { getApp } from '@react-native-firebase/app';
-import messaging from '@react-native-firebase/messaging';
+import messaging from '@react-native-firebase/messaging'; // MODIFIED: Removed FirebaseMessagingTypes
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 import { doc, updateDoc, getDoc } from '../lib/firebase';
 import { db } from '../auth/services/firebase';
+import { notificationDisplayService } from './notificationDisplayService';
+import { notificationEngine } from './shared/NotificationEngine';
 
 const STORAGE_KEYS = {
   FCM_TOKEN: 'fcm_push_token',
   PERMISSION_REQUESTED: 'notification_permission_requested',
 };
+
 
 // Configure Firebase messaging for background message handling
 try {
@@ -31,6 +38,7 @@ class FCMService {
   constructor() {
     this.isInitialized = false;
     this.currentToken = null;
+    this.currentUserId = null;
     this.navigationRef = null;
     this.foregroundListener = null;
     this.notificationOpenedListener = null;
@@ -45,12 +53,14 @@ class FCMService {
     try {
       console.log('[FCMService] Initializing Firebase messaging service...');
 
+      // Note: FCM handles notification channels automatically
+
       // Request permission for iOS (Android permissions are handled automatically)
       if (Platform.OS === 'ios') {
         const authStatus = await messaging().requestPermission();
         const enabled =
-          authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-          authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+          authStatus === messaging.AuthorizationStatus.AUTHORIZED || // MODIFIED
+          authStatus === messaging.AuthorizationStatus.PROVISIONAL; // MODIFIED
 
         if (!enabled) {
           console.warn('[FCMService] iOS notification permission not granted');
@@ -71,6 +81,7 @@ class FCMService {
       return false;
     }
   }
+
 
   /**
    * Set up Firebase message listeners for foreground and tap handling
@@ -93,7 +104,8 @@ class FCMService {
     );
 
     // Check if app was opened from a notification (app was quit)
-    messaging().getInitialNotification()
+    messaging()
+      .getInitialNotification()
       .then((remoteMessage) => {
         if (remoteMessage) {
           console.log(
@@ -109,7 +121,9 @@ class FCMService {
         }
       });
 
-    console.log('[FCMService] Firebase message listeners set up');
+    // Note: Notification tap handling is managed by FCM onNotificationOpenedApp listener above
+
+    console.log('[FCMService] Firebase notification listeners set up');
   }
 
   /**
@@ -134,11 +148,14 @@ class FCMService {
         authStatus = await messaging().requestPermission();
 
         const granted =
-          authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-          authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+          authStatus === messaging.AuthorizationStatus.AUTHORIZED || // MODIFIED
+          authStatus === messaging.AuthorizationStatus.PROVISIONAL; // MODIFIED
 
         // Store that we've requested permission securely
-        await SecureStore.setItemAsync(STORAGE_KEYS.PERMISSION_REQUESTED, 'true');
+        await SecureStore.setItemAsync(
+          STORAGE_KEYS.PERMISSION_REQUESTED,
+          'true'
+        );
 
         console.log(
           '[FCMService] iOS permission result:',
@@ -150,12 +167,12 @@ class FCMService {
         return {
           granted,
           status: authStatus,
-          provisional: authStatus === messaging.AuthorizationStatus.PROVISIONAL,
+          provisional: authStatus === messaging.AuthorizationStatus.PROVISIONAL, // MODIFIED
         };
       } else {
         // Android - check if permission is already granted
         authStatus = await messaging().hasPermission();
-        const granted = authStatus === messaging.AuthorizationStatus.AUTHORIZED;
+        const granted = authStatus === messaging.AuthorizationStatus.AUTHORIZED; // MODIFIED
 
         if (!granted) {
           // Request permission for Android
@@ -163,10 +180,13 @@ class FCMService {
         }
 
         const finalGranted =
-          authStatus === messaging.AuthorizationStatus.AUTHORIZED;
+          authStatus === messaging.AuthorizationStatus.AUTHORIZED; // MODIFIED
 
         // Store that we've requested permission securely
-        await SecureStore.setItemAsync(STORAGE_KEYS.PERMISSION_REQUESTED, 'true');
+        await SecureStore.setItemAsync(
+          STORAGE_KEYS.PERMISSION_REQUESTED,
+          'true'
+        );
 
         console.log(
           '[FCMService] Android permission result:',
@@ -280,6 +300,10 @@ class FCMService {
       });
 
       console.log('[FCMService] FCM token updated for user:', userId);
+
+      // Store current user ID for foreground notification storage
+      this.currentUserId = userId;
+
       return true;
     } catch (error) {
       console.error('[FCMService] Failed to register token for user:', error);
@@ -289,17 +313,76 @@ class FCMService {
 
   /**
    * Handle messages received when app is in foreground
+   * Uses NotificationDisplayService to show VibeAlert banners
+   * Also stores notification in dashboard for later viewing
    */
-  handleForegroundMessage(remoteMessage) {
+  async handleForegroundMessage(remoteMessage) {
     console.log('[FCMService] Foreground message received:', {
       title: remoteMessage.notification?.title,
       body: remoteMessage.notification?.body,
       data: remoteMessage.data,
     });
 
-    // Firebase automatically displays the notification in foreground
-    // DO NOT navigate or trigger any state changes here to avoid screen resets
-    // Navigation only happens when user taps the notification
+    try {
+      // Display notification banner using VibeAlert system
+      const displaySuccess = notificationDisplayService.displayWithNavigation(
+        remoteMessage,
+        (data) => this.navigateFromNotification(data)
+      );
+
+      // Store notification in dashboard for later viewing
+      await this.storeForegroundNotificationInDashboard(remoteMessage);
+
+      if (!displaySuccess) {
+        console.warn('[FCMService] Failed to display foreground notification banner');
+
+        // Fallback: Store message data for potential navigation handling
+        if (remoteMessage.data) {
+          this.lastNotificationData = remoteMessage.data;
+        }
+      }
+    } catch (error) {
+      console.error('[FCMService] Error handling foreground message:', error);
+
+      // Store message data as fallback
+      if (remoteMessage.data) {
+        this.lastNotificationData = remoteMessage.data;
+      }
+    }
+  }
+
+  /**
+   * Store foreground notification in dashboard
+   * This ensures users can see all notifications even if they missed the banner
+   */
+  async storeForegroundNotificationInDashboard(remoteMessage) {
+    try {
+      // Extract notification details
+      const title = remoteMessage.notification?.title || remoteMessage.data?.title || 'Notification';
+      const message = remoteMessage.notification?.body || remoteMessage.data?.message || remoteMessage.data?.body || '';
+      const type = remoteMessage.data?.type || 'info';
+
+      // Get current user ID (we can't determine user from FCM message alone)
+      // This will be set when user logs in via registerTokenForUser
+      if (!this.currentUserId) {
+        console.warn('[FCMService] Cannot store foreground notification - no current user ID');
+        return;
+      }
+
+      // Store in notification dashboard using NotificationEngine
+      const storeResult = await notificationEngine.storeInAppNotification({
+        userId: this.currentUserId,
+        type: type,
+        title: title,
+        message: message,
+        data: remoteMessage.data || {},
+        priority: 'normal',
+      });
+
+      console.log('[FCMService] Foreground notification stored in dashboard:', storeResult);
+    } catch (error) {
+      console.error('[FCMService] Failed to store foreground notification in dashboard:', error);
+    }
   }
 
   /**
@@ -338,16 +421,12 @@ class FCMService {
         case 'mutual_follow':
           if (userId) {
             this.navigationRef.navigate('UserProfile', { userId });
-          } else {
-            this.navigationRef.navigate('SocialListScreen');
           }
           break;
 
         case 'invitation_received':
           if (eventId) {
             this.navigationRef.navigate('EventDetail', { eventId });
-          } else {
-            this.navigationRef.navigate('InvitationsScreen');
           }
           break;
 
@@ -364,8 +443,6 @@ class FCMService {
         default:
           if (screen) {
             this.navigationRef.navigate(screen);
-          } else {
-            this.navigationRef.navigate('HomeScreen');
           }
           break;
       }
@@ -387,15 +464,15 @@ class FCMService {
   async getPermissionStatus() {
     try {
       const authStatus = await messaging().hasPermission();
-      const granted = authStatus === messaging.AuthorizationStatus.AUTHORIZED;
+      const granted = authStatus === messaging.AuthorizationStatus.AUTHORIZED; // MODIFIED
 
       return {
         granted,
         status: authStatus,
-        provisional: authStatus === messaging.AuthorizationStatus.PROVISIONAL,
-        denied: authStatus === messaging.AuthorizationStatus.DENIED,
+        provisional: authStatus === messaging.AuthorizationStatus.PROVISIONAL, // MODIFIED
+        denied: authStatus === messaging.AuthorizationStatus.DENIED, // MODIFIED
         notDetermined:
-          authStatus === messaging.AuthorizationStatus.NOT_DETERMINED,
+          authStatus === messaging.AuthorizationStatus.NOT_DETERMINED, // MODIFIED
       };
     } catch (error) {
       console.error('[FCMService] Failed to get permission status:', error);
@@ -449,6 +526,7 @@ class FCMService {
       // Clear secure storage
       await SecureStore.deleteItemAsync(STORAGE_KEYS.FCM_TOKEN);
       this.currentToken = null;
+      this.currentUserId = null;
 
       console.log('[FCMService] Token removed for user:', userId);
       return true;
