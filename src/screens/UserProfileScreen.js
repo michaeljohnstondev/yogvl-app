@@ -64,12 +64,6 @@ function UserProfile({ navigation, route }) {
   const targetUserId = route?.params?.userId || currentUserId;
   const isOwnProfile = targetUserId === currentUserId;
 
-  // Debug logging
-  console.log('[UserProfile] Debug - currentUserId:', currentUserId);
-  console.log('[UserProfile] Debug - targetUserId:', targetUserId);
-  console.log('[UserProfile] Debug - isOwnProfile:', isOwnProfile);
-  console.log('[UserProfile] Debug - route params:', route?.params);
-
   const [isEditing, setIsEditing] = useState(false);
   const [followStats, setFollowStats] = useState({
     followingCount: 0,
@@ -172,6 +166,7 @@ function UserProfile({ navigation, route }) {
       const updateData = {
         'userdata.contactInfo.firstName': editedData.firstName.trim(),
         'userdata.contactInfo.lastName': editedData.lastName.trim(),
+        'userdata.contactInfo.displayName': `${editedData.firstName.trim()} ${editedData.lastName.trim()}`,
         'userdata.contactInfo.email': editedData.email.trim(),
         'userdata.contactInfo.phone': editedData.phone.trim(),
         bio: editedData.bio.trim(),
@@ -419,21 +414,12 @@ function UserProfile({ navigation, route }) {
   const handleDeleteAccount = async () => {
     if (isDeleting) return;
 
-    // First confirmation
-    Alert.alert(
+    // First confirmation using VibeAlert
+    vibeAlert.confirm(
       'Delete Account',
       'Are you sure you want to permanently delete your account? This action cannot be undone.',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Continue',
-          style: 'destructive',
-          onPress: showDeletionPreview,
-        },
-      ]
+      showDeletionPreview, // onConfirm
+      () => {} // onCancel (do nothing)
     );
   };
 
@@ -442,7 +428,7 @@ function UserProfile({ navigation, route }) {
       const previewResult = await getUserDeletionPreview(currentUserId);
 
       if (previewResult.error) {
-        Alert.alert('Error', 'Unable to preview deletion details.');
+        vibeAlert.error('Error', 'Unable to preview deletion details.');
         return;
       }
 
@@ -461,25 +447,16 @@ function UserProfile({ navigation, route }) {
         .filter(Boolean)
         .join('\n');
 
-      // Final confirmation with details
-      Alert.alert(
+      // Final confirmation with details using VibeAlert
+      vibeAlert.confirm(
         'Final Confirmation',
-        `This will permanently delete:\n\n${details}\n\nType 'DELETE' to confirm this action.`,
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
-          {
-            text: 'DELETE ACCOUNT',
-            style: 'destructive',
-            onPress: performAccountDeletion,
-          },
-        ]
+        `This will permanently delete:\n\n${details}\n\nThis action cannot be undone!`,
+        performAccountDeletion, // onConfirm
+        () => {} // onCancel (do nothing)
       );
     } catch (error) {
       console.error('Error showing deletion preview:', error);
-      Alert.alert('Error', 'Unable to preview deletion. Please try again.');
+      vibeAlert.error('Error', 'Unable to preview deletion. Please try again.');
     }
   };
 
@@ -490,7 +467,7 @@ function UserProfile({ navigation, route }) {
       const result = await deleteUserAccount(currentUserId, auth.currentUser);
 
       if (result.success) {
-        Alert.alert(
+        vibeAlert.success(
           'Account Deleted',
           result.message,
           [
@@ -503,18 +480,16 @@ function UserProfile({ navigation, route }) {
                 });
               },
             },
-          ],
-          { cancelable: false }
+          ]
         );
       } else {
         throw new Error(result.message || 'Deletion failed');
       }
     } catch (error) {
-      Alert.alert(
+      vibeAlert.error(
         'Deletion Failed',
         error.message ||
-          'Unable to delete account. Please try again or contact support.',
-        [{ text: 'OK' }]
+          'Unable to delete account. Please try again or contact support.'
       );
     } finally {
       setIsDeleting(false);
@@ -693,14 +668,10 @@ function UserProfile({ navigation, route }) {
 
       // Skip if we already have relationship status from privacy validation
       if (isFollowing !== false || isBlocked !== false) {
-        console.log(
-          '[UserProfile] Skipping additional relationship check - already have status'
-        );
         return;
       }
 
       try {
-        console.log('[UserProfile] Fetching additional relationship status');
         const relationshipStatus = await getUserRelationshipStatus(
           currentUserId,
           targetUserId

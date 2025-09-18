@@ -13,6 +13,9 @@ Based on actual user data from your system:
   email: string,              // From Firebase Auth
   phoneNumber: string,        // From Firebase Auth
 
+  // NOTE: NO ROOT-LEVEL displayName FIELD
+  // All display name data is stored in userdata.contactInfo.displayName
+
   // Custom user data
   userdata: {
     contactInfo: {
@@ -226,7 +229,7 @@ const availableUsers = allUsers.filter(user =>
 
 ## Key Schema Notes
 
-1. **User display names** are stored in `userdata.contactInfo.displayName` - NOT at the top level
+1. **User display names** are stored ONLY in `userdata.contactInfo.displayName` - NO root-level displayName field exists or should be used
 2. **Event hosts** are tracked with `createdBy` field - NOT `hostId`
 3. **Dual storage architecture** - Both event and user documents track invitation state
 4. **Atomic batch operations** - All invitation operations use writeBatch for consistency

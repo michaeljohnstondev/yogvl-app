@@ -1,6 +1,6 @@
 // FILE: ../where/Where.js
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { View, Text } from 'react-native';
 import { VibeInput, VibeAutoComplete } from '../../../components/ui/base';
 import { GooglePlacesService } from '../../../services/GooglePlacesService';
@@ -18,6 +18,21 @@ export const Where = ({
   setFieldRef,
   onLocationSelect, // Callback from useSmartAutoComplete for Google Places
 }) => {
+  const locationInputRef = useRef(null);
+  const [locationInputPosition, setLocationInputPosition] = useState(null);
+
+  // Handle location input focus to measure position for autocomplete portal
+  const handleLocationFocus = () => {
+    if (locationInputRef.current) {
+      setTimeout(() => {
+        locationInputRef.current.measureInWindow((x, y, width, height) => {
+          setLocationInputPosition({ x, y, width, height });
+        });
+      }, 50);
+    }
+    onInputFocus?.('location');
+  };
+
   // Handle location input changes with address auto-population
   const handleLocationInputChange = useCallback(
     async (text) => {
@@ -148,9 +163,10 @@ export const Where = ({
         ref={setFieldRef && setFieldRef('location')}
       >
         <VibeInput
+          ref={locationInputRef}
           value={formData.location}
           onChangeText={handleLocationInputChange}
-          onFocus={() => onInputFocus('location')}
+          onFocus={handleLocationFocus}
           onBlur={() => hideSuggestions('location')}
           placeholder="Enter location"
           maxLength={40}
@@ -179,6 +195,7 @@ export const Where = ({
           onSelect={handleLocationSelect}
           visible={getFieldData('location', formData.location).isVisible}
           showCount={false}
+          usePortal={false}
         />
       </View>
 

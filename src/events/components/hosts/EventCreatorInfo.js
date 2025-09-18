@@ -16,12 +16,14 @@ const EventCreatorInfo = ({
 
   // Enhanced display name logic
   const getDisplayName = () => {
-    if (creatorData.displayName) {
-      return creatorData.displayName;
+    // Always prioritize contactInfo displayName first
+    const contactInfo = creatorData?.userdata?.contactInfo || {};
+
+    if (contactInfo.displayName) {
+      return contactInfo.displayName;
     }
 
     // Try to construct from first/last name
-    const contactInfo = creatorData?.userdata?.contactInfo || {};
     const firstName = contactInfo.firstName || '';
     const lastName = contactInfo.lastName || '';
     const fullName = `${firstName} ${lastName}`.trim();
@@ -83,9 +85,10 @@ const EventCreatorBadge = ({ creatorData, style, onPress = null }) => {
 
   // Use same display name logic
   const getDisplayName = () => {
-    if (creatorData.displayName) return creatorData.displayName;
-
     const contactInfo = creatorData?.userdata?.contactInfo || {};
+
+    if (contactInfo.displayName) return contactInfo.displayName;
+
     const firstName = contactInfo.firstName || '';
     const lastName = contactInfo.lastName || '';
     const fullName = `${firstName} ${lastName}`.trim();

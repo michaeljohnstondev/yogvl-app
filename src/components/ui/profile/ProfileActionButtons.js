@@ -35,23 +35,11 @@ const ProfileActionButtons = ({
 }) => {
   // Top row buttons (close, report, edit)
   const renderTopButtons = () => {
-    // Debug logging for report button
-    console.log('[ProfileActionButtons] Debug - targetUserId:', targetUserId);
-    console.log('[ProfileActionButtons] Debug - currentUserId:', currentUserId);
-    console.log('[ProfileActionButtons] Debug - isOwnProfile:', isOwnProfile);
-    console.log(
-      '[ProfileActionButtons] Debug - targetUserId !== currentUserId:',
-      targetUserId !== currentUserId
-    );
     const shouldShowReport =
       targetUserId &&
       currentUserId &&
       targetUserId !== currentUserId &&
       !isOwnProfile;
-    console.log(
-      '[ProfileActionButtons] Debug - shouldShowReport:',
-      shouldShowReport
-    );
 
     return (
       <View style={styles.topButtonsContainer}>

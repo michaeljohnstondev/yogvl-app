@@ -13,7 +13,7 @@ export const filterUsersByQuery = (users, query) => {
       user.email ||
       ''
     ).toLowerCase();
-    const displayName = (user.displayName || '').toLowerCase();
+    const displayName = (user.userdata?.contactInfo?.displayName || '').toLowerCase();
 
     return (
       name.includes(normalizedQuery) ||
@@ -31,7 +31,7 @@ export const createUserSearchIndex = (user) => {
   const firstName = user.userdata?.contactInfo?.firstName || '';
   const lastName = user.userdata?.contactInfo?.lastName || '';
   const email = user.userdata?.contactInfo?.email || user.email || '';
-  const displayName = user.displayName || '';
+  const displayName = user.userdata?.contactInfo?.displayName || '';
 
   return `${firstName} ${lastName} ${email} ${displayName}`.toLowerCase();
 };

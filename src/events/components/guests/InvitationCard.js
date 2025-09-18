@@ -158,7 +158,9 @@ export default function InvitationCard({
         <View style={styles.hostInfo}>
           <Text style={styles.hostLabel}>Invited by:</Text>
           <Text style={styles.hostName}>
-            {hostData.displayName || hostData.email || 'Unknown Host'}
+            {hostData.userdata?.contactInfo?.displayName ||
+             `${hostData.userdata?.contactInfo?.firstName || ''} ${hostData.userdata?.contactInfo?.lastName || ''}`.trim() ||
+             hostData.email || 'Unknown Host'}
           </Text>
         </View>
       )}

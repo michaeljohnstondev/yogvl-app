@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
-import { initializeIndexOfFix } from './src/lib/indexOfErrorFix';
 import Navigation from './src/Navigation';
-import { VibeAlertProvider, VibeScreen } from './src/components/ui/base';
+import { VibeAlertProvider, VibeAppWrapper } from './src/components/ui/base';
 import { useEventEndNotifications } from './src/hooks/useEventEndNotifications';
 import { useNotificationDisplayInit } from './src/hooks/useNotificationDisplayInit';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -13,14 +12,13 @@ function AppWithNotifications() {
   useEventEndNotifications();
   // Initialize notification display service with VibeAlert
   useNotificationDisplayInit();
-  // Initialize indexOf error prevention
-  initializeIndexOfFix();
 
   // Initialize push notifications
   useEffect(() => {
     const initializePushNotifications = async () => {
       const success = await fcmService.initialize();
       if (success) {
+        console.log('[App] ✅ Push notifications initialized successfully');
       } else {
         console.warn('[App] ❌ Push notifications initialization failed');
       }
@@ -47,11 +45,11 @@ export default function App() {
   globalThis.RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
   return (
     <SafeAreaProvider>
-      <VibeScreen>
+      <VibeAppWrapper>
         <VibeAlertProvider>
           <AppWithNotifications />
         </VibeAlertProvider>
-      </VibeScreen>
+      </VibeAppWrapper>
     </SafeAreaProvider>
   );
 }

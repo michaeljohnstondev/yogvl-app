@@ -12,8 +12,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
-import VibeScreen from '../components/ui/base/VibeScreen';
-import { VibeButton, VibeAutoComplete, CloseButton } from '../components/ui';
+import { VibeButton, VibeAutoComplete, CloseButton, VibeView } from '../components/ui';
 import theme from '../theme/themes';
 import {
   getUserInterests,
@@ -326,7 +325,7 @@ export default function InterestsScreen() {
 
   if (loading) {
     return (
-      <VibeScreen>
+      <VibeView>
         <View style={styles.header}>
           <CloseButton onPress={() => navigation.goBack()} />
           <Text style={styles.headerTitle}>My Interests</Text>
@@ -335,7 +334,7 @@ export default function InterestsScreen() {
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading your interests...</Text>
         </View>
-      </VibeScreen>
+      </VibeView>
     );
   }
 

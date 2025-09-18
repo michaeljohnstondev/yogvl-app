@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, Modal } from 'react-native';
 import theme from '../../../theme/themes';
 import {
   getEmojiForText,
@@ -45,6 +45,8 @@ const VibeAutoComplete = React.memo(
     inputValue = '',
     context = 'event',
     onHide,
+    usePortal = false,
+    inputPosition = null,
   }) => {
     // Track when a selection was made to prevent immediate re-showing
     const lastSelectionTimeRef = useRef(0);
@@ -91,7 +93,7 @@ const VibeAutoComplete = React.memo(
       return unifiedSuggestions;
     };
 
-    const displaySuggestions = createUnifiedSuggestions();
+    const displaySuggestions = createUnifiedSuggestions().slice(0, 5);
 
     // Simplified visibility: show only when explicitly visible and we have suggestions
     const hasInput = inputValue && inputValue.length >= 1;
@@ -131,41 +133,76 @@ const VibeAutoComplete = React.memo(
 
     if (!shouldShow) return null;
 
+    const renderSuggestions = () => (
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={true}
+        keyboardShouldPersistTaps="handled"
+      >
+        {displaySuggestions.map((item, index) => {
+          // Handle both string and object suggestions
+          const text = typeof item === 'string' ? item : item.text;
+          const count = typeof item === 'object' ? item.count : null;
+
+          return (
+            <Pressable
+              key={`${text}-${index}`}
+              style={({ pressed }) => [
+                styles.suggestionItem,
+                { opacity: pressed ? 0.7 : 1 },
+              ]}
+              onPress={() => handleSelect(text)}
+            >
+              <View style={styles.suggestionContent}>
+                <Text style={styles.suggestionText} numberOfLines={1}>
+                  {hasEmojiAtStart(text)
+                    ? text
+                    : `${getEmojiForText(text)} ${text}`}
+                </Text>
+                {showCount && count && typeof count === 'number' && (
+                  <Text style={styles.suggestionCount}>Used {count}x</Text>
+                )}
+              </View>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    );
+
+    // Use portal if enabled and position provided with valid coordinates
+    if (usePortal && inputPosition && inputPosition.x !== undefined && inputPosition.y !== undefined) {
+      return (
+        <Modal
+          visible={true}
+          transparent={true}
+          animationType="none"
+          onRequestClose={() => onHide?.()}
+        >
+          <Pressable
+            style={styles.modalOverlay}
+            onPress={() => onHide?.()}
+          >
+            <View
+              style={[
+                styles.modalAutocomplete,
+                {
+                  top: inputPosition.y + inputPosition.height,
+                  left: inputPosition.x,
+                  width: inputPosition.width,
+                }
+              ]}
+            >
+              {renderSuggestions()}
+            </View>
+          </Pressable>
+        </Modal>
+      );
+    }
+
+    // Default implementation
     return (
       <View style={styles.autocompleteContainer}>
-        <ScrollView
-          style={styles.scrollView}
-          showsVerticalScrollIndicator={true}
-          keyboardShouldPersistTaps="handled"
-        >
-          {displaySuggestions.map((item, index) => {
-            // Handle both string and object suggestions
-            const text = typeof item === 'string' ? item : item.text;
-            const count = typeof item === 'object' ? item.count : null;
-
-            return (
-              <Pressable
-                key={`${text}-${index}`}
-                style={({ pressed }) => [
-                  styles.suggestionItem,
-                  { opacity: pressed ? 0.7 : 1 },
-                ]}
-                onPress={() => handleSelect(text)}
-              >
-                <View style={styles.suggestionContent}>
-                  <Text style={styles.suggestionText} numberOfLines={1}>
-                    {hasEmojiAtStart(text)
-                      ? text
-                      : `${getEmojiForText(text)} ${text}`}
-                  </Text>
-                  {showCount && count && typeof count === 'number' && (
-                    <Text style={styles.suggestionCount}>Used {count}x</Text>
-                  )}
-                </View>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+        {renderSuggestions()}
       </View>
     );
   }
@@ -177,7 +214,8 @@ const styles = StyleSheet.create({
     top: '100%',
     left: 0,
     right: 0,
-    zIndex: 1000,
+    zIndex: 9999,
+    elevation: 9999,
     backgroundColor: theme.colors.background,
     borderRadius: theme.sizes.borderRadius,
     borderWidth: 1,
@@ -187,7 +225,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.8,
     shadowRadius: 4,
-    elevation: 5,
   },
   suggestionItem: {
     padding: 12,
@@ -210,6 +247,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: theme.fonts.main,
     marginLeft: 8,
+  },
+  // Modal styles for portal implementation
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  modalAutocomplete: {
+    position: 'absolute',
+    backgroundColor: theme.colors.background,
+    borderRadius: theme.sizes.borderRadius,
+    borderWidth: 1,
+    borderColor: theme.colors.inputBorder,
+    maxHeight: 300,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    elevation: 1000,
   },
   scrollView: {
     flexGrow: 1,

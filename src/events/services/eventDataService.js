@@ -64,9 +64,8 @@ export const eventDataService = {
               id: event.createdBy,
               uid: event.createdBy,
               displayName:
-                userData.displayName ||
-                userData.userdata?.profile?.displayName ||
                 userData.userdata?.contactInfo?.displayName ||
+                `${userData.userdata?.contactInfo?.firstName || ''} ${userData.userdata?.contactInfo?.lastName || ''}`.trim() ||
                 'Unknown Host',
               profilePicture:
                 userData.profilePicture ||
@@ -108,9 +107,8 @@ export const eventDataService = {
                   id: cohostId,
                   uid: cohostId,
                   displayName:
-                    userData.displayName ||
-                    userData.userdata?.profile?.displayName ||
                     userData.userdata?.contactInfo?.displayName ||
+                    `${userData.userdata?.contactInfo?.firstName || ''} ${userData.userdata?.contactInfo?.lastName || ''}`.trim() ||
                     'Unknown Cohost',
                   profilePicture:
                     userData.profilePicture ||
@@ -159,9 +157,8 @@ export const eventDataService = {
                   id: attendeeId,
                   uid: attendeeId,
                   displayName:
-                    userData.displayName ||
-                    userData.userdata?.profile?.displayName ||
                     userData.userdata?.contactInfo?.displayName ||
+                    `${userData.userdata?.contactInfo?.firstName || ''} ${userData.userdata?.contactInfo?.lastName || ''}`.trim() ||
                     'Anonymous',
                   profilePicture:
                     userData.profilePicture ||

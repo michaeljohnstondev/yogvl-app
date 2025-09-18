@@ -10,10 +10,10 @@ import {
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
+import { VibeView } from '../../components/ui/base';
 import { getUserInvitations } from '../services/invitations';
 import { useAuth } from '../../auth/AuthContext';
 import InvitationCard from '../components/guests/InvitationCard';
-import VibeScreen from '../../components/ui/base/VibeScreen';
 import theme from '../../theme/themes';
 
 export default function InvitationsScreen({ navigation }) {
@@ -136,23 +136,19 @@ export default function InvitationsScreen({ navigation }) {
 
   if (isLoading) {
     return (
-      <VibeScreen
-        title="Invitations"
-        subtitle="Event invitations you've received"
-        onBack={() => navigation.goBack()}
-      >
+      <VibeView
+              >
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading invitations...</Text>
         </View>
-      </VibeScreen>
+      </VibeView>
     );
   }
 
   return (
-    <VibeScreen
-      title="Invitations"
-      subtitle="Event invitations you've received"
-      onBack={() => navigation.goBack()}
+    <VibeView
+      colors={theme.colors.backgroundGradient}
+      style={styles.background}
     >
       <View style={styles.container}>
         {/* Filter tabs */}
@@ -196,7 +192,7 @@ export default function InvitationsScreen({ navigation }) {
           </ScrollView>
         )}
       </View>
-    </VibeScreen>
+    </VibeView>
   );
 }
 

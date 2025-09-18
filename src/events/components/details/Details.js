@@ -1,6 +1,6 @@
 // FILE: ../details/Details.js
 
-import React, { useState, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useImperativeHandle, forwardRef, useRef } from 'react';
 import { View, Text, Pressable, TouchableOpacity } from 'react-native';
 import { VibeInput, VibeAutoComplete } from '../../../components/ui';
 import { useVibeAlert } from '../../../components/ui/base/VibeAlertContext';
@@ -24,6 +24,20 @@ export const Details = forwardRef(
     ref
   ) => {
     const vibeAlert = useVibeAlert();
+    const detailsInputRef = useRef(null);
+    const [detailsInputPosition, setDetailsInputPosition] = useState(null);
+
+    // Handle details input focus to measure position for autocomplete portal
+    const handleDetailsFocus = () => {
+      if (detailsInputRef.current) {
+        setTimeout(() => {
+          detailsInputRef.current.measureInWindow((x, y, width, height) => {
+            setDetailsInputPosition({ x, y, width, height });
+          });
+        }, 50);
+      }
+      onInputFocus?.('details');
+    };
 
     // Expose methods to parent component (simplified)
     useImperativeHandle(ref, () => ({}));
@@ -68,9 +82,10 @@ export const Details = forwardRef(
           </TouchableOpacity>
         </View>
         <VibeInput
+          ref={detailsInputRef}
           value={formData.details}
           onChangeText={(text) => onInputChange('details', text)}
-          onFocus={() => onInputFocus('details')}
+          onFocus={handleDetailsFocus}
           onBlur={() => hideSuggestions('details')}
           onContentSizeChange={(event) => {
             if (updateInputHeight) {

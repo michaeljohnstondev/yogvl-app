@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { forwardRef } from 'react';
 import { TextInput, StyleSheet } from 'react-native';
 import theme from '../../../theme/themes';
 
-export default function VibeInput({
+const VibeInput = forwardRef(({
   placeholder,
   value,
   onChangeText,
@@ -23,9 +23,10 @@ export default function VibeInput({
   dataDetectorTypes,
   maxLength,
   ...otherProps
-}) {
+}, ref) => {
   return (
     <TextInput
+      ref={ref}
       placeholder={placeholder}
       value={value}
       onChangeText={onChangeText}
@@ -52,7 +53,11 @@ export default function VibeInput({
       {...otherProps}
     />
   );
-}
+});
+
+VibeInput.displayName = 'VibeInput';
+
+export default VibeInput;
 
 const styles = StyleSheet.create({
   input: {

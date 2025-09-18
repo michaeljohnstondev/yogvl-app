@@ -134,72 +134,24 @@ export const deleteUserAccount = async (userId, currentUser) => {
     });
     await commitBatchIfNeeded();
 
-    // 5. Handle Events Created by User
-    console.log('[UserDeletion] Handling events created by user...');
+    // 5. Collect Events Created by User (for later deletion)
+    console.log('[UserDeletion] Collecting events created by user...');
 
+    let userCreatedEventIds = [];
     if (userStudio) {
       const createdEventsQuery = query(
         collection(db, 'studios', userStudio, 'events'),
         where('createdBy', '==', userId)
       );
       const createdEventsSnap = await getDocs(createdEventsQuery);
+      userCreatedEventIds = createdEventsSnap.docs.map(doc => doc.id);
       console.log(
-        `[UserDeletion] Found ${createdEventsSnap.docs.length} events created by user`
+        `[UserDeletion] Found ${userCreatedEventIds.length} events created by user`
       );
-
-      for (const eventDoc of createdEventsSnap.docs) {
-        const eventData = eventDoc.data();
-        console.log(
-          `[UserDeletion] Deleting event: ${eventData.title || eventDoc.id}`
-        );
-
-        // Delete all invitations for this event
-        const invitationsQuery = query(
-          collection(
-            db,
-            'studios',
-            userStudio,
-            'events',
-            eventDoc.id,
-            'invitations'
-          )
-        );
-        const invitationsSnap = await getDocs(invitationsQuery);
-
-        invitationsSnap.docs.forEach((inviteDoc) => {
-          batch.delete(inviteDoc.ref);
-          batchCount++;
-        });
-        await commitBatchIfNeeded();
-
-        // Delete all comments for this event
-        const commentsQuery = query(
-          collection(
-            db,
-            'studios',
-            userStudio,
-            'events',
-            eventDoc.id,
-            'comments'
-          )
-        );
-        const commentsSnap = await getDocs(commentsQuery);
-
-        commentsSnap.docs.forEach((commentDoc) => {
-          batch.delete(commentDoc.ref);
-          batchCount++;
-        });
-        await commitBatchIfNeeded();
-
-        // Delete the event itself
-        batch.delete(eventDoc.ref);
-        batchCount++;
-        await commitBatchIfNeeded();
-      }
     }
 
-    // 6. Clean up Event Invitations (sent to/from user)
-    console.log('[UserDeletion] Cleaning up event invitations...');
+    // 6. Clean up Event Invitations and Participations (sent to/from user)
+    console.log('[UserDeletion] Cleaning up event invitations and participations...');
 
     if (userStudio) {
       // Get all events in studio to check invitations
@@ -209,6 +161,14 @@ export const deleteUserAccount = async (userId, currentUser) => {
       const allEventsSnap = await getDocs(allEventsQuery);
 
       for (const eventDoc of allEventsSnap.docs) {
+        const eventData = eventDoc.data();
+
+        // Skip events created by this user - they'll be deleted entirely later
+        if (userCreatedEventIds.includes(eventDoc.id)) {
+          console.log(`[UserDeletion] Skipping user's own event: ${eventData.title || eventDoc.id}`);
+          continue;
+        }
+
         // Invitations where user is the guest
         const guestInvitationsQuery = query(
           collection(
@@ -229,7 +189,6 @@ export const deleteUserAccount = async (userId, currentUser) => {
         });
         await commitBatchIfNeeded();
 
-        // Invitations where user is the host (already handled in events deletion)
         // Co-host invitations
         const cohostInvitationsQuery = query(
           collection(
@@ -252,7 +211,6 @@ export const deleteUserAccount = async (userId, currentUser) => {
 
         // Remove user from event subscribers/attendees
         const eventRef = doc(db, 'studios', userStudio, 'events', eventDoc.id);
-        const eventData = eventDoc.data();
 
         if (eventData.subscribers?.includes(userId)) {
           batch.update(eventRef, {
@@ -262,11 +220,16 @@ export const deleteUserAccount = async (userId, currentUser) => {
           batchCount++;
         }
 
-        // Legacy attendees field - no longer used (replaced by subscribers)
-
         if (eventData.coHosts?.includes(userId)) {
           batch.update(eventRef, {
             coHosts: arrayRemove(userId),
+          });
+          batchCount++;
+        }
+
+        if (eventData.cohosts?.includes(userId)) {
+          batch.update(eventRef, {
+            cohosts: arrayRemove(userId),
           });
           batchCount++;
         }
@@ -275,7 +238,7 @@ export const deleteUserAccount = async (userId, currentUser) => {
       }
     }
 
-    // 7. Clean up User's Comments on Events
+    // 7. Clean up User's Comments on Events (excluding user's own events)
     console.log('[UserDeletion] Cleaning up user comments...');
 
     if (userStudio) {
@@ -286,6 +249,11 @@ export const deleteUserAccount = async (userId, currentUser) => {
       const allEventsSnap = await getDocs(allEventsQuery);
 
       for (const eventDoc of allEventsSnap.docs) {
+        // Skip events created by this user - they'll be deleted entirely later
+        if (userCreatedEventIds.includes(eventDoc.id)) {
+          continue;
+        }
+
         const userCommentsQuery = query(
           collection(
             db,
@@ -332,13 +300,52 @@ export const deleteUserAccount = async (userId, currentUser) => {
     // user subcollections, but the sender reference becomes invalid.
     // This is acceptable since the user is being deleted.
 
-    // 9. Update User Metrics for Other Users
+    // 9. Delete User's Events (separate operation to avoid delete-then-update conflicts)
+    console.log('[UserDeletion] Deleting user\'s events...');
+
+    if (userStudio && userCreatedEventIds.length > 0) {
+      for (const eventId of userCreatedEventIds) {
+        console.log(`[UserDeletion] Deleting event: ${eventId}`);
+
+        // Delete all invitations for this event
+        const invitationsQuery = query(
+          collection(db, 'studios', userStudio, 'events', eventId, 'invitations')
+        );
+        const invitationsSnap = await getDocs(invitationsQuery);
+
+        invitationsSnap.docs.forEach((inviteDoc) => {
+          batch.delete(inviteDoc.ref);
+          batchCount++;
+        });
+        await commitBatchIfNeeded();
+
+        // Delete all comments for this event
+        const commentsQuery = query(
+          collection(db, 'studios', userStudio, 'events', eventId, 'comments')
+        );
+        const commentsSnap = await getDocs(commentsQuery);
+
+        commentsSnap.docs.forEach((commentDoc) => {
+          batch.delete(commentDoc.ref);
+          batchCount++;
+        });
+        await commitBatchIfNeeded();
+
+        // Delete the event itself
+        const eventRef = doc(db, 'studios', userStudio, 'events', eventId);
+        batch.delete(eventRef);
+        batchCount++;
+        await commitBatchIfNeeded();
+      }
+    }
+
+    // 10. Update User Metrics for Other Users
     console.log('[UserDeletion] Updating metrics for related users...');
 
     // This would require complex queries to find users who have metrics involving this user
     // For now, we'll leave this as is since metrics will be eventually consistent
 
-    // 10. Delete User Document
+    // 11. Delete User Document
     console.log('[UserDeletion] Deleting user document...');
     batch.delete(userRef);
     batchCount++;
@@ -351,7 +358,7 @@ export const deleteUserAccount = async (userId, currentUser) => {
       await batch.commit();
     }
 
-    // 11. Delete Firebase Auth User (must be last)
+    // 12. Delete Firebase Auth User (must be last)
     console.log('[UserDeletion] Deleting Firebase Auth user...');
     if (currentUser && currentUser.uid === userId) {
       await deleteAuthUser(currentUser);

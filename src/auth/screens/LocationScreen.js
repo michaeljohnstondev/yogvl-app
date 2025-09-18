@@ -907,7 +907,7 @@ export default function LocationScreen({ navigation }) {
 const styles = StyleSheet.create({
   screenContainer: {
     flex: 1,
-    backgroundColor: 'transparent', // Let App-level VibeScreen handle background
+    backgroundColor: 'transparent', // Let App-level VibeAppWrapper handle background
   },
   container: {
     flex: 1,

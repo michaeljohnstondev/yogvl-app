@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { getEventInvitations } from '../services/invitations';
 import { useAuth } from '../../auth/AuthContext';
-import VibeScreen from '../../components/ui/base/VibeScreen';
+import { VibeView } from '../../components/ui/base';
 import QRCodeGenerator from '../../components/ui/utils/QRCodeGenerator';
 import theme from '../../theme/themes';
 
@@ -108,11 +108,7 @@ export default function InviteGuestsScreen({ navigation, route }) {
   );
 
   return (
-    <VibeScreen
-      title="Invite Guests"
-      subtitle={`Event: ${eventTitle}`}
-      onBack={() => navigation.goBack()}
-    >
+    <VibeView>
       {/* Tab Selector */}
       <View style={styles.tabContainer}>
         <TouchableOpacity
@@ -215,7 +211,7 @@ export default function InviteGuestsScreen({ navigation, route }) {
           </View>
         )}
       </ScrollView>
-    </VibeScreen>
+    </VibeView>
   );
 }
 

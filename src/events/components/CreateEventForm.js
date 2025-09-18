@@ -757,7 +757,7 @@ export default function CreateEventForm({
           )}
 
           {/* WHAT SECTION */}
-          <View ref={setSectionRef('what')} style={styles.sectionContainer}>
+          <View ref={setSectionRef('what')} style={[styles.sectionContainer, styles.whatSectionContainer]}>
             <What
               formData={formData}
               onInputChange={onInputChange}
@@ -782,7 +782,7 @@ export default function CreateEventForm({
           </View>
 
           {/* WHERE SECTION */}
-          <View ref={setSectionRef('where')} style={styles.sectionContainer}>
+          <View ref={setSectionRef('where')} style={[styles.sectionContainer, styles.whereSectionContainer]}>
             <Where
               formData={formData}
               onInputChange={onInputChange}
@@ -796,7 +796,7 @@ export default function CreateEventForm({
           </View>
 
           {/* WHO SECTION */}
-          <View ref={setSectionRef('who')} style={styles.sectionContainer}>
+          <View ref={setSectionRef('who')} style={[styles.sectionContainer, styles.whoSectionContainer]}>
             <Who
               ref={whoSectionRef}
               formData={formData}
@@ -818,7 +818,7 @@ export default function CreateEventForm({
           </View>
 
           {/* DETAILS SECTION */}
-          <View ref={setSectionRef('details')} style={styles.sectionContainer}>
+          <View ref={setSectionRef('details')} style={[styles.sectionContainer, styles.detailsSectionContainer]}>
             <Details
               ref={detailsSectionRef}
               formData={formData}
@@ -941,6 +941,22 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border || 'rgba(0,0,0,0.1)',
+  },
+  whereSectionContainer: {
+    zIndex: 9999,
+    elevation: 9999,
+  },
+  whatSectionContainer: {
+    zIndex: 10000,
+    elevation: 10000,
+  },
+  whoSectionContainer: {
+    zIndex: 9998,
+    elevation: 9998,
+  },
+  detailsSectionContainer: {
+    zIndex: 9997,
+    elevation: 9997,
   },
   sectionTitle: {
     fontSize: 24,

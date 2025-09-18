@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import theme from '../../../theme/themes';
 
@@ -27,6 +27,7 @@ export default function VibeDropdown({
     setIsOpen(false);
   };
 
+
   return (
     <View style={[styles.container, style]}>
       <Pressable
@@ -37,7 +38,7 @@ export default function VibeDropdown({
         ]}
         onPress={() => {
           onFocus?.();
-          setIsOpen((v) => !v);
+          setIsOpen(!isOpen);
         }}
       >
         <Text
@@ -54,43 +55,33 @@ export default function VibeDropdown({
         <Text style={styles.arrow}>{isOpen ? '▲' : '▼'}</Text>
       </Pressable>
 
-      {isOpen && (
-        <>
-          {/* Click-away overlay (stays inside this container) */}
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={() => setIsOpen(false)}
-          />
 
-          {/* Anchored menu */}
-          <View style={styles.menu} pointerEvents="box-none">
-            <View style={styles.panel}>
-              <ScrollView style={styles.optionsList} bounces={false}>
-                {filteredOptions.map((option, i) => (
-                  <Pressable
-                    key={option.value}
-                    style={[
-                      styles.option,
-                      selectedValue === option.value && styles.selectedOption,
-                      i === filteredOptions.length - 1 && styles.lastOption,
-                    ]}
-                    onPress={() => handleSelect(option)}
-                  >
-                    <Text
-                      style={[
-                        styles.optionText,
-                        selectedValue === option.value &&
-                          styles.selectedOptionText,
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </View>
-          </View>
-        </>
+      {isOpen && (
+        <View style={styles.dropdown}>
+          <ScrollView style={styles.optionsList} bounces={false}>
+            {filteredOptions.map((option, i) => (
+              <Pressable
+                key={option.value}
+                style={[
+                  styles.option,
+                  selectedValue === option.value && styles.selectedOption,
+                  i === filteredOptions.length - 1 && styles.lastOption,
+                ]}
+                onPress={() => handleSelect(option)}
+              >
+                <Text
+                  style={[
+                    styles.optionText,
+                    selectedValue === option.value &&
+                      styles.selectedOptionText,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
       )}
     </View>
   );
@@ -99,9 +90,6 @@ export default function VibeDropdown({
 const styles = StyleSheet.create({
   container: {
     position: 'relative',
-    // Ensure the dropdown can appear above neighbors
-    zIndex: 10, // iOS
-    elevation: 10, // Android
   },
   selector: {
     borderWidth: 1,
@@ -136,30 +124,26 @@ const styles = StyleSheet.create({
     marginRight: theme.sizes.inputPadding,
   },
 
-  // Anchored menu just below the selector
-  menu: {
+  dropdown: {
     position: 'absolute',
     top: '100%',
     left: 0,
     right: 0,
-    marginTop: -1,
-  },
-  panel: {
-    backgroundColor: theme.colors.background,
+    zIndex: 9999,
+    elevation: 9999,
+    backgroundColor: theme.colors.background || '#1a1a1a',
     borderRadius: theme.sizes.borderRadius,
     borderTopLeftRadius: 0,
     borderTopRightRadius: 0,
-    borderWidth: 1,
+    borderWidth: 2,
     borderTopWidth: 0,
     borderColor: theme.colors.vibeBlue || '#00C6FF',
     maxHeight: 300,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 8,
-    zIndex: 900,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
   },
   optionsList: { maxHeight: 300 },
   option: {

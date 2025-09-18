@@ -1,7 +1,7 @@
 // FILE: src/components/ui/forms/AutoCompleteInput.js - Reusable autocomplete input component
 
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable } from 'react-native';
 import VibeInput from '../base/VibeInput';
 import { getContextualSuggestions } from '../../../lib/emojiUtils';
 import theme from '../../../theme/themes';
@@ -32,6 +32,8 @@ export default function AutoCompleteInput({
 }) {
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [inputPosition, setInputPosition] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  const inputRef = useRef(null);
 
   // Generate suggestions when value changes
   useEffect(() => {
@@ -67,34 +69,66 @@ export default function AutoCompleteInput({
     }
   };
 
+  // Handle input focus and measure position for portal
+  const handleFocus = () => {
+    if (inputRef.current && inputRef.current.measureInWindow) {
+      setTimeout(() => {
+        inputRef.current.measureInWindow((x, y, width, height) => {
+          setInputPosition({ x, y, width, height });
+        });
+      }, 50);
+    }
+  };
+
   return (
     <View style={[styles.container, style]}>
       <VibeInput
+        ref={inputRef}
         value={value}
         onChangeText={handleTextChange}
+        onFocus={handleFocus}
         placeholder={placeholder}
         {...inputProps}
       />
 
-      {showSuggestions && suggestions.length > 0 && (
-        <View style={styles.dropdownContainer}>
-          {suggestions.map((suggestion, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[
-                styles.dropdownItem,
-                index === suggestions.length - 1 && styles.dropdownItemLast,
-              ]}
-              onPress={() => handleSuggestionPress(suggestion)}
-            >
-              <Text style={styles.dropdownText}>
-                {showEmojis && suggestion.emoji ? `${suggestion.emoji} ` : ''}
-                {suggestion.text}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
+      <Modal
+        visible={showSuggestions && suggestions.length > 0}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowSuggestions(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowSuggestions(false)}
+        >
+          <View
+            style={[
+              styles.modalDropdown,
+              {
+                top: inputPosition.y + inputPosition.height,
+                left: inputPosition.x,
+                width: inputPosition.width,
+              }
+            ]}
+          >
+            {suggestions.map((suggestion, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.dropdownItem,
+                  index === suggestions.length - 1 && styles.dropdownItemLast,
+                ]}
+                onPress={() => handleSuggestionPress(suggestion)}
+              >
+                <Text style={styles.dropdownText}>
+                  {showEmojis && suggestion.emoji ? `${suggestion.emoji} ` : ''}
+                  {suggestion.text}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -104,12 +138,13 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
 
-  // Dropdown styling
-  dropdownContainer: {
+  // Modal overlay and dropdown styling
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  modalDropdown: {
     position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
     backgroundColor: theme.colors.inputBackground,
     borderWidth: 1,
     borderColor: theme.colors.vibeBlue,
@@ -117,8 +152,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 12,
     borderBottomRightRadius: 12,
     maxHeight: 200,
-    zIndex: 1000,
-    elevation: 5,
+    elevation: 1000,
     shadowColor: theme.colors.vibeBlue,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,

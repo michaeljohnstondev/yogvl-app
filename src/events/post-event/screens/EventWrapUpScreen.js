@@ -2,8 +2,8 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { VibeView } from '../../../components/ui/base';
 import { useAuth } from '../../../auth/AuthContext';
-import VibeScreen from '../../../components/ui/base/VibeScreen';
 import { useEventCompletion } from '../hooks/useEventCompletion';
 import { useAttendanceTracking } from '../hooks/useAttendanceTracking';
 import HostView from '../components/HostView';
@@ -42,21 +42,23 @@ const EventWrapUpScreen = ({ navigation, route }) => {
 
   if (loading) {
     return (
-      <VibeScreen title="Event Wrap-Up">
+      <VibeView
+              >
         <View style={styles.container}>
           <Text style={styles.loadingText}>Loading event data...</Text>
         </View>
-      </VibeScreen>
+      </VibeView>
     );
   }
 
   if (!eventData) {
     return (
-      <VibeScreen title="Event Wrap-Up">
+      <VibeView
+              >
         <View style={styles.container}>
           <Text style={styles.errorText}>Event not found</Text>
         </View>
-      </VibeScreen>
+      </VibeView>
     );
   }
 
@@ -75,7 +77,8 @@ const EventWrapUpScreen = ({ navigation, route }) => {
   // Render appropriate view based on user status
   if (userStatus.isHost) {
     return (
-      <VibeScreen title={getScreenTitle()}>
+      <VibeView
+              >
         <HostView
           eventData={eventData}
           participants={participants}
@@ -88,12 +91,15 @@ const EventWrapUpScreen = ({ navigation, route }) => {
           onNavigateBack={handleNavigateBack}
           onNavigateHome={handleNavigateHome}
         />
-      </VibeScreen>
+      </VibeView>
     );
   }
 
   return (
-    <VibeScreen title={getScreenTitle()}>
+    <VibeView
+      colors={theme.colors.backgroundGradient}
+      style={styles.background}
+    >
       <GuestView
         eventData={eventData}
         participants={participants}
@@ -104,7 +110,7 @@ const EventWrapUpScreen = ({ navigation, route }) => {
         onNavigateBack={handleNavigateBack}
         onNavigateHome={handleNavigateHome}
       />
-    </VibeScreen>
+    </VibeView>
   );
 };
 

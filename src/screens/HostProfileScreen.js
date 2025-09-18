@@ -17,7 +17,6 @@ import { ProfileAvatar } from '../components/ui/profile';
 import { UserReliabilityCard } from '../events/components/UserReliabilityCard';
 import { getUserEventStats } from '../events/lib/userMetrics';
 import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
-import { safeEmailSplit } from '../lib/indexOfErrorFix';
 import {
   getVisibleContactInfo,
   canViewUserStats,
@@ -216,11 +215,9 @@ const HostProfileScreen = ({ navigation, route }) => {
 
   const contactInfo = hostData?.userdata?.contactInfo || {};
   const displayName =
-    hostData.displayName ||
+    hostData.userdata?.contactInfo?.displayName ||
     `${visibleContactInfo.firstName || contactInfo.firstName || ''} ${visibleContactInfo.lastName || contactInfo.lastName || ''}`.trim() ||
-    safeEmailSplit(
-      visibleContactInfo.email || contactInfo.email || hostData.email
-    ) ||
+    (visibleContactInfo.email || contactInfo.email || hostData.email)?.split('@')?.[0] ||
     'Unknown Host';
 
   const stats = getUserEventStats(hostData);

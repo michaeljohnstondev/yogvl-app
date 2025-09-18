@@ -1,6 +1,6 @@
 // FILE: ../what/What.js
 
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { View, Text } from 'react-native';
 import {
   VibeInput,
@@ -19,7 +19,23 @@ export const What = ({
   updateField,
   styles,
   setFieldRef,
-}) => (
+}) => {
+  const titleInputRef = useRef(null);
+  const [titleInputPosition, setTitleInputPosition] = useState(null);
+
+  // Handle title input focus to measure position for autocomplete portal
+  const handleTitleFocus = () => {
+    if (titleInputRef.current) {
+      setTimeout(() => {
+        titleInputRef.current.measureInWindow((x, y, width, height) => {
+          setTitleInputPosition({ x, y, width, height });
+        });
+      }, 50);
+    }
+    onInputFocus?.('title');
+  };
+
+  return (
   <View style={styles.sectionContainer}>
     <Text style={styles.label}>
       Event Name <Text style={styles.asterisk}>*</Text>
@@ -29,9 +45,10 @@ export const What = ({
       ref={setFieldRef && setFieldRef('title')}
     >
       <VibeInput
+        ref={titleInputRef}
         value={formData.title}
         onChangeText={(text) => onInputChange('title', text)}
-        onFocus={() => onInputFocus('title')}
+        onFocus={handleTitleFocus}
         onBlur={() => hideSuggestions('title')}
         placeholder="Enter event name"
         maxLength={30}
@@ -44,6 +61,7 @@ export const What = ({
         inputValue={formData.title}
         context="event"
         onHide={() => hideSuggestions('title')}
+        usePortal={false}
       />
     </View>
 
@@ -76,4 +94,5 @@ export const What = ({
       </View>
     )}
   </View>
-);
+  );
+};

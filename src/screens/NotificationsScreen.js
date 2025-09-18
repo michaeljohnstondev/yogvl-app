@@ -21,7 +21,7 @@ import {
 import { useAuth } from '../auth/AuthContext';
 import { useRealtimeNotificationsContext } from '../contexts/RealtimeNotificationsContext';
 import NotificationItem from '../components/notifications/NotificationItem';
-import VibeScreen from '../components/ui/base/VibeScreen';
+import VibeAppWrapper from '../components/ui/base/VibeAppWrapper';
 import { VibeButton, CloseButton } from '../components/ui';
 import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
 import theme from '../theme/themes';
