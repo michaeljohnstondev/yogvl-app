@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   BackHandler,
+  RefreshControl,
 } from 'react-native';
 import {
   VibeButton,
@@ -44,6 +45,7 @@ export default function HomeScreen({ navigation }) {
   const [showBannedModal, setShowBannedModal] = useState(false);
   const [checkingBanStatus, setCheckingBanStatus] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showAccountSettings, setShowAccountSettings] = useState(false);
   const [feedStats, setFeedStats] = useState(null);
 
@@ -64,6 +66,92 @@ export default function HomeScreen({ navigation }) {
     () => navigation.navigate('Notifications'),
     [navigation]
   );
+
+  // Handle pull-to-refresh
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadEventFeed(true);
+    setRefreshing(false);
+  }, [loadEventFeed]);
+
+  // Load follow-based event feed
+  const loadEventFeed = useCallback(async (isRefresh = false) => {
+    const defaultStudio = userData?.userdata?.studios?.default;
+    if (!defaultStudio?.studioId || !currentUserId) return;
+
+    const userStudio = defaultStudio.studioId;
+
+    if (!isRefresh) setIsLoading(true);
+    try {
+      const feedData = await getEventFeed(currentUserId, userStudio, {
+        followedLimit: 20,
+        suggestedLimit: 15,
+        includeSubscribed: true,
+      });
+
+      // Separate events by category
+      const now = new Date();
+      const myUpcoming = [];
+      const followed = [];
+      const suggested = [];
+      const myPast = [];
+
+      feedData.subscribedEvents.forEach((event) => {
+        const eventDate =
+          event.eventTimestamp?.toDate() || new Date(event.utcDateTime);
+        const enrichedEvent = {
+          ...event,
+          isHostedByUser: event.createdBy === currentUserId,
+        };
+
+        if (eventDate >= now) {
+          myUpcoming.push(enrichedEvent);
+        } else {
+          myPast.push(enrichedEvent);
+        }
+      });
+
+      // Add followed users' events (exclude events user has already subscribed to)
+      const subscribedEventIds = new Set(
+        feedData.subscribedEvents.map((event) => event.id)
+      );
+
+      feedData.followedEvents.forEach((event) => {
+        const eventDate =
+          event.eventTimestamp?.toDate() || new Date(event.utcDateTime);
+        // Only add if it's upcoming AND user hasn't subscribed to it
+        if (eventDate >= now && !subscribedEventIds.has(event.id)) {
+          followed.push({
+            ...event,
+            isHostedByUser: event.createdBy === currentUserId,
+          });
+        }
+      });
+
+      // Add suggested events
+      feedData.suggestedEvents.forEach((event) => {
+        const eventDate =
+          event.eventTimestamp?.toDate() || new Date(event.utcDateTime);
+        if (eventDate >= now) {
+          suggested.push({
+            ...event,
+            isHostedByUser: event.createdBy === currentUserId,
+          });
+        }
+      });
+
+      setMyEvents(myUpcoming);
+      setFollowedEvents(followed);
+      setSuggestedEvents(suggested);
+      setPastEvents(myPast.reverse()); // Most recent first
+      setFeedStats(feedData.stats);
+    } catch (error) {
+      console.error('[HomeScreen] Failed to load event feed:', error);
+      vibeAlert.error('Error', 'Failed to load events. Please try again.');
+    } finally {
+      if (!isRefresh) setIsLoading(false);
+    }
+  }, [currentUserId, userData, vibeAlert]);
 
   useEffect(() => {
     const defaultStudio = userData?.userdata?.studios?.default;
@@ -90,82 +178,6 @@ export default function HomeScreen({ navigation }) {
       }
     };
 
-    // Get user's studio
-    const userStudio = defaultStudio.studioId;
-
-    // Load follow-based event feed (only if not banned)
-    const loadEventFeed = async () => {
-      setIsLoading(true);
-      try {
-        const feedData = await getEventFeed(currentUserId, userStudio, {
-          followedLimit: 20,
-          suggestedLimit: 15,
-          includeSubscribed: true,
-        });
-
-        // Separate events by category
-        const now = new Date();
-        const myUpcoming = [];
-        const followed = [];
-        const suggested = [];
-        const myPast = [];
-
-        feedData.subscribedEvents.forEach((event) => {
-          const eventDate =
-            event.eventTimestamp?.toDate() || new Date(event.utcDateTime);
-          const enrichedEvent = {
-            ...event,
-            isHostedByUser: event.createdBy === currentUserId,
-          };
-
-          if (eventDate >= now) {
-            myUpcoming.push(enrichedEvent);
-          } else {
-            myPast.push(enrichedEvent);
-          }
-        });
-
-        // Add followed users' events (exclude events user has already subscribed to)
-        const subscribedEventIds = new Set(
-          feedData.subscribedEvents.map((event) => event.id)
-        );
-
-        feedData.followedEvents.forEach((event) => {
-          const eventDate =
-            event.eventTimestamp?.toDate() || new Date(event.utcDateTime);
-          // Only add if it's upcoming AND user hasn't subscribed to it
-          if (eventDate >= now && !subscribedEventIds.has(event.id)) {
-            followed.push({
-              ...event,
-              isHostedByUser: event.createdBy === currentUserId,
-            });
-          }
-        });
-
-        // Add suggested events
-        feedData.suggestedEvents.forEach((event) => {
-          const eventDate =
-            event.eventTimestamp?.toDate() || new Date(event.utcDateTime);
-          if (eventDate >= now) {
-            suggested.push({
-              ...event,
-              isHostedByUser: event.createdBy === currentUserId,
-            });
-          }
-        });
-
-        setMyEvents(myUpcoming);
-        setFollowedEvents(followed);
-        setSuggestedEvents(suggested);
-        setPastEvents(myPast.reverse()); // Most recent first
-        setFeedStats(feedData.stats);
-      } catch (error) {
-        console.error('[HomeScreen] Failed to load event feed:', error);
-        vibeAlert.error('Error', 'Failed to load events. Please try again.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
 
     // Check for admin notifications (both individual and global)
     const checkAdminNotifications = async () => {
@@ -219,7 +231,7 @@ export default function HomeScreen({ navigation }) {
     // Real-time updates will be handled by useFocusEffect instead
     // to avoid unnecessary reloads from notification-related changes
     return () => {}; // No-op cleanup
-  }, [currentUserId, userData]); // Re-run when user data changes (removed vibeAlert to prevent dialog-triggered reloads)
+  }, [currentUserId, userData, loadEventFeed]); // Re-run when user data changes (removed vibeAlert to prevent dialog-triggered reloads)
 
   // Handle hardware back button to confirm app exit
   useFocusEffect(
@@ -239,6 +251,16 @@ export default function HomeScreen({ navigation }) {
       );
       return () => backHandler.remove();
     }, [vibeAlert])
+  );
+
+  // Refresh data when screen comes into focus (e.g., returning from CreateEvent)
+  useFocusEffect(
+    useCallback(() => {
+      // Only refresh if user has data and isn't banned
+      if (currentUserId && userData && !banStatus?.isBanned && !isLoading) {
+        loadEventFeed(true); // Pass true to indicate this is a refresh
+      }
+    }, [currentUserId, userData, banStatus, isLoading, loadEventFeed])
   );
 
   // Check if user has no events at all
@@ -370,6 +392,14 @@ export default function HomeScreen({ navigation }) {
           contentContainerStyle={styles.container}
           scrollEnabled={true}
           nestedScrollEnabled={true}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={theme.colors.vibeBlue}
+              colors={[theme.colors.vibeBlue]}
+            />
+          }
         >
           {myEvents.length > 0 && (
             <>
