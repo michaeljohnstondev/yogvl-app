@@ -15,7 +15,6 @@ class NotificationDisplayService {
   initialize(vibeAlertRef) {
     this.vibeAlert = vibeAlertRef;
     this.isInitialized = true;
-    console.log('[NotificationDisplay] Service initialized with VibeAlert reference');
   }
 
   /**
@@ -47,11 +46,6 @@ class NotificationDisplayService {
       const message = notification.body || data.message || data.body || '';
       const notificationType = data.type || 'info';
 
-      console.log('[NotificationDisplay] Displaying foreground notification:', {
-        title,
-        message,
-        type: notificationType,
-      });
 
       // Show banner using VibeAlert
       this.vibeAlert.notificationBanner(
@@ -166,7 +160,6 @@ class NotificationDisplayService {
   cleanup() {
     this.vibeAlert = null;
     this.isInitialized = false;
-    console.log('[NotificationDisplay] Service cleaned up');
   }
 }
 

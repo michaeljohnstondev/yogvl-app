@@ -25,11 +25,6 @@ export const eventDataService = {
    */
   async fetchEventData(studioId, eventId, currentUserId) {
     try {
-      console.log('[EventDataService] Fetching event data:', {
-        studioId,
-        eventId,
-        currentUserId,
-      });
 
       // Get the main event document
       const event = await eventService.fetchEventDetails(studioId, eventId);
@@ -44,22 +39,13 @@ export const eventDataService = {
 
       // Get creator data
       let creatorData = null;
-      console.log('[EventDataService] Event createdBy field:', event.createdBy);
       if (event.createdBy) {
         try {
           const creatorRef = doc(db, 'users', event.createdBy);
           const creatorSnap = await getDoc(creatorRef);
-          console.log(
-            '[EventDataService] Creator document exists:',
-            creatorSnap.exists()
-          );
 
           if (creatorSnap.exists()) {
             const userData = creatorSnap.data();
-            console.log(
-              '[EventDataService] Creator userData keys:',
-              Object.keys(userData)
-            );
             creatorData = {
               id: event.createdBy,
               uid: event.createdBy,
@@ -74,7 +60,6 @@ export const eventDataService = {
                 null,
               userdata: userData.userdata || {},
             };
-            console.log('[EventDataService] Final creatorData:', creatorData);
           } else {
             console.warn(
               '[EventDataService] Creator document not found for user:',
@@ -200,7 +185,6 @@ export const eventDataService = {
         attendeesList,
       };
 
-      console.log('[EventDataService] Event data fetched successfully');
       return result;
     } catch (error) {
       console.error('[EventDataService] Error fetching event data:', error);
@@ -220,12 +204,6 @@ export const eventDataService = {
     source = 'manual'
   ) {
     try {
-      console.log('[EventDataService] Sending invitation:', {
-        hostId,
-        guestId,
-        eventId,
-        studioId,
-      });
 
       // Check eligibility first
       const eligibility = await checkUserInvitationEligibility(
@@ -249,10 +227,6 @@ export const eventDataService = {
         source,
       });
 
-      console.log(
-        '[EventDataService] Invitation sent successfully:',
-        result.invitationId
-      );
 
       return {
         success: true,
@@ -270,14 +244,9 @@ export const eventDataService = {
    */
   async acceptInvitation(invitationId, userId, studioId = null) {
     try {
-      console.log('[EventDataService] Accepting invitation:', {
-        invitationId,
-        userId,
-      });
 
       const result = await acceptInvitation(invitationId, userId, studioId);
 
-      console.log('[EventDataService] Invitation accepted successfully');
 
       return {
         success: true,
@@ -295,14 +264,9 @@ export const eventDataService = {
    */
   async declineInvitation(invitationId, userId) {
     try {
-      console.log('[EventDataService] Declining invitation:', {
-        invitationId,
-        userId,
-      });
 
       const result = await declineInvitation(invitationId, userId);
 
-      console.log('[EventDataService] Invitation declined successfully');
 
       return {
         success: true,
@@ -354,12 +318,6 @@ export const eventDataService = {
     source = 'bulk'
   ) {
     try {
-      console.log('[EventDataService] Bulk inviting users:', {
-        hostId,
-        userIds,
-        eventId,
-        studioId,
-      });
 
       const results = {
         successful: [],
@@ -390,10 +348,6 @@ export const eventDataService = {
         }
       }
 
-      console.log('[EventDataService] Bulk invitation complete:', {
-        successful: results.successful.length,
-        failed: results.failed.length,
-      });
 
       return {
         success: true,

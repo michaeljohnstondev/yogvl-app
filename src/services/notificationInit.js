@@ -12,15 +12,9 @@ export const initializeNotificationServices = () => {
   try {
     // DISABLED: Removed inefficient 2-minute polling background processor
     // TODO: Replace with proper event-driven notification scheduling
-    console.log(
-      '[NotificationInit] Notification services initialized (background polling disabled)'
-    );
 
     // NOTE: Old notification cleanup is now user-scoped and should be called
     // when a user logs in, not during app initialization
-    console.log(
-      '[NotificationInit] Global cleanup disabled - use user-scoped cleanup after login'
-    );
 
     return true;
   } catch (error) {
@@ -38,9 +32,6 @@ export const initializeNotificationServices = () => {
  */
 export const cleanupNotificationServices = () => {
   if (processorCleanup) {
-    console.log(
-      '[NotificationInit] Shutting down scheduled notification processor...'
-    );
     processorCleanup();
     processorCleanup = null;
   }

@@ -24,10 +24,6 @@ const STORAGE_KEYS = {
 // Configure Firebase messaging for background message handling
 try {
   messaging().setBackgroundMessageHandler(async (remoteMessage) => {
-    console.log(
-      '[FCMService] Message handled in the background!',
-      remoteMessage
-    );
     // Handle background notification here if needed
   });
 } catch (error) {
@@ -51,7 +47,6 @@ class FCMService {
    */
   async initialize() {
     try {
-      console.log('[FCMService] Initializing Firebase messaging service...');
 
       // Note: FCM handles notification channels automatically
 
@@ -71,9 +66,6 @@ class FCMService {
       this.setupFirebaseListeners();
 
       this.isInitialized = true;
-      console.log(
-        '[FCMService] Firebase messaging service initialized successfully'
-      );
 
       return true;
     } catch (error) {
@@ -89,14 +81,12 @@ class FCMService {
   setupFirebaseListeners() {
     // Listener for messages received while app is in foreground
     this.foregroundListener = messaging().onMessage(async (remoteMessage) => {
-      console.log('[FCMService] Foreground message received:', remoteMessage);
       this.handleForegroundMessage(remoteMessage);
     });
 
     // Listener for when user taps on notification (app was in background)
     this.notificationOpenedListener = messaging().onNotificationOpenedApp(
       (remoteMessage) => {
-        console.log('[FCMService] Notification opened app:', remoteMessage);
         if (remoteMessage?.data) {
           this.navigateFromNotification(remoteMessage.data);
         }
@@ -123,7 +113,6 @@ class FCMService {
 
     // Note: Notification tap handling is managed by FCM onNotificationOpenedApp listener above
 
-    console.log('[FCMService] Firebase notification listeners set up');
   }
 
   /**
@@ -132,7 +121,6 @@ class FCMService {
    */
   async requestPermission() {
     try {
-      console.log('[FCMService] Requesting notification permission...');
 
       if (!Device.isDevice) {
         console.warn(
@@ -157,12 +145,6 @@ class FCMService {
           'true'
         );
 
-        console.log(
-          '[FCMService] iOS permission result:',
-          authStatus,
-          'granted:',
-          granted
-        );
 
         return {
           granted,
@@ -188,12 +170,6 @@ class FCMService {
           'true'
         );
 
-        console.log(
-          '[FCMService] Android permission result:',
-          authStatus,
-          'granted:',
-          finalGranted
-        );
 
         return {
           granted: finalGranted,
@@ -213,7 +189,6 @@ class FCMService {
    */
   async getFCMToken() {
     try {
-      console.log('[FCMService] Getting FCM token...');
 
       if (!Device.isDevice) {
         console.warn(
@@ -226,7 +201,6 @@ class FCMService {
       const token = await messaging().getToken();
 
       if (token) {
-        console.log('[FCMService] FCM token obtained successfully');
 
         // Store token securely with encryption
         await SecureStore.setItemAsync(STORAGE_KEYS.FCM_TOKEN, token);
@@ -285,7 +259,6 @@ class FCMService {
 
         // Only update if token or platform changed
         if (currentToken === token && currentPlatform === Platform.OS) {
-          console.log('[FCMService] Token unchanged, skipping update');
           return true;
         }
       }
@@ -299,7 +272,6 @@ class FCMService {
         // Remove legacy expoPushToken field - no longer needed
       });
 
-      console.log('[FCMService] FCM token updated for user:', userId);
 
       // Store current user ID for foreground notification storage
       this.currentUserId = userId;
@@ -317,11 +289,6 @@ class FCMService {
    * Also stores notification in dashboard for later viewing
    */
   async handleForegroundMessage(remoteMessage) {
-    console.log('[FCMService] Foreground message received:', {
-      title: remoteMessage.notification?.title,
-      body: remoteMessage.notification?.body,
-      data: remoteMessage.data,
-    });
 
     try {
       // Display notification banner using VibeAlert system
@@ -379,7 +346,6 @@ class FCMService {
         priority: 'normal',
       });
 
-      console.log('[FCMService] Foreground notification stored in dashboard:', storeResult);
     } catch (error) {
       console.error('[FCMService] Failed to store foreground notification in dashboard:', error);
     }
@@ -389,7 +355,6 @@ class FCMService {
    * Navigate to appropriate screen based on notification data
    */
   navigateFromNotification(data) {
-    console.log('[FCMService] Navigation requested:', data);
 
     if (!this.navigationRef) {
       console.warn('[FCMService] Navigation ref not set, cannot navigate');
@@ -400,7 +365,6 @@ class FCMService {
     const now = Date.now();
     if (now - this.lastNavigationTime < 1000) {
       // 1 second cooldown
-      console.log('[FCMService] Skipping navigation due to recent navigation');
       return;
     }
     this.lastNavigationTime = now;
@@ -528,7 +492,6 @@ class FCMService {
       this.currentToken = null;
       this.currentUserId = null;
 
-      console.log('[FCMService] Token removed for user:', userId);
       return true;
     } catch (error) {
       console.error('[FCMService] Failed to remove token for user:', error);
@@ -562,7 +525,6 @@ class FCMService {
     if (this.notificationOpenedListener) {
       this.notificationOpenedListener();
     }
-    console.log('[FCMService] Firebase messaging cleanup complete');
   }
 }
 
