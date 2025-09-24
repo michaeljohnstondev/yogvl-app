@@ -8,6 +8,10 @@ import {
 
 /**
  * Notifies user when someone follows them
+ * @deprecated This function is deprecated. Follow notifications are now handled
+ * automatically by the onUserFollowed Cloud Function when users are added to the
+ * followers collection. This manual function is kept for testing and backwards
+ * compatibility only.
  * @param {Object} params - Notification parameters
  * @param {string} params.targetUserId - User being followed
  * @param {string} params.followerId - User who followed

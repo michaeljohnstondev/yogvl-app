@@ -20,6 +20,7 @@ import {
   NOTIFICATION_PRIORITY,
   DELIVERY_CHANNELS,
 } from '../../../services/notifications';
+import { notificationEngine } from '../../../services/shared/NotificationEngine';
 
 export class PostEventService {
   /**
@@ -388,6 +389,62 @@ export class PostEventService {
     } catch (error) {
       console.error('Error loading event wrap-up data:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Send event recap notification to host
+   * @param {string} studioId - Studio ID
+   * @param {string} eventId - Event ID
+   * @param {Object} eventData - Event data
+   * @returns {Promise<boolean>} Success status
+   */
+  static async sendEventRecapNotification(studioId, eventId, eventData) {
+    try {
+      const hostId = eventData.createdBy;
+
+      // Check if event recap is enabled in event settings
+      const notificationSettings = eventData.notificationSettings || {};
+      if (notificationSettings.eventRecap === false) {
+        console.log(`[PostEventService] Event recap disabled for event ${eventId}`);
+        return false;
+      }
+
+      // Calculate recap stats
+      const totalSubscribers = (eventData.subscribers || []).length;
+      const attendedCount = eventData.attended || 0;
+      const noShowCount = eventData.noShows || 0;
+
+      // Create recap notification data
+      const recapData = {
+        eventId,
+        studioId,
+        eventTitle: eventData.title,
+        attendedCount,
+        noShowCount,
+        totalSubscribers,
+        eventDate: eventData.dateTime?.toDate?.() || eventData.dateTime,
+        completedAt: new Date(),
+      };
+
+      // Send recap notification via NotificationEngine
+      const result = await notificationEngine.createNotification({
+        userId: hostId,
+        type: 'event_recap',
+        data: recapData,
+        priority: 'normal',
+      });
+
+      if (result.success) {
+        console.log(`[PostEventService] Event recap notification sent for event ${eventId}`);
+        return true;
+      } else {
+        console.warn(`[PostEventService] Failed to send event recap notification: ${result.error}`);
+        return false;
+      }
+    } catch (error) {
+      console.error('[PostEventService] Error sending event recap notification:', error);
+      return false;
     }
   }
 

@@ -89,6 +89,113 @@ export class NotificationProcessor {
             }
           }
 
+          // Special validation for attendance reminders - check subscriber count and user preferences
+          if (notification.type === 'attendance_reminder' && notification.eventId) {
+            const { doc, getDoc } = await import('../../lib/firebase/firestore');
+            const { NOTIFICATION_TYPES } = await import('../shared/NotificationEngine');
+
+            if (notification.type === NOTIFICATION_TYPES.ATTENDANCE_REMINDER) {
+              try {
+                // Get current event data to check subscriber count and attendance type
+                const eventRef = doc(db, 'studios', notification.data.studioId, 'events', notification.eventId);
+                const eventDoc = await getDoc(eventRef);
+
+                if (eventDoc.exists()) {
+                  const eventData = eventDoc.data();
+                  const subscriberCount = eventData.subscriberCount || (eventData.subscribers ? eventData.subscribers.length : 1);
+
+                  // Skip attendance reminder if only the host attended (count = 1)
+                  if (subscriberCount <= 1) {
+                    batch.update(notificationDoc.ref, {
+                      status: 'cancelled',
+                      cancelledAt: Timestamp.now(),
+                      cancelReason: 'Only host attended - no attendance reminder needed',
+                    });
+                    results.push({
+                      id: notification.id,
+                      status: 'cancelled',
+                      reason: 'Solo event - no other attendees',
+                    });
+                    continue;
+                  }
+
+                  // Check user's attendance reminder preferences
+                  const userRef = doc(db, 'users', notification.userId);
+                  const userDoc = await getDoc(userRef);
+
+                  if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    const attendanceReminderPref = userData?.userdata?.settings?.notifications?.hosting?.attendanceReminders || 'none';
+
+                    // If user disabled attendance reminders
+                    if (attendanceReminderPref === 'none') {
+                      batch.update(notificationDoc.ref, {
+                        status: 'cancelled',
+                        cancelledAt: Timestamp.now(),
+                        cancelReason: 'User disabled attendance reminders',
+                      });
+                      results.push({
+                        id: notification.id,
+                        status: 'cancelled',
+                        reason: 'User preference: none',
+                      });
+                      continue;
+                    }
+
+                    // Check event attendance type and user preferences
+                    const eventAttendanceType = eventData.attendanceType || 'casual'; // Default to casual
+                    const shouldSend =
+                      attendanceReminderPref === 'both' ||
+                      attendanceReminderPref === eventAttendanceType;
+
+                    if (!shouldSend) {
+                      batch.update(notificationDoc.ref, {
+                        status: 'cancelled',
+                        cancelledAt: Timestamp.now(),
+                        cancelReason: `User preference (${attendanceReminderPref}) doesn't match event type (${eventAttendanceType})`,
+                      });
+                      results.push({
+                        id: notification.id,
+                        status: 'cancelled',
+                        reason: `Preference mismatch: ${attendanceReminderPref} vs ${eventAttendanceType}`,
+                      });
+                      continue;
+                    }
+                  }
+
+                  console.log(`[NotificationProcessor] Attendance reminder for event ${notification.eventId}: ${subscriberCount} subscribers, sending reminder`);
+                } else {
+                  // Event no longer exists
+                  batch.update(notificationDoc.ref, {
+                    status: 'cancelled',
+                    cancelledAt: Timestamp.now(),
+                    cancelReason: 'Event no longer exists',
+                  });
+                  results.push({
+                    id: notification.id,
+                    status: 'cancelled',
+                    reason: 'Event not found',
+                  });
+                  continue;
+                }
+              } catch (error) {
+                console.warn(`[NotificationProcessor] Error checking attendance reminder settings: ${error.message}`);
+                // If we can't check, err on the side of not sending
+                batch.update(notificationDoc.ref, {
+                  status: 'cancelled',
+                  cancelledAt: Timestamp.now(),
+                  cancelReason: 'Unable to verify attendance settings',
+                });
+                results.push({
+                  id: notification.id,
+                  status: 'cancelled',
+                  reason: 'Validation error',
+                });
+                continue;
+              }
+            }
+          }
+
           // Send the notification
           const result = await createNotification({
             userId: notification.userId,

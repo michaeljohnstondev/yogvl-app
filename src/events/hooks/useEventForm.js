@@ -359,6 +359,36 @@ Hope to see you there! 🎉`;
         // Don't fail event creation if notification scheduling fails
       }
 
+      // Attendance reminder removed - attendance management available 3hrs before event instead
+
+      // Schedule event recap notification 1 hour after event starts
+      try {
+        const { ScheduledNotificationService } = await import(
+          '../../services/scheduledNotifications'
+        );
+
+        const eventRecapData = {
+          id: eventRef.id,
+          title: eventDataWithStudio.title,
+          date: eventDataWithStudio.eventTimestamp,
+          createdBy: currentUserId,
+          studioId: userStudio,
+          notificationSettings: eventDataWithStudio.notificationSettings,
+        };
+
+        await ScheduledNotificationService.scheduleEventRecap(eventRecapData);
+        console.log(
+          '[EventForm] Scheduled event recap for event:',
+          eventRef.id
+        );
+      } catch (eventRecapError) {
+        console.warn(
+          '[EventForm] Failed to schedule event recap:',
+          eventRecapError
+        );
+        // Don't fail event creation if event recap scheduling fails
+      }
+
       // Legacy reminder system replaced with server-side FCM scheduling above
 
       // Send all invitations using batch service

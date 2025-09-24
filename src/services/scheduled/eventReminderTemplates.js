@@ -54,12 +54,19 @@ export class EventReminderTemplates {
       .filter((template) => template.enabled)
       .map((template) => {
         let minutes;
-        if (template.unit === 'hours') {
+        if (template.unit === 'minutes') {
+          minutes = template.amount;
+        } else if (template.unit === 'hours') {
           minutes = template.amount * 60;
         } else if (template.unit === 'days') {
           minutes = template.amount * 24 * 60;
+        } else if (template.unit === 'weeks') {
+          minutes = template.amount * 7 * 24 * 60;
+        } else if (template.unit === 'months') {
+          minutes = template.amount * 30 * 24 * 60; // Approximate 30 days per month
         } else {
-          minutes = template.amount; // assume minutes
+          console.warn(`[EventReminderTemplates] Unknown unit: ${template.unit}, defaulting to minutes`);
+          minutes = template.amount; // fallback to minutes
         }
 
         return {
@@ -217,38 +224,14 @@ export class EventReminderTemplates {
         });
       }
 
-      // Main reminder based on user's preferred timing
-      const reminderTiming = notificationSettings.reminderTiming || '1hour';
-      let mainReminderMinutes;
-      let mainReminderTitle;
-
-      switch (reminderTiming) {
-        case '4hours':
-          mainReminderMinutes = REMINDER_INTERVALS.FOUR_HOURS;
-          mainReminderTitle = 'Event in 4 Hours';
-          break;
-        case '1hour':
-          mainReminderMinutes = REMINDER_INTERVALS.ONE_HOUR;
-          mainReminderTitle = 'Event Starting Soon!';
-          break;
-        case '30minutes':
-          mainReminderMinutes = REMINDER_INTERVALS.THIRTY_MINUTES;
-          mainReminderTitle = 'Event Starting in 30 Minutes!';
-          break;
-        case '10minutes':
-          mainReminderMinutes = REMINDER_INTERVALS.TEN_MINUTES;
-          mainReminderTitle = 'Event Starting Now!';
-          break;
-        default:
-          mainReminderMinutes = REMINDER_INTERVALS.ONE_HOUR;
-          mainReminderTitle = 'Event Starting Soon!';
+      // Default reminder if no templates are set (fallback)
+      if (!notificationSettings.reminderTemplates || Object.keys(notificationSettings.reminderTemplates).length === 0) {
+        remindersToSchedule.push({
+          key: 'DEFAULT_1HOUR',
+          minutes: REMINDER_INTERVALS.ONE_HOUR,
+          title: 'Event Starting Soon!',
+        });
       }
-
-      remindersToSchedule.push({
-        key: `MAIN_${reminderTiming.toUpperCase()}`,
-        minutes: mainReminderMinutes,
-        title: mainReminderTitle,
-      });
 
       // Custom reminder templates
       if (notificationSettings.reminderTemplates?.length > 0) {

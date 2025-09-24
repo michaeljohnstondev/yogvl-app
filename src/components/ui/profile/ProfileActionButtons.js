@@ -2,7 +2,7 @@ import React from 'react';
 import { View, TouchableOpacity, Text, Pressable } from 'react-native';
 import { StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { VibeButton } from '../';
+import VibeButton from '../base/VibeButton';
 import FollowButton from '../buttons/FollowButton';
 import BlockButton from '../buttons/BlockButton';
 import theme from '../../../theme/themes';

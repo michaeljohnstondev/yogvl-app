@@ -117,7 +117,7 @@ export const sendUserInvitation = async ({
 
     // Create invitation document
     const inviteId = `invite_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const inviteRef = doc(db, 'invitations', inviteId);
+    const inviteRef = doc(db, 'studios', studioId, 'events', eventId, 'invitations', inviteId);
 
     const invitation = {
       id: inviteId,
@@ -157,77 +157,10 @@ export const sendUserInvitation = async ({
     await batch.commit();
 
     // Send notification to guest
-    try {
-      // Get event details for notification (from studio collection)
-      const eventDoc = await getDoc(
-        doc(db, 'studios', studioId, 'events', eventId)
-      );
-      const eventData = eventDoc.exists() ? eventDoc.data() : null;
-
-      // Get host details for notification
-      const hostDoc = await getDoc(doc(db, 'users', hostId));
-      const hostData = hostDoc.exists() ? hostDoc.data() : null;
-
-      // Extract host name from nested structure
-      const hostDisplayName =
-        hostData?.userdata?.contactInfo?.displayName ||
-        hostData?.displayName ||
-        `${hostData?.userdata?.contactInfo?.firstName || ''} ${hostData?.userdata?.contactInfo?.lastName || ''}`.trim() ||
-        'Someone';
-
-      console.log(
-        `[sendUserInvitation] Sending notification to ${guestId} for event ${eventData?.title}`
-      );
-
-      const notificationResult = await createNotification({
-        userId: guestId,
-        type: NOTIFICATION_TYPES.GUEST_INVITATION,
-        title: 'Event Invitation',
-        message: `${hostDisplayName} invited you to "${eventData?.title || 'an event'}"`,
-        data: {
-          invitationId: inviteId,
-          eventId,
-          eventTitle: eventData?.title,
-          hostId,
-          hostName: hostDisplayName, // Use the properly extracted name
-          studioId, // Include studio context for proper navigation
-          source: source, // Source of the invitation
-        },
-        priority: NOTIFICATION_PRIORITY.HIGH,
-        channels: [DELIVERY_CHANNELS.PUSH],
-        actions: [
-          {
-            id: 'join_event',
-            title: 'Join Now',
-            action: 'accept_invitation',
-            params: { invitationId: inviteId, eventId, studioId },
-          },
-          {
-            id: 'view_event',
-            title: 'View Details',
-            action: 'view_event',
-            params: { eventId, studioId },
-          },
-        ],
-      });
-
-      console.log(
-        `[sendUserInvitation] Notification result:`,
-        notificationResult
-      );
-
-      if (!notificationResult.success) {
-        console.warn(
-          `[sendUserInvitation] Notification not sent: ${notificationResult.reason}`
-        );
-      }
-    } catch (notificationError) {
-      console.error(
-        'Error sending invitation notification:',
-        notificationError
-      );
-      // Don't fail the invitation if notification fails
-    }
+    // Notification will be sent automatically by onEventInvitation Cloud Function
+    console.log(
+      `[sendUserInvitation] Invitation sent to ${guestId} - notification will be handled by Cloud Function`
+    );
 
     return {
       success: true,
@@ -251,13 +184,14 @@ export const sendEmailInvitation = async ({
   hostId,
   guestEmail,
   message = '',
+  studioId,
 }) => {
   const batch = writeBatch(db);
 
   try {
     // Validate inputs
-    if (!eventId || !hostId || !guestEmail) {
-      throw new Error('Event ID, host ID, and guest email are required');
+    if (!eventId || !hostId || !guestEmail || !studioId) {
+      throw new Error('Event ID, host ID, guest email, and studio ID are required');
     }
 
     // Check if email is already invited
@@ -271,7 +205,7 @@ export const sendEmailInvitation = async ({
 
     // Create invitation document
     const inviteId = `invite_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const inviteRef = doc(db, 'invitations', inviteId);
+    const inviteRef = doc(db, 'studios', studioId, 'events', eventId, 'invitations', inviteId);
 
     const invitation = {
       id: inviteId,
@@ -287,8 +221,8 @@ export const sendEmailInvitation = async ({
 
     batch.set(inviteRef, invitation);
 
-    // Update event document
-    const eventRef = doc(db, 'events', eventId);
+    // Update event document (in studio collection)
+    const eventRef = doc(db, 'studios', studioId, 'events', eventId);
     batch.update(eventRef, {
       invitations: arrayUnion(inviteId),
       pendingInvites: increment(1),
@@ -362,7 +296,7 @@ export const sendPhoneInvitation = async ({
 
     // Create invitation document
     const inviteId = `invite_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const inviteRef = doc(db, 'invitations', inviteId);
+    const inviteRef = doc(db, 'studios', studioId, 'events', eventId, 'invitations', inviteId);
 
     const invitation = {
       id: inviteId,
@@ -486,7 +420,6 @@ export const acceptInvitation = async (
     const defaultNotificationSettings = {
       eventReminders: true,
       hostChanges: true,
-      reminderTiming: '1hour',
     };
 
     await eventService.acceptInvitationAndSubscribe(

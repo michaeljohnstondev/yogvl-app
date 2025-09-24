@@ -113,4 +113,5 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.main,
     textAlign: 'center',
   },
+
 });

@@ -28,7 +28,7 @@ export default function NotificationSettingsForm({
   const vibeAlert = useVibeAlert();
   const [showAddCustomForm, setShowAddCustomForm] = useState(false);
   const [customAmount, setCustomAmount] = useState('');
-  const [customUnit, setCustomUnit] = useState('hours');
+  const [customUnit, setCustomUnit] = useState('minutes');
 
   const handleShowAddForm = () => {
     setShowAddCustomForm(true);
@@ -152,7 +152,7 @@ export default function NotificationSettingsForm({
 
     // Reset form
     setCustomAmount('');
-    setCustomUnit('hours');
+    setCustomUnit('minutes');
     setShowAddCustomForm(false);
   };
 
@@ -307,7 +307,7 @@ export default function NotificationSettingsForm({
                       onPress={() => {
                         setShowAddCustomForm(false);
                         setCustomAmount('');
-                        setCustomUnit('hours');
+                        setCustomUnit('minutes');
                       }}
                       variant="toggle"
                       color="gray"

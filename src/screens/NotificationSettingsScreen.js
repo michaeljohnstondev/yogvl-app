@@ -16,6 +16,7 @@ import { NotificationSettingItem } from '../components/ui';
 import NotificationSettingsForm from '../components/notifications/NotificationSettingsForm';
 import GuestNotificationSettingsForm from '../components/notifications/GuestNotificationSettingsForm';
 import HostNotificationSettingsForm from '../components/notifications/HostNotificationSettingsForm';
+import CustomTemplateService from '../services/CustomTemplateService';
 import { useAuth } from '../auth/AuthContext';
 import { useNotificationAutoSave } from '../hooks/useNotificationAutoSave';
 import theme from '../theme/themes';
@@ -32,41 +33,30 @@ function NotificationSettings({ navigation }) {
     pushNotifications:
       userData?.userdata?.settings?.notifications?.app?.pushNotifications ??
       true,
-    emailNotifications:
-      userData?.userdata?.settings?.notifications?.app?.emailNotifications ??
-      true,
-    smsNotifications:
-      userData?.userdata?.settings?.notifications?.app?.smsNotifications ??
-      false,
-    friendAdded:
-      userData?.userdata?.settings?.notifications?.app?.friendAdded ?? true,
+    newFollowers:
+      userData?.userdata?.settings?.notifications?.app?.newFollowers ?? true,
     eventInvitations:
       userData?.userdata?.settings?.notifications?.app?.eventInvitations ??
       true,
-    systemUpdates:
-      userData?.userdata?.settings?.notifications?.app?.systemUpdates ?? true,
-    quietHours:
-      userData?.userdata?.settings?.notifications?.app?.quietHours ?? false,
+    suggestedEvents:
+      userData?.userdata?.settings?.notifications?.app?.suggestedEvents ??
+      true,
   });
 
   // Hosting default notification settings (for events user creates)
   const [hostingSettings, setHostingSettings] = useState({
     enabled:
       userData?.userdata?.settings?.notifications?.hosting?.enabled ?? true,
-    reminderTiming:
-      userData?.userdata?.settings?.notifications?.hosting?.reminderTiming ??
-      '1hour',
     notifyOnJoin:
       userData?.userdata?.settings?.notifications?.hosting?.notifyOnJoin ??
       true,
     notifyOnLeave:
       userData?.userdata?.settings?.notifications?.hosting?.notifyOnLeave ??
       true,
-    sendDayBefore:
-      userData?.userdata?.settings?.notifications?.hosting?.sendDayBefore ??
-      true,
     newComments:
       userData?.userdata?.settings?.notifications?.hosting?.newComments ?? true,
+    eventRecap:
+      userData?.userdata?.settings?.notifications?.hosting?.eventRecap ?? false,
     reminderTemplates:
       userData?.userdata?.settings?.notifications?.hosting?.reminderTemplates ??
       [],
@@ -74,15 +64,14 @@ function NotificationSettings({ navigation }) {
 
   // Attending default notification settings (for events user joins)
   const [attendingSettings, setAttendingSettings] = useState({
+    enabled:
+      userData?.userdata?.settings?.notifications?.attending?.enabled ?? true,
     hostChanges:
       userData?.userdata?.settings?.notifications?.attending?.hostChanges ??
       true,
     eventReminders:
       userData?.userdata?.settings?.notifications?.attending?.eventReminders ??
       true,
-    reminderTiming:
-      userData?.userdata?.settings?.notifications?.attending?.reminderTiming ??
-      '1hour',
     dayBeforeReminder:
       userData?.userdata?.settings?.notifications?.attending
         ?.dayBeforeReminder ?? true,
@@ -108,55 +97,43 @@ function NotificationSettings({ navigation }) {
     pushNotifications:
       userData?.userdata?.settings?.notifications?.app?.pushNotifications ??
       true,
-    emailNotifications:
-      userData?.userdata?.settings?.notifications?.app?.emailNotifications ??
-      true,
-    smsNotifications:
-      userData?.userdata?.settings?.notifications?.app?.smsNotifications ??
-      false,
-    friendAdded:
-      userData?.userdata?.settings?.notifications?.app?.friendAdded ?? true,
+    newFollowers:
+      userData?.userdata?.settings?.notifications?.app?.newFollowers ?? true,
     eventInvitations:
       userData?.userdata?.settings?.notifications?.app?.eventInvitations ??
       true,
-    systemUpdates:
-      userData?.userdata?.settings?.notifications?.app?.systemUpdates ?? true,
-    quietHours:
-      userData?.userdata?.settings?.notifications?.app?.quietHours ?? false,
+    suggestedEvents:
+      userData?.userdata?.settings?.notifications?.app?.suggestedEvents ??
+      true,
   };
 
   const initialHostingSettings = {
     enabled:
       userData?.userdata?.settings?.notifications?.hosting?.enabled ?? true,
-    reminderTiming:
-      userData?.userdata?.settings?.notifications?.hosting?.reminderTiming ??
-      '1hour',
     notifyOnJoin:
       userData?.userdata?.settings?.notifications?.hosting?.notifyOnJoin ??
       true,
     notifyOnLeave:
       userData?.userdata?.settings?.notifications?.hosting?.notifyOnLeave ??
       true,
-    sendDayBefore:
-      userData?.userdata?.settings?.notifications?.hosting?.sendDayBefore ??
-      true,
     newComments:
       userData?.userdata?.settings?.notifications?.hosting?.newComments ?? true,
+    eventRecap:
+      userData?.userdata?.settings?.notifications?.hosting?.eventRecap ?? false,
     reminderTemplates:
       userData?.userdata?.settings?.notifications?.hosting?.reminderTemplates ??
       [],
   };
 
   const initialAttendingSettings = {
+    enabled:
+      userData?.userdata?.settings?.notifications?.attending?.enabled ?? true,
     hostChanges:
       userData?.userdata?.settings?.notifications?.attending?.hostChanges ??
       true,
     eventReminders:
       userData?.userdata?.settings?.notifications?.attending?.eventReminders ??
       true,
-    reminderTiming:
-      userData?.userdata?.settings?.notifications?.attending?.reminderTiming ??
-      '1hour',
     dayBeforeReminder:
       userData?.userdata?.settings?.notifications?.attending
         ?.dayBeforeReminder ?? true,
@@ -208,12 +185,6 @@ function NotificationSettings({ navigation }) {
     }));
   };
 
-  const updateHostingReminderTiming = (value) => {
-    setHostingSettings((prev) => ({
-      ...prev,
-      reminderTiming: value,
-    }));
-  };
 
   const tabOptions = [
     { label: 'App', value: 'app' },
@@ -222,7 +193,7 @@ function NotificationSettings({ navigation }) {
   ];
 
   return (
-    <ScrollView ref={scrollViewRef} style={styles.container}>
+    <ScrollView ref={scrollViewRef} style={styles.container} contentContainerStyle={styles.scrollContent}>
       <View style={styles.header}>
         <CloseButton onPress={() => navigation.goBack()} />
         <Text style={styles.headerTitle}>Notification Settings</Text>
@@ -249,60 +220,36 @@ function NotificationSettings({ navigation }) {
                 description="Receive notifications on your device"
                 value={appSettings.pushNotifications}
                 onToggle={() => toggleAppSetting('pushNotifications')}
-              />
-              <NotificationSettingItem
-                title="Email Notifications"
-                description="Receive notifications via email"
-                value={appSettings.emailNotifications}
-                onToggle={() => toggleAppSetting('emailNotifications')}
-              />
-              <NotificationSettingItem
-                title="SMS Notifications"
-                description="Receive notifications via text message"
-                value={appSettings.smsNotifications}
-                onToggle={() => toggleAppSetting('smsNotifications')}
                 isLast
               />
             </View>
           </View>
 
-          <View style={styles.section}>
+          <View style={[styles.section, styles.lastSection]}>
             <Text style={styles.sectionTitle}>SOCIAL & ACTIVITY</Text>
             <View style={styles.settingsGroup}>
               <NotificationSettingItem
-                title="Friend Added"
-                description="Notify when someone adds you as a friend"
-                value={appSettings.friendAdded}
-                onToggle={() => toggleAppSetting('friendAdded')}
+                title="New Followers"
+                description="Notify when someone follows you"
+                value={appSettings.newFollowers}
+                onToggle={() => toggleAppSetting('newFollowers')}
               />
               <NotificationSettingItem
                 title="Event Invitations"
                 description="Notify when you're invited to events"
                 value={appSettings.eventInvitations}
                 onToggle={() => toggleAppSetting('eventInvitations')}
+              />
+              <NotificationSettingItem
+                title="Suggested Events"
+                description="Notify when new events match your interests"
+                value={appSettings.suggestedEvents}
+                onToggle={() => toggleAppSetting('suggestedEvents')}
                 isLast
               />
             </View>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>SYSTEM & PREFERENCES</Text>
-            <View style={styles.settingsGroup}>
-              <NotificationSettingItem
-                title="System Updates"
-                description="Important app updates and maintenance notifications"
-                value={appSettings.systemUpdates}
-                onToggle={() => toggleAppSetting('systemUpdates')}
-              />
-              <NotificationSettingItem
-                title="Quiet Hours"
-                description="Pause notifications during quiet hours (10 PM - 8 AM)"
-                value={appSettings.quietHours}
-                onToggle={() => toggleAppSetting('quietHours')}
-                isLast
-              />
-            </View>
-          </View>
         </>
       )}
 
@@ -319,6 +266,7 @@ function NotificationSettings({ navigation }) {
           sectionStyle={styles.section}
           scrollViewRef={scrollViewRef}
           currentUserId={currentUserId}
+          userContext="hosting"
         />
       )}
 
@@ -334,6 +282,7 @@ function NotificationSettings({ navigation }) {
           showSaveAsDefaults={false}
           sectionStyle={styles.section}
           scrollViewRef={scrollViewRef}
+          userContext="attending"
         />
       )}
     </ScrollView>
@@ -345,6 +294,10 @@ export default NotificationSettings;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    overflow: 'visible',
+  },
+  scrollContent: {
+    paddingBottom: 50, // Extra bottom spacing for safe scrolling
   },
   header: {
     flexDirection: 'row',
@@ -373,6 +326,9 @@ const styles = StyleSheet.create({
   section: {
     marginTop: 20,
     paddingHorizontal: 16,
+  },
+  lastSection: {
+    marginBottom: 20, // Bottom margin for last section
   },
   sectionTitle: {
     color: theme.colors.vibeGreen,

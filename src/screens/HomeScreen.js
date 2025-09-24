@@ -104,7 +104,9 @@ export default function HomeScreen({ navigation }) {
           isHostedByUser: event.createdBy === currentUserId,
         };
 
-        if (eventDate >= now) {
+        // Show events in "My Events" until 1 hour after they start (for latecomers)
+        const oneHourAfterEvent = new Date(eventDate.getTime() + 60 * 60 * 1000);
+        if (oneHourAfterEvent >= now) {
           myUpcoming.push(enrichedEvent);
         } else {
           myPast.push(enrichedEvent);
@@ -151,7 +153,7 @@ export default function HomeScreen({ navigation }) {
     } finally {
       if (!isRefresh) setIsLoading(false);
     }
-  }, [currentUserId, userData, vibeAlert]);
+  }, [currentUserId, userData]);
 
   useEffect(() => {
     const defaultStudio = userData?.userdata?.studios?.default;
@@ -250,7 +252,7 @@ export default function HomeScreen({ navigation }) {
         }
       );
       return () => backHandler.remove();
-    }, [vibeAlert])
+    }, [])
   );
 
   // Refresh data when screen comes into focus (e.g., returning from CreateEvent)
@@ -272,6 +274,7 @@ export default function HomeScreen({ navigation }) {
 
   // Admin functions
   const handleAdminMenu = () => {
+    console.log('[HomeScreen] Admin Tools button pressed, navigating to Admin');
     navigation.navigate('Admin');
   };
 
@@ -502,8 +505,6 @@ export default function HomeScreen({ navigation }) {
               <VibeButton
                 label="ADMIN TOOLS"
                 onPress={handleAdminMenu}
-                variant="toggle"
-                color="purple"
                 style={[styles.fullButton, styles.adminButton]}
               />
             )}
@@ -588,7 +589,6 @@ const styles = StyleSheet.create({
     paddingBottom: 60,
     paddingHorizontal: 16,
     overflow: 'visible',
-    minHeight: '150%', // Force scroll by making content taller than screen
   },
   centerContent: {
     justifyContent: 'center',
@@ -603,7 +603,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   adminButton: {
-    opacity: 0.8,
+    // Removed fixed opacity to allow press feedback
   },
   sectionHeader: {
     color: '#fff',

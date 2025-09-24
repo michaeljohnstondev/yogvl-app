@@ -15,7 +15,12 @@ const VibeSegmentedControl = ({ options, selectedValue, onSelect, style }) => {
             selectedValue === option.value && styles.selectedSegment,
             { opacity: pressed ? 0.7 : 1 },
           ]}
-          onPress={() => onSelect(option.value)}
+          onPress={() => {
+            // Only call onSelect if this option is not already selected
+            if (selectedValue !== option.value) {
+              onSelect(option.value);
+            }
+          }}
         >
           <Text
             style={[

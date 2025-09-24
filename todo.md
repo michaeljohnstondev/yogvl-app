@@ -104,6 +104,12 @@ Previous Claude incorrectly applied the `scheduledNotifications` pattern to ALL 
 **Notification**: "Event recap for '{{eventTitle}}' is now available! {{attendedCount}} attended, {{noShowCount}} no-shows."
 **Authorization**: Send to all subscribers (attendees and no-shows) and host/cohosts
 
+### 13. Interest-Based Event Notifications
+**Trigger Location**: `studios/{studioId}/events/{eventId}` (document created)
+**Cloud Function**: `onEventCreatedInterestMatch`
+**Notification**: "New event '{{eventTitle}}' matches your interests!"
+**Authorization**: Send to users who have matching interests in `users/{userId}/preferences/interests[]`
+
 ---
 
 ## 🏗️ Implementation Phases
@@ -119,6 +125,9 @@ Previous Claude incorrectly applied the `scheduledNotifications` pattern to ALL 
 ### Phase 3: Invitation System
 - **Host Invites Guest/Cohost** - Invitation triggers
 - **Cohost Joins/Leaves** - Cohost management triggers
+
+### Phase 4: Advanced Features
+- **Interest-Based Event Notifications** - Query matching logic and scaling considerations
 
 ---
 
@@ -181,7 +190,7 @@ exports.onUserFollowed = functions.firestore.onDocumentCreated(
 - [ ] Proper error logging in Cloud Function logs
 
 ### Overall System:
-- [ ] All 10 notification types implemented
+- [ ] All 13 notification types implemented
 - [ ] notificationTriggers collection empty/deleted
 - [ ] scheduledNotifications system unchanged
 - [ ] No performance degradation

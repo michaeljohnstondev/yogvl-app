@@ -15,10 +15,7 @@ import {
   increment,
 } from 'firebase/firestore';
 import { db } from '../../auth/services/firebase';
-import {
-  notifyCohostInvitation,
-  notifyCohostAccepted,
-} from './invitationNotificationsService';
+// Notification imports removed - using Cloud Function triggers instead
 
 /**
  * Send cohost invitation
@@ -94,16 +91,6 @@ export const sendCohostInvitation = async (
     };
 
     await setDoc(invitationRef, invitation);
-
-    // Send in-app notification
-    await notifyCohostInvitation({
-      inviteeId: recipientId,
-      hostId: inviterId,
-      hostName: inviterName,
-      eventId,
-      eventTitle,
-      invitationId,
-    });
 
     return { success: true, invitationId };
   } catch (error) {
@@ -228,17 +215,32 @@ export const acceptCohostInvitation = async (
 
     await batch.commit();
 
-    // Send notification to original inviter
-    await notifyCohostAccepted({
-      hostId: invitationData.inviterId,
-      cohostId: recipientId,
-      cohostName: accepterName || 'Someone',
-      eventId,
-      eventTitle: eventTitle || 'Unknown Event',
-      invitationId,
-    });
+    // Cancel any existing scheduled notifications for this user/event
+    // (since they're now a cohost with different notification needs)
+    try {
+      const { ScheduledNotificationService } = await import('../../scheduledNotifications');
+      await ScheduledNotificationService.cancelUserEventNotifications(
+        recipientId,
+        eventId,
+        'User became cohost - notification preferences may change'
+      );
+      console.log('[CohostInvitations] Cancelled existing scheduled notifications for new cohost');
+    } catch (error) {
+      console.warn('[CohostInvitations] Failed to cancel scheduled notifications:', error);
+      // Don't fail the whole operation for this
+    }
 
-    return { success: true };
+    // Notification will be sent automatically by Cloud Function when invitation status changes
+
+    return {
+      success: true,
+      newCohost: {
+        id: recipientId,
+        name: accepterName,
+        eventId,
+        eventTitle
+      }
+    };
   } catch (error) {
     console.error(
       '[CohostInvitations] Error accepting cohost invitation:',

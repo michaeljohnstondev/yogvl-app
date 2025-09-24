@@ -57,7 +57,9 @@
       "Bash(tasklist)",
       "mcp__ide__getDiagnostics",
       "Bash(taskkill:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "WebFetch(domain:rnfirebase.io)",
+      "WebFetch(domain:firebase.google.com)"
     ],
     "deny": [],
     "ask": [],

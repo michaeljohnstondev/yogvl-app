@@ -1,7 +1,7 @@
 // Barrel export for event screens
 export { default as CreateEventScreen } from './CreateEventScreen';
 export { default as EventDetailScreen } from './EventDetailScreen';
-export { default as EventNotificationSettingsScreen } from './EventNotificationSettingsScreen';
+export { default as HostEventNotificationsScreen } from './HostEventNotificationsScreen';
 export { default as InviteGuestsScreen } from './InviteGuestsScreen';
 export { default as InvitationsScreen } from './InvitationsScreen';
 export { default as AttendanceScreen } from './AttendanceScreen';

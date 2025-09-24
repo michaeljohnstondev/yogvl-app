@@ -7,6 +7,9 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
+    "experiments": {
+      "newArchEnabled": false
+    },
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -18,8 +21,12 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.bigvibestudios.bvs",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "runtimeVersion": {
         "policy": "appVersion"
+      },
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -71,6 +78,14 @@
         {
           "android": {
             "enableProguardInReleaseBuilds": true
+          },
+          "ios": {
+            "deploymentTarget": "16.0",
+            "useFrameworks": "dynamic",
+            "xcodeProps": {
+              "SWIFT_VERSION": "5.10",
+              "OTHER_SWIFT_FLAGS": "-enable-experimental-feature AccessLevelOnImport -enable-experimental-feature SendingArgsAndResults -enable-experimental-feature StrictConcurrency"
+            }
           }
         }
       ],

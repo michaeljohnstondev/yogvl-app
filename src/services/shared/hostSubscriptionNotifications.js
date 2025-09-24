@@ -19,9 +19,10 @@ export const notifyHostOfNewSubscription = async ({
   eventTitle,
   subscriberId,
   subscriberName,
+  studioId,
 }) => {
   try {
-    if (!hostId || !eventId || !subscriberId || !subscriberName) {
+    if (!hostId || !eventId || !subscriberId || !subscriberName || !studioId) {
       throw new Error(
         'Missing required parameters for host subscription notification'
       );
@@ -44,6 +45,7 @@ export const notifyHostOfNewSubscription = async ({
       type: NOTIFICATION_TYPES.EVENT_JOIN,
       data: {
         eventId,
+        studioId,
         eventTitle,
         subscriberId,
         subscriberName,
@@ -79,9 +81,10 @@ export const notifyHostOfUnsubscription = async ({
   eventTitle,
   unsubscriberId,
   unsubscriberName,
+  studioId,
 }) => {
   try {
-    if (!hostId || !eventId || !unsubscriberId || !unsubscriberName) {
+    if (!hostId || !eventId || !unsubscriberId || !unsubscriberName || !studioId) {
       throw new Error(
         'Missing required parameters for host unsubscription notification'
       );
@@ -104,6 +107,7 @@ export const notifyHostOfUnsubscription = async ({
       type: NOTIFICATION_TYPES.EVENT_LEAVE,
       data: {
         eventId,
+        studioId,
         eventTitle,
         unsubscriberId,
         unsubscriberName,

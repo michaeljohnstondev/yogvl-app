@@ -26,11 +26,12 @@ const GuestNotificationSettingsForm = memo(function GuestNotificationSettingsFor
   scrollViewRef,
   isLoadingTemplates = false,
   currentUserId,
+  userContext = 'attending', // 'hosting' or 'attending' - determines which templates to load
 }) {
   const vibeAlert = useVibeAlert();
   const [showAddCustomForm, setShowAddCustomForm] = useState(false);
   const [customAmount, setCustomAmount] = useState('');
-  const [customUnit, setCustomUnit] = useState('hours');
+  const [customUnit, setCustomUnit] = useState('minutes');
   const [isAddingReminder, setIsAddingReminder] = useState(false);
 
   const handleShowAddForm = useCallback(() => {
@@ -46,39 +47,103 @@ const GuestNotificationSettingsForm = memo(function GuestNotificationSettingsFor
     }, 150);
   }, [scrollViewRef]);
 
-  // Default reminder templates for guests
-  const defaultReminderTemplates = [
-    {
-      id: '15min',
-      amount: 15,
-      unit: 'minutes',
-      enabled: true,
-      label: '15 min',
-    },
-    { id: '1hour', amount: 1, unit: 'hours', enabled: true, label: '1 hour' },
-    { id: '1day', amount: 1, unit: 'days', enabled: false, label: '1 day' },
+  // Available reminder template options
+  const availableTemplates = [
+    { id: '15min', amount: 15, unit: 'minutes', label: '15 min' },
+    { id: '30min', amount: 30, unit: 'minutes', label: '30 min' },
+    { id: '1hour', amount: 1, unit: 'hours', label: '1 hour' },
+    { id: '2hour', amount: 2, unit: 'hours', label: '2 hours' },
+    { id: '1day', amount: 1, unit: 'days', label: '1 day' },
+    { id: '1week', amount: 1, unit: 'weeks', label: '1 week' },
   ];
 
-  // Get current reminder templates from settings, fallback to defaults
+  // Convert template ID back to display info
+  const parseTemplateId = (templateId) => {
+    // Handle built-in templates
+    const builtIn = availableTemplates.find(t => t.id === templateId);
+    if (builtIn) {
+      return builtIn;
+    }
+
+    // Handle custom templates with new format (e.g., "5m", "2h", "3d")
+    const match = templateId.match(/^(\d+)([mhdwy])$/);
+    if (match) {
+      const [, amount, unitChar] = match;
+      const unitMap = {
+        m: 'minutes',
+        h: 'hours',
+        d: 'days',
+        w: 'weeks',
+        y: 'months'
+      };
+      const unit = unitMap[unitChar] || 'minutes';
+      const unitLabels = {
+        minutes: 'min',
+        hours: parseInt(amount) === 1 ? 'hour' : 'hours',
+        days: parseInt(amount) === 1 ? 'day' : 'days',
+        weeks: parseInt(amount) === 1 ? 'week' : 'weeks',
+        months: parseInt(amount) === 1 ? 'month' : 'months',
+      };
+
+      return {
+        id: templateId,
+        amount: parseInt(amount),
+        unit: unit,
+        label: `${amount} ${unitLabels[unit]}`
+      };
+    }
+
+    // Fallback for unknown format
+    return {
+      id: templateId,
+      amount: 0,
+      unit: 'minutes',
+      label: templateId
+    };
+  };
+
+  // Get current reminder templates - show templates that have been set (true or false)
   const getCurrentTemplates = () => {
-    const templates = settings?.reminderTemplates || [];
+    const templateSettings = settings?.reminderTemplates || {};
     console.log(
-      '[GuestNotificationSettings] getCurrentTemplates - templates from settings:',
-      templates.length,
-      templates
+      '[GuestNotificationSettings] getCurrentTemplates - template settings:',
+      templateSettings
     );
     console.log(
       '[GuestNotificationSettings] isLoadingTemplates:',
       isLoadingTemplates
     );
 
-    // If no templates exist, return defaults (for new users)
-    if (templates.length === 0) {
-      console.log(
-        '[GuestNotificationSettings] No templates, returning defaults'
-      );
-      return defaultReminderTemplates;
-    }
+    // Show templates that have been explicitly set (true or false), not undefined
+    const templates = Object.keys(templateSettings)
+      .filter(templateId => templateSettings.hasOwnProperty(templateId)) // Has been set
+      .map(templateId => ({
+        ...parseTemplateId(templateId),
+        enabled: templateSettings[templateId]
+      }))
+      .sort((a, b) => {
+        // Convert to minutes for chronological sorting
+        const getMinutes = (template) => {
+          const { amount, unit } = template;
+          switch (unit) {
+            case 'minutes': return amount;
+            case 'hours': return amount * 60;
+            case 'days': return amount * 60 * 24;
+            case 'weeks': return amount * 60 * 24 * 7;
+            case 'months': return amount * 60 * 24 * 30;
+            case 'years': return amount * 60 * 24 * 365;
+            default: return amount;
+          }
+        };
+
+        return getMinutes(a) - getMinutes(b); // Ascending order (shortest to longest)
+      });
+
+    console.log(
+      '[GuestNotificationSettings] Templates with explicit state (sorted):',
+      templates
+    );
+
     return templates;
   };
 
@@ -98,29 +163,32 @@ const GuestNotificationSettingsForm = memo(function GuestNotificationSettingsFor
   };
 
   const toggleReminder = (reminder) => {
-    const currentTemplates = getCurrentTemplates();
-    const updatedTemplates = currentTemplates.map((template) =>
-      template.id === reminder.id
-        ? { ...template, enabled: !template.enabled }
-        : template
-    );
+    const currentSettings = settings?.reminderTemplates || {};
+    const updatedSettings = {
+      ...currentSettings,
+      [reminder.id]: !currentSettings[reminder.id]
+    };
+
+    // Keep the key in the object, just toggle true/false
+    // Don't delete disabled templates - keep them as false
 
     onUpdateSettings({
       ...settings,
-      reminderTemplates: updatedTemplates,
+      reminderTemplates: updatedSettings,
     });
   };
 
   const deleteCustomReminder = async (template) => {
-    const currentTemplates = getCurrentTemplates();
-    const updatedTemplates = currentTemplates.filter(
-      (t) => t.id !== template.id
-    );
+    const currentSettings = settings?.reminderTemplates || {};
+    const updatedSettings = { ...currentSettings };
+
+    // Remove the template from settings
+    delete updatedSettings[template.id];
 
     // Update local settings immediately
     onUpdateSettings({
       ...settings,
-      reminderTemplates: updatedTemplates,
+      reminderTemplates: updatedSettings,
     });
 
     // Auto-remove from global store if it's a custom template
@@ -132,7 +200,8 @@ const GuestNotificationSettingsForm = memo(function GuestNotificationSettingsFor
         );
         await CustomTemplateService.removeCustomTemplate(
           currentUserId,
-          template.id
+          template.id,
+          userContext
         );
       } catch (error) {
         console.warn(
@@ -186,13 +255,12 @@ const GuestNotificationSettingsForm = memo(function GuestNotificationSettingsFor
         return;
       }
 
-      const currentTemplates = getCurrentTemplates();
+      // Create template ID based on amount and unit
+      const templateId = `${amount}${customUnit.charAt(0)}`;
+      const currentSettings = settings?.reminderTemplates || {};
 
-      // Check for duplicates
-      const duplicate = currentTemplates.find(
-        (r) => r.amount === amount && r.unit === customUnit
-      );
-      if (duplicate) {
+      // Check for duplicates - see if this template ID already exists
+      if (currentSettings[templateId]) {
         const unitLabels = {
           minutes: 'min',
           hours: amount === 1 ? 'hour' : 'hours',
@@ -208,29 +276,15 @@ const GuestNotificationSettingsForm = memo(function GuestNotificationSettingsFor
         return;
       }
 
-      // Convert to consistent short form labels
-      const unitLabels = {
-        minutes: 'min',
-        hours: amount === 1 ? 'hour' : 'hours',
-        days: amount === 1 ? 'day' : 'days',
-        weeks: amount === 1 ? 'week' : 'weeks',
-        months: amount === 1 ? 'month' : 'months',
+      const updatedSettings = {
+        ...currentSettings,
+        [templateId]: true
       };
-      const unitText = unitLabels[customUnit] || customUnit;
-      const newReminder = {
-        id: `custom_${Date.now()}`,
-        amount,
-        unit: customUnit,
-        enabled: true,
-        label: `${amount} ${unitText}`,
-      };
-
-      const updatedTemplates = [...currentTemplates, newReminder];
 
       // Update local settings immediately
       onUpdateSettings({
         ...settings,
-        reminderTemplates: updatedTemplates,
+        reminderTemplates: updatedSettings,
       });
 
       // Auto-save to global store for future use
@@ -238,11 +292,9 @@ const GuestNotificationSettingsForm = memo(function GuestNotificationSettingsFor
         try {
           console.log(
             '[GuestNotificationSettings] Auto-saving custom reminder to global store:',
-            newReminder.label
+            templateId
           );
-          await CustomTemplateService.saveCustomTemplates(currentUserId, [
-            newReminder,
-          ]);
+          await CustomTemplateService.saveTemplateSettings(currentUserId, updatedSettings, userContext);
         } catch (error) {
           console.warn(
             '[GuestNotificationSettings] Failed to auto-save custom reminder to global store:',
@@ -254,7 +306,7 @@ const GuestNotificationSettingsForm = memo(function GuestNotificationSettingsFor
 
       // Reset form
       setCustomAmount('');
-      setCustomUnit('hours');
+      setCustomUnit('minutes');
       setShowAddCustomForm(false);
     } finally {
       setIsAddingReminder(false);
@@ -295,8 +347,25 @@ const GuestNotificationSettingsForm = memo(function GuestNotificationSettingsFor
 
   return (
     <>
-      {/* Critical Updates - Always On */}
-      {showCriticalUpdates && (
+      {/* Master Toggle for Attendee Notifications */}
+      <View style={[styles.section, sectionStyle]}>
+        <Text style={styles.sectionTitle}>PUSH NOTIFICATIONS</Text>
+        <View style={styles.settingsGroup}>
+          <SettingItem
+            title="Enable Push Notifications"
+            description="Turn on push notifications for events you're attending"
+            value={settings?.enabled ?? true}
+            onToggle={() => toggleSetting('enabled')}
+            isLast
+          />
+        </View>
+      </View>
+
+      {/* Only show other settings if notifications are enabled */}
+      {(settings?.enabled ?? true) && (
+        <>
+          {/* Critical Updates - Always On */}
+          {showCriticalUpdates && (
         <View style={[styles.section, sectionStyle]}>
           <Text style={styles.sectionTitle}>CRITICAL UPDATES</Text>
           <View style={styles.settingsGroup}>
@@ -330,7 +399,7 @@ const GuestNotificationSettingsForm = memo(function GuestNotificationSettingsFor
 
       {/* Custom Reminder Templates */}
       {showReminders && (
-        <View style={[styles.section, sectionStyle]}>
+        <View style={[styles.section, sectionStyle, styles.remindersSection]}>
           <Text style={styles.sectionTitle}>CUSTOM REMINDERS</Text>
           <View style={styles.settingsGroup}>
             <View style={styles.quickRemindersContainer}>
@@ -425,7 +494,7 @@ const GuestNotificationSettingsForm = memo(function GuestNotificationSettingsFor
                     onPress={() => {
                       setShowAddCustomForm(false);
                       setCustomAmount('');
-                      setCustomUnit('hours');
+                      setCustomUnit('minutes');
                     }}
                     variant="toggle"
                     color="gray"
@@ -463,19 +532,23 @@ const GuestNotificationSettingsForm = memo(function GuestNotificationSettingsFor
           <View style={styles.settingsGroup}>
             <SettingItem
               title="Host Comments"
-              description="Comments from the event host (batched after first)"
+              description="Comments from the event host"
+              // TODO: Implement batching after first comment
               value={settings?.hostComments ?? true}
               onToggle={() => toggleSetting('hostComments')}
             />
             <SettingItem
               title="Other Comments"
-              description="Comments from attendees (batched after first)"
+              description="Comments from attendees"
+              // TODO: Implement batching after first comment
               value={settings?.newComments ?? false}
               onToggle={() => toggleSetting('newComments')}
               isLast
             />
           </View>
         </View>
+      )}
+        </>
       )}
     </>
   );
@@ -486,6 +559,10 @@ export default GuestNotificationSettingsForm;
 const styles = StyleSheet.create({
   section: {
     marginTop: 20,
+  },
+  remindersSection: {
+    zIndex: 99,
+    elevation: 99,
   },
   sectionTitle: {
     color: theme.colors.vibeGreen,
@@ -500,11 +577,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.inputBorder,
     overflow: 'visible',
+    zIndex: 1,
+    elevation: 1,
   },
   settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 20,
+    zIndex: 1,
+    elevation: 1,
   },
   settingBorder: {
     borderBottomWidth: 1,
@@ -532,6 +613,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     padding: 16,
     overflow: 'visible',
+    zIndex: 1001,
+    elevation: 1001,
   },
   quickRemindersButtons: {
     flexDirection: 'row',
@@ -574,6 +657,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.inputBorder,
     overflow: 'visible',
+    zIndex: 1000,
+    elevation: 1000,
   },
   addCustomFormTitle: {
     color: theme.colors.textPrimary,
@@ -586,6 +671,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     marginBottom: 12,
+    zIndex: 99,
+    elevation: 99,
   },
   customAmountInput: {
     width: 60,

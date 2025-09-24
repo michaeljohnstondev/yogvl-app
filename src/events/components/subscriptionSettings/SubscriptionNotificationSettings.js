@@ -29,7 +29,6 @@ const SubscriptionNotificationSettings = memo(function SubscriptionNotificationS
 
     // Reminders for the event
     eventReminders: attendingDefaults.eventReminders ?? true,
-    reminderTiming: attendingDefaults.reminderTiming ?? '1hour',
     dayBeforeReminder: attendingDefaults.dayBeforeReminder ?? true,
 
     // Social activity
@@ -54,7 +53,6 @@ const SubscriptionNotificationSettings = memo(function SubscriptionNotificationS
         'userdata.settings.notifications.attending': {
           hostChanges: subscriptionSettings.hostChanges,
           eventReminders: subscriptionSettings.eventReminders,
-          reminderTiming: subscriptionSettings.reminderTiming,
           dayBeforeReminder: subscriptionSettings.dayBeforeReminder,
           hostComments: subscriptionSettings.hostComments,
           newComments: subscriptionSettings.newComments,
@@ -111,19 +109,20 @@ const SubscriptionNotificationSettings = memo(function SubscriptionNotificationS
             onSaveAsDefaults={saveAsDefaults}
             sectionStyle={styles.section}
             scrollViewRef={scrollViewRef}
+            userContext="attending"
           />
-        </ScrollView>
 
-        {/* Update Settings Button - Only show for subscribed users */}
-        {isSubscribed && (
-          <View style={styles.footer}>
-            <VibeButton
-              label="UPDATE SETTINGS"
-              onPress={handleSubscribe}
-              style={styles.subscribeButton}
-            />
-          </View>
-        )}
+          {/* Update Settings Button - Only show for subscribed users */}
+          {isSubscribed && (
+            <View style={styles.footer}>
+              <VibeButton
+                label="UPDATE SETTINGS"
+                onPress={handleSubscribe}
+                style={styles.subscribeButton}
+              />
+            </View>
+          )}
+        </ScrollView>
       </View>
     </Modal>
   );
@@ -159,7 +158,7 @@ const styles = StyleSheet.create({
     width: 50,
   },
   content: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: 16,
   },
   section: {

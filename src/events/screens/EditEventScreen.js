@@ -174,12 +174,9 @@ export default function EditEventScreen({ navigation, route }) {
       trackAttendance: eventData.trackAttendance || false,
       notificationSettings: {
         enabled: eventData.notificationSettings?.enabled ?? true,
-        reminderTiming:
-          eventData.notificationSettings?.reminderTiming ?? '1hour',
         notifyOnJoin: eventData.notificationSettings?.notifyOnJoin ?? true,
         notifyOnLeave: eventData.notificationSettings?.notifyOnLeave ?? true,
         sendReminders: eventData.notificationSettings?.sendReminders ?? true,
-        sendDayBefore: eventData.notificationSettings?.sendDayBefore ?? true,
         newComments: eventData.notificationSettings?.newComments ?? true,
         customMessage: eventData.notificationSettings?.customMessage || '',
       },

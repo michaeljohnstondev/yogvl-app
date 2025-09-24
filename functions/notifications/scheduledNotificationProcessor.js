@@ -4,6 +4,7 @@
 
 const functions = require('firebase-functions/v2');
 const admin = require('firebase-admin');
+const { reminderToLabel, isValidReminderTemplate } = require('../utils/reminderUtils');
 
 /**
  * Scheduled function to process pending user notifications
@@ -37,13 +38,28 @@ exports.processScheduledNotifications = functions.scheduler.onSchedule(
         console.log(`[ScheduledProcessor] Processing notification ${notificationId} for user ${userId}`);
 
         try {
+          // Validate reminder template format if this is an event reminder
+          if (notificationData.type === 'event_reminder' && notificationData.reminderType) {
+            if (!isValidReminderTemplate(notificationData.reminderType)) {
+              console.warn(`[ScheduledProcessor] Invalid reminder template format: ${notificationData.reminderType} for notification ${notificationId}`);
+              // Mark as failed due to invalid format
+              await notificationDoc.ref.update({
+                status: 'failed',
+                error: `Invalid reminder template format: ${notificationData.reminderType}`,
+                lastAttemptAt: admin.firestore.FieldValue.serverTimestamp(),
+              });
+              continue;
+            }
+          }
+
           // Create notification trigger for FCM processing
           const triggerId = `scheduled_${notificationData.type}_${userId}_${Date.now()}`;
           const notificationTriggerRef = admin
             .firestore()
             .doc(`notificationTriggers/${triggerId}`);
 
-          await notificationTriggerRef.set({
+          // Enhanced notification data with reminder context
+          const triggerData = {
             type: 'engine_notification',
             subType: notificationData.type,
             userId: userId,
@@ -57,7 +73,15 @@ exports.processScheduledNotifications = functions.scheduler.onSchedule(
             },
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             processed: false,
-          });
+          };
+
+          // Add reminder-specific data for event reminders
+          if (notificationData.type === 'event_reminder' && notificationData.reminderType) {
+            triggerData.data.reminderType = notificationData.reminderType;
+            triggerData.data.reminderLabel = reminderToLabel(notificationData.reminderType);
+          }
+
+          await notificationTriggerRef.set(triggerData);
 
           // Mark the scheduled notification as sent
           await notificationDoc.ref.update({

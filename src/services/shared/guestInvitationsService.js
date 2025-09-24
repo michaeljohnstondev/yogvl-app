@@ -10,7 +10,6 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../auth/services/firebase';
 import {
-  notifyEventInvitation,
   notifyInvitationAccepted,
 } from './invitationNotificationsService';
 
@@ -65,9 +64,20 @@ export const sendGuestInvitation = async (
     // Use batch to atomically update both event and user documents
     const batch = writeBatch(db);
 
-    // Add user ID to event's invitations array
+    // Add inviter context
+    const inviterName =
+      inviterData?.userdata?.contactInfo?.displayName ||
+      inviterData?.userdata?.contactInfo?.firstName ||
+      'Someone';
+
+    // Add user ID to event's invitations array AND store inviter info
     batch.update(eventRef, {
       invitations: arrayUnion(recipientId),
+      lastInviter: {
+        id: inviterId,
+        name: inviterName,
+        timestamp: Date.now()
+      }
     });
 
     // Add event ID to user's pending invitations array
@@ -77,23 +87,6 @@ export const sendGuestInvitation = async (
     });
 
     await batch.commit();
-
-    // Send in-app notification
-    const inviterName =
-      inviterData?.userdata?.contactInfo?.firstName ||
-      inviterData?.userdata?.contactInfo?.displayName ||
-      'Someone';
-    const eventTitle = eventData?.title || 'Untitled Event';
-
-    await notifyEventInvitation({
-      guestId: recipientId,
-      inviterId,
-      inviterName,
-      eventId,
-      studioId, // Add studioId for proper event lookup
-      eventTitle,
-      invitationId: `${inviterId}_${recipientId}_${eventId}_${Date.now()}`, // For notification tracking
-    });
 
     return { success: true };
   } catch (error) {

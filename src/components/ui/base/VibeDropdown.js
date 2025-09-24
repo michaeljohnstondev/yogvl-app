@@ -2,6 +2,15 @@ import React, { useState, useRef } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import theme from '../../../theme/themes';
 
+/**
+ * VibeDropdown Z-Index Fix:
+ *
+ * If dropdown appears behind other elements:
+ * 1. Make sure z-index of parent containers/sections the dropdown is in is higher than competing sections
+ * 2. Make sure the 2 sections don't share the same styles (create specific styles if needed)
+ * 3. Add overflow: 'visible' to ScrollView containers
+ */
+
 export default function VibeDropdown({
   options = [],
   selectedValue,
@@ -90,6 +99,8 @@ export default function VibeDropdown({
 const styles = StyleSheet.create({
   container: {
     position: 'relative',
+    zIndex: 99,
+    elevation: 99,
   },
   selector: {
     borderWidth: 1,
@@ -129,9 +140,9 @@ const styles = StyleSheet.create({
     top: '100%',
     left: 0,
     right: 0,
-    zIndex: 9999,
-    elevation: 9999,
-    backgroundColor: theme.colors.background || '#1a1a1a',
+    zIndex: 99,
+    elevation: 99,
+    backgroundColor: theme.colors.background,
     borderRadius: theme.sizes.borderRadius,
     borderTopLeftRadius: 0,
     borderTopRightRadius: 0,
@@ -142,8 +153,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
+    shadowOpacity: 0.8,
     shadowRadius: 16,
+    // Ensure solid background
+    opacity: 1,
   },
   optionsList: { maxHeight: 300 },
   option: {

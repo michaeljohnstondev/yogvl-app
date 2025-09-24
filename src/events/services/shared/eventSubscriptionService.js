@@ -9,16 +9,14 @@ import {
   arrayRemove,
   increment,
   runTransaction,
+  Timestamp,
 } from 'firebase/firestore';
 import { db } from '../../../auth/services/firebase';
 import {
   updateEventSubscription,
   updateEventUnsubscription,
 } from '../../lib/userMetrics';
-import {
-  notifyHostOfEventJoin,
-  notifyHostOfEventLeave,
-} from '../../../services/shared/eventNotificationsService';
+// Event subscription notifications handled by Cloud Functions
 import { fetchEventDetails } from './eventCoreService';
 
 /**
@@ -84,6 +82,25 @@ export const subscribeToEvent = async (
         subscriberCount: increment(1),
       });
 
+      // Create subscriber document to trigger onEventSubscribed Cloud Function
+      const subscriberRef = doc(
+        db,
+        'studios',
+        studioId,
+        'events',
+        eventId,
+        'subscribers',
+        userId
+      );
+
+      transaction.set(subscriberRef, {
+        userId,
+        subscribedAt: Timestamp.now(),
+        role: 'guest',
+        invitedBy: eventData.createdBy, // Default to host, could be updated for invitations
+        source: 'direct_join',
+      });
+
       console.log(
         `[EventSubscription] User ${userId} subscribed to event ${eventId}`
       );
@@ -123,13 +140,7 @@ export const subscribeToEvent = async (
             ? userDoc.data()?.userdata?.contactInfo?.displayName || 'Someone'
             : 'Someone';
 
-          await notifyHostOfEventJoin({
-            hostId: eventData.createdBy,
-            eventId: eventId,
-            eventTitle: eventData.title,
-            subscriberId: userId,
-            subscriberName: userName,
-          });
+          // Host notification handled by onEventSubscribed Cloud Function
         }
       } catch (error) {
         console.error(
@@ -180,6 +191,19 @@ export const unsubscribeFromEvent = async (userId, eventId, studioId) => {
         subscriberCount: increment(-1),
       });
 
+      // Delete subscriber document to trigger onEventUnsubscribed Cloud Function
+      const subscriberRef = doc(
+        db,
+        'studios',
+        studioId,
+        'events',
+        eventId,
+        'subscribers',
+        userId
+      );
+
+      transaction.delete(subscriberRef);
+
       console.log(
         `[EventSubscription] User ${userId} unsubscribed from event ${eventId}`
       );
@@ -214,13 +238,7 @@ export const unsubscribeFromEvent = async (userId, eventId, studioId) => {
             ? userDoc.data()?.userdata?.contactInfo?.displayName || 'Someone'
             : 'Someone';
 
-          await notifyHostOfEventLeave({
-            hostId: eventData.createdBy,
-            eventId: eventId,
-            eventTitle: eventData.title,
-            unsubscriberId: userId,
-            unsubscriberName: userName,
-          });
+          // Host notification handled by onEventUnsubscribed Cloud Function
         }
       } catch (error) {
         console.error(

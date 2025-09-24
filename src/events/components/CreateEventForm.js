@@ -12,7 +12,7 @@ import {
   Dimensions,
   BackHandler,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 
 // Components
 import {
@@ -38,6 +38,9 @@ import { AdditionalSettings } from './additionalSettings/AdditionalSettings';
 import GuestListViewer from './guests/GuestListViewer';
 import ManageNotificationsButton from './notificationSettings/ManageNotificationsButton';
 // NotificationSettings is now a screen, not a component
+
+// Services
+import CustomTemplateService from '../../services/CustomTemplateService';
 
 // Theme
 import theme from '../../theme/themes';
@@ -99,6 +102,20 @@ export default function CreateEventForm({
   currentCohosts = [],
 }) {
   const navigation = useNavigation();
+
+  // Listen for notification settings updates from HostEventNotifications screen
+  useFocusEffect(
+    useCallback(() => {
+      const unsubscribe = navigation.addListener('settingsUpdated', (e) => {
+        const updatedSettings = e.data;
+        if (updatedSettings && updateField) {
+          updateField('notificationSettings', updatedSettings);
+        }
+      });
+      return unsubscribe;
+    }, [navigation, updateField])
+  );
+
   const scrollViewRef = useRef(null);
   const sectionRefs = useRef({});
   const fieldRefs = useRef({}); // Individual field references
@@ -149,7 +166,25 @@ export default function CreateEventForm({
   );
 
   // Notification settings handlers
-  const handleManageNotifications = useCallback(() => {
+  const handleManageNotifications = useCallback(async () => {
+    // Load saved custom templates for host context
+    let reminderTemplates;
+    try {
+      reminderTemplates = await CustomTemplateService.getTemplates(userData?.uid, 'hosting');
+      console.log('[CreateEventForm] Loaded host templates:', Object.keys(reminderTemplates).length);
+    } catch (error) {
+      console.warn('[CreateEventForm] Failed to load custom templates, using defaults:', error);
+      // Fallback to simple settings if template loading fails
+      reminderTemplates = {
+        '15min': false,
+        '30min': false,
+        '1hour': true,
+        '2hour': false,
+        '1day': true,
+        '1week': false,
+      };
+    }
+
     // Ensure complete notification settings with all required fields
     const completeNotificationSettings = {
       enabled: formData.notificationSettings?.enabled ?? true,
@@ -158,35 +193,15 @@ export default function CreateEventForm({
       newComments: formData.notificationSettings?.newComments ?? true,
       hostChanges: formData.notificationSettings?.hostChanges ?? true,
       eventReminders: formData.notificationSettings?.eventReminders ?? true,
-      reminderTiming: formData.notificationSettings?.reminderTiming ?? '1hour',
-      dayBeforeReminder:
-        formData.notificationSettings?.dayBeforeReminder ?? true,
       hostComments: formData.notificationSettings?.hostComments ?? true,
-      reminderTemplates: formData.notificationSettings?.reminderTemplates || [
-        {
-          id: '15min',
-          amount: 15,
-          unit: 'minutes',
-          enabled: true,
-          label: '15 min',
-        },
-        {
-          id: '1hour',
-          amount: 1,
-          unit: 'hours',
-          enabled: true,
-          label: '1 hour',
-        },
-        { id: '1day', amount: 1, unit: 'days', enabled: false, label: '1 day' },
-      ],
+      reminderTemplates: formData.notificationSettings?.reminderTemplates || reminderTemplates,
     };
 
-    navigation.navigate('EventNotificationSettings', {
+    navigation.navigate('HostEventNotifications', {
       notificationSettings: completeNotificationSettings,
       userDefaults: userData?.userdata?.settings?.notifications,
       currentUserId: userData?.uid,
-      eventDateTime: dateTimeValues?.event?.value,
-      onUpdateSettings: updateField,
+      eventDateTime: dateTimeValues?.event?.value ? dateTimeValues.event.value.toISOString() : null,
       userContext: 'hosting', // User is hosting this event
     });
   }, [

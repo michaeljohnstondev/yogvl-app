@@ -41,7 +41,7 @@ import { ContactInfoScreen, LocationScreen } from './auth/screens';
 import {
   CreateEventScreen,
   EventDetailScreen,
-  EventNotificationSettingsScreen,
+  HostEventNotificationsScreen,
   InviteGuestsScreen,
   InvitationsScreen,
   AttendanceScreen,
@@ -431,8 +431,8 @@ export default function Navigation() {
               <Stack.Screen name="Home" component={HomeScreen} />
               <Stack.Screen name="CreateEvent" component={CreateEventScreen} />
               <Stack.Screen
-                name="EventNotificationSettings"
-                component={EventNotificationSettingsScreen}
+                name="HostEventNotifications"
+                component={HostEventNotificationsScreen}
               />
               <Stack.Screen name="EventDetail" component={EventDetailScreen} />
               <Stack.Screen name="EditEvent" component={EditEventScreen} />

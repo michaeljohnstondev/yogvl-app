@@ -8,9 +8,11 @@ import { db } from '../auth/services/firebase';
  */
 class CustomTemplateService {
   /**
-   * Get saved custom templates for a user
+   * Get saved custom templates for a user with context support
+   * @param {string} userId - User ID
+   * @param {string} context - 'hosting' or 'attending' context
    */
-  static async getSavedCustomTemplates(userId) {
+  static async getSavedCustomTemplates(userId, context = null) {
     try {
       if (!userId) {
         console.warn('[CustomTemplates] No user ID provided');
@@ -26,11 +28,24 @@ class CustomTemplateService {
       }
 
       const userData = userDoc.data();
+
+      // If no context specified, use legacy path for backward compatibility
+      if (!context) {
+        const savedTemplates =
+          userData?.userdata?.settings?.notifications?.customTemplates || [];
+        console.log(
+          `[CustomTemplates] Found ${savedTemplates.length} saved custom templates (legacy) for user`
+        );
+        return savedTemplates;
+      }
+
+      // Context-specific template storage
+      const contextPath = context === 'hosting' ? 'hostingTemplates' : 'attendingTemplates';
       const savedTemplates =
-        userData?.userdata?.settings?.notifications?.customTemplates || [];
+        userData?.userdata?.settings?.notifications?.[contextPath] || [];
 
       console.log(
-        `[CustomTemplates] Found ${savedTemplates.length} saved custom templates for user`
+        `[CustomTemplates] Found ${savedTemplates.length} saved custom templates for ${context} context`
       );
       return savedTemplates;
     } catch (error) {
@@ -43,93 +58,54 @@ class CustomTemplateService {
   }
 
   /**
-   * Save custom templates to user preferences
-   * This merges new custom templates with existing ones, avoiding duplicates
+   * Save template settings - simple key-value format
+   * @param {string} userId - User ID
+   * @param {Object} templateSettings - Object like {'15min': true, '1hour': false, '5min': true}
+   * @param {string} context - 'hosting' or 'attending' context
    */
-  static async saveCustomTemplates(userId, reminderTemplates) {
+  static async saveTemplateSettings(userId, templateSettings, context = null) {
     try {
       if (!userId) {
         console.error('[CustomTemplates] No user ID provided');
         return false;
       }
 
-      if (!reminderTemplates || !Array.isArray(reminderTemplates)) {
-        console.warn('[CustomTemplates] Invalid reminder templates provided');
+      if (!templateSettings || typeof templateSettings !== 'object') {
+        console.warn('[CustomTemplates] Invalid template settings provided');
         return false;
       }
 
-      // Filter to only custom templates (not default ones)
-      const customTemplates = reminderTemplates.filter(
-        (template) => template.id && template.id.startsWith('custom_')
-      );
-
-      if (customTemplates.length === 0) {
-        console.log('[CustomTemplates] No custom templates to save');
-        return true; // Not an error, just nothing to save
-      }
-
-      // Get existing saved templates
-      const existingSavedTemplates = await this.getSavedCustomTemplates(userId);
-
-      // Merge templates, avoiding duplicates based on amount and unit
-      const mergedTemplates = [...existingSavedTemplates];
-
-      for (const newTemplate of customTemplates) {
-        const isDuplicate = mergedTemplates.some(
-          (existing) =>
-            existing.amount === newTemplate.amount &&
-            existing.unit === newTemplate.unit
-        );
-
-        if (!isDuplicate) {
-          // Create a clean template object for persistence
-          const templateToSave = {
-            id: newTemplate.id,
-            amount: newTemplate.amount,
-            unit: newTemplate.unit,
-            label: newTemplate.label,
-            enabled: true, // Always save as enabled for reuse
-            savedAt: new Date(),
-          };
-
-          mergedTemplates.push(templateToSave);
-          console.log(
-            `[CustomTemplates] Adding new custom template: ${templateToSave.label}`
-          );
-        }
-      }
-
-      // Save to user settings
       const userRef = doc(db, 'users', userId);
+      const contextPath = context === 'hosting' ? 'hosting' : 'attending';
+      const storagePath = `userdata.settings.notifications.${contextPath}.reminderTemplates`;
+
       await updateDoc(userRef, {
-        'userdata.settings.notifications.customTemplates': mergedTemplates,
+        [storagePath]: templateSettings,
         'userdata.settings.lastUpdated': new Date(),
       });
 
-      console.log(
-        `[CustomTemplates] Successfully saved ${customTemplates.length} custom templates (${mergedTemplates.length} total saved)`
-      );
+      console.log(`[CustomTemplates] Saved template settings for ${context} context:`, templateSettings);
       return true;
     } catch (error) {
-      console.error(
-        '[CustomTemplates] Failed to save custom templates:',
-        error
-      );
+      console.error('[CustomTemplates] Failed to save template settings:', error);
       return false;
     }
   }
 
   /**
-   * Remove a specific custom template from saved templates
+   * Remove a specific custom template from saved templates with context support
+   * @param {string} userId - User ID
+   * @param {string} templateId - Template ID to remove
+   * @param {string} context - 'hosting' or 'attending' context
    */
-  static async removeCustomTemplate(userId, templateId) {
+  static async removeCustomTemplate(userId, templateId, context = null) {
     try {
       if (!userId || !templateId) {
         console.error('[CustomTemplates] Missing user ID or template ID');
         return false;
       }
 
-      const savedTemplates = await this.getSavedCustomTemplates(userId);
+      const savedTemplates = await this.getSavedCustomTemplates(userId, context);
       const updatedTemplates = savedTemplates.filter(
         (template) => template.id !== templateId
       );
@@ -140,8 +116,14 @@ class CustomTemplateService {
       }
 
       const userRef = doc(db, 'users', userId);
+
+      // Determine the storage path based on context
+      const storagePath = context
+        ? `userdata.settings.notifications.${context === 'hosting' ? 'hostingTemplates' : 'attendingTemplates'}`
+        : 'userdata.settings.notifications.customTemplates'; // Legacy path for backward compatibility
+
       await updateDoc(userRef, {
-        'userdata.settings.notifications.customTemplates': updatedTemplates,
+        [storagePath]: updatedTemplates,
         'userdata.settings.lastUpdated': new Date(),
       });
 
@@ -157,64 +139,172 @@ class CustomTemplateService {
   }
 
   /**
-   * Get combined templates (defaults + saved custom templates)
-   * This is what should be used to initialize the template list
+   * Get enabled template IDs for a user context (default settings)
+   * @param {string} userId - User ID
+   * @param {string} context - 'hosting' or 'attending' context
    */
-  static async getCombinedTemplates(userId) {
+  static async getEnabledTemplateIds(userId, context = null) {
     try {
-      // Default templates
-      const defaultTemplates = [
-        {
-          id: '15min',
-          amount: 15,
-          unit: 'minutes',
-          enabled: true,
-          label: '15 min',
-        },
-        {
-          id: '1hour',
-          amount: 1,
-          unit: 'hours',
-          enabled: true,
-          label: '1 hour',
-        },
-        { id: '1day', amount: 1, unit: 'days', enabled: false, label: '1 day' },
-      ];
+      if (!userId) {
+        console.warn('[CustomTemplates] No user ID provided for enabled templates');
+        return [];
+      }
 
-      // Get saved custom templates
-      const savedCustomTemplates = await this.getSavedCustomTemplates(userId);
+      const userRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userRef);
 
-      // Combine them
-      const combinedTemplates = [...defaultTemplates, ...savedCustomTemplates];
+      if (!userDoc.exists()) {
+        console.log('[CustomTemplates] User document not found for enabled templates');
+        return [];
+      }
+
+      const userData = userDoc.data();
+
+      // Context-specific enabled template storage
+      const enabledPath = context === 'hosting' ? 'hostingDefaults' : 'attendingDefaults';
+      const enabledTemplateIds =
+        userData?.userdata?.settings?.notifications?.[enabledPath]?.enabledTemplates || [];
 
       console.log(
-        `[CustomTemplates] Combined ${defaultTemplates.length} default + ${savedCustomTemplates.length} custom templates`
+        `[CustomTemplates] Found ${enabledTemplateIds.length} enabled template IDs for ${context} context`
       );
-      return combinedTemplates;
+      return enabledTemplateIds;
     } catch (error) {
       console.error(
-        '[CustomTemplates] Failed to get combined templates:',
+        '[CustomTemplates] Failed to get enabled template IDs:',
         error
       );
-      // Return defaults on error
-      return [
-        {
-          id: '15min',
-          amount: 15,
-          unit: 'minutes',
-          enabled: true,
-          label: '15 min',
-        },
-        {
-          id: '1hour',
-          amount: 1,
-          unit: 'hours',
-          enabled: true,
-          label: '1 hour',
-        },
-        { id: '1day', amount: 1, unit: 'days', enabled: false, label: '1 day' },
-      ];
+      return [];
     }
+  }
+
+  /**
+   * Save enabled template IDs for a user context (default settings)
+   * @param {string} userId - User ID
+   * @param {Array} enabledTemplateIds - Array of template IDs that should be enabled by default
+   * @param {string} context - 'hosting' or 'attending' context
+   */
+  static async saveEnabledTemplateIds(userId, enabledTemplateIds, context = null) {
+    try {
+      if (!userId) {
+        console.error('[CustomTemplates] No user ID provided for saving enabled templates');
+        return false;
+      }
+
+      if (!Array.isArray(enabledTemplateIds)) {
+        console.warn('[CustomTemplates] Invalid enabled template IDs provided');
+        return false;
+      }
+
+      const userRef = doc(db, 'users', userId);
+
+      // Context-specific enabled template storage
+      const enabledPath = context === 'hosting' ? 'hostingDefaults' : 'attendingDefaults';
+      const storagePath = `userdata.settings.notifications.${enabledPath}.enabledTemplates`;
+
+      await updateDoc(userRef, {
+        [storagePath]: enabledTemplateIds,
+        'userdata.settings.lastUpdated': new Date(),
+      });
+
+      console.log(
+        `[CustomTemplates] Successfully saved ${enabledTemplateIds.length} enabled template IDs for ${context} context`
+      );
+      return true;
+    } catch (error) {
+      console.error(
+        '[CustomTemplates] Failed to save enabled template IDs:',
+        error
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Get unified template array with context support
+   * @param {string} userId - User ID
+   * @param {string} context - 'hosting' or 'attending' context
+   */
+  static async getCombinedTemplates(userId, context = null) {
+    try {
+      if (!userId) {
+        console.warn('[CustomTemplates] No user ID provided');
+        return this.getDefaultTemplates();
+      }
+
+      // Get user's saved template array for this context
+      const savedTemplates = await this.getSavedCustomTemplates(userId, context);
+
+      // If user has no saved templates yet, initialize with defaults
+      if (savedTemplates.length === 0) {
+        const defaultTemplates = this.getDefaultTemplates();
+        await this.saveCustomTemplates(userId, defaultTemplates, context);
+        return defaultTemplates;
+      }
+
+      console.log(
+        `[CustomTemplates] Loaded ${savedTemplates.length} templates for ${context || 'legacy'} context`
+      );
+      return savedTemplates;
+    } catch (error) {
+      console.error(
+        '[CustomTemplates] Failed to get templates:',
+        error
+      );
+      return this.getDefaultTemplates();
+    }
+  }
+
+  /**
+   * Get template settings for user context
+   * @param {string} userId - User ID
+   * @param {string} context - 'hosting' or 'attending' context
+   */
+  static async getTemplates(userId, context = null) {
+    try {
+      if (!userId) {
+        console.warn('[CustomTemplates] No user ID provided');
+        return {};
+      }
+
+      const userRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userRef);
+
+      if (!userDoc.exists()) {
+        console.log('[CustomTemplates] User document not found');
+        return {};
+      }
+
+      const userData = userDoc.data();
+      const contextPath = context === 'hosting' ? 'hosting' : 'attending';
+      const savedSettings = userData?.userdata?.settings?.notifications?.[contextPath]?.reminderTemplates;
+
+      console.log(`[CustomTemplates] Loaded template settings for ${context || 'legacy'} context`);
+      return savedSettings || {};
+    } catch (error) {
+      console.error('[CustomTemplates] Failed to get template settings:', error);
+      return {};
+    }
+  }
+
+  /**
+   * Initialize reminder settings for new users - ONLY called during user creation
+   * @param {string} userId - User ID
+   * @param {string} context - 'hosting' or 'attending' context
+   */
+  static async initializeReminderSettings(userId, context) {
+    const initialSettings = {
+      '15min': false,
+      '30min': false,
+      '1hour': true,
+      '2hour': false,
+      '1day': true,
+      '1week': false,
+    };
+
+    await this.saveTemplateSettings(userId, initialSettings, context);
+    console.log(`[CustomTemplates] Initialized reminder settings for ${context} context`);
+    return initialSettings;
   }
 }
 

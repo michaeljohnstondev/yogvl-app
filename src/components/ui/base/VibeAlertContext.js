@@ -119,7 +119,7 @@ export const VibeAlertProvider = ({ children }) => {
       case 'warning':
         return { border: theme.colors.vibeOrange, icon: '⚠️' };
       case 'confirm':
-        return { border: theme.colors.vibePurple, icon: '❓' };
+        return { border: theme.colors.vibeRoyalBlue, icon: '❓' };
       case 'subscribe':
         return { border: theme.colors.vibeBlue, icon: '🔔' };
       case 'menu':

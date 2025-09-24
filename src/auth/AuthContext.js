@@ -36,6 +36,8 @@ export const AuthProvider = ({ children, user, userData }) => {
     userData?.userdata?.contactInfo?.lastName,
     userData?.userdata?.contactInfo?.profilePicture,
     userData?.userdata?.studios?.default?.studioId,
+    userData?.userdata?.settings?.notifications?.hosting?.reminderTemplates,
+    userData?.userdata?.settings?.notifications?.attending?.reminderTemplates,
   ]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

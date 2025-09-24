@@ -414,18 +414,8 @@ export const followUser = async (followerId, targetUserId, followerData) => {
     // Send notification (import dynamically to avoid circular deps)
     try {
       console.log(
-        `[followUser] Sending follow notification from ${followerId} to ${targetUserId}`
+        `[followUser] Follow notification will be sent by onUserFollowed Cloud Function`
       );
-      const { notifyNewFollower } = await import('./notifications');
-      const notificationResult = await notifyNewFollower({
-        targetUserId,
-        followerId,
-        followerName:
-          `${followerData?.userdata?.contactInfo?.firstName || ''} ${followerData?.userdata?.contactInfo?.lastName || ''}`.trim() ||
-          followerData?.userdata?.contactInfo?.displayName ||
-          'Someone',
-      });
-      console.log(`[followUser] Notification result:`, notificationResult);
     } catch (notificationError) {
       console.warn(
         `[followUser] Follow successful but notification failed:`,

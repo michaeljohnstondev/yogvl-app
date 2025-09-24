@@ -22,6 +22,8 @@ const EventActionButtons = memo(function EventActionButtons({
   studioId,
   vibeAlert,
   currentUserId, // Add currentUserId prop for validation
+  pendingCohostInvitation,
+  onAcceptCohostInvitation,
 }) {
   // Simplified validation for admin view
   React.useEffect(() => {
@@ -71,6 +73,21 @@ const EventActionButtons = memo(function EventActionButtons({
   const handleManageAttendance = () => {
     navigation.navigate('EventAttendance', { eventId, studioId });
   };
+
+  // Calculate time-based attendance management availability
+  const getAttendanceManagementAvailability = () => {
+    if (!event || !event.eventTimestamp) return false;
+
+    const now = new Date();
+    const eventTime = new Date(event.eventTimestamp.seconds * 1000);
+    const threeHoursBefore = new Date(eventTime.getTime() - 3 * 60 * 60 * 1000); // 3 hours before
+    const thirtyMinutesAfter = new Date(eventTime.getTime() + 30 * 60 * 1000); // 30 minutes after
+
+    // Available from 3 hours before until 30 minutes after event
+    return now >= threeHoursBefore && now <= thirtyMinutesAfter;
+  };
+
+  const shouldShowManageAttendance = permissions.canManageAttendance && getAttendanceManagementAvailability();
 
   const handleSaveAsTemplate = () => {
     vibeAlert.confirm(
@@ -149,6 +166,17 @@ const EventActionButtons = memo(function EventActionButtons({
         {/* Non-host user buttons */}
         {!isEventPast && shouldShowGuestView && (
           <>
+            {/* Cohost invitation button - show above other buttons for prominence */}
+            {pendingCohostInvitation && (
+              <VibeButton
+                label="JOIN AS COHOST"
+                onPress={onAcceptCohostInvitation}
+                disabled={isLoading}
+                variant="primary"
+                style={styles.cohostButton}
+              />
+            )}
+
             {/* Invite guests button for non-hosts (public events or private with guest invites allowed) */}
             {(!event?.isPrivate ||
               (event?.allowGuestInvites && isSubscribed)) && (
@@ -169,16 +197,17 @@ const EventActionButtons = memo(function EventActionButtons({
           </>
         )}
 
+        {/* Manage Attendance - Available 3hrs before to 30min after event */}
+        {shouldShowHostView && shouldShowManageAttendance && (
+          <VibeButton
+            label="MANAGE ATTENDANCE"
+            onPress={handleManageAttendance}
+          />
+        )}
+
         {/* Host buttons for active events */}
         {!isEventPast && shouldShowHostView && (
           <>
-            {/* Manage Attendance */}
-            {permissions.canManageAttendance && (
-              <VibeButton
-                label="MANAGE ATTENDANCE"
-                onPress={handleManageAttendance}
-              />
-            )}
 
             {/* Host invite button */}
             <VibeButton
@@ -248,5 +277,10 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: theme.colors.vibeBlue,
     gap: 12,
+  },
+  cohostButton: {
+    borderColor: theme.colors.vibeGreen,
+    borderWidth: 2,
+    backgroundColor: theme.colors.vibeGreen + '20', // 20% opacity
   },
 });

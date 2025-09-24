@@ -17,9 +17,8 @@ import {
   getDocs,
   deleteDoc,
   setDoc,
-} from '../../lib/firebase/index.js';
+} from 'firebase/firestore';
 import { db } from '../../auth/services/firebase.js';
-import fcmService from '../fcmService.js';
 
 // Unified notification types and priorities
 export const NOTIFICATION_TYPES = {
@@ -28,6 +27,8 @@ export const NOTIFICATION_TYPES = {
   EVENT_UPDATE: 'event_update',
   EVENT_CANCELLED: 'event_cancelled',
   EVENT_REMINDER: 'event_reminder',
+  EVENT_RECAP: 'event_recap',
+  ATTENDANCE_REMINDER: 'attendance_reminder',
   FOLLOW_NOTIFICATION: 'follow_notification',
   FOLLOW_REQUEST: 'follow_request', // When someone follows you
   FRIEND_REQUEST: 'friend_request', // When someone sends a friend request
@@ -97,6 +98,18 @@ const NOTIFICATION_TEMPLATES = {
         default:
           return `Reminder: "${data.eventTitle}" is coming up`;
       }
+    },
+  },
+  [NOTIFICATION_TYPES.ATTENDANCE_REMINDER]: {
+    title: 'Mark Attendance',
+    getMessage: (data) => `Mark your attendance for "${data.eventTitle}"`,
+  },
+  [NOTIFICATION_TYPES.EVENT_RECAP]: {
+    title: 'Event Recap Available',
+    getMessage: (data) => {
+      const attendedCount = data.attendedCount || 0;
+      const totalCount = data.totalSubscribers || 0;
+      return `Recap for "${data.eventTitle}" is ready! ${attendedCount} of ${totalCount} attendees showed up.`;
     },
   },
   [NOTIFICATION_TYPES.FOLLOW_REQUEST]: {
@@ -383,12 +396,16 @@ class NotificationEngine {
       );
 
       // Validate that all notifications have required authorization fields
-      // EVENT_REMINDER notifications don't require senderId as they're system-generated
+      // EVENT_REMINDER and EVENT_RECAP notifications don't require senderId as they're system-generated
+      const systemGeneratedTypes = [
+        NOTIFICATION_TYPES.EVENT_REMINDER,
+        NOTIFICATION_TYPES.EVENT_RECAP
+      ];
       const invalidNotifications = notifications.filter(
         (notif) =>
           !notif.userId ||
           !notif.type ||
-          (notif.type !== NOTIFICATION_TYPES.EVENT_REMINDER && !notif.senderId)
+          (!systemGeneratedTypes.includes(notif.type) && !notif.senderId)
       );
 
       if (invalidNotifications.length > 0) {
@@ -694,6 +711,39 @@ class NotificationEngine {
                 reason: 'Must be event host or cohost',
               };
             }
+
+            // CRITICAL: Check event-specific notification settings
+            const notificationSettings = eventData.notificationSettings || {};
+
+            // Check if event notifications are globally disabled for this event
+            if (notificationSettings.enabled === false) {
+              return {
+                authorized: false,
+                reason: 'Event notifications disabled for this event'
+              };
+            }
+
+            // Check specific notification type settings
+            if (type === NOTIFICATION_TYPES.EVENT_JOIN && notificationSettings.notifyOnJoin === false) {
+              return {
+                authorized: false,
+                reason: 'Join notifications disabled for this event'
+              };
+            }
+
+            if (type === NOTIFICATION_TYPES.EVENT_LEAVE && notificationSettings.notifyOnLeave === false) {
+              return {
+                authorized: false,
+                reason: 'Leave notifications disabled for this event'
+              };
+            }
+
+            if (type === NOTIFICATION_TYPES.EVENT_UPDATE && notificationSettings.newComments === false) {
+              return {
+                authorized: false,
+                reason: 'Comment notifications disabled for this event'
+              };
+            }
           }
           break;
 
@@ -760,6 +810,42 @@ class NotificationEngine {
           // Event reminders are system-generated notifications
           // Authorization is handled at the scheduling level
           // No additional authorization needed here since they're beneficial to users
+          break;
+
+        case NOTIFICATION_TYPES.ATTENDANCE_REMINDER:
+          // Attendance reminders are system-generated notifications sent to hosts
+          // Authorization is handled at the scheduling level
+          // No additional authorization needed here since they're beneficial to hosts
+          break;
+
+        case NOTIFICATION_TYPES.EVENT_RECAP:
+          // Event recap notifications are system-generated notifications sent to hosts
+          // Check if host has event recap enabled in their notification settings
+          if (data.eventId && data.studioId) {
+            const eventRef = doc(
+              db,
+              'studios',
+              data.studioId,
+              'events',
+              data.eventId
+            );
+            const eventDoc = await getDoc(eventRef);
+
+            if (!eventDoc.exists()) {
+              return { authorized: false, reason: 'Event does not exist' };
+            }
+
+            const eventData = eventDoc.data();
+            const notificationSettings = eventData.notificationSettings || {};
+
+            // Check if event recap notifications are disabled for this event
+            if (notificationSettings.eventRecap === false) {
+              return {
+                authorized: false,
+                reason: 'Event recap notifications disabled for this event'
+              };
+            }
+          }
           break;
 
         default:

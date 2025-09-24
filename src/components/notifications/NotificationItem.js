@@ -294,6 +294,20 @@ export default function NotificationItem({
             onPress(notification);
           }
         }
+      } else if (action.action === 'manage_cohost_notifications') {
+        // Navigate to host notification settings for the specific event
+        console.log('[NotificationItem] Managing cohost notifications for:', {
+          eventId: notification.data.eventId,
+          eventTitle: notification.data.eventTitle,
+          cohostId: notification.data.cohostId
+        });
+
+        // For now, show info that this will be available soon
+        // In the future, this would navigate to event-specific host notification settings
+        vibeAlert.info(
+          'Notification Management',
+          `Event-specific notification settings for "${notification.data.eventTitle}" will be available in a future update!\n\nFor now, you can manage your general hosting notification preferences in Settings.`
+        );
       }
     } catch (error) {
       console.error('Error handling notification action:', error);
@@ -545,6 +559,8 @@ export default function NotificationItem({
                             styles.actionButton,
                             action.action === 'accept_invitation'
                               ? styles.acceptButton
+                              : action.action === 'manage_cohost_notifications'
+                              ? styles.manageButton
                               : styles.viewButton,
                           ]}
                           onPress={() => handleNotificationAction(action)}
@@ -751,6 +767,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: theme.colors.vibeBlue,
+  },
+  manageButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: theme.colors.vibePink,
   },
   followBackButton: {
     backgroundColor: theme.colors.vibeBlue,

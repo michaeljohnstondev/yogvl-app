@@ -3,6 +3,7 @@
 This document defines the actual Firestore database schema for Big Vibe Studios based on the real implementation.
 
 ## User Collection Structure
+
 **Collection**: `users/{userId}`
 
 Based on actual user data from your system:
@@ -49,8 +50,50 @@ Based on actual user data from your system:
     settings: {
       accessibility: object,  // Accessibility preferences
       display: object,        // Display preferences
-      notifications: object,  // Notification settings
       preferences: object,    // General preferences
+
+      // Notification settings (detailed schema)
+      notifications: {
+        app: {                // App-level notification preferences
+          pushNotifications: boolean,    // Enable push notifications
+          newFollowers: boolean,         // Notify when someone follows user
+          eventInvitations: boolean,     // Notify when invited to events
+          suggestedEvents: boolean,      // Notify when new events match user interests
+        },
+        hosting: {            // Default notification settings when hosting events
+          enabled: boolean,                    // Enable hosting notifications
+          hostComments: boolean,               // Notify about host comments
+          newComments: boolean,                // Notify about all comments
+          notifyOnJoin: boolean,               // Notify when someone joins
+          notifyOnLeave: boolean,              // Notify when someone leaves
+          eventRecap: boolean,                 // Send post-event recap notification
+          reminderTemplates: {                 // Reminder template preferences
+            '15m': boolean,                  // 15 minutes before event
+            '30m': boolean,                  // 30 minutes before event
+            '1h': boolean,                  // 1 hour before event
+            '2h': boolean,                  // 2 hours before event
+            '1d': boolean,                   // 1 day before event
+            '1w': boolean,                  // 1 week before event
+            // Custom templates can be added: '5min': boolean, '3hour': boolean, etc.
+          }
+        },
+        attending: {          // Default notification settings when attending events
+          enabled: boolean,                    // Enable attending notifications
+          hostChanges: boolean,                // Notify about host-made changes
+          hostComments: boolean,               // Notify about host comments
+          newComments: boolean,                // Notify about all comments
+          reminderTemplates: {                 // Reminder template preferences
+            '15m': boolean,                  // 15 minutes before event
+            '30m': boolean,                  // 30 minutes before event
+            '1h': boolean,                  // 1 hour before event
+            '2h': boolean,                  // 2 hours before event
+            '1d': boolean,                   // 1 day before event
+            '1w': boolean,                  // 1 week before event
+            // Custom templates can be added: '5min': boolean, '3hour': boolean, etc.
+          }
+        }
+      },
+
       privacy: {              // Privacy settings (actual schema)
         // Contact Information Visibility
         emailVisibility: string,         // 'never', 'friends', 'followers', 'always'
@@ -77,6 +120,7 @@ Based on actual user data from your system:
 ```
 
 ## Event Collection Structure
+
 **Collection**: `studios/{studioId}/events/{eventId}`
 
 Based on actual implementation:
@@ -145,6 +189,7 @@ Based on actual implementation:
 **CRITICAL**: The invitation system uses DUAL STORAGE for optimal performance and user experience.
 
 ### Event-Level Invitation Tracking
+
 Event documents track invitation state for filtering:
 
 ```javascript
@@ -161,6 +206,7 @@ Event documents track invitation state for filtering:
 ```
 
 ### User-Level Invitation Tracking
+
 User documents track invitation state for user experience:
 
 ```javascript
@@ -202,27 +248,31 @@ const subscribed = eventData.subscribers || [];
 const cohosts = eventData.cohosts || [];
 const hostId = eventData.createdBy;
 
-const availableUsers = allUsers.filter(user =>
-  user.id !== hostId &&
-  !invited.includes(user.id) &&
-  !subscribed.includes(user.id) &&
-  !cohosts.includes(user.id)
+const availableUsers = allUsers.filter(
+  (user) =>
+    user.id !== hostId &&
+    !invited.includes(user.id) &&
+    !subscribed.includes(user.id) &&
+    !cohosts.includes(user.id)
 );
 ```
 
 ### Why Dual Storage Architecture
 
 **Event-Side Benefits:**
+
 1. **Fast filtering**: O(1) array lookups when creating invitations
 2. **Host visibility**: Hosts can see all invitations across all inviters
 3. **Efficient duplicate prevention**: Quick checks against existing arrays
 
 **User-Side Benefits:**
+
 1. **Invitation inbox**: Users can see all pending invitations
 2. **Event history**: Users can track their subscribed events
 3. **Better UX**: No need to scan all events to find user invitations
 
 **System Benefits:**
+
 1. **Atomic operations**: Batch operations ensure both sides stay in sync
 2. **Data consistency**: Single source of truth for each use case
 3. **Performance**: Optimized for both event creation and user management
@@ -238,11 +288,13 @@ const availableUsers = allUsers.filter(user =>
 ## Data Validation Rules
 
 ### Required Fields
+
 - User documents must have `userdata.contactInfo` with `displayName`, `firstName`, `lastName`
 - Event documents must have `createdBy`, `title`, `dateTime`
 - All timestamps must be valid Firestore Timestamp objects
 
 ### Dual Storage Array Management
+
 - Use `writeBatch()` for ALL invitation operations to maintain consistency
 - Event arrays: `invitations[]`, `subscribers[]`, `cohosts[]`
 - User arrays: `pendingInvitations[]`, `subscribedEvents[]`
@@ -250,6 +302,7 @@ const availableUsers = allUsers.filter(user =>
 - Always update BOTH event and user documents in the same batch
 
 ### Invitation Business Rules
+
 - Host (`createdBy`) cannot be in any invitation arrays
 - Users can only be in ONE of: invitations, subscribers, or cohosts arrays (event-side)
 - Event IDs can only be in ONE of: pendingInvitations, subscribedEvents arrays (user-side)
@@ -257,6 +310,7 @@ const availableUsers = allUsers.filter(user =>
 - User inbox queries use user arrays for fast user experience
 
 ### Data Consistency Requirements
+
 - **Batch operations mandatory**: All invitation state changes MUST use writeBatch
 - **Dual storage sync**: Event and user arrays must stay synchronized
 - **Atomic transitions**: Moving between states (invite→accept→subscribe) must be atomic
@@ -267,6 +321,7 @@ This schema reflects the NEW dual storage implementation optimized for both even
 ## Host Rating System
 
 ### Event Host Ratings
+
 **Collection**: `users/{hostId}/hostRatings/{ratingId}`
 
 Post-event guest ratings of event hosts for quality tracking.
@@ -291,6 +346,7 @@ Post-event guest ratings of event hosts for quality tracking.
 ```
 
 ### Host Rating Aggregates
+
 Host rating data is aggregated in the user document for performance:
 
 ```javascript
@@ -314,6 +370,7 @@ Host rating data is aggregated in the user document for performance:
 ```
 
 ### Rating Business Rules
+
 - Only attendees who reported attendance can rate hosts
 - One rating per guest per event
 - Ratings from 'strict' events have higher weight in aggregation
@@ -323,6 +380,7 @@ Host rating data is aggregated in the user document for performance:
 ## User Subcollections
 
 ### Scheduled Notifications
+
 **Collection**: `users/{userId}/scheduledNotifications/{notificationId}`
 
 User-scoped notification storage for efficient, secure notification management.
@@ -363,6 +421,7 @@ User-scoped notification storage for efficient, secure notification management.
 ```
 
 ### Scheduled Notifications (User-Scoped)
+
 **Collection**: `users/{userId}/scheduledNotifications/{notificationId}`
 
 User-scoped scheduled notification storage for optimal performance and security.
@@ -391,16 +450,13 @@ User-scoped scheduled notification storage for optimal performance and security.
 }
 ```
 
-### Notification Templates
-**Collection**: `users/{userId}/notificationTemplates/{templateId}`
-
-User-customizable notification templates and preferences.
-
 ## Unified Notification System Architecture
 
 ### Host Notifications
+
 **Purpose**: Real-time notifications FOR hosts ABOUT their events
 **Triggers**:
+
 - Attendee joins event (`NOTIFICATION_TYPES.EVENT_JOIN`)
 - Attendee leaves event (`NOTIFICATION_TYPES.EVENT_LEAVE`)
 - Event details updated (`NOTIFICATION_TYPES.EVENT_UPDATE`)
@@ -410,8 +466,10 @@ User-customizable notification templates and preferences.
 **Storage**: `users/{hostId}/notifications/{notificationId}`
 
 ### Scheduled Event Notifications (formerly "Attendee Reminders")
+
 **Purpose**: Time-based notifications FOR attendees ABOUT upcoming events
 **Triggers**:
+
 - 24 hours before event
 - 1 hour before event
 - 15 minutes before event
@@ -419,18 +477,21 @@ User-customizable notification templates and preferences.
 **Processing**: Scheduled via Cloud Functions with time-based triggers
 
 ### Data Retention Policy
+
 - **Sent notifications**: Retained for 30 days
 - **Failed notifications**: Retained for 30 days with retry logic (max 5 attempts)
 - **Cancelled notifications**: Immediate deletion
 - **Expired notifications**: Automatic cleanup after event passes
 
 ### Rate Limiting
+
 - **Max notifications per user per day**: 50
 - **Max retry attempts**: 5 per notification
 - **Content limits**: Title 100 chars, body 200 chars
 - **Batch operations**: Preferred for multiple notification updates
 
 ### Migration Strategy
+
 - **Dual-write period**: Write to both old and new systems during transition
 - **Background migration**: Move existing notifications to user subcollections
 - **Validation period**: Ensure data consistency
@@ -440,25 +501,28 @@ User-customizable notification templates and preferences.
 ### Query Patterns
 
 **Get user's pending notifications**:
+
 ```javascript
 collection(db, 'users', userId, 'scheduledNotifications')
   .where('status', '==', 'pending')
-  .orderBy('scheduledFor', 'asc')
+  .orderBy('scheduledFor', 'asc');
 ```
 
 **Get notifications for specific event**:
+
 ```javascript
 collection(db, 'users', userId, 'scheduledNotifications')
   .where('eventId', '==', eventId)
-  .orderBy('createdAt', 'desc')
+  .orderBy('createdAt', 'desc');
 ```
 
 **Get due notifications for processing**:
+
 ```javascript
 collection(db, 'users', userId, 'scheduledNotifications')
   .where('status', '==', 'pending')
   .where('scheduledFor', '<=', now)
-  .limit(50)
+  .limit(50);
 ```
 
 ### Indexes Required
@@ -466,10 +530,10 @@ collection(db, 'users', userId, 'scheduledNotifications')
 ```javascript
 scheduledNotifications: {
   compound_indexes: [
-    ['status', 'scheduledFor'],            // Process pending notifications
-    ['eventId', 'type'],                   // Event-specific notifications
-    ['type', 'status'],                    // Process by notification type
-    ['createdAt']                          // Cleanup operations
-  ]
+    ['status', 'scheduledFor'], // Process pending notifications
+    ['eventId', 'type'], // Event-specific notifications
+    ['type', 'status'], // Process by notification type
+    ['createdAt'], // Cleanup operations
+  ];
 }
 ```

@@ -287,12 +287,52 @@ export default function NotificationsScreen({ navigation }) {
         const { invitationId, eventId } = notification.data;
 
         // Accept the cohost invitation
-        await acceptCohostInvitation(invitationId, currentUserId, eventId);
+        const result = await acceptCohostInvitation(invitationId, currentUserId, eventId);
 
         // Delete notification after successful acceptance (no longer needed)
         await handleNotificationDelete(notification.id);
 
         vibeAlert.success('Success', "You're now a co-host for this event! ⭐");
+
+        // Simultaneously ask if they want to manage notifications for the event
+        vibeAlert.confirm(
+          'Notification Settings',
+          `You're now a co-host for "${result.newCohost?.eventTitle || 'this event'}"!\n\nWould you like to manage your notification preferences for this event?`,
+          [
+            {
+              text: 'Manage Notifications',
+              onPress: () => {
+                // Navigation stack: reset to Home → EventDetail → NotificationSettings
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'Home' }]
+                });
+
+                // Navigate to EventDetail
+                setTimeout(() => {
+                  navigation.navigate('EventDetail', {
+                    eventId,
+                    studioId: notification.data.studioId || result.newCohost?.studioId
+                  });
+
+                  // Then navigate to NotificationSettings for this event
+                  setTimeout(() => {
+                    navigation.navigate('NotificationSettings', {
+                      eventId,
+                      eventTitle: result.newCohost?.eventTitle,
+                      userId: currentUserId,
+                      role: 'cohost'
+                    });
+                  }, 100);
+                }, 100);
+              }
+            },
+            {
+              text: 'Keep Current Settings',
+              style: 'cancel'
+            }
+          ]
+        );
       } catch (error) {
         console.error('Error accepting cohost invitation:', error);
         vibeAlert.error(

@@ -28,6 +28,7 @@ import {
   extractInterestsFromEventTitle,
 } from '../../services/interestService';
 import { reportEvent } from '../../services/reportingService';
+import { getCohostInvitationStatus, acceptCohostInvitation } from '../../services/shared/cohostInvitationsService';
 import EventStatusBadges from '../components/detail/EventStatusBadges';
 import EventInfoSection from '../components/detail/EventInfoSection';
 import EventActionButtons from '../components/detail/EventActionButtons';
@@ -60,6 +61,7 @@ const EventDetailScreen = memo(function EventDetailScreen({
   const [showPrivacyFlash, setShowPrivacyFlash] = useState(false);
   const [userNotificationSettings, setUserNotificationSettings] =
     useState(null);
+  const [pendingCohostInvitation, setPendingCohostInvitation] = useState(null);
 
   // Use transition for non-urgent state updates
   const [isPending, startTransition] = useTransition();
@@ -230,7 +232,6 @@ const EventDetailScreen = memo(function EventDetailScreen({
       eventCancellation: true,
       hostChanges: userNotificationDefaults.hostChanges ?? true,
       eventReminders: userNotificationDefaults.eventReminders ?? true,
-      reminderTiming: userNotificationDefaults.reminderTiming ?? '1hour',
       dayBeforeReminder: userNotificationDefaults.dayBeforeReminder ?? true,
       hostComments: userNotificationDefaults.hostComments ?? true,
       newComments: userNotificationDefaults.newComments ?? false,
@@ -442,6 +443,77 @@ const EventDetailScreen = memo(function EventDetailScreen({
     });
   };
 
+  const handleAcceptCohostInvitation = async () => {
+    if (!pendingCohostInvitation || isLoading) return;
+
+    setIsLoading(true);
+    try {
+      const result = await acceptCohostInvitation(
+        pendingCohostInvitation.id,
+        currentUserId,
+        eventId
+      );
+
+      if (result.success) {
+        // Show success message
+        vibeAlert.success('Success', "You're now a co-host for this event! ⭐");
+
+        // Ask if they want to manage notifications for the event
+        vibeAlert.confirm(
+          'Notification Settings',
+          `You're now a co-host for "${result.newCohost?.eventTitle || event?.title || 'this event'}"!\n\nWould you like to manage your notification preferences for this event?`,
+          [
+            {
+              text: 'Not Now',
+              style: 'cancel'
+            },
+            {
+              text: 'Manage Notifications',
+              onPress: () => {
+                // Navigation stack: reset to Home → EventDetail → NotificationSettings
+                navigation.reset({
+                  index: 1,
+                  routes: [
+                    { name: 'Home' },
+                    {
+                      name: 'EventDetail',
+                      params: { eventId, studioId }
+                    }
+                  ]
+                });
+                // Navigate to notification settings for this specific event
+                setTimeout(() => {
+                  navigation.navigate('NotificationSettings', {
+                    eventId,
+                    studioId,
+                    eventTitle: event?.title
+                  });
+                }, 100);
+              }
+            }
+          ]
+        );
+
+        // Clear the pending invitation and refresh event data
+        setPendingCohostInvitation(null);
+
+        // Refresh the event data to show updated cohost status
+        setTimeout(() => {
+          // This will trigger the useFocusEffect to reload data
+          navigation.setParams({ refresh: Date.now() });
+        }, 500);
+      }
+    } catch (error) {
+      console.error('[EventDetailScreen] Error accepting cohost invitation:', error);
+      vibeAlert.error(
+        'Error',
+        'Failed to accept cohost invitation. Please try again.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Load event data on focus
   useFocusEffect(
     useCallback(() => {
@@ -475,6 +547,14 @@ const EventDetailScreen = memo(function EventDetailScreen({
 
           setUserInterests(userInterestsData);
           setEventInterests(eventInterestsData);
+
+          // Check for pending cohost invitation
+          const cohostInvitation = await getCohostInvitationStatus(currentUserId, eventId);
+          if (cohostInvitation && cohostInvitation.status === 'pending') {
+            setPendingCohostInvitation(cohostInvitation);
+          } else {
+            setPendingCohostInvitation(null);
+          }
         } catch (error) {
           console.error(
             '[EventDetailScreen] Error fetching event data:',
@@ -569,14 +649,26 @@ const EventDetailScreen = memo(function EventDetailScreen({
         onInvite={handleInvite}
         onEdit={() => {}}
         onDelete={handleDelete}
-        onManageAttendance={() => {}}
+        onManageAttendance={() => {
+          navigation.navigate('EventAttendance', {
+            eventId: eventId,
+            studioId: studioId,
+          });
+        }}
         onSaveAsTemplate={() => {}}
-        onEventRecap={() => {}}
+        onEventRecap={() => {
+          navigation.navigate('EventWrapUp', {
+            eventId: eventId,
+            studioId: studioId,
+          });
+        }}
         navigation={navigation}
         eventId={eventId}
         studioId={studioId}
         vibeAlert={vibeAlert}
         currentUserId={currentUserId}
+        pendingCohostInvitation={pendingCohostInvitation}
+        onAcceptCohostInvitation={handleAcceptCohostInvitation}
       />
 
       {/* Subscription Modal */}

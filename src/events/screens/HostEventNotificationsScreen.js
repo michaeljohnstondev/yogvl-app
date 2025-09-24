@@ -1,40 +1,113 @@
-// Host notification settings form component with custom reminder templates
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Switch,
-  Keyboard,
-} from 'react-native';
-import { useVibeAlert } from '../ui/base/VibeAlertContext';
-import VibeInput from '../ui/base/VibeInput';
-import VibeDropdown from '../ui/base/VibeDropdown';
-import { VibeButton } from '../ui';
+// HostEventNotificationsScreen.js
+
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, Switch, TouchableOpacity, Keyboard } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRoute, useNavigation } from '@react-navigation/native';
+import { ScreenHeader } from '../../components/ui/layout';
+import { useVibeAlert } from '../../components/ui/base/VibeAlertContext';
+import VibeInput from '../../components/ui/base/VibeInput';
+import VibeDropdown from '../../components/ui/base/VibeDropdown';
+import { VibeButton } from '../../components/ui';
 import CustomTemplateService from '../../services/CustomTemplateService';
 import theme from '../../theme/themes';
 
-export default function HostNotificationSettingsForm({
-  settings,
-  onUpdateSettings,
-  showCriticalUpdates = true,
-  showEventUpdates = true,
-  showEventActivity = true,
-  showReminders = true,
-  showSocialActivity = true,
-  sectionStyle,
-  scrollViewRef,
-  isLoadingTemplates = false,
-  currentUserId,
-  userContext = 'hosting', // 'hosting' or 'attending' - determines which templates to load
-}) {
+export default function HostEventNotificationsScreen() {
+  const route = useRoute();
+  const navigation = useNavigation();
   const vibeAlert = useVibeAlert();
+
+  const { notificationSettings, currentUserId, userContext = 'hosting' } =
+    route.params;
+
+  // Memoize default settings to ensure stable reference
+  const defaultSettings = useMemo(() => ({
+    enabled: true,
+    notifyOnJoin: true,
+    notifyOnLeave: true,
+    newComments: true,
+    eventRecap: false,
+    attendanceReminders: 'none',
+    reminderTemplates: {}, // Use object instead of array to match expected structure
+  }), []);
+
+  // Memoize initial settings to ensure stable reference
+  const initialSettings = useMemo(() =>
+    notificationSettings || defaultSettings,
+    [notificationSettings, defaultSettings]
+  );
+  const [localSettings, setLocalSettings] = useState(initialSettings);
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
+  const scrollViewRef = useRef(null);
+
+  // Custom reminder form state
   const [showAddCustomForm, setShowAddCustomForm] = useState(false);
   const [customAmount, setCustomAmount] = useState('');
   const [customUnit, setCustomUnit] = useState('minutes');
   const [isAddingReminder, setIsAddingReminder] = useState(false);
 
+  // Auto-save - update parent form immediately when local settings change
+  const isFirstRender = useRef(true);
+  const saveTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    // Skip saving on first render
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
+    // Clear any existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Debounced save after 500ms
+    saveTimeoutRef.current = setTimeout(() => {
+      // Only save if settings have actually changed from initial values
+      if (JSON.stringify(localSettings) !== JSON.stringify(initialSettings)) {
+        // Emit navigation event to update the form
+        navigation.emit('settingsUpdated', { data: localSettings });
+      }
+    }, 500);
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [localSettings, navigation, initialSettings]);
+
+  // Initialize settings from route params
+  useEffect(() => {
+    if (notificationSettings) {
+      setLocalSettings(notificationSettings);
+    } else {
+      setLocalSettings(defaultSettings);
+    }
+
+    // Set loading to false after initialization
+    setIsLoadingTemplates(false);
+  }, [notificationSettings, defaultSettings]);
+
+  // Toggle functions
+  const toggleSetting = (key) => {
+    setLocalSettings((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  // Handle attendance reminder selection
+  const handleAttendanceReminderChange = (value) => {
+    setLocalSettings((prev) => ({
+      ...prev,
+      attendanceReminders: value,
+    }));
+  };
+
+  // Custom reminder functionality
   const handleShowAddForm = () => {
     setShowAddCustomForm(true);
     // Scroll down to show the form
@@ -105,15 +178,7 @@ export default function HostNotificationSettingsForm({
 
   // Get current reminder templates - show templates that have been set (true or false)
   const getCurrentTemplates = () => {
-    const templateSettings = settings?.reminderTemplates || {};
-    console.log(
-      '[HostNotificationSettings] getCurrentTemplates - template settings:',
-      templateSettings
-    );
-    console.log(
-      '[HostNotificationSettings] isLoadingTemplates:',
-      isLoadingTemplates
-    );
+    const templateSettings = localSettings?.reminderTemplates || {};
 
     // Show templates that have been explicitly set (true or false), not undefined
     const templates = Object.keys(templateSettings)
@@ -140,11 +205,6 @@ export default function HostNotificationSettingsForm({
         return getMinutes(a) - getMinutes(b); // Ascending order (shortest to longest)
       });
 
-    console.log(
-      '[HostNotificationSettings] Templates with explicit state (sorted):',
-      templates
-    );
-
     return templates;
   };
 
@@ -156,15 +216,15 @@ export default function HostNotificationSettingsForm({
     { label: 'Months', value: 'months' },
   ];
 
-  const toggleSetting = (key) => {
-    onUpdateSettings({
-      ...settings,
-      [key]: !settings?.[key],
-    });
-  };
+  // Attendance reminder options (removed 'casual', made 'none' default)
+  const attendanceReminderOptions = [
+    { label: 'None', value: 'none' },
+    { label: 'Strict Events Only', value: 'strict' },
+    { label: 'Both Event Types', value: 'both' },
+  ];
 
   const toggleReminder = (reminder) => {
-    const currentSettings = settings?.reminderTemplates || {};
+    const currentSettings = localSettings?.reminderTemplates || {};
     const updatedSettings = {
       ...currentSettings,
       [reminder.id]: !currentSettings[reminder.id]
@@ -172,59 +232,28 @@ export default function HostNotificationSettingsForm({
 
     // Keep the key in the object, just toggle true/false
     // Don't delete disabled templates - keep them as false
-
-    onUpdateSettings({
-      ...settings,
+    setLocalSettings({
+      ...localSettings,
       reminderTemplates: updatedSettings,
     });
   };
 
   const deleteCustomReminder = async (template) => {
-    const currentSettings = settings?.reminderTemplates || {};
+    const currentSettings = localSettings?.reminderTemplates || {};
     const updatedSettings = { ...currentSettings };
 
     // Remove the template from settings
     delete updatedSettings[template.id];
 
     // Update local settings immediately
-    onUpdateSettings({
-      ...settings,
+    setLocalSettings({
+      ...localSettings,
       reminderTemplates: updatedSettings,
     });
 
-    // Always update global user hosting settings
-    if (currentUserId) {
-      try {
-        console.log(
-          '[HostNotificationSettings] Removing reminder from global hosting settings:',
-          template.label
-        );
-
-        // Update user's global hosting notification settings directly
-        const { db } = await import('../../lib/firebase');
-        const { doc, updateDoc, deleteField } = await import('../../lib/firebase');
-
-        const userRef = doc(db, 'users', currentUserId);
-        await updateDoc(userRef, {
-          [`userdata.settings.notifications.hosting.reminderTemplates.${template.id}`]: deleteField()
-        });
-
-      } catch (error) {
-        console.warn(
-          '[HostNotificationSettings] Failed to remove reminder from global hosting settings:',
-          error
-        );
-        // Don't show error to user - local functionality still works
-      }
-    }
-
-    // Also remove from custom template store if it's a custom template
+    // Background cleanup for custom templates
     if (currentUserId && template.id.startsWith('custom_')) {
       try {
-        console.log(
-          '[HostNotificationSettings] Auto-removing custom reminder from global store:',
-          template.label
-        );
         await CustomTemplateService.removeCustomTemplate(
           currentUserId,
           template.id,
@@ -232,7 +261,7 @@ export default function HostNotificationSettingsForm({
         );
       } catch (error) {
         console.warn(
-          '[HostNotificationSettings] Failed to auto-remove custom reminder from global store:',
+          '[HostEventNotifications] Failed to auto-remove custom reminder from global store:',
           error
         );
         // Don't show error to user - local functionality still works
@@ -242,9 +271,6 @@ export default function HostNotificationSettingsForm({
 
   const addCustomReminder = async () => {
     if (isAddingReminder) {
-      console.log(
-        '[HostNotificationSettings] Already adding reminder, ignoring click'
-      );
       return; // Prevent double-clicks
     }
 
@@ -284,7 +310,7 @@ export default function HostNotificationSettingsForm({
 
       // Create template ID based on amount and unit
       const templateId = `${amount}${customUnit.charAt(0)}`;
-      const currentSettings = settings?.reminderTemplates || {};
+      const currentSettings = localSettings?.reminderTemplates || {};
 
       // Check for duplicates - see if this template ID already exists
       if (currentSettings[templateId]) {
@@ -309,22 +335,18 @@ export default function HostNotificationSettingsForm({
       };
 
       // Update local settings immediately
-      onUpdateSettings({
-        ...settings,
+      setLocalSettings({
+        ...localSettings,
         reminderTemplates: updatedSettings,
       });
 
-      // Auto-save to global store for future use
+      // Auto-save to global store for future use (background operation)
       if (currentUserId) {
         try {
-          console.log(
-            '[HostNotificationSettings] Auto-saving custom reminder to global store:',
-            templateId
-          );
           await CustomTemplateService.saveTemplateSettings(currentUserId, updatedSettings, userContext);
         } catch (error) {
           console.warn(
-            '[HostNotificationSettings] Failed to auto-save custom reminder to global store:',
+            '[HostEventNotifications] Failed to auto-save custom reminder to global store:',
             error
           );
           // Don't show error to user - local functionality still works
@@ -373,44 +395,38 @@ export default function HostNotificationSettingsForm({
   );
 
   return (
-    <>
-      {/* Master Toggle for Host Notifications */}
-      <View style={[styles.section, sectionStyle]}>
-        <Text style={styles.sectionTitle}>HOSTING NOTIFICATIONS</Text>
-        <View style={styles.settingsGroup}>
-          <SettingItem
-            title="Enable Notifications"
-            description="Turn on notifications for events you're hosting"
-            value={settings?.enabled ?? true}
-            onToggle={() => toggleSetting('enabled')}
-            isLast
-          />
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <ScreenHeader
+        title="Event Notifications"
+        onClose={() => navigation.goBack()}
+        showBorder={true}
+        showCloseButton={true}
+      />
+
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Main Enable/Disable Toggle */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>EVENT NOTIFICATIONS</Text>
+          <View style={styles.settingsGroup}>
+            <SettingItem
+              title="Enable Notifications"
+              description="Turn on notifications for this event"
+              value={localSettings?.enabled ?? true}
+              onToggle={() => toggleSetting('enabled')}
+              isLast
+            />
+          </View>
         </View>
-      </View>
 
-      {/* Only show other settings if notifications are enabled */}
-      {(settings?.enabled ?? true) && (
-        <>
-          {/* Critical Updates - Always On */}
-          {showCriticalUpdates && (
-            <View style={[styles.section, sectionStyle]}>
-              <Text style={styles.sectionTitle}>CRITICAL UPDATES</Text>
-              <View style={styles.settingsGroup}>
-                <SettingItem
-                  title="Event Cancellation"
-                  description="Important: Always receive cancellation notices"
-                  value={true}
-                  onToggle={() => {}} // No-op
-                  disabled={true}
-                  isLast
-                />
-              </View>
-            </View>
-          )}
-
-          {/* Custom Reminder Templates */}
-          {showReminders && (
-            <View style={[styles.section, sectionStyle, styles.remindersSection]}>
+        {/* Only show other settings if notifications are enabled */}
+        {(localSettings?.enabled ?? true) && (
+          <>
+            {/* Custom Reminder Templates */}
+            <View style={[styles.section, styles.remindersSection]}>
               <Text style={styles.sectionTitle}>CUSTOM REMINDERS</Text>
               <View style={styles.settingsGroup}>
                 <View style={styles.quickRemindersContainer}>
@@ -534,94 +550,80 @@ export default function HostNotificationSettingsForm({
                 )}
               </View>
             </View>
-          )}
 
-          {/* Event Activity - Host-specific notifications */}
-          {showEventActivity && (
-            <View style={[styles.section, sectionStyle]}>
+            {/* Event Activity Settings - Only show if notifications are enabled */}
+            <View style={styles.section}>
               <Text style={styles.sectionTitle}>EVENT ACTIVITY</Text>
               <View style={styles.settingsGroup}>
                 <SettingItem
-                  title="Someone Joins Event"
-                  description="Notify when guests or cohosts join your event"
-                  value={settings?.notifyOnJoin ?? true}
+                  title="Someone Joins"
+                  description="Notify when guests or cohosts join this event"
+                  value={localSettings?.notifyOnJoin ?? true}
                   onToggle={() => toggleSetting('notifyOnJoin')}
                 />
                 <SettingItem
-                  title="Someone Leaves Event"
-                  description="Notify when guests or cohosts leave your event"
-                  value={settings?.notifyOnLeave ?? true}
+                  title="Someone Leaves"
+                  description="Notify when guests or cohosts leave this event"
+                  value={localSettings?.notifyOnLeave ?? true}
                   onToggle={() => toggleSetting('notifyOnLeave')}
                 />
                 <SettingItem
                   title="Someone Comments"
-                  description="Notify when guests or cohosts comment on your event"
-                  value={settings?.newComments ?? true}
+                  description="Notify when guests or cohosts comment on this event"
+                  value={localSettings?.newComments ?? true}
                   onToggle={() => toggleSetting('newComments')}
                   isLast
                 />
               </View>
             </View>
-          )}
 
-          {/* Post-Event Notifications */}
-          <View style={[styles.section, sectionStyle, styles.lastSection]}>
-            <Text style={styles.sectionTitle}>POST-EVENT</Text>
-            <View style={styles.settingsGroup}>
-              <View style={styles.attendanceItem}>
-                <View style={styles.attendanceContent}>
-                  <Text style={styles.attendanceTitle}>
-                    Attendance Reminders
-                  </Text>
-                  <Text style={styles.attendanceDescription}>
-                    Tap to change when to receive reminders 1 hour after events end
-                  </Text>
+            {/* Post-event Settings - Only show if notifications are enabled */}
+            <View style={[styles.section, styles.lastSection]}>
+              <Text style={styles.sectionTitle}>POST-EVENT</Text>
+              <View style={styles.settingsGroup}>
+                <View style={[styles.settingItem, styles.settingBorder]}>
+                  <View style={styles.settingContent}>
+                    <Text style={styles.settingTitle}>Attendance Reminders</Text>
+                    <Text style={styles.settingDescription}>
+                      When to send attendance reminder notifications after events
+                    </Text>
+                  </View>
+                  <View style={styles.dropdownContainer}>
+                    <VibeDropdown
+                      options={attendanceReminderOptions}
+                      selectedValue={localSettings?.attendanceReminders ?? 'none'}
+                      onSelect={handleAttendanceReminderChange}
+                      placeholder="Select option"
+                      style={styles.attendanceDropdown}
+                      hideSelectedFromList={true}
+                    />
+                  </View>
                 </View>
-                <TouchableOpacity
-                  style={styles.attendanceToggle}
-                  onPress={() => {
-                    const currentValue = settings?.attendanceReminders ?? 'none';
-                    const options = ['none', 'strict', 'both'];
-                    const currentIndex = options.indexOf(currentValue);
-                    const nextIndex = (currentIndex + 1) % options.length;
-                    const nextValue = options[nextIndex];
-
-                    onUpdateSettings({
-                      ...settings,
-                      attendanceReminders: nextValue
-                    });
-                  }}
-                >
-                  <Text style={styles.attendanceToggleText}>
-                    {(() => {
-                      const value = settings?.attendanceReminders ?? 'none';
-                      switch (value) {
-                        case 'none': return 'Not at all';
-                        case 'strict': return 'Strict only';
-                        case 'both': return 'Both types';
-                        default: return 'Not at all';
-                      }
-                    })()}
-                  </Text>
-                  <Text style={styles.attendanceToggleIcon}>▼</Text>
-                </TouchableOpacity>
+                <SettingItem
+                  title="Event Recap"
+                  description="Send a summary notification after this event ends"
+                  value={localSettings?.eventRecap ?? false}
+                  onToggle={() => toggleSetting('eventRecap')}
+                  isLast
+                />
               </View>
-              <SettingItem
-                title="Event Recap"
-                description="Send a summary notification after the event ends"
-                value={settings?.eventRecap ?? false}
-                onToggle={() => toggleSetting('eventRecap')}
-              />
             </View>
-          </View>
-
-        </>
-      )}
-    </>
+          </>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
   section: {
     marginTop: 20,
   },
@@ -634,10 +636,10 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: theme.colors.vibeGreen,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 'bold',
-    marginBottom: 8,
     letterSpacing: 1,
+    marginBottom: 10,
   },
   settingsGroup: {
     backgroundColor: theme.colors.inputBackground,
@@ -676,6 +678,14 @@ const styles = StyleSheet.create({
   },
   disabledText: {
     opacity: 0.6,
+  },
+  dropdownContainer: {
+    minWidth: 140,
+    zIndex: 1000,
+    elevation: 1000,
+  },
+  attendanceDropdown: {
+    minWidth: 140,
   },
   quickRemindersContainer: {
     marginBottom: 16,
@@ -769,48 +779,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     padding: 20,
     fontStyle: 'italic',
-  },
-  attendanceItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
-  },
-  attendanceContent: {
-    flex: 1,
-    marginRight: 15,
-  },
-  attendanceTitle: {
-    color: theme.colors.textPrimary,
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 5,
-  },
-  attendanceDescription: {
-    color: theme.colors.textSecondary,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  attendanceToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.vibeBackgroundBlue,
-    borderColor: theme.colors.vibeBlue,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    minWidth: 120,
-    justifyContent: 'space-between',
-  },
-  attendanceToggleText: {
-    color: theme.colors.vibeBlue,
-    fontSize: 14,
-    fontWeight: '600',
-    marginRight: 8,
-  },
-  attendanceToggleIcon: {
-    color: theme.colors.vibeBlue,
-    fontSize: 12,
-    fontWeight: 'bold',
   },
 });

@@ -3,6 +3,7 @@ const theme = {
     background: '#080B1E',
     backgroundGradient: ['#080B1E', '#0B1125'],
     buttonGradient: ['#00c6ff', '#0072ff'],
+    royalPurpleGradient: ['#4B0082', '#0066FF', '#4B0082', '#0066FF', '#4B0082'],
     textPrimary: '#FFFFFF',
     textSecondary: '#778DA9',
     inputBorder: '#555',
@@ -22,6 +23,7 @@ const theme = {
     vibeAqua: '#00FFF7',
     vibeTeal: '#00FFD4',
     vibeElectricBlue: '#007FFF',
+    vibeRoyalBlue: '#4169E1',
 
     // Basic colors
     white: '#FFFFFF',
@@ -41,6 +43,7 @@ const theme = {
     vibeBackgroundAqua: 'rgba(0, 255, 247, 0.1)',
     vibeBackgroundTeal: 'rgba(0, 255, 212, 0.1)',
     vibeBackgroundElectricBlue: 'rgba(0, 127, 255, 0.1)',
+    vibeBackgroundRoyalBlue: 'rgba(65, 105, 225, 0.1)',
 
     // Comment role colors
     commentUser: '#28a745',

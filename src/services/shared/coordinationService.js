@@ -11,7 +11,6 @@ import {
 } from './arraySyncService';
 import { notificationEngine } from './NotificationEngine';
 import {
-  notifyHostOfEventJoin,
   notifyInvitationAccepted,
 } from './eventNotificationsService';
 import {
@@ -212,16 +211,7 @@ export const coordinateInvitationAcceptance = async ({
       try {
         const userDisplayName = extractDisplayName(userData, 'Someone');
 
-        // Notify host of acceptance
-        if (eventData.createdBy !== userId) {
-          await notifyHostOfEventJoin({
-            hostId: eventData.createdBy,
-            eventId,
-            eventTitle: eventData.title || 'Event',
-            subscriberId: userId,
-            subscriberName: userDisplayName,
-          });
-        }
+        // Host notification handled by onEventSubscribed Cloud Function
 
         // Send acceptance notification to host
         await notifyInvitationAccepted({
@@ -308,16 +298,7 @@ export const coordinateEventSubscription = async ({
       try {
         const userDisplayName = extractDisplayName(userData, 'Someone');
 
-        // Notify host if user is not the host
-        if (eventData.createdBy !== userId) {
-          await notifyHostOfEventJoin({
-            hostId: eventData.createdBy,
-            eventId,
-            eventTitle: eventData.title || 'Event',
-            subscriberId: userId,
-            subscriberName: userDisplayName,
-          });
-        }
+        // Host notification handled by onEventSubscribed Cloud Function
 
         // Set up notification preferences if provided
         if (
@@ -399,16 +380,7 @@ export const coordinateEventUnsubscription = async ({
       try {
         const userDisplayName = extractDisplayName(userData, 'Someone');
 
-        // Notify host if user is not the host
-        if (eventData.createdBy !== userId) {
-          await notifyHostOfEventLeave({
-            hostId: eventData.createdBy,
-            eventId,
-            eventTitle: eventData.title || 'Event',
-            unsubscriberId: userId,
-            unsubscriberName: userDisplayName,
-          });
-        }
+        // Host notification handled by onEventUnsubscribed Cloud Function
 
         // Clean up notification preferences
         // This would remove user from event notification subscriptions

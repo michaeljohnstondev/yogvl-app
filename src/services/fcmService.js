@@ -6,11 +6,11 @@
 //
 
 import { Platform } from 'react-native';
-import messaging from '@react-native-firebase/messaging'; // MODIFIED: Removed FirebaseMessagingTypes
+import messaging from '@react-native-firebase/messaging';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
-import { doc, updateDoc, getDoc } from '../lib/firebase';
+import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 import { notificationDisplayService } from './notificationDisplayService';
 import { notificationEngine } from './shared/NotificationEngine';
@@ -19,7 +19,6 @@ const STORAGE_KEYS = {
   FCM_TOKEN: 'fcm_push_token',
   PERMISSION_REQUESTED: 'notification_permission_requested',
 };
-
 
 // Configure Firebase messaging for background message handling
 try {
@@ -39,6 +38,7 @@ class FCMService {
     this.foregroundListener = null;
     this.notificationOpenedListener = null;
     this.lastNavigationTime = 0;
+    this.pendingNotifications = []; // Queue for notifications received before user login
   }
 
   /**
@@ -54,8 +54,8 @@ class FCMService {
       if (Platform.OS === 'ios') {
         const authStatus = await messaging().requestPermission();
         const enabled =
-          authStatus === messaging.AuthorizationStatus.AUTHORIZED || // MODIFIED
-          authStatus === messaging.AuthorizationStatus.PROVISIONAL; // MODIFIED
+          authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+          authStatus === messaging.AuthorizationStatus.PROVISIONAL;
 
         if (!enabled) {
           console.warn('[FCMService] iOS notification permission not granted');
@@ -94,8 +94,7 @@ class FCMService {
     );
 
     // Check if app was opened from a notification (app was quit)
-    messaging()
-      .getInitialNotification()
+    messaging().getInitialNotification()
       .then((remoteMessage) => {
         if (remoteMessage) {
           console.log(
@@ -136,8 +135,8 @@ class FCMService {
         authStatus = await messaging().requestPermission();
 
         const granted =
-          authStatus === messaging.AuthorizationStatus.AUTHORIZED || // MODIFIED
-          authStatus === messaging.AuthorizationStatus.PROVISIONAL; // MODIFIED
+          authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+          authStatus === messaging.AuthorizationStatus.PROVISIONAL;
 
         // Store that we've requested permission securely
         await SecureStore.setItemAsync(
@@ -149,12 +148,12 @@ class FCMService {
         return {
           granted,
           status: authStatus,
-          provisional: authStatus === messaging.AuthorizationStatus.PROVISIONAL, // MODIFIED
+          provisional: authStatus === messaging.AuthorizationStatus.PROVISIONAL,
         };
       } else {
         // Android - check if permission is already granted
         authStatus = await messaging().hasPermission();
-        const granted = authStatus === messaging.AuthorizationStatus.AUTHORIZED; // MODIFIED
+        const granted = authStatus === messaging.AuthorizationStatus.AUTHORIZED;
 
         if (!granted) {
           // Request permission for Android
@@ -162,7 +161,7 @@ class FCMService {
         }
 
         const finalGranted =
-          authStatus === messaging.AuthorizationStatus.AUTHORIZED; // MODIFIED
+          authStatus === messaging.AuthorizationStatus.AUTHORIZED;
 
         // Store that we've requested permission securely
         await SecureStore.setItemAsync(
@@ -276,6 +275,11 @@ class FCMService {
       // Store current user ID for foreground notification storage
       this.currentUserId = userId;
 
+      // Process any pending notifications that arrived before user login
+      if (this.pendingNotifications.length > 0) {
+        await this.processPendingNotifications();
+      }
+
       return true;
     } catch (error) {
       console.error('[FCMService] Failed to register token for user:', error);
@@ -332,7 +336,14 @@ class FCMService {
       // Get current user ID (we can't determine user from FCM message alone)
       // This will be set when user logs in via registerTokenForUser
       if (!this.currentUserId) {
-        console.warn('[FCMService] Cannot store foreground notification - no current user ID');
+        console.log('[FCMService] Queuing notification - user not authenticated yet');
+        this.pendingNotifications.push({
+          title,
+          message,
+          type,
+          data: remoteMessage.data || {},
+          timestamp: new Date()
+        });
         return;
       }
 
@@ -353,6 +364,7 @@ class FCMService {
 
   /**
    * Navigate to appropriate screen based on notification data
+   * Supports both legacy navigation and new navigation stack pattern
    */
   navigateFromNotification(data) {
 
@@ -370,6 +382,13 @@ class FCMService {
     this.lastNavigationTime = now;
 
     try {
+      // Check for new navigation stack pattern
+      if (data.resetStack === 'true' && data.navigationStack) {
+        this.handleNavigationStack(data);
+        return;
+      }
+
+      // Legacy navigation handling (fallback)
       const { type, eventId, screen, userId } = data;
 
       switch (type) {
@@ -416,6 +435,72 @@ class FCMService {
   }
 
   /**
+   * Handle new navigation stack pattern with resetStack and navigationStack
+   */
+  handleNavigationStack(data) {
+    try {
+      const screens = data.navigationStack.split(',');
+
+      console.log(`[FCMService] Navigating through stack: ${screens.join(' → ')}`);
+
+      // Reset navigation stack to Home first
+      this.navigationRef.reset({
+        index: 0,
+        routes: [{ name: 'Home' }],
+      });
+
+      // Navigate through each screen in the stack (skip Home since we reset to it)
+      for (let i = 1; i < screens.length; i++) {
+        const screen = screens[i].trim();
+        const params = this.getNavigationParams(screen, data);
+
+        console.log(`[FCMService] Navigating to ${screen} with params:`, params);
+
+        this.navigationRef.navigate(screen, params);
+      }
+    } catch (error) {
+      console.error('[FCMService] Navigation stack error:', error);
+
+      // Fallback to legacy navigation
+      this.navigateFromNotification({ ...data, resetStack: undefined, navigationStack: undefined });
+    }
+  }
+
+  /**
+   * Get navigation parameters for each screen type
+   */
+  getNavigationParams(screen, data) {
+    switch (screen) {
+      case 'EventDetail':
+        return {
+          eventId: data.eventId,
+          studioId: data.studioId,
+          // If coming from a comment notification, pass comment data
+          ...(data.commentId && {
+            scrollToComment: data.commentId,
+            openMessageBoard: true
+          })
+        };
+
+      case 'UserProfile':
+        return {
+          userId: data.profileUserId || data.followerId || data.userId
+        };
+
+      case 'MessageBoard':
+        return {
+          eventId: data.eventId,
+          studioId: data.studioId,
+          ...(data.commentId && { scrollToComment: data.commentId })
+        };
+
+      case 'Home':
+      default:
+        return {};
+    }
+  }
+
+  /**
    * Set navigation reference for deep linking
    */
   setNavigationRef(navigationRef) {
@@ -428,15 +513,15 @@ class FCMService {
   async getPermissionStatus() {
     try {
       const authStatus = await messaging().hasPermission();
-      const granted = authStatus === messaging.AuthorizationStatus.AUTHORIZED; // MODIFIED
+      const granted = authStatus === messaging.AuthorizationStatus.AUTHORIZED;
 
       return {
         granted,
         status: authStatus,
-        provisional: authStatus === messaging.AuthorizationStatus.PROVISIONAL, // MODIFIED
-        denied: authStatus === messaging.AuthorizationStatus.DENIED, // MODIFIED
+        provisional: authStatus === messaging.AuthorizationStatus.PROVISIONAL,
+        denied: authStatus === messaging.AuthorizationStatus.DENIED,
         notDetermined:
-          authStatus === messaging.AuthorizationStatus.NOT_DETERMINED, // MODIFIED
+          authStatus === messaging.AuthorizationStatus.NOT_DETERMINED,
       };
     } catch (error) {
       console.error('[FCMService] Failed to get permission status:', error);
@@ -474,6 +559,36 @@ class FCMService {
   }
 
   /**
+   * Process notifications that arrived before user authentication
+   * Called after successful token registration
+   */
+  async processPendingNotifications() {
+    try {
+      if (!this.currentUserId || this.pendingNotifications.length === 0) {
+        return;
+      }
+
+      console.log(`[FCMService] Processing ${this.pendingNotifications.length} queued notifications`);
+
+      for (const notification of this.pendingNotifications) {
+        await notificationEngine.storeInAppNotification({
+          userId: this.currentUserId,
+          type: notification.type,
+          title: notification.title,
+          message: notification.message,
+          data: notification.data,
+          priority: 'normal',
+        });
+      }
+
+      // Clear the queue
+      this.pendingNotifications = [];
+    } catch (error) {
+      console.error('[FCMService] Failed to process pending notifications:', error);
+    }
+  }
+
+  /**
    * Remove push token when user logs out
    */
   async removeTokenForUser(userId) {
@@ -491,6 +606,9 @@ class FCMService {
       await SecureStore.deleteItemAsync(STORAGE_KEYS.FCM_TOKEN);
       this.currentToken = null;
       this.currentUserId = null;
+
+      // Clear any pending notifications
+      this.pendingNotifications = [];
 
       return true;
     } catch (error) {

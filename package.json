@@ -7,15 +7,16 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "eslint . --ext .js,.jsx"
+    "lint": "eslint . --ext .js,.jsx",
+    "clean-ios": "rimraf node_modules ios/Pods ios/Podfile.lock && rimraf %LOCALAPPDATA%\\Temp\\metro-* %LOCALAPPDATA%\\Temp\\react-* && rimraf \"%USERPROFILE%\\Library\\Developer\\Xcode\\DerivedData\" || true && watchman watch-del-all || true && npm install && cd ios && pod install --repo-update && cd .."
   },
   "dependencies": {
     "@babel/runtime": "^7.28.3",
     "@expo/metro-runtime": "~3.2.1",
     "@react-native-async-storage/async-storage": "1.23.1",
     "@react-native-community/datetimepicker": "8.0.1",
-    "@react-native-firebase/app": "^23.2.2",
-    "@react-native-firebase/messaging": "^23.2.2",
+    "@react-native-firebase/app": "^20.5.0",
+    "@react-native-firebase/messaging": "^20.5.0",
     "@react-navigation/native": "^6.1.17",
     "@react-navigation/native-stack": "^6.9.26",
     "expo": "~51.0.0",
@@ -34,7 +35,7 @@
     "expo-sharing": "~12.0.1",
     "expo-status-bar": "~1.12.1",
     "expo-updates": "~0.25.11",
-    "firebase": "^12.1.0",
+    "firebase": "^12.3.0",
     "luxon": "^3.7.1",
     "react": "18.2.0",
     "react-dom": "18.2.0",
@@ -59,7 +60,8 @@
     "eslint-plugin-prettier": "^5.5.1",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-native": "^5.0.0",
-    "expo-server-sdk": "^3.15.0"
+    "expo-server-sdk": "^3.15.0",
+    "rimraf": "^6.0.1"
   },
   "private": true
 }

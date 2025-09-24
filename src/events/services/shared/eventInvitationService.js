@@ -11,7 +11,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../../auth/services/firebase';
 import { updateEventSubscription } from '../../lib/userMetrics';
-import { notifyHostOfEventJoin } from '../../../services/shared/eventNotificationsService';
+// Event join notifications handled by onEventSubscribed Cloud Function
 import { notifyEventInvitation, sendBulkInvitationNotifications } from '../../../services/shared/invitationNotificationsService';
 import { fetchEventDetails } from './eventCoreService';
 
@@ -253,13 +253,7 @@ export const acceptInvitationAndSubscribe = async (
             ? userDoc.data()?.userdata?.contactInfo?.displayName || 'Someone'
             : 'Someone';
 
-          await notifyHostOfEventJoin({
-            hostId: eventData.createdBy,
-            eventId: eventId,
-            eventTitle: eventData.title,
-            subscriberId: userId,
-            subscriberName: userName,
-          });
+          // Host notification handled by onEventSubscribed Cloud Function
         }
       } catch (error) {
         console.error(

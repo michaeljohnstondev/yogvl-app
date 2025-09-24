@@ -11,6 +11,10 @@ import {
 
 /**
  * Notifies event host when someone joins their event
+ * @deprecated This function is deprecated. Event join notifications are now handled
+ * automatically by the onEventSubscribed Cloud Function when users are added to the
+ * event subscribers collection. This manual function is kept for testing and backwards
+ * compatibility only.
  * @param {Object} params - Notification parameters
  * @param {string} params.hostId - Event host user ID
  * @param {string} params.eventId - Event ID
@@ -25,9 +29,10 @@ export const notifyHostOfEventJoin = async ({
   eventTitle,
   subscriberId,
   subscriberName,
+  studioId,
 }) => {
   try {
-    if (!hostId || !eventId || !subscriberId || !subscriberName) {
+    if (!hostId || !eventId || !subscriberId || !subscriberName || !studioId) {
       throw new Error('Missing required parameters for host join notification');
     }
 
@@ -42,6 +47,7 @@ export const notifyHostOfEventJoin = async ({
       message: `${subscriberName} joined your event "${eventTitle}"`,
       data: {
         eventId,
+        studioId,
         eventTitle,
         subscriberId,
         subscriberName,
@@ -69,6 +75,10 @@ export const notifyHostOfEventJoin = async ({
 
 /**
  * Notifies event host when someone leaves their event
+ * @deprecated This function is deprecated. Event leave notifications are now handled
+ * automatically by the onEventUnsubscribed Cloud Function when users are removed from the
+ * event subscribers collection. This manual function is kept for testing and backwards
+ * compatibility only.
  * @param {Object} params - Notification parameters
  * @param {string} params.hostId - Event host user ID
  * @param {string} params.eventId - Event ID
@@ -83,9 +93,10 @@ export const notifyHostOfEventLeave = async ({
   eventTitle,
   unsubscriberId,
   unsubscriberName,
+  studioId,
 }) => {
   try {
-    if (!hostId || !eventId || !unsubscriberId || !unsubscriberName) {
+    if (!hostId || !eventId || !unsubscriberId || !unsubscriberName || !studioId) {
       throw new Error(
         'Missing required parameters for host leave notification'
       );
@@ -102,6 +113,7 @@ export const notifyHostOfEventLeave = async ({
       message: `${unsubscriberName} left your event "${eventTitle}"`,
       data: {
         eventId,
+        studioId,
         eventTitle,
         unsubscriberId,
         unsubscriberName,
