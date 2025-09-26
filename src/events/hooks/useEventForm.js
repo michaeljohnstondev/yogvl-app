@@ -330,8 +330,10 @@ Hope to see you there! 🎉`;
 
       // Schedule server-side FCM notifications for the event
       try {
-        const customReminderTemplates =
-          eventData.notificationSettings?.reminderTemplates || [];
+        // Use host's actual notification settings instead of empty array
+        const hostReminderTemplates = userData?.userdata?.settings?.notifications?.hosting?.reminderTemplates || {};
+        console.log('[EventForm] Using host reminder templates:', hostReminderTemplates);
+
         await EventNotificationScheduler.scheduleEventReminders(
           eventRef.id,
           {
@@ -344,12 +346,12 @@ Hope to see you there! 🎉`;
             createdBy: currentUserId,
           },
           currentUserId,
-          customReminderTemplates
+          hostReminderTemplates
         );
         console.log(
           '[EventForm] Scheduled server-side FCM notifications for event:',
           eventRef.id,
-          `(${customReminderTemplates.length} custom templates)`
+          `(${Object.keys(hostReminderTemplates).length} reminder settings)`
         );
       } catch (notificationError) {
         console.warn(
@@ -659,8 +661,10 @@ Hope to see you there! 🎉`;
 
       // Reschedule server-side FCM notifications for the updated event
       try {
-        const customReminderTemplates =
-          eventData.notificationSettings?.reminderTemplates || [];
+        // Use host's actual notification settings instead of empty array
+        const hostReminderTemplates = userData?.userdata?.settings?.notifications?.hosting?.reminderTemplates || {};
+        console.log('[EventForm] Using host reminder templates for reschedule:', hostReminderTemplates);
+
         await EventNotificationScheduler.rescheduleEventReminders(
           eventId,
           {
@@ -673,12 +677,12 @@ Hope to see you there! 🎉`;
             createdBy: existingEvent.createdBy || currentUserId,
           },
           currentUserId,
-          customReminderTemplates
+          hostReminderTemplates
         );
         console.log(
           '[EventForm] Rescheduled server-side FCM notifications for event:',
           eventId,
-          `(${customReminderTemplates.length} custom templates)`
+          `(${Object.keys(hostReminderTemplates).length} reminder settings)`
         );
       } catch (notificationError) {
         console.warn(

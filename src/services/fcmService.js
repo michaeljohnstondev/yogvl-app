@@ -441,7 +441,11 @@ class FCMService {
     try {
       const screens = data.navigationStack.split(',');
 
-      console.log(`[FCMService] Navigating through stack: ${screens.join(' → ')}`);
+      // Get the final screen in the navigation stack (destination)
+      const finalScreen = screens[screens.length - 1].trim();
+      const params = this.getNavigationParams(finalScreen, data);
+
+      console.log(`[FCMService] Navigating directly to final destination: ${finalScreen} with params:`, params);
 
       // Reset navigation stack to Home first
       this.navigationRef.reset({
@@ -449,15 +453,9 @@ class FCMService {
         routes: [{ name: 'Home' }],
       });
 
-      // Navigate through each screen in the stack (skip Home since we reset to it)
-      for (let i = 1; i < screens.length; i++) {
-        const screen = screens[i].trim();
-        const params = this.getNavigationParams(screen, data);
+      // Navigate directly to the final destination
+      this.navigationRef.navigate(finalScreen, params);
 
-        console.log(`[FCMService] Navigating to ${screen} with params:`, params);
-
-        this.navigationRef.navigate(screen, params);
-      }
     } catch (error) {
       console.error('[FCMService] Navigation stack error:', error);
 

@@ -260,8 +260,8 @@ function EventInfoSection({
         </View>
       </View>
 
-      {/* Attendees - Only show if there are attendees beyond the host, hide if admin is only attendee */}
-      {attendeeCount > 0 && !(isAdmin && !isHostOrCohost && attendeeCount === 1) && (
+      {/* Attendees - Only show when there are enough attendees for meaningful display */}
+      {attendeeCount >= 2 && !(isAdmin && !isHostOrCohost && attendeeCount === 1) && (
         <View style={styles.infoCard}>
           <TouchableOpacity
             style={styles.infoRow}

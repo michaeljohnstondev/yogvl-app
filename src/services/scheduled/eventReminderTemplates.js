@@ -14,6 +14,66 @@ export const REMINDER_INTERVALS = {
 
 export class EventReminderTemplates {
   /**
+   * Map user notification settings to intervals
+   * @param {Object} reminderTemplates - User's reminder templates settings (e.g., {'1h': true, '1d': false})
+   * @returns {Array} Array of intervals for enabled notifications
+   */
+  static mapUserSettingsToIntervals(reminderTemplates) {
+    const intervals = [];
+
+    if (reminderTemplates['15m']) {
+      intervals.push({
+        key: '15m',
+        minutes: 15,
+        title: 'Event Starting in 15 Minutes!',
+      });
+    }
+
+    if (reminderTemplates['30m']) {
+      intervals.push({
+        key: '30m',
+        minutes: 30,
+        title: 'Event Starting in 30 Minutes!',
+      });
+    }
+
+    if (reminderTemplates['1h']) {
+      intervals.push({
+        key: '1h',
+        minutes: 60,
+        title: 'Event Starting Soon!',
+      });
+    }
+
+    if (reminderTemplates['2h']) {
+      intervals.push({
+        key: '2h',
+        minutes: 120,
+        title: 'Event in 2 Hours',
+      });
+    }
+
+    if (reminderTemplates['1d']) {
+      intervals.push({
+        key: '1d',
+        minutes: 1440, // 24 * 60
+        title: 'Event Tomorrow!',
+      });
+    }
+
+    if (reminderTemplates['1w']) {
+      intervals.push({
+        key: '1w',
+        minutes: 10080, // 7 * 24 * 60
+        title: 'Event Next Week!',
+      });
+    }
+
+    console.log(`[EventReminderTemplates] Mapped ${intervals.length} enabled intervals from user settings`);
+    return intervals;
+  }
+
+  /**
    * Get default reminder intervals with messages
    */
   static getDefaultIntervals() {
@@ -84,7 +144,7 @@ export class EventReminderTemplates {
    */
   static async scheduleEventRemindersWithCustomTemplates(
     eventData,
-    customReminderTemplates = []
+    hostReminderTemplates = {}
   ) {
     try {
       const {
@@ -107,19 +167,17 @@ export class EventReminderTemplates {
       // Get all users who should receive reminders (subscribers + host)
       const allUsers = Array.from(new Set([...subscribers, createdBy]));
 
-      // Use custom templates if provided, otherwise fall back to defaults
-      let intervals;
-      if (customReminderTemplates && customReminderTemplates.length > 0) {
-        console.log(
-          '[EventReminderTemplates] Using custom reminder templates:',
-          customReminderTemplates.length
-        );
-        intervals = this.convertCustomTemplates(customReminderTemplates);
-      } else {
-        console.log(
-          '[EventReminderTemplates] Using default reminder intervals'
-        );
-        intervals = this.getDefaultIntervals();
+      // Map user settings to intervals - no hardcoded fallback
+      console.log('[EventReminderTemplates] Using host reminder settings:', hostReminderTemplates);
+      const intervals = this.mapUserSettingsToIntervals(hostReminderTemplates);
+
+      if (intervals.length === 0) {
+        console.log('[EventReminderTemplates] No reminder intervals enabled for host - skipping notifications');
+        return {
+          success: true,
+          scheduledCount: 0,
+          notifications: [],
+        };
       }
 
       for (const interval of intervals) {

@@ -146,7 +146,7 @@ Based on actual implementation:
   cohosts: string[],         // Array of cohost user IDs
   subscriberCount: number,    // Cached count of subscribers
 
-  // NEW: Invitation tracking (from recent implementation)
+  // Invitation tracking
   invitations: string[],      // Array of user IDs with pending invitations
 
   // Event settings

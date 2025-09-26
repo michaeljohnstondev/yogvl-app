@@ -3,8 +3,8 @@
 
 /**
  * Parse reminder template ID to time components
- * Supports format: "15m", "2h", "1d", "1w", "3y" (amount + unit first letter)
- * @param {string} templateId - Reminder template ID (e.g., "15m", "2h")
+ * Supports format: "15m", "2h", "1d", "1w", "6x", "2y" (amount + unit first letter)
+ * @param {string} templateId - Reminder template ID (e.g., "15m", "2h", "6x", "2y")
  * @returns {Object} Parsed reminder data or null if invalid
  */
 function parseReminderTemplate(templateId) {
@@ -13,7 +13,7 @@ function parseReminderTemplate(templateId) {
   }
 
   // Match new format: number + single letter unit
-  const match = templateId.match(/^(\d+)([mhdwy])$/);
+  const match = templateId.match(/^(\d+)([mhdwxy])$/);
   if (!match) {
     return null;
   }
@@ -31,7 +31,8 @@ function parseReminderTemplate(templateId) {
     h: 'hours',
     d: 'days',
     w: 'weeks',
-    y: 'months' // Note: 'y' maps to months for compatibility
+    x: 'months', // x for months
+    y: 'years'   // y for years (reserved for future use)
   };
 
   const unit = unitMap[unitChar];
@@ -71,6 +72,8 @@ function reminderToMilliseconds(templateId) {
       return amount * 7 * 24 * 60 * 60 * 1000;
     case 'months':
       return amount * 30 * 24 * 60 * 60 * 1000; // Approximate 30 days
+    case 'years':
+      return amount * 365 * 24 * 60 * 60 * 1000; // Approximate 365 days
     default:
       return null;
   }
@@ -96,6 +99,7 @@ function reminderToLabel(templateId) {
     days: amount === 1 ? 'day' : 'days',
     weeks: amount === 1 ? 'week' : 'weeks',
     months: amount === 1 ? 'month' : 'months',
+    years: amount === 1 ? 'year' : 'years',
   };
 
   const unitLabel = unitLabels[unit] || unit;
