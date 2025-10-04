@@ -12,6 +12,7 @@ const VibeInput = forwardRef(({
   onContentSizeChange,
   style,
   isCompleted, // New prop to indicate if field is completed
+  hasDropdownOpen, // New prop to indicate if autocomplete dropdown is open
   onFocus,
   onBlur,
   autoComplete,
@@ -47,7 +48,8 @@ const VibeInput = forwardRef(({
       placeholderTextColor="#aaa"
       style={[
         styles.input,
-        isCompleted && styles.completedInput, // Apply completed style if isCompleted is true
+        isCompleted && styles.completedInput,
+        hasDropdownOpen && styles.inputWithDropdown, // Square bottom corners when dropdown open
         style,
       ]}
       {...otherProps}
@@ -61,16 +63,21 @@ export default VibeInput;
 
 const styles = StyleSheet.create({
   input: {
-    borderWidth: 1,
-    borderColor: theme.colors.inputBorder,
+    borderWidth: 3,
+    borderColor: theme.colors.vibeBlue,
     borderRadius: theme.sizes.borderRadius,
     padding: theme.sizes.inputPadding,
     fontSize: 16,
     fontFamily: theme.fonts.main,
     color: theme.colors.textPrimary,
-    backgroundColor: theme.colors.inputBackground,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Option 3: Dark transparent - pure blacklight
   },
   completedInput: {
-    borderColor: theme.colors.vibePurple,
+    // Removed purple border - keep neon blue regardless of state
+  },
+  inputWithDropdown: {
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    borderBottomWidth: 0, // Remove bottom border when dropdown is open
   },
 });

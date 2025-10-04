@@ -57,7 +57,7 @@ export const useSuggestions = (studioId = null) => {
     details: [],
     interests: [],
   });
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   const loadSuggestions = useCallback(async () => {
     try {

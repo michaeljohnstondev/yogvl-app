@@ -1,4 +1,7 @@
 // FILE: services/adminNotificationService.js - Admin Notification System
+// ✅ UPDATED: Now uses modern direct Firebase function triggers
+// ✅ No longer creates notificationTriggers documents (eliminated collection)
+// ✅ Uses adminNotifications collection for direct trigger architecture
 
 import {
   doc,
@@ -340,36 +343,48 @@ class AdminNotificationService {
    */
   async triggerPushNotification(userId, notification) {
     try {
-      // Create a notification trigger document that Cloud Functions will pick up
-      const triggerId = `admin_${notification.type}_${userId}_${Date.now()}`;
-      const notificationTriggerRef = doc(db, 'notificationTriggers', triggerId);
+      // Create an admin notification document that will trigger direct Cloud Functions
+      const notificationId = `admin_${notification.type}_${userId}_${Date.now()}`;
+      const adminNotificationRef = doc(db, 'adminNotifications', notificationId);
 
-      await setDoc(notificationTriggerRef, {
-        type: 'admin_notification',
-        subType: notification.type, // warning, strike, announcement, etc.
-        userId: userId,
-        priority: notification.priority,
+      await setDoc(adminNotificationRef, {
+        targetUserId: userId,
+        notificationId: notificationId,
+
+        type: notification.type, // warning, strike, announcement, etc.
+        subType: notification.type,
+        priority: notification.priority || 'normal',
+
         title: this.getNotificationTitle(notification.type),
-        message: notification.message.substring(0, 100), // Truncate for push notification
-        additionalInfo: notification.additionalInfo,
-        issuedBy: notification.issuedBy,
-        relatedReport: notification.relatedReport,
+        message: notification.message,
+        additionalInfo: notification.additionalInfo || null,
+
+        issuedBy: notification.issuedBy || 'system_admin',
+        issuedByName: 'Admin', // Will be resolved by Cloud Function
+        relatedReport: notification.relatedReport || null,
+
         createdAt: Timestamp.now(),
+        scheduledFor: Timestamp.now(),
+
         processed: false,
+        attempts: 0,
+
         data: {
           type: 'admin_notification',
           notificationId: notification.id,
-          priority: notification.priority,
-          screen: 'Notifications', // Navigate to notifications screen
+          priority: notification.priority || 'normal',
+          screen: 'Notifications',
+          channels: ['push', 'in_app'],
+          requiresAck: notification.requiresResponse || false,
         },
       });
 
       console.log(
-        `[adminNotificationService] Push notification trigger created: ${triggerId}`
+        `[adminNotificationService] Admin notification created: ${notificationId}`
       );
     } catch (error) {
       console.error(
-        '[adminNotificationService] Error triggering push notification:',
+        '[adminNotificationService] Error creating admin notification:',
         error
       );
       // Don't throw - admin notification should still be saved even if push fails

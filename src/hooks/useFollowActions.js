@@ -6,7 +6,8 @@ export const useFollowActions = (
   currentUserId,
   userData,
   onStatsChange,
-  onRefresh
+  onRefresh,
+  getTargetUserData = null // Optional function to get target user data
 ) => {
   const [actionLoading, setActionLoading] = useState({});
   const vibeAlert = useVibeAlert();
@@ -17,22 +18,33 @@ export const useFollowActions = (
     setActionLoading((prev) => ({ ...prev, [targetUserId]: true }));
 
     try {
-      await followUser(currentUserId, targetUserId, userData);
+      // Get target user data if available
+      const targetUserData = getTargetUserData ? getTargetUserData(targetUserId) : null;
+      const result = await followUser(currentUserId, targetUserId, userData, targetUserData);
 
-      // Refresh data if callback provided
-      if (onRefresh) {
-        await onRefresh();
+      // Check if operation succeeded
+      const succeeded = !result || result.success !== false;
+
+      if (succeeded) {
+        // Refresh data if callback provided
+        if (onRefresh) {
+          await onRefresh();
+        }
+
+        // Notify parent to refresh stats
+        if (onStatsChange) {
+          onStatsChange();
+        }
       }
 
-      // Notify parent to refresh stats
-      if (onStatsChange) {
-        onStatsChange();
-      }
+      // Return success status so screen can rollback if needed
+      return succeeded;
 
-      vibeAlert.success('Success', 'Now following user');
+      // Success feedback provided by loading state changing to "Unfollow" button
     } catch (error) {
       console.error('Follow error:', error);
       vibeAlert.error('Error', 'Unable to follow user');
+      return false; // Return false so screen can rollback
     } finally {
       setActionLoading((prev) => ({ ...prev, [targetUserId]: false }));
     }
@@ -44,22 +56,31 @@ export const useFollowActions = (
     setActionLoading((prev) => ({ ...prev, [targetUserId]: true }));
 
     try {
-      await unfollowUser(currentUserId, targetUserId);
+      const result = await unfollowUser(currentUserId, targetUserId);
 
-      // Refresh data if callback provided
-      if (onRefresh) {
-        await onRefresh();
+      // Check if operation succeeded
+      const succeeded = !result || result.success !== false;
+
+      if (succeeded) {
+        // Refresh data if callback provided
+        if (onRefresh) {
+          await onRefresh();
+        }
+
+        // Notify parent to refresh stats
+        if (onStatsChange) {
+          onStatsChange();
+        }
       }
 
-      // Notify parent to refresh stats
-      if (onStatsChange) {
-        onStatsChange();
-      }
+      // Return success status so screen can rollback if needed
+      return succeeded;
 
-      vibeAlert.success('Success', 'Unfollowed user');
+      // Success feedback provided by loading state changing to "Follow" button
     } catch (error) {
       console.error('Unfollow error:', error);
       vibeAlert.error('Error', 'Unable to unfollow user');
+      return false; // Return false so screen can rollback
     } finally {
       setActionLoading((prev) => ({ ...prev, [targetUserId]: false }));
     }

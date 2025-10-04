@@ -349,11 +349,11 @@ const GuestNotificationSettingsForm = memo(function GuestNotificationSettingsFor
     <>
       {/* Master Toggle for Attendee Notifications */}
       <View style={[styles.section, sectionStyle]}>
-        <Text style={styles.sectionTitle}>PUSH NOTIFICATIONS</Text>
+        <Text style={styles.sectionTitle}>GUEST NOTIFICATIONS</Text>
         <View style={styles.settingsGroup}>
           <SettingItem
-            title="Enable Push Notifications"
-            description="Turn on push notifications for events you're attending"
+            title="Enable Notifications"
+            description="Turn on notifications for events you're attending"
             value={settings?.enabled ?? true}
             onToggle={() => toggleSetting('enabled')}
             isLast
@@ -566,16 +566,16 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: theme.colors.vibeGreen,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginBottom: 10,
     letterSpacing: 1,
   },
   settingsGroup: {
-    backgroundColor: theme.colors.inputBackground,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     borderRadius: theme.sizes.borderRadius,
-    borderWidth: 1,
-    borderColor: theme.colors.inputBorder,
+    borderWidth: 3,
+    borderColor: theme.colors.vibeBlue,
     overflow: 'visible',
     zIndex: 1,
     elevation: 1,

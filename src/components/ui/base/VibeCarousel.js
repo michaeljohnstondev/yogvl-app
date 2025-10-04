@@ -5,7 +5,7 @@ import { PanGestureHandler } from 'react-native-gesture-handler';
 
 const { width, height } = Dimensions.get('window');
 
-export default function VibeCarousel({ data, renderItem, scrollViewRef }) {
+export default function VibeCarousel({ data, renderItem, scrollViewRef, height = 180 }) {
   const [isScrolling, setIsScrolling] = useState(false);
   const carouselRef = useRef(null);
 
@@ -13,7 +13,7 @@ export default function VibeCarousel({ data, renderItem, scrollViewRef }) {
     <View style={styles.container}>
       <Carousel
         width={width * 0.95}
-        height={160}
+        height={height}
         autoPlay={false}
         data={data}
         scrollAnimationDuration={600}

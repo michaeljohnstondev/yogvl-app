@@ -20,15 +20,20 @@ import { useAuth } from '../auth/AuthContext';
 import { FormatDate, getRelativeTimeString } from '../lib/formatDate';
 import { usePrivacyValidation } from '../hooks/usePrivacyValidation';
 import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
+import { useStatusBar } from '../components/ui/base/VibeAppWrapper';
 import MessageInput from './MessageBoard/components/MessageInput';
 import theme from '../theme/themes';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function MessageBoardScreen({ route, navigation }) {
-  const { eventId, eventTitle } = route.params;
+  const { eventId, eventTitle, scrollToComment } = route.params;
   const { currentUserId, userData } = useAuth();
   const vibeAlert = useVibeAlert();
   const { validateAndNavigate } = usePrivacyValidation(currentUserId);
   const flatListRef = useRef(null);
+  const previousMessageCount = useRef(0);
+  const isInitialLoad = useRef(true);
+  const hasScrolledToComment = useRef(false);
 
   const {
     comments: messages,
@@ -42,21 +47,57 @@ export default function MessageBoardScreen({ route, navigation }) {
     getCurrentUserRole,
   } = useComments(eventId);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Scroll to specific comment when opening from notification
   useEffect(() => {
-    if (messages.length > 0) {
+    if (scrollToComment && messages.length > 0 && !hasScrolledToComment.current) {
+      const commentIndex = messages.findIndex(msg => msg.id === scrollToComment);
+
+      if (commentIndex !== -1) {
+        console.log(`[MessageBoard] Scrolling to comment ${scrollToComment} at index ${commentIndex}`);
+        hasScrolledToComment.current = true;
+
+        setTimeout(() => {
+          flatListRef.current?.scrollToIndex({
+            index: commentIndex,
+            animated: true,
+            viewPosition: 0.5 // Center the comment on screen
+          });
+        }, 300);
+      }
+    }
+  }, [scrollToComment, messages]);
+
+  // Auto-scroll to bottom when new messages arrive (newest messages are last)
+  useEffect(() => {
+    // Skip auto-scroll on initial load
+    if (isInitialLoad.current) {
+      isInitialLoad.current = false;
+      previousMessageCount.current = messages.length;
+      return;
+    }
+
+    // Skip auto-scroll if we're trying to scroll to a specific comment
+    if (scrollToComment && !hasScrolledToComment.current) {
+      previousMessageCount.current = messages.length;
+      return;
+    }
+
+    // Only auto-scroll if new messages were added
+    if (messages.length > previousMessageCount.current) {
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     }
-  }, [messages.length]);
+
+    previousMessageCount.current = messages.length;
+  }, [messages.length, scrollToComment]);
 
   // Handle sending message from isolated input component
   const handleSendMessage = useCallback(
     async (messageText) => {
       const success = await sendMessage(messageText);
       if (success) {
-        // Auto-scroll to bottom when new message is sent
+        // Auto-scroll to bottom when new message is sent (newest messages are last)
         setTimeout(() => {
           flatListRef.current?.scrollToEnd({ animated: true });
         }, 100);
@@ -102,26 +143,19 @@ export default function MessageBoardScreen({ route, navigation }) {
   // Handle message deletion
   const handleDeleteMessage = useCallback(
     async (messageId, messageUserId) => {
-      Alert.alert(
+      vibeAlert.confirm(
         'Delete Message',
         'Are you sure you want to delete this message?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: async () => {
-              const success = await deleteMessage(messageId, messageUserId);
-              if (!success && error) {
-                Alert.alert('Error', error);
-                clearError();
-              }
-            },
-          },
-        ]
+        async () => {
+          const success = await deleteMessage(messageId, messageUserId);
+          if (!success && error) {
+            vibeAlert.error('Error', error);
+            clearError();
+          }
+        }
       );
     },
-    [deleteMessage, error, clearError]
+    [deleteMessage, error, clearError, vibeAlert]
   );
 
   // Format message timestamp
@@ -172,6 +206,15 @@ export default function MessageBoardScreen({ route, navigation }) {
     [currentUserId]
   );
 
+  // Get background tint based on border color
+  const getBackgroundTint = useCallback(
+    (message) => {
+      // All messages use the same dark purple background as the input
+      return '#1A0A35';
+    },
+    []
+  );
+
   // Create stable delete handlers for each message
   const createDeleteHandler = useCallback(
     (messageId, messageUserId) => {
@@ -194,6 +237,7 @@ export default function MessageBoardScreen({ route, navigation }) {
       message,
       isCurrentUser,
       borderColor,
+      backgroundColor,
       canDelete,
       onDelete,
       onAvatarPress,
@@ -201,7 +245,7 @@ export default function MessageBoardScreen({ route, navigation }) {
       return (
         <View style={styles.messageContainer}>
           {/* Message Card */}
-          <View style={[styles.messageCard, { borderColor: borderColor }]}>
+          <View style={[styles.messageCard, { borderColor: borderColor, backgroundColor: backgroundColor }]}>
             {/* Delete button - top right */}
             {canDelete && (
               <Pressable onPress={onDelete} style={styles.deleteButton}>
@@ -269,10 +313,7 @@ export default function MessageBoardScreen({ route, navigation }) {
   );
 
   return (
-    <LinearGradient
-      colors={theme.colors.backgroundGradient}
-      style={styles.background}
-    >
+    <View style={styles.background}>
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -299,6 +340,7 @@ export default function MessageBoardScreen({ route, navigation }) {
               message={item}
               isCurrentUser={item.userId === currentUserId}
               borderColor={getBorderColor(item)}
+              backgroundColor={getBackgroundTint(item)}
               canDelete={canDeleteMessage(item)}
               onDelete={createDeleteHandler(item.id, item.userId)}
               onAvatarPress={createAvatarPressHandler(item.userId)}
@@ -315,11 +357,6 @@ export default function MessageBoardScreen({ route, navigation }) {
           style={styles.messagesList}
           contentContainerStyle={styles.messagesContent}
           showsVerticalScrollIndicator={false}
-          onContentSizeChange={() => {
-            if (messages.length > 0) {
-              flatListRef.current?.scrollToEnd({ animated: false });
-            }
-          }}
         />
 
         {/* Message Input - Isolated Component */}
@@ -329,13 +366,14 @@ export default function MessageBoardScreen({ route, navigation }) {
           disabled={false}
         />
       </KeyboardAvoidingView>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   background: {
     flex: 1,
+    backgroundColor: theme.colors.background,
   },
   container: {
     flex: 1,
@@ -346,9 +384,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.inputBorder,
-    backgroundColor: theme.colors.background,
+    borderBottomWidth: 3,
+    borderBottomColor: theme.colors.vibeBlue,
+    backgroundColor: theme.colors.headerBackground,
   },
   headerContent: {
     flex: 1,
@@ -382,7 +420,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.inputBackground,
     borderRadius: theme.sizes.borderRadius,
     padding: 16,
-    borderWidth: 1,
+    borderWidth: 3,
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
@@ -427,9 +465,9 @@ const styles = StyleSheet.create({
     // UI Restrictions: NO borders, NO background colors on close/report buttons
   },
   deleteButtonText: {
-    fontSize: 12,
+    fontSize: 14,
     color: theme.colors.vibeRed || '#FF4444',
-    fontWeight: 'bold',
+    fontWeight: '900',
     // Simple clean text only - no borders or backgrounds
   },
   emptyState: {

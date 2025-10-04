@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Pressable,
   BackHandler,
   RefreshControl,
 } from 'react-native';
@@ -21,6 +22,7 @@ import {
   AdminNotificationModal,
 } from '../components/ui';
 import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
+import { useStatusBar } from '../components/ui/base/VibeAppWrapper';
 import EventCard from '../events/components/EventCard';
 import NotificationButton from '../components/notifications/NotificationButton';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
@@ -32,13 +34,16 @@ import { hasAdminAccess } from '../services/adminService';
 import { banEnforcementService } from '../services/banEnforcementService';
 import { adminNotificationService } from '../services/adminNotificationService';
 import { globalAdminService } from '../services/globalAdminService';
+import { extractInterestsFromEventTitle } from '../services/interestService';
 import theme from '../theme/themes';
 
-export default function HomeScreen({ navigation }) {
+export default function HomeScreen({ navigation, route }) {
   const [myEvents, setMyEvents] = useState([]);
   const [followedEvents, setFollowedEvents] = useState([]);
-  const [suggestedEvents, setSuggestedEvents] = useState([]);
+  const [interestBasedEvents, setInterestBasedEvents] = useState([]);
+  const [otherEvents, setOtherEvents] = useState([]);
   const [pastEvents, setPastEvents] = useState([]);
+  const [studioCity, setStudioCity] = useState('');
 
   // Ban enforcement state
   const [banStatus, setBanStatus] = useState(null);
@@ -66,6 +71,20 @@ export default function HomeScreen({ navigation }) {
     () => navigation.navigate('Notifications'),
     [navigation]
   );
+  const handleProfilePress = useCallback(
+    () => setShowAccountSettings(true),
+    []
+  );
+  const handleCloseAccountSettings = useCallback(
+    () => setShowAccountSettings(false),
+    []
+  );
+
+  // Memoize ProfileAvatar to prevent unnecessary re-renders
+  const profileAvatar = useMemo(
+    () => <ProfileAvatar userData={userData} size={40} showBorder={true} />,
+    [userData]
+  );
 
   // Handle pull-to-refresh
   const handleRefresh = useCallback(async () => {
@@ -80,6 +99,7 @@ export default function HomeScreen({ navigation }) {
     if (!defaultStudio?.studioId || !currentUserId) return;
 
     const userStudio = defaultStudio.studioId;
+    const studioCity = defaultStudio.studioCity || 'your area';
 
     if (!isRefresh) setIsLoading(true);
     try {
@@ -130,23 +150,41 @@ export default function HomeScreen({ navigation }) {
         }
       });
 
-      // Add suggested events
+      // Split suggested events into interest-based and other events
+      const userInterests = userData?.preferences?.interests || [];
+      // Sanitize user interests to remove any emoji spaces or extra whitespace
+      const sanitizedInterests = userInterests.map(interest => interest.trim());
+      const interestBased = [];
+      const other = [];
+
       feedData.suggestedEvents.forEach((event) => {
         const eventDate =
           event.eventTimestamp?.toDate() || new Date(event.utcDateTime);
-        if (eventDate >= now) {
-          suggested.push({
+        // Only add if upcoming AND not already subscribed
+        if (eventDate >= now && !subscribedEventIds.has(event.id)) {
+          const enrichedEvent = {
             ...event,
             isHostedByUser: event.createdBy === currentUserId,
-          });
+          };
+
+          // Check if event title matches any user interests (using sanitized interests)
+          const matchedInterests = extractInterestsFromEventTitle(event.title, sanitizedInterests);
+
+          if (matchedInterests.length > 0) {
+            interestBased.push(enrichedEvent);
+          } else {
+            other.push(enrichedEvent);
+          }
         }
       });
 
       setMyEvents(myUpcoming);
       setFollowedEvents(followed);
-      setSuggestedEvents(suggested);
+      setInterestBasedEvents(interestBased);
+      setOtherEvents(other);
       setPastEvents(myPast.reverse()); // Most recent first
       setFeedStats(feedData.stats);
+      setStudioCity(studioCity);
     } catch (error) {
       console.error('[HomeScreen] Failed to load event feed:', error);
       vibeAlert.error('Error', 'Failed to load events. Please try again.');
@@ -184,15 +222,11 @@ export default function HomeScreen({ navigation }) {
     // Check for admin notifications (both individual and global)
     const checkAdminNotifications = async () => {
       try {
-        // Check individual notifications first
-        const unacknowledgedNotifications =
-          await adminNotificationService.getUnacknowledgedNotifications(
-            currentUserId
-          );
-
-        // Check global notifications
-        const globalMessages =
-          await globalAdminService.getActiveGlobalMessages(currentUserId);
+        // Check both notification types in parallel
+        const [unacknowledgedNotifications, globalMessages] = await Promise.all([
+          adminNotificationService.getUnacknowledgedNotifications(currentUserId),
+          globalAdminService.getActiveGlobalMessages(currentUserId)
+        ]);
 
         // Combine and prioritize (global messages first, then individual)
         const allNotifications = [
@@ -216,15 +250,21 @@ export default function HomeScreen({ navigation }) {
       }
     };
 
-    // First check ban status, then load events if not banned, and check notifications
+    // Parallel execution: check ban status while preparing other operations
     const initializeHomeScreen = async () => {
-      const status = await checkBanStatus();
+      // Start ban check immediately
+      const banCheckPromise = checkBanStatus();
 
-      // Only load events if user is not banned
-      if (!status?.isBanned) {
-        loadEventFeed();
-        // Check for admin notifications after loading events
-        await checkAdminNotifications();
+      // Prepare other operations (but don't execute until ban check completes)
+      const banStatus = await banCheckPromise;
+
+      // Only proceed if user is not banned
+      if (!banStatus?.isBanned) {
+        // Execute feed loading and notification checking in parallel
+        const [, ] = await Promise.all([
+          loadEventFeed(),
+          checkAdminNotifications()
+        ]);
       }
     };
 
@@ -265,11 +305,19 @@ export default function HomeScreen({ navigation }) {
     }, [currentUserId, userData, banStatus, isLoading, loadEventFeed])
   );
 
+  // Listen for refresh parameter (e.g., after joining an event)
+  useEffect(() => {
+    if (route?.params?.refresh && currentUserId && userData && !isLoading) {
+      loadEventFeed(true);
+    }
+  }, [route?.params?.refresh, currentUserId, userData, isLoading, loadEventFeed]);
+
   // Check if user has no events at all
   const hasNoEvents =
     myEvents.length === 0 &&
     followedEvents.length === 0 &&
-    suggestedEvents.length === 0 &&
+    interestBasedEvents.length === 0 &&
+    otherEvents.length === 0 &&
     pastEvents.length === 0;
 
   // Admin functions
@@ -298,13 +346,11 @@ export default function HomeScreen({ navigation }) {
         setShowNotificationModal(false);
         setCurrentNotification(null);
 
-        // Check if there are more notifications to show
-        const individualNotifications =
-          await adminNotificationService.getUnacknowledgedNotifications(
-            currentUserId
-          );
-        const globalMessages =
-          await globalAdminService.getActiveGlobalMessages(currentUserId);
+        // Check if there are more notifications to show (parallel execution)
+        const [individualNotifications, globalMessages] = await Promise.all([
+          adminNotificationService.getUnacknowledgedNotifications(currentUserId),
+          globalAdminService.getActiveGlobalMessages(currentUserId)
+        ]);
         const allRemainingNotifications = [
           ...globalMessages,
           ...individualNotifications,
@@ -377,12 +423,21 @@ export default function HomeScreen({ navigation }) {
             onPress={handleNotificationsPress}
             iconComponent={bellIcon}
           />
-          <TouchableOpacity
-            style={styles.profileButton}
-            onPress={() => setShowAccountSettings(true)}
+          <Pressable
+            style={({ pressed }) => [
+              styles.profileButton,
+              {
+                opacity: pressed ? 0.7 : 1,
+                transform: [{ scale: pressed ? 0.95 : 1 }]
+              }
+            ]}
+            onPress={handleProfilePress}
+            delayPressIn={0}
+            delayPressOut={0}
+            hitSlop={8}
           >
-            <ProfileAvatar userData={userData} size={40} showBorder={true} />
-          </TouchableOpacity>
+            {profileAvatar}
+          </Pressable>
         </View>
       </View>
 
@@ -450,11 +505,37 @@ export default function HomeScreen({ navigation }) {
             </>
           )}
 
-          {suggestedEvents.length > 0 && (
+          {interestBasedEvents.length > 0 && (
             <>
-              <Text style={styles.sectionHeader}>Discover Events</Text>
+              <Text style={styles.sectionHeader}>
+                For You in {studioCity}
+              </Text>
               <VibeCarousel
-                data={suggestedEvents}
+                data={interestBasedEvents}
+                scrollViewRef={scrollViewRef}
+                renderItem={(item, isScrolling) => (
+                  <EventCard
+                    {...item}
+                    onPress={() => {
+                      if (!isScrolling) {
+                        navigation.navigate('EventDetail', {
+                          eventId: item.id,
+                        });
+                      }
+                    }}
+                  />
+                )}
+              />
+            </>
+          )}
+
+          {otherEvents.length > 0 && (
+            <>
+              <Text style={styles.sectionHeader}>
+                Discover {studioCity}
+              </Text>
+              <VibeCarousel
+                data={otherEvents}
                 scrollViewRef={scrollViewRef}
                 renderItem={(item, isScrolling) => (
                   <EventCard
@@ -513,21 +594,20 @@ export default function HomeScreen({ navigation }) {
       )}
 
       {showAccountSettings && (
-        <TouchableOpacity
-          style={styles.dropdownOverlay}
-          onPress={() => setShowAccountSettings(false)}
-          activeOpacity={1}
-          // Ensure this overlay doesn't interfere with scrolling when not visible
-          pointerEvents={showAccountSettings ? 'auto' : 'none'}
-        />
+        <>
+          <TouchableOpacity
+            style={styles.dropdownOverlay}
+            onPress={handleCloseAccountSettings}
+            activeOpacity={1}
+          />
+          <AccountSettingsDropdown
+            visible={showAccountSettings}
+            onClose={handleCloseAccountSettings}
+            navigation={navigation}
+            userData={userData}
+          />
+        </>
       )}
-
-      <AccountSettingsDropdown
-        visible={showAccountSettings}
-        onClose={() => setShowAccountSettings(false)}
-        navigation={navigation}
-        userData={userData}
-      />
 
       {/* Banned User Modal */}
       <BannedUserModal
@@ -564,14 +644,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.darkGray,
+    paddingTop: 8,
+    paddingBottom: 16,
+    backgroundColor: theme.colors.headerBackground,
+    borderBottomWidth: 3,
+    borderBottomColor: theme.colors.vibeBlue,
   },
   headerTitle: {
     color: theme.colors.white,
     fontSize: 24,
     fontWeight: 'bold',
+    marginLeft: -8,
   },
   headerIcons: {
     flexDirection: 'row',
@@ -610,6 +693,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 10,
+    marginTop: 20,
     marginLeft: 4,
   },
   loadingText: {

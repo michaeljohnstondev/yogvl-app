@@ -19,12 +19,18 @@ import {
 } from '../../../services/notificationTester';
 import { useEventForm } from '../../../events/hooks/useEventForm';
 import { ScheduledNotificationCore } from '../../../services/scheduled/scheduledNotificationCore';
+import { followUser } from '../../../services/followService';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../../auth/services/firebase';
 
 export default function NotificationTester() {
   const [testing, setTesting] = useState(false);
   const [testingType, setTestingType] = useState(null);
   const [permissionStatus, setPermissionStatus] = useState(null);
   const [pushToken, setPushToken] = useState(null);
+  const [generatingClaude, setGeneratingClaude] = useState(false);
+  const [creatingEvent, setCreatingEvent] = useState(false);
+  const [followingClaude, setFollowingClaude] = useState(false);
   const { currentUserId, user } = useAuth();
   const {
     processPendingNotifications,
@@ -34,6 +40,136 @@ export default function NotificationTester() {
     pendingCount,
   } = useScheduledNotifications();
   const { submitEvent } = useEventForm();
+
+  const generateClaudeUser = async () => {
+    setGeneratingClaude(true);
+    try {
+      const { setDoc, doc } = await import('../../../lib/firebase');
+      const { db } = await import('../../../auth/services/firebase');
+
+      const claudeUserId = 'claude_ai_test_user';
+      const studioId = 'greenville_sc';
+
+      console.log('🤖 [GenerateClaude] Creating Claude test user...');
+
+      // Create complete user document following DATABASE.md schema
+      const claudeUserData = {
+        email: 'claude@anthropic.com',
+        phoneNumber: '+15552528233',
+        userdata: {
+          contactInfo: {
+            displayName: 'Claude Assistant',
+            firstName: 'Claude',
+            lastName: 'Assistant',
+            email: 'claude@anthropic.com',
+            phone: '+15552528233',
+            phoneNumber: '+15552528233',
+            profilePicture: '' // No profile picture for now
+          },
+          bio: "AI assistant by Anthropic. Here to help test your Greenville events and make them epic! 🤖✨",
+          location: {
+            city: 'Greenville',
+            state: 'SC',
+            country: 'USA'
+          },
+          interests: ['Technology', 'AI', 'Coding', 'Music', 'Events', 'Community Building'],
+          followerCount: 0,
+          lastUpdated: new Date(),
+          metadata: {
+            createdAt: new Date(),
+            updatedAt: new Date()
+          },
+          metrics: {
+            engagement: {},
+            events: {},
+            social: {}
+          },
+          settings: {
+            accessibility: {},
+            display: {},
+            preferences: {},
+            notifications: {
+              app: {
+                pushNotifications: true,
+                newFollowers: true,
+                eventInvitations: true,
+                suggestedEvents: true
+              },
+              hosting: {
+                enabled: true,
+                hostComments: true,
+                newComments: true,
+                notifyOnJoin: true,
+                notifyOnLeave: true,
+                eventRecap: true,
+                reminderTemplates: {
+                  '15m': true,
+                  '30m': true,
+                  '1h': true,
+                  '2h': false,
+                  '1d': false,
+                  '1w': false
+                }
+              },
+              attending: {
+                enabled: true,
+                hostChanges: true,
+                hostComments: true,
+                newComments: true,
+                reminderTemplates: {
+                  '15m': true,
+                  '30m': true,
+                  '1h': true,
+                  '2h': false,
+                  '1d': false,
+                  '1w': false
+                }
+              }
+            },
+            privacy: {
+              emailVisibility: 'friends',
+              phoneVisibility: 'never'
+            }
+          },
+          studios: {
+            default: {
+              studioId: studioId
+            }
+          }
+        }
+      };
+
+      // Create user document
+      await setDoc(doc(db, 'users', claudeUserId), claudeUserData);
+      console.log('✅ [GenerateClaude] User document created');
+
+      // Add Claude to Greenville studio
+      const { arrayUnion, updateDoc, getDoc } = await import('../../../lib/firebase');
+      const studioRef = doc(db, 'studios', studioId);
+      const studioSnap = await getDoc(studioRef);
+
+      if (studioSnap.exists()) {
+        await updateDoc(studioRef, {
+          users: arrayUnion(claudeUserId)
+        });
+        console.log('✅ [GenerateClaude] Added to Greenville studio');
+      } else {
+        console.warn('[GenerateClaude] Greenville studio not found, user created but not added to studio');
+      }
+
+      Alert.alert(
+        'Claude Generated! 🤖',
+        `Test user "Claude Assistant" created successfully!\n\nUser ID: ${claudeUserId}\nStudio: Greenville, SC\n\nYou can now use this user for testing notifications, follows, and invitations!`,
+        [{ text: 'Great!' }]
+      );
+
+    } catch (error) {
+      console.error('[GenerateClaude] Failed to create Claude user:', error);
+      Alert.alert('Error', `Failed to create Claude user: ${error.message}`);
+    } finally {
+      setGeneratingClaude(false);
+    }
+  };
 
   const logTokenToConsole = async () => {
     try {
@@ -52,6 +188,102 @@ export default function NotificationTester() {
     } catch (error) {
       console.error('Failed to get FCM token:', error);
       Alert.alert('Error', 'Failed to get FCM token');
+    }
+  };
+
+  const handleClaudeFollowMe = async () => {
+    const CLAUDE_USER_ID = 'claude_ai_test_user';
+    setFollowingClaude(true);
+    try {
+      // Claude follows me (so I get the notification)
+      const claudeUserDoc = await getDoc(doc(db, 'users', CLAUDE_USER_ID));
+      if (!claudeUserDoc.exists()) {
+        throw new Error('Claude user not found. Generate Claude first!');
+      }
+      const claudeUserData = claudeUserDoc.data();
+
+      await followUser(CLAUDE_USER_ID, currentUserId, claudeUserData, user);
+      Alert.alert('Success! 🔔', 'Claude is now following you! Check your notifications to test the follow notification system.');
+    } catch (error) {
+      console.error('Error with Claude follow:', error);
+      Alert.alert('Error', `Failed: ${error.message}`);
+    } finally {
+      setFollowingClaude(false);
+    }
+  };
+
+  const createClaudeTestEvent = async () => {
+    setCreatingEvent(true);
+    try {
+      if (!currentUserId || !user) {
+        Alert.alert('Error', 'You must be logged in to create events');
+        return;
+      }
+
+      const { setDoc, doc } = await import('../../../lib/firebase');
+      const { db } = await import('../../../auth/services/firebase');
+
+      const claudeUserId = 'claude_ai_test_user';
+
+      // Random time between 1 hour and 7 days from now
+      const minHours = 1;
+      const maxHours = 168; // 7 days
+      const randomHours = Math.floor(Math.random() * (maxHours - minHours + 1)) + minHours;
+
+      const eventTime = new Date();
+      eventTime.setHours(eventTime.getHours() + randomHours);
+
+      const eventId = `claude_test_event_${Date.now()}`;
+      const studioId = 'greenville_sc';
+
+      console.log(`🎉 [CreateClaudeEvent] Creating event at ${eventTime.toLocaleString()}`);
+
+      const eventData = {
+        title: '🤖 Claude Test Music Event',
+        description: 'Automated test event created by Claude for testing purposes. Feel free to join, comment, or use this for notification testing! Great music and community vibes!',
+        location: 'The Velo Fellow',
+        address: '1 N Main St, Greenville, SC 29601',
+        eventTimestamp: eventTime,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: claudeUserId,
+        hostName: 'Claude Assistant',
+        studioId: studioId,
+        isPrivate: false,
+        maxGuests: 50,
+        hasRsvpDeadline: false,
+        subscribers: [claudeUserId],
+        subscriberCount: 1,
+        invitations: [],
+        cohosts: [],
+        notificationSettings: {
+          enabled: true,
+          notifyOnJoin: true,
+          notifyOnLeave: true,
+          newComments: true,
+          hostChanges: true,
+          eventReminders: true,
+          reminderTiming: '15m',
+          hostComments: true
+        },
+        status: 'active'
+      };
+
+      // Create event document
+      await setDoc(doc(db, 'studios', studioId, 'events', eventId), eventData);
+      console.log('✅ [CreateClaudeEvent] Event created successfully');
+
+      Alert.alert(
+        'Claude Test Event Created! 🎉',
+        `Event created successfully!\n\nEvent ID: ${eventId}\nTime: ${eventTime.toLocaleString()}\n(${randomHours} hours from now)\n\nLocation: The Velo Fellow, Greenville\n\nYou can find it in your events list!`,
+        [{ text: 'Great!' }]
+      );
+
+    } catch (error) {
+      console.error('[CreateClaudeEvent] Failed to create event:', error);
+      Alert.alert('Error', `Failed to create event: ${error.message}`);
+    } finally {
+      setCreatingEvent(false);
     }
   };
 
@@ -841,28 +1073,14 @@ export default function NotificationTester() {
   ];
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <Text style={styles.title}>🔔 Push Notification Tester</Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>🔧 Admin Testing Tools</Text>
 
-      {permissionStatus && (
-        <View style={styles.statusContainer}>
-          <Text style={styles.statusTitle}>Permission Status:</Text>
-          <Text
-            style={[
-              styles.statusText,
-              {
-                color: permissionStatus.granted
-                  ? theme.colors.vibeGreen
-                  : theme.colors.vibePink,
-              },
-            ]}
-          >
-            {permissionStatus.granted
-              ? '✅ Granted'
-              : `❌ ${permissionStatus.status}`}
-          </Text>
-        </View>
-      )}
+      <VibeButton
+        label="📝 Log FCM Token to Console"
+        onPress={logTokenToConsole}
+        style={[styles.testButton, { backgroundColor: theme.colors.vibeBlue }]}
+      />
 
       {pushToken && (
         <View style={styles.statusContainer}>
@@ -877,236 +1095,26 @@ export default function NotificationTester() {
       )}
 
       <VibeButton
-        label="📝 Log FCM Token to Console"
-        onPress={logTokenToConsole}
-        style={[styles.testButton, { backgroundColor: theme.colors.vibeBlue }]}
-      />
-
-      <VibeButton
-        label={testing ? 'Setting up...' : '🔧 Test Setup & Permissions'}
-        onPress={testNotificationSetup}
-        disabled={testing}
+        label={generatingClaude ? 'Generating Claude...' : '🤖 Generate Claude'}
+        onPress={generateClaudeUser}
+        disabled={generatingClaude}
         style={[styles.testButton, { backgroundColor: theme.colors.vibeGreen }]}
       />
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Test Notification Types:</Text>
+      <VibeButton
+        label={creatingEvent ? 'Creating Event...' : '🎉 Create Claude Test Event'}
+        onPress={createClaudeTestEvent}
+        disabled={creatingEvent}
+        style={[styles.testButton, { backgroundColor: theme.colors.vibePink }]}
+      />
 
-        {notificationTypes.map((type) => (
-          <VibeButton
-            key={type.key}
-            label={testingType === type.key ? 'Sending...' : type.label}
-            onPress={() => testSpecificNotification(type.key)}
-            disabled={testingType === type.key}
-            style={[styles.typeButton, { backgroundColor: type.color }]}
-          />
-        ))}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Foreground Banner Testing:</Text>
-        <Text style={styles.sectionNote}>
-          Test notification banners that appear when app is in foreground
-        </Text>
-
-        <VibeButton
-          label="🔔 Test Info Banner"
-          onPress={() => testNotificationBanner('info')}
-          style={[styles.typeButton, { backgroundColor: theme.colors.vibeBlue }]}
-        />
-
-        <VibeButton
-          label="✅ Test Success Banner"
-          onPress={() => testNotificationBanner('success')}
-          style={[styles.typeButton, { backgroundColor: theme.colors.vibeGreen }]}
-        />
-
-        <VibeButton
-          label="❌ Test Error Banner"
-          onPress={() => testNotificationBanner('error')}
-          style={[styles.typeButton, { backgroundColor: theme.colors.vibeRed }]}
-        />
-
-        <VibeButton
-          label="⚠️ Test Warning Banner"
-          onPress={() => testNotificationBanner('warning')}
-          style={[styles.typeButton, { backgroundColor: theme.colors.vibeOrange }]}
-        />
-
-        <VibeButton
-          label="📅 Test Event Reminder Banner"
-          onPress={() => testNotificationBanner('event_reminder')}
-          style={[styles.typeButton, { backgroundColor: '#FF6B35' }]}
-        />
-
-        <VibeButton
-          label="👤 Test Follow Banner"
-          onPress={() => testNotificationBanner('follow_notification')}
-          style={[styles.typeButton, { backgroundColor: theme.colors.vibePink }]}
-        />
-
-        <VibeButton
-          label="🎉 Test Invitation Banner"
-          onPress={() => testNotificationBanner('invitation_received')}
-          style={[styles.typeButton, { backgroundColor: theme.colors.vibePurple }]}
-        />
-
-        <VibeButton
-          label="🚨 Test Admin Banner"
-          onPress={() => testNotificationBanner('admin_notification')}
-          style={[styles.typeButton, { backgroundColor: theme.colors.vibeOrange }]}
-        />
-
-        <VibeButton
-          label="🎊 Test All Banner Types"
-          onPress={testAllNotificationTypes}
-          style={[styles.typeButton, { backgroundColor: theme.colors.vibeCyan }]}
-        />
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Scheduled Event Reminders:</Text>
-
-        {pendingCount > 0 && (
-          <View style={styles.statusContainer}>
-            <Text style={styles.statusTitle}>Pending Reminders:</Text>
-            <Text
-              style={[styles.statusText, { color: theme.colors.vibeGreen }]}
-            >
-              {pendingCount} scheduled
-            </Text>
-            {upcomingReminders.slice(0, 3).map((reminder, index) => (
-              <Text key={index} style={styles.reminderText}>
-                • {reminder.title} at{' '}
-                {reminder.scheduledFor.toLocaleTimeString()}
-              </Text>
-            ))}
-          </View>
-        )}
-
-        <VibeButton
-          label={
-            testingType === 'scheduled_reminder'
-              ? 'Scheduling...'
-              : '⏰ Test Scheduled Reminder (10 sec)'
-          }
-          onPress={testScheduledReminder}
-          disabled={testingType === 'scheduled_reminder'}
-          style={[styles.typeButton, { backgroundColor: '#FF6B35' }]}
-        />
-
-        <VibeButton
-          label={
-            testingType === 'quick_test'
-              ? 'Sending...'
-              : '📱 Test Background (Close App After)'
-          }
-          onPress={() => testSpecificNotification('quick_test')}
-          disabled={testingType === 'quick_test'}
-          style={[
-            styles.typeButton,
-            { backgroundColor: theme.colors.vibePink },
-          ]}
-        />
-
-        <VibeButton
-          label={
-            testingType === 'process_pending'
-              ? 'Processing...'
-              : '🔄 Process Pending Notifications'
-          }
-          onPress={testProcessPending}
-          disabled={testingType === 'process_pending'}
-          style={[
-            styles.typeButton,
-            { backgroundColor: theme.colors.vibeGreen },
-          ]}
-        />
-
-        <VibeButton
-          label={
-            testingType === 'real_notifications'
-              ? 'Testing...'
-              : '🧪 Test Real Notification Functions'
-          }
-          onPress={testRealNotifications}
-          disabled={testingType === 'real_notifications'}
-          style={[
-            styles.typeButton,
-            { backgroundColor: theme.colors.vibePink },
-          ]}
-        />
-
-        <VibeButton
-          label={
-            testingType === 'test_event_creation'
-              ? 'Creating Event...'
-              : '🎉 Create Real Test Event (5min + Notifications)'
-          }
-          onPress={createTestEventWithNotifications}
-          disabled={testingType === 'test_event_creation'}
-          style={[
-            styles.typeButton,
-            { backgroundColor: theme.colors.vibeGreen },
-          ]}
-        />
-
-        <VibeButton
-          label={
-            testingType === 'immediate_test'
-              ? 'Sending...'
-              : '⚡ IMMEDIATE TEST - Send Notification NOW!'
-          }
-          onPress={sendImmediateTestNotification}
-          disabled={testingType === 'immediate_test'}
-          style={[
-            styles.typeButton,
-            { backgroundColor: theme.colors.vibeGreen, borderColor: theme.colors.vibeYellow, borderWidth: 2 },
-          ]}
-        />
-
-        <VibeButton
-          label={
-            testingType === 'invitation_test'
-              ? 'Sending...'
-              : '💌 INVITATION TEST - Event Invitation Notification'
-          }
-          onPress={testInvitationNotification}
-          disabled={testingType === 'invitation_test'}
-          style={[
-            styles.typeButton,
-            { backgroundColor: theme.colors.vibePink, borderColor: theme.colors.vibeBlue, borderWidth: 2 },
-          ]}
-        />
-
-        <VibeButton
-          label={
-            testingType === 'comprehensive_test'
-              ? 'Creating Comprehensive Test...'
-              : '🚀 COMPREHENSIVE TEST - Real Event + 10sec Notifications'
-          }
-          onPress={createComprehensiveTestEvent}
-          disabled={testingType === 'comprehensive_test'}
-          style={[
-            styles.typeButton,
-            { backgroundColor: theme.colors.vibeBlue, borderColor: theme.colors.vibeGreen, borderWidth: 2 },
-          ]}
-        />
-      </View>
-
-      <Text style={styles.note}>
-        🔧 Setup Test: Checks permissions, gets token, registers with your
-        account
-        {'\n\n'}
-        📱 Notification Tests: Send different notification types with deep
-        linking
-        {'\n\n'}⏰ Scheduled Tests: Test automatic event reminders & background
-        processing
-        {'\n\n'}🎉 Real Event Test: Creates actual event with real scheduling (5min) and notification reminders (10sec before event). Tests complete notification flow.
-        {'\n\n'}
-        Tap notifications to test navigation to different screens!
-      </Text>
-    </ScrollView>
+      <VibeButton
+        label={followingClaude ? 'Processing...' : '👥 Claude Follow Me'}
+        onPress={handleClaudeFollowMe}
+        disabled={followingClaude}
+        style={[styles.testButton, { backgroundColor: theme.colors.vibeOrange }]}
+      />
+    </View>
   );
 }
 

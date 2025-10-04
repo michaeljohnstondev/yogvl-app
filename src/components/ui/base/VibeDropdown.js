@@ -103,11 +103,11 @@ const styles = StyleSheet.create({
     elevation: 99,
   },
   selector: {
-    borderWidth: 1,
-    borderColor: theme.colors.inputBorder,
+    borderWidth: 3,
+    borderColor: theme.colors.vibeBlue,
     borderRadius: theme.sizes.borderRadius,
     paddingVertical: theme.sizes.inputPadding,
-    backgroundColor: theme.colors.inputBackground,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Dark transparent blacklight
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
-    borderColor: theme.colors.vibeBlue || '#00C6FF',
+    borderColor: theme.colors.vibeBlue,
   },
   selectorText: {
     fontSize: 16,
@@ -142,13 +142,13 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 99,
     elevation: 99,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.headerBackground, // Solid dark purple background
     borderRadius: theme.sizes.borderRadius,
     borderTopLeftRadius: 0,
     borderTopRightRadius: 0,
-    borderWidth: 2,
+    borderWidth: 3,
     borderTopWidth: 0,
-    borderColor: theme.colors.vibeBlue || '#00C6FF',
+    borderColor: theme.colors.vibeBlue,
     maxHeight: 300,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -176,7 +176,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   completedSelector: {
-    borderColor: theme.colors.vibePurple || '#9D4EDD',
-    borderWidth: 1,
+    // Removed purple border - keep neon blue regardless of state
   },
 });

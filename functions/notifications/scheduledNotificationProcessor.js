@@ -52,7 +52,19 @@ exports.processScheduledNotifications = functions.scheduler.onSchedule(
             }
           }
 
-          // Create notification trigger for FCM processing
+          // DISABLED: notificationTriggers collection eliminated
+          console.warn('[scheduledNotificationProcessor] notificationTriggers disabled - collection eliminated');
+
+          // Mark as failed since we can't send via old trigger system
+          await notificationDoc.ref.update({
+            status: 'failed',
+            failureReason: 'notificationTriggers collection eliminated - needs direct trigger implementation',
+            lastAttemptAt: admin.firestore.FieldValue.serverTimestamp(),
+            attempts: (notificationData.attempts || 0) + 1,
+          });
+          continue; // Skip to next notification
+
+          /* REMOVED - WAS CREATING ZOMBIE notificationTriggers COLLECTION
           const triggerId = `scheduled_${notificationData.type}_${userId}_${Date.now()}`;
           const notificationTriggerRef = admin
             .firestore()
@@ -93,6 +105,7 @@ exports.processScheduledNotifications = functions.scheduler.onSchedule(
 
           processedCount++;
           console.log(`[ScheduledProcessor] ✅ Processed notification ${notificationId}`);
+          */
 
         } catch (error) {
           console.error(`[ScheduledProcessor] ❌ Failed to process notification ${notificationId}:`, error);

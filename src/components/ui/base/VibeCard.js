@@ -29,7 +29,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.vibeBackgroundBlue,
     borderRadius: 12,
     padding: 16,
-    borderWidth: 1,
+    borderWidth: 3,
     borderColor: theme.colors.vibeBlue,
   },
   title: {

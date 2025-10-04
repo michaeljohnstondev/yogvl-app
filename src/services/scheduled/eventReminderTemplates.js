@@ -273,15 +273,6 @@ export class EventReminderTemplates {
       // Determine which reminders to schedule based on user settings
       const remindersToSchedule = [];
 
-      // Day before reminder
-      if (notificationSettings.dayBeforeReminder) {
-        remindersToSchedule.push({
-          key: 'ONE_DAY',
-          minutes: REMINDER_INTERVALS.ONE_DAY,
-          title: 'Event Tomorrow!',
-        });
-      }
-
       // Default reminder if no templates are set (fallback)
       if (!notificationSettings.reminderTemplates || Object.keys(notificationSettings.reminderTemplates).length === 0) {
         remindersToSchedule.push({

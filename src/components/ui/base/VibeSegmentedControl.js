@@ -46,14 +46,15 @@ const styles = StyleSheet.create({
   },
   segment: {
     flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: theme.sizes.borderRadius,
     borderWidth: 1,
     borderColor: theme.colors.inputBorder,
     backgroundColor: theme.colors.background,
+    minWidth: 60,
   },
   firstSegment: {
     // No longer needed since we're using gap instead of connected segments
@@ -62,8 +63,9 @@ const styles = StyleSheet.create({
     // No longer needed since we're using gap instead of connected segments
   },
   selectedSegment: {
+    borderWidth: 3,
     borderColor: theme.colors.vibeGreen,
-    backgroundColor: theme.colors.background,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Dark transparent blacklight
   },
   segmentText: {
     fontSize: 15,

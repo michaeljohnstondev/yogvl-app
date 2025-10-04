@@ -65,6 +65,14 @@ export default function Navigation() {
   // Navigation reference for deep linking
   const navigationRef = React.useRef();
 
+  // Handler for when NavigationContainer is ready
+  const handleNavigationReady = () => {
+    if (navigationRef.current) {
+      fcmService.setNavigationRef(navigationRef.current);
+      console.log('[Navigation] Navigation ref set for FCM service (via onReady)');
+    }
+  };
+
   // Deep linking configuration
   const linking = {
     prefixes: [
@@ -147,8 +155,11 @@ export default function Navigation() {
   };
 
   useEffect(() => {
+    console.log('[Navigation] 🚀 App starting - Auth state listener mounted');
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log('[Navigation] 👤 Auth state changed, user:', user ? user.uid : 'null');
       if (user) {
+        console.log('[Navigation] ✅ User authenticated, loading user data...');
         setUser(user);
         setUserDataLoading(true);
 
@@ -156,31 +167,45 @@ export default function Navigation() {
           const userRef = doc(db, 'users', user.uid);
           const snap = await getDoc(userRef);
           if (snap.exists()) {
-            setUserData(snap.data());
+            const data = snap.data();
+            console.log('[Navigation] 📄 User data loaded successfully');
+            console.log('[Navigation] Admin flags:', { isAdmin: data.isAdmin, isGlobalAdmin: data.isGlobalAdmin });
+            setUserData(data);
           } else {
+            console.warn('[Navigation] ⚠️ User document does not exist');
             setUserData(null);
           }
 
           // Initialize FCM service and register token for authenticated user
           try {
             if (!fcmService.isReady()) {
-              console.log('[Navigation] Initializing FCM service...');
+              console.log('[Navigation] 🔔 Initializing FCM service...');
               await fcmService.initialize();
+              console.log('[Navigation] ✅ FCM service initialized');
             }
+            console.log('[Navigation] 🧭 Setting navigation ref for FCM...');
             fcmService.setNavigationRef(navigationRef.current);
 
             // Register FCM token for authenticated user
             if (user?.uid) {
+              console.log('[Navigation] 📱 Registering FCM token for user...');
               const tokenRegistered = await fcmService.registerTokenForUser(
                 user.uid
               );
               if (!tokenRegistered) {
-                console.warn('[Navigation] Failed to register push token');
+                console.warn('[Navigation] ⚠️ Failed to register push token');
+              } else {
+                console.log('[Navigation] ✅ FCM token registered successfully');
               }
             }
           } catch (fcmError) {
-            console.error('[Navigation] FCM setup failed:', fcmError);
+            console.error('[Navigation] ❌ FCM setup failed:', fcmError);
           }
+
+          // Signal to FCM that auth and user data are ready
+          console.log('[Navigation] 🔓 Signaling auth ready to FCM service...');
+          fcmService.setAuthReady(user.uid);
+          console.log('[Navigation] ✅ Auth setup complete');
         } catch (error) {
           console.error('Error fetching user data:', error);
           setUserData(null);
@@ -384,7 +409,7 @@ export default function Navigation() {
   return (
     <AuthProvider user={user} userData={userData}>
       <RealtimeNotificationsProvider>
-        <NavigationContainer ref={navigationRef} linking={linking}>
+        <NavigationContainer ref={navigationRef} linking={linking} onReady={handleNavigationReady}>
           {!user ? (
             <Stack.Navigator
               initialRouteName="Landing"

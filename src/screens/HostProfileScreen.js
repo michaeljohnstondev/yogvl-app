@@ -12,7 +12,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { VibeButton } from '../components/ui';
-import { BlockButton } from '../components/ui/buttons';
+import { BlockButton, FollowButton } from '../components/ui/buttons';
 import { ProfileAvatar } from '../components/ui/profile';
 import { UserReliabilityCard } from '../events/components/UserReliabilityCard';
 import { getUserEventStats } from '../events/lib/userMetrics';
@@ -56,6 +56,7 @@ const HostProfileScreen = ({ navigation, route }) => {
 
   const { hostData, eventId } = route.params || {};
   const [isFollowing, setIsFollowing] = useState(false);
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
   const [visibleContactInfo, setVisibleContactInfo] = useState({});
   const [canViewStats, setCanViewStats] = useState(true);
   const [followStats, setFollowStats] = useState({
@@ -223,31 +224,64 @@ const HostProfileScreen = ({ navigation, route }) => {
   const stats = getUserEventStats(hostData);
   const isCurrentUser = currentUserId === hostData.id;
 
-  const handleFollow = async () => {
-    if (!currentUserId || !hostData.id || !userData) {
-      vibeAlert.error('Error', 'Unable to process follow request');
+  const handleFollowClick = async () => {
+    if (!currentUserId || !hostData.id || !userData || isFollowLoading) {
       return;
     }
 
-    try {
-      const hostName = displayName;
+    // Optimistic update: increment follower count immediately
+    setFollowStats((prev) => ({
+      ...prev,
+      followerCount: prev.followerCount + 1,
+    }));
+    setIsFollowing(true);
+    setIsFollowLoading(true);
 
-      if (isFollowing) {
-        // Unfollow
-        await unfollowUser(currentUserId, hostData.id);
-        setIsFollowing(false);
-        vibeAlert.error('Unfollowed', `You have unfollowed ${hostName}.`);
-      } else {
-        // Follow
-        await followUser(currentUserId, hostData.id, userData);
-        setIsFollowing(true);
-        vibeAlert.success('Success', `You are following ${hostName}!`);
-      }
-    } catch (error) {
-      console.error('Error toggling follow:', error);
-      const action = isFollowing ? 'unfollow' : 'follow';
-      vibeAlert.error('Error', `Failed to ${action} ${displayName}`);
+    const result = await followUser(currentUserId, hostData.id, userData, hostData);
+
+    // Check if operation succeeded
+    const succeeded = !result || result.success !== false;
+
+    // Rollback if operation was blocked (throttled/cooldown) or failed
+    if (!succeeded) {
+      setFollowStats((prev) => ({
+        ...prev,
+        followerCount: prev.followerCount - 1,
+      }));
+      setIsFollowing(false);
     }
+
+    setIsFollowLoading(false);
+  };
+
+  const handleUnfollowClick = async () => {
+    if (!currentUserId || !hostData.id || !userData || isFollowLoading) {
+      return;
+    }
+
+    // Optimistic update: decrement follower count immediately
+    setFollowStats((prev) => ({
+      ...prev,
+      followerCount: Math.max(0, prev.followerCount - 1),
+    }));
+    setIsFollowing(false);
+    setIsFollowLoading(true);
+
+    const result = await unfollowUser(currentUserId, hostData.id);
+
+    // Check if operation succeeded
+    const succeeded = !result || result.success !== false;
+
+    // Rollback if operation was blocked (throttled/cooldown) or failed
+    if (!succeeded) {
+      setFollowStats((prev) => ({
+        ...prev,
+        followerCount: prev.followerCount + 1,
+      }));
+      setIsFollowing(true);
+    }
+
+    setIsFollowLoading(false);
   };
 
   const formatJoinDate = (timestamp) => {
@@ -301,6 +335,7 @@ const HostProfileScreen = ({ navigation, route }) => {
         'Unblock User',
         `Unblock ${displayName}? They will be able to see your profile again.`,
         async () => {
+          setBlockStatus({ isBlocked: true, loading: true });
           try {
             const result = await blockingService.unblockUser(
               currentUserId,
@@ -308,11 +343,8 @@ const HostProfileScreen = ({ navigation, route }) => {
             );
             if (result.success) {
               setBlockStatus({ isBlocked: false, loading: false });
-              vibeAlert.success(
-                'Unblocked',
-                `You have unblocked ${displayName}.`
-              );
             } else {
+              setBlockStatus({ isBlocked: true, loading: false });
               vibeAlert.error(
                 'Error',
                 'Failed to unblock user. Please try again.'
@@ -320,6 +352,7 @@ const HostProfileScreen = ({ navigation, route }) => {
             }
           } catch (error) {
             console.error('[HostProfile] Error unblocking user:', error);
+            setBlockStatus({ isBlocked: true, loading: false });
             vibeAlert.error(
               'Error',
               'Failed to unblock user. Please try again.'
@@ -333,6 +366,7 @@ const HostProfileScreen = ({ navigation, route }) => {
         'Block User',
         `Block ${displayName}? They won't be able to see your profile, events, or contact you. You will both be unfollowed.`,
         async () => {
+          setBlockStatus({ isBlocked: false, loading: true });
           try {
             const result = await blockingService.blockUser(
               currentUserId,
@@ -341,8 +375,8 @@ const HostProfileScreen = ({ navigation, route }) => {
             if (result.success) {
               setBlockStatus({ isBlocked: true, loading: false });
               setIsFollowing(false); // Update follow status since blocking removes follows
-              vibeAlert.success('Blocked', `You have blocked ${displayName}.`);
             } else {
+              setBlockStatus({ isBlocked: false, loading: false });
               vibeAlert.error(
                 'Error',
                 'Failed to block user. Please try again.'
@@ -350,6 +384,7 @@ const HostProfileScreen = ({ navigation, route }) => {
             }
           } catch (error) {
             console.error('[HostProfile] Error blocking user:', error);
+            setBlockStatus({ isBlocked: false, loading: false });
             vibeAlert.error('Error', 'Failed to block user. Please try again.');
           }
         }
@@ -561,26 +596,15 @@ const HostProfileScreen = ({ navigation, route }) => {
               <View style={styles.statsRow}>
                 <View style={styles.statItem}>
                   <Text style={styles.statNumber}>
-                    {loadingFollowStats ? '...' : followStats.mutualCount}
-                  </Text>
-                  <Text style={styles.statLabel}>Mutual Friends</Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Text style={styles.statNumber}>
                     {loadingFollowStats ? '...' : followStats.followingCount}
                   </Text>
                   <Text style={styles.statLabel}>Following</Text>
                 </View>
-              </View>
-              <View style={styles.statsRow}>
                 <View style={styles.statItem}>
                   <Text style={styles.statNumber}>
                     {loadingFollowStats ? '...' : followStats.followerCount}
                   </Text>
                   <Text style={styles.statLabel}>Followers</Text>
-                </View>
-                <View style={styles.statItemSingle}>
-                  {/* Empty placeholder for visual balance */}
                 </View>
               </View>
             </View>
@@ -815,14 +839,12 @@ const HostProfileScreen = ({ navigation, route }) => {
         {!isCurrentUser && (
           <View style={styles.infoSection}>
             <View style={styles.buttonContainer}>
-              <VibeButton
-                label={isFollowing ? 'FOLLOWING' : 'FOLLOW HOST'}
-                onPress={handleFollow}
-                variant={isFollowing ? 'outline' : 'filled'}
-                style={[
-                  styles.followButton,
-                  isFollowing && styles.followingButton,
-                ]}
+              <FollowButton
+                isFollowing={isFollowing}
+                isLoading={isFollowLoading}
+                onFollow={handleFollowClick}
+                onUnfollow={handleUnfollowClick}
+                style={styles.followButton}
               />
 
               {/* Block/Unblock Button */}
@@ -991,7 +1013,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   buttonContainer: {
-    gap: 12,
+    gap: 0,
   },
   followButton: {
     // Default filled style

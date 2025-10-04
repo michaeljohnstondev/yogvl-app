@@ -24,8 +24,24 @@ export const auth = initializeAuth(app, {
   persistence: getReactNativePersistence(AsyncStorage),
 });
 
-// Initialize Firestore
+// Initialize Firestore with settings
 export const db = getFirestore(app);
+
+// Enable offline persistence and better error handling
+import { enableIndexedDbPersistence } from 'firebase/firestore';
+try {
+  // Only enable persistence in production or if you want offline support
+  // Comment this out if it causes issues during development
+  // enableIndexedDbPersistence(db);
+} catch (err) {
+  if (err.code === 'failed-precondition') {
+    // Multiple tabs open, persistence can only be enabled in one tab at a time
+    console.warn('[Firebase] Persistence failed - multiple tabs open');
+  } else if (err.code === 'unimplemented') {
+    // The current browser doesn't support persistence
+    console.warn('[Firebase] Persistence not available');
+  }
+}
 
 // Initialize Firebase Storage
 export const storage = getStorage(app);

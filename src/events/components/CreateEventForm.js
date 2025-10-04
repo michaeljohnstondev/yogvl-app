@@ -23,6 +23,7 @@ import {
   VibeDropdown,
 } from '../../components/ui/base';
 import { ReliabilityWarning } from '../../components/ui/profile';
+import ScreenHeader from '../../components/ui/layout/ScreenHeader';
 import {
   TemplateSelectionModal,
   SaveTemplateModal,
@@ -114,6 +115,23 @@ export default function CreateEventForm({
       });
       return unsubscribe;
     }, [navigation, updateField])
+  );
+
+  // Listen for invite results from InviteScreen
+  useFocusEffect(
+    useCallback(() => {
+      const unsubscribe = navigation.addListener('inviteComplete', (e) => {
+        const { inviteType, users, contacts, phoneContacts, options = {} } = e.data || {};
+
+        if (inviteType === 'guests') {
+          handleGuestInviteResult({ users, contacts, phoneContacts }, options);
+        } else if (inviteType === 'hosts') {
+          handleHostInviteResult({ users, contacts, phoneContacts }, options);
+        }
+      });
+
+      return unsubscribe;
+    }, [navigation, handleGuestInviteResult, handleHostInviteResult])
   );
 
   const scrollViewRef = useRef(null);
@@ -212,6 +230,132 @@ export default function CreateEventForm({
     updateField,
   ]);
 
+  // Handler functions for invite results
+  const handleGuestInviteResult = useCallback(({ users, contacts, phoneContacts }, options = {}) => {
+    // Check if this is a cancel operation - don't save anything, just reopen modal
+    if (options.cancel) {
+      if (options.reopenGuestList) {
+        setShouldReopenGuestList(true);
+      }
+      return;
+    }
+
+    // When adding guests, don't remove anyone from host lists
+    // Hosts have higher priority than guests
+    const guestUserIds = users.map((u) => u.id);
+    const guestContactIds = [...contacts, ...phoneContacts].map(
+      (c) => c.id
+    );
+
+    // Filter out guests who are already hosts (hosts take priority)
+    const existingHostUserIds = (formData.additionalHostUsers || []).map(
+      (u) => u.id
+    );
+    const existingHostContactIds = [
+      ...(formData.additionalHostContacts || []),
+      ...(formData.additionalHostPhoneContacts || []),
+    ].map((c) => c.id);
+
+    const filteredGuestUsers = users.filter(
+      (u) => !existingHostUserIds.includes(u.id)
+    );
+    const filteredGuestContacts = contacts.filter(
+      (c) => !existingHostContactIds.includes(c.id)
+    );
+    const filteredGuestPhoneContacts = phoneContacts.filter(
+      (c) => !existingHostContactIds.includes(c.id)
+    );
+
+    // Update form data with filtered guest lists
+    updateField('invitedUsers', filteredGuestUsers);
+    updateField('invitedContacts', filteredGuestContacts);
+    updateField('invitedPhoneContacts', filteredGuestPhoneContacts);
+
+    // Update text contacts for guest list display
+    const allTextContacts = [
+      ...filteredGuestContacts,
+      ...filteredGuestPhoneContacts,
+    ];
+    handleTextContactsChange(allTextContacts);
+
+    // Call the guest invitation change callback
+    if (onGuestInvitationChange) {
+      onGuestInvitationChange({
+        users: filteredGuestUsers,
+        contacts: filteredGuestContacts,
+        phoneContacts: filteredGuestPhoneContacts,
+      });
+    }
+
+    // Check if we should reopen the guest list modal
+    if (options.reopenGuestList) {
+      setShouldReopenGuestList(true);
+    }
+  }, [formData.additionalHostUsers, formData.additionalHostContacts, formData.additionalHostPhoneContacts, updateField, handleTextContactsChange, onGuestInvitationChange]);
+
+  const handleHostInviteResult = useCallback(({ users, contacts, phoneContacts }, options = {}) => {
+    // Check if this is a cancel operation - don't save anything, just reopen modal
+    if (options.cancel) {
+      if (options.reopenGuestList) {
+        setShouldReopenGuestList(true);
+      }
+      return;
+    }
+
+    // When adding hosts, remove from guest lists (hosts take priority)
+    const hostUserIds = users.map((u) => u.id);
+    const hostContactIds = [...contacts, ...phoneContacts].map((c) => c.id);
+
+    // Remove new hosts from existing guest lists
+    const filteredGuestUsers = (formData.invitedUsers || []).filter(
+      (u) => !hostUserIds.includes(u.id)
+    );
+    const filteredGuestContacts = (formData.invitedContacts || []).filter(
+      (c) => !hostContactIds.includes(c.id)
+    );
+    const filteredGuestPhoneContacts = (formData.invitedPhoneContacts || []).filter(
+      (c) => !hostContactIds.includes(c.id)
+    );
+
+    // Update form data
+    updateField('additionalHostUsers', users);
+    updateField('additionalHostContacts', contacts);
+    updateField('additionalHostPhoneContacts', phoneContacts);
+    updateField('invitedUsers', filteredGuestUsers);
+    updateField('invitedContacts', filteredGuestContacts);
+    updateField('invitedPhoneContacts', filteredGuestPhoneContacts);
+
+    // Update text contacts for guest list display (removing hosts from text contacts)
+    const allTextContacts = [
+      ...filteredGuestContacts,
+      ...filteredGuestPhoneContacts,
+    ];
+    handleTextContactsChange(allTextContacts);
+
+    // Call the co-host invitation change callback
+    if (onCohostInvitationChange) {
+      onCohostInvitationChange({
+        users: users,
+        contacts: contacts,
+        phoneContacts: phoneContacts,
+      });
+    }
+
+    // Update guest invitation callback as well (since guest lists were filtered)
+    if (onGuestInvitationChange) {
+      onGuestInvitationChange({
+        users: filteredGuestUsers,
+        contacts: filteredGuestContacts,
+        phoneContacts: filteredGuestPhoneContacts,
+      });
+    }
+
+    // Check if we should reopen the guest list modal
+    if (options.reopenGuestList) {
+      setShouldReopenGuestList(true);
+    }
+  }, [formData.invitedUsers, formData.invitedContacts, formData.invitedPhoneContacts, updateField, handleTextContactsChange, onCohostInvitationChange, onGuestInvitationChange]);
+
   // Navigation handlers for beautiful InviteScreen
   const openGuestInvitations = () => {
     navigation.navigate('Invite', {
@@ -221,69 +365,7 @@ export default function CreateEventForm({
       selectedPhoneContacts: formData.invitedPhoneContacts || [],
       maxLimit: null,
       eventTitle: formData.title,
-      onSave: ({ users, contacts, phoneContacts }, options = {}) => {
-        // Check if this is a cancel operation - don't save anything, just reopen modal
-        if (options.cancel) {
-          if (options.reopenGuestList) {
-            setShouldReopenGuestList(true);
-          }
-          return;
-        }
-
-        // When adding guests, don't remove anyone from host lists
-        // Hosts have higher priority than guests
-        const guestUserIds = users.map((u) => u.id);
-        const guestContactIds = [...contacts, ...phoneContacts].map(
-          (c) => c.id
-        );
-
-        // Filter out guests who are already hosts (hosts take priority)
-        const existingHostUserIds = (formData.additionalHostUsers || []).map(
-          (u) => u.id
-        );
-        const existingHostContactIds = [
-          ...(formData.additionalHostContacts || []),
-          ...(formData.additionalHostPhoneContacts || []),
-        ].map((c) => c.id);
-
-        const filteredGuestUsers = users.filter(
-          (u) => !existingHostUserIds.includes(u.id)
-        );
-        const filteredGuestContacts = contacts.filter(
-          (c) => !existingHostContactIds.includes(c.id)
-        );
-        const filteredGuestPhoneContacts = phoneContacts.filter(
-          (c) => !existingHostContactIds.includes(c.id)
-        );
-
-        // Update guest fields (only non-hosts)
-        updateField('invitedUsers', filteredGuestUsers);
-        updateField('invitedContacts', filteredGuestContacts);
-        updateField('invitedPhoneContacts', filteredGuestPhoneContacts);
-
-        // Host fields remain unchanged
-
-        // Update text contacts for guest list display
-        const allTextContacts = [
-          ...filteredGuestContacts,
-          ...filteredGuestPhoneContacts,
-        ];
-        handleTextContactsChange(allTextContacts);
-
-        // Call the guest invitation change callback
-        if (onGuestInvitationChange) {
-          onGuestInvitationChange({
-            users: filteredGuestUsers,
-            contacts: filteredGuestContacts,
-            phoneContacts: filteredGuestPhoneContacts,
-          });
-        }
-
-        // Check if we should reopen the guest list modal
-        if (options.reopenGuestList) {
-          setShouldReopenGuestList(true);
-        }
-      },
+      inviteType: 'guests', // Add identifier for event listener
     });
   };
 
@@ -295,69 +377,7 @@ export default function CreateEventForm({
       selectedPhoneContacts: formData.additionalHostPhoneContacts || [],
       maxLimit: 10,
       eventTitle: formData.title,
-      onSave: ({ users, contacts, phoneContacts }, options = {}) => {
-        // Check if this is a cancel operation - don't save anything, just reopen modal
-        if (options.cancel) {
-          if (options.reopenGuestList) {
-            setShouldReopenGuestList(true);
-          }
-          return;
-        }
-
-        // Remove any selected hosts from guest lists to prevent duplicates
-        const hostUserIds = users.map((u) => u.id);
-        const hostContactIds = [...contacts, ...phoneContacts].map((c) => c.id);
-
-        const filteredGuestUsers = (formData.invitedUsers || []).filter(
-          (u) => !hostUserIds.includes(u.id)
-        );
-        const filteredGuestContacts = (formData.invitedContacts || []).filter(
-          (c) => !hostContactIds.includes(c.id)
-        );
-        const filteredGuestPhoneContacts = (
-          formData.invitedPhoneContacts || []
-        ).filter((c) => !hostContactIds.includes(c.id));
-
-        // Update host fields
-        updateField('additionalHostUsers', users);
-        updateField('additionalHostContacts', contacts);
-        updateField('additionalHostPhoneContacts', phoneContacts);
-
-        // Update guest fields (removing duplicates)
-        updateField('invitedUsers', filteredGuestUsers);
-        updateField('invitedContacts', filteredGuestContacts);
-        updateField('invitedPhoneContacts', filteredGuestPhoneContacts);
-
-        // Update text contacts for guest list display (removing hosts from text contacts)
-        const allTextContacts = [
-          ...filteredGuestContacts,
-          ...filteredGuestPhoneContacts,
-        ];
-        handleTextContactsChange(allTextContacts);
-
-        // Call the co-host invitation change callback
-        if (onCohostInvitationChange) {
-          onCohostInvitationChange({
-            users: users,
-            contacts: contacts,
-            phoneContacts: phoneContacts,
-          });
-        }
-
-        // Update guest invitation callback as well (since guest lists were filtered)
-        if (onGuestInvitationChange) {
-          onGuestInvitationChange({
-            users: filteredGuestUsers,
-            contacts: filteredGuestContacts,
-            phoneContacts: filteredGuestPhoneContacts,
-          });
-        }
-
-        // Check if we should reopen the guest list modal
-        if (options.reopenGuestList) {
-          setShouldReopenGuestList(true);
-        }
-      },
+      inviteType: 'hosts', // Add identifier for event listener
     });
   };
 
@@ -744,6 +764,20 @@ export default function CreateEventForm({
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={{ flex: 1 }}
     >
+      {/* Header */}
+      <ScreenHeader
+        title={isEditMode ? 'Edit Event' : 'Create Event'}
+        showCloseButton={false}
+        rightButton={
+          <Pressable
+            style={styles.useTemplateButton}
+            onPress={onShowTemplateModal}
+          >
+            <Text style={styles.useTemplateButtonText}>📋</Text>
+          </Pressable>
+        }
+      />
+
       <View style={styles.container}>
         <ScrollView
           ref={scrollViewRef}
@@ -752,24 +786,7 @@ export default function CreateEventForm({
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
-          <View style={styles.headerContainer}>
-            <Text style={styles.title}>
-              {isEditMode ? 'Edit Event' : 'Create Event'}
-            </Text>
-            <Pressable
-              style={styles.useTemplateButton}
-              onPress={onShowTemplateModal}
-            >
-              <Text style={styles.useTemplateButtonText}>📋</Text>
-            </Pressable>
-          </View>
-
           <ReliabilityWarning userData={userData} />
-
-          {(isLoading || templatesLoading) && (
-            <Text style={styles.loadingText}>Loading...</Text>
-          )}
 
           {/* WHAT SECTION */}
           <View ref={setSectionRef('what')} style={[styles.sectionContainer, styles.whatSectionContainer]}>
@@ -872,32 +889,31 @@ export default function CreateEventForm({
             />
           </View>
           {/* Notification Settings */}
-          <ManageNotificationsButton onPress={handleManageNotifications} />
-
-          {/* Separator */}
-          <VibeSeparator />
+          <VibeButton
+            label="NOTIFICATIONS"
+            onPress={handleManageNotifications}
+          />
 
           {/* Save Template Button */}
           <VibeButton
-            label="SAVE AS TEMPLATE"
+            label="TEMPLATES"
             onPress={onShowSaveTemplate}
             style={styles.saveTemplateButton}
           />
 
           {/* Create Button */}
           <VibeButton
-            label={
-              isCreating
-                ? isEditMode
-                  ? 'UPDATING...'
-                  : 'CREATING...'
-                : isEditMode
-                  ? 'UPDATE EVENT'
-                  : 'CREATE EVENT'
-            }
+            label={isCreating
+              ? isEditMode
+                ? 'UPDATING...'
+                : 'CREATING...'
+              : isEditMode
+                ? 'UPDATE EVENT'
+                : 'CREATE EVENT'}
             onPress={onCreate}
-            style={[styles.createButton, isCreating && styles.disabledButton]}
             disabled={isCreating}
+            variant="green"
+            style={styles.createButton}
           />
 
           <Text style={styles.helpText}>
@@ -920,7 +936,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
     paddingHorizontal: 15,
-    paddingTop: 15,
+    paddingTop: 0,
   },
   scrollContent: {
     paddingBottom: 60,
@@ -931,8 +947,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
-    marginTop: 20,
+    backgroundColor: theme.colors.headerBackground,
+    paddingHorizontal: 15,
+    paddingVertical: 15,
+    borderBottomWidth: 3,
+    borderBottomColor: theme.colors.vibeBlue,
   },
   title: {
     fontSize: 32,
@@ -942,11 +961,11 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   useTemplateButton: {
-    paddingVertical: 5,
-    paddingHorizontal: 5,
+    paddingVertical: 3,
+    paddingHorizontal: 3,
   },
   useTemplateButtonText: {
-    fontSize: 30,
+    fontSize: 24,
     color: '#888888',
   },
 
@@ -1001,7 +1020,7 @@ const styles = StyleSheet.create({
 
   // Buttons
   saveTemplateButton: {
-    marginTop: 20,
+    marginTop: 0,
     marginBottom: 5,
   },
   createButton: {
@@ -1014,16 +1033,87 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     marginTop: 16,
-    backgroundColor: 'rgba(0, 198, 255, 0.1)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Dark transparent blacklight
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.vibeBlue || '#00C6FF',
+    borderWidth: 3,
+    borderColor: theme.colors.vibeBlue,
     alignItems: 'center',
   },
   toggleButtonText: {
     color: theme.colors.vibeBlue || '#00C6FF',
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: theme.fonts.main,
+  },
+  notificationButtonOuter: {
+    borderBottomWidth: 4,
+    borderLeftWidth: 3,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+    borderColor: '#00FFFF',
+    borderRadius: theme.sizes.buttonRadius,
+    marginTop: 10,
+    marginBottom: 0,
+  },
+  notificationButtonGradient: {
+    borderRadius: theme.sizes.buttonRadius - 4,
+    padding: 3,
+    marginBottom: -0.5,
+    marginLeft: -0.5,
+    backgroundColor: '#0072ff',
+    overflow: 'hidden',
+  },
+  notificationButtonContent: {
+    position: 'relative',
+    backgroundColor: 'transparent',
+    borderRadius: theme.sizes.buttonRadius - 6,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  notificationBellIcon: {
+    position: 'absolute',
+    left: 16,
+    fontSize: 18,
+  },
+  notificationButtonText: {
+    color: theme.colors.textPrimary,
+    fontSize: 18,
+    fontWeight: 'bold',
+    fontFamily: theme.fonts.main,
+    textAlign: 'center',
+  },
+  createButtonOuter: {
+    borderBottomWidth: 4,
+    borderLeftWidth: 3,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+    borderColor: theme.colors.vibeGreen,
+    borderRadius: theme.sizes.buttonRadius,
+    marginTop: 5,
+  },
+  createButtonGradient: {
+    borderRadius: theme.sizes.buttonRadius - 4,
+    padding: 3,
+    marginBottom: -0.5,
+    marginLeft: -0.5,
+    backgroundColor: '#228B22', // Forest green - deeper, more saturated
+    overflow: 'hidden',
+  },
+  createButtonContent: {
+    backgroundColor: 'transparent',
+    borderRadius: theme.sizes.buttonRadius - 6,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  createButtonText: {
+    color: theme.colors.textPrimary,
+    fontSize: 16,
+    fontWeight: 'bold',
     fontFamily: theme.fonts.main,
   },
 

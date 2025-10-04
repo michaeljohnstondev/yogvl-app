@@ -85,8 +85,8 @@ export const VibeAlertProvider = ({ children }) => {
         title,
         message,
         [
-          { text: 'Cancel', onPress: onCancel },
           { text: 'Confirm', onPress: onConfirm },
+          { text: 'Cancel', onPress: onCancel },
         ],
         'confirm'
       );
@@ -101,6 +101,20 @@ export const VibeAlertProvider = ({ children }) => {
           { text: 'Cancel', onPress: onCancel, style: 'cancel' },
         ],
         'subscribe'
+      );
+    },
+    joinedEvent: (title, message, onViewEvent, onCustomizeAlerts, onInviteFriends, onGoHome, onCancel) => {
+      showAlert(
+        title,
+        message,
+        [
+          { text: 'View Event', onPress: onViewEvent, style: 'green' },
+          { text: 'Customize Alerts', onPress: onCustomizeAlerts, style: 'blue' },
+          { text: 'Invite Friends', onPress: onInviteFriends, style: 'blue' },
+          { text: 'Go Home', onPress: onGoHome, style: 'blue' },
+          { text: 'Cancel', onPress: onCancel, style: 'cancel' },
+        ],
+        'joinedEvent'
       );
     },
     // Banner notification methods
@@ -119,9 +133,11 @@ export const VibeAlertProvider = ({ children }) => {
       case 'warning':
         return { border: theme.colors.vibeOrange, icon: '⚠️' };
       case 'confirm':
-        return { border: theme.colors.vibeRoyalBlue, icon: '❓' };
+        return { border: '#0072ff', icon: '' };
       case 'subscribe':
         return { border: theme.colors.vibeBlue, icon: '🔔' };
+      case 'joinedEvent':
+        return { border: theme.colors.vibeBlue, icon: '🎉' };
       case 'menu':
         return { border: theme.colors.vibeBlue, icon: '👤' };
       case 'redmenu':
@@ -135,7 +151,7 @@ export const VibeAlertProvider = ({ children }) => {
       case 'teal':
         return { border: theme.colors.vibeTeal, icon: '💠' };
       default:
-        return { border: theme.colors.vibeBlue, icon: 'ℹ️' };
+        return { border: '#00FFFF', icon: 'ℹ️' };
     }
   };
 
@@ -171,6 +187,7 @@ export const VibeAlertProvider = ({ children }) => {
               style={[
                 styles.alertBox,
                 { borderColor: getAlertColors(alert.type).border },
+                alert.type === 'joinedEvent' && styles.blueTintedBackground,
               ]}
             >
               <View style={styles.header}>
@@ -180,7 +197,7 @@ export const VibeAlertProvider = ({ children }) => {
                 <Text
                   style={[
                     styles.title,
-                    { color: getAlertColors(alert.type).border },
+                    { color: alert.type === 'confirm' ? '#00FFFF' : getAlertColors(alert.type).border },
                   ]}
                 >
                   {alert.title}
@@ -195,6 +212,7 @@ export const VibeAlertProvider = ({ children }) => {
                 style={[
                   styles.buttonContainer,
                   (alert.type === 'subscribe' ||
+                    alert.type === 'joinedEvent' ||
                     alert.type === 'menu' ||
                     alert.type === 'redmenu') &&
                     styles.subscribeButtonContainer,
@@ -202,10 +220,13 @@ export const VibeAlertProvider = ({ children }) => {
               >
                 {alert.buttons.map((button, index) => {
                   const isSubscribe = alert.type === 'subscribe';
+                  const isJoinedEvent = alert.type === 'joinedEvent';
                   const isMenu = alert.type === 'menu';
                   const isRedMenu = alert.type === 'redmenu';
                   const isPrimary = button.style === 'primary';
                   const isSecondary = button.style === 'secondary';
+                  const isGreen = button.style === 'green';
+                  const isBlue = button.style === 'blue';
                   const isCancel = button.style === 'cancel';
                   const isLastButton = index === alert.buttons.length - 1;
 
@@ -214,17 +235,24 @@ export const VibeAlertProvider = ({ children }) => {
                       key={`alert-button-${index}`}
                       style={[
                         styles.button,
-                        isSubscribe && styles.subscribeButton,
+                        (isSubscribe || isJoinedEvent) && styles.subscribeButton,
                         isMenu && styles.menuButton,
                         isMenu && isLastButton && styles.menuCancelButton,
                         isRedMenu && styles.subscribeButton,
                         isRedMenu && isLastButton && styles.cancelButton,
                         isPrimary && styles.primaryButton,
                         isSecondary && styles.secondaryButton,
-                        isCancel && styles.cancelButton,
+                        isGreen && styles.greenButton,
+                        isBlue && styles.blueButton,
+                        isCancel && !isJoinedEvent && styles.cancelButton,
+                        isCancel && isJoinedEvent && styles.redCancelButton,
                         !isSubscribe &&
+                          !isJoinedEvent &&
                           !isMenu &&
-                          !isRedMenu && {
+                          !isRedMenu &&
+                          !isGreen &&
+                          !isBlue &&
+                          !isCancel && {
                             backgroundColor: getAlertColors(alert.type).border,
                           },
                         isRedMenu &&
@@ -240,7 +268,8 @@ export const VibeAlertProvider = ({ children }) => {
                         style={[
                           styles.buttonText,
                           isSecondary && styles.secondaryButtonText,
-                          isCancel && styles.cancelButtonText,
+                          isCancel && !isJoinedEvent && styles.cancelButtonText,
+                          isCancel && isJoinedEvent && styles.redCancelButtonText,
                           isMenu && isLastButton && styles.cancelButtonText,
                           isRedMenu && isLastButton && styles.cancelButtonText,
                           isRedMenu &&
@@ -270,7 +299,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 9999999,
@@ -282,8 +311,11 @@ const styles = StyleSheet.create({
   alertBox: {
     backgroundColor: theme.colors.background,
     borderRadius: 12,
-    borderWidth: 2,
+    borderWidth: 3,
     padding: 20,
+  },
+  blueTintedBackground: {
+    backgroundColor: 'rgba(0, 40, 80, 0.95)', // Dark blue background with slight transparency
   },
   header: {
     flexDirection: 'row',
@@ -296,12 +328,14 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    color: '#00f2fe',
     flex: 1,
   },
   message: {
     fontSize: 16,
-    color: theme.colors.textPrimary,
+    fontWeight: '600',
+    color: theme.colors.white,
     marginBottom: 20,
     lineHeight: 22,
   },
@@ -319,10 +353,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 8,
     minWidth: 80,
+    borderBottomWidth: 4,
+    borderLeftWidth: 3,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+    borderColor: '#00FFFF',
   },
   subscribeButton: {
     minWidth: '100%',
-    borderWidth: 2,
+    borderBottomWidth: 4,
+    borderLeftWidth: 3,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
   },
   menuButton: {
     minWidth: '100%',
@@ -335,16 +377,29 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.gray,
   },
   primaryButton: {
-    backgroundColor: theme.colors.vibeBlue,
-    borderColor: theme.colors.vibeBlue,
+    backgroundColor: '#0072ff',
+    borderColor: '#00FFFF',
   },
   secondaryButton: {
     backgroundColor: 'transparent',
-    borderColor: theme.colors.vibeBlue,
+    borderColor: '#00FFFF',
   },
   cancelButton: {
     backgroundColor: 'transparent',
     borderColor: theme.colors.gray,
+  },
+  redCancelButton: {
+    backgroundColor: 'transparent',
+    borderColor: theme.colors.vibeRed,
+    borderWidth: 3,
+  },
+  greenButton: {
+    backgroundColor: '#228B22',
+    borderColor: '#00FF41',
+  },
+  blueButton: {
+    backgroundColor: '#0072ff',
+    borderColor: '#00FFFF',
   },
   buttonText: {
     color: theme.colors.white,
@@ -353,9 +408,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   secondaryButtonText: {
-    color: theme.colors.vibeBlue,
+    color: '#00FFFF',
   },
   cancelButtonText: {
     color: theme.colors.gray,
+  },
+  redCancelButtonText: {
+    color: theme.colors.vibeRed,
   },
 });

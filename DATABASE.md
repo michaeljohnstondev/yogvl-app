@@ -426,7 +426,7 @@ User-scoped notification storage for efficient, secure notification management.
 
 User-scoped scheduled notification storage for optimal performance and security.
 
-```javascript
+````javascript
 {
   // Core notification data
   id: string,                    // Notification ID
@@ -448,33 +448,6 @@ User-scoped scheduled notification storage for optimal performance and security.
   sentAt: timestamp,             // When successfully sent
   data: object                   // Additional notification data
 }
-```
-
-## Unified Notification System Architecture
-
-### Host Notifications
-
-**Purpose**: Real-time notifications FOR hosts ABOUT their events
-**Triggers**:
-
-- Attendee joins event (`NOTIFICATION_TYPES.EVENT_JOIN`)
-- Attendee leaves event (`NOTIFICATION_TYPES.EVENT_LEAVE`)
-- Event details updated (`NOTIFICATION_TYPES.EVENT_UPDATE`)
-- Event cancelled (`NOTIFICATION_TYPES.EVENT_CANCELLED`)
-
-**Processing**: Immediate notification via NotificationEngine
-**Storage**: `users/{hostId}/notifications/{notificationId}`
-
-### Scheduled Event Notifications (formerly "Attendee Reminders")
-
-**Purpose**: Time-based notifications FOR attendees ABOUT upcoming events
-**Triggers**:
-
-- 24 hours before event
-- 1 hour before event
-- 15 minutes before event
-
-**Processing**: Scheduled via Cloud Functions with time-based triggers
 
 ### Data Retention Policy
 
@@ -490,14 +463,6 @@ User-scoped scheduled notification storage for optimal performance and security.
 - **Content limits**: Title 100 chars, body 200 chars
 - **Batch operations**: Preferred for multiple notification updates
 
-### Migration Strategy
-
-- **Dual-write period**: Write to both old and new systems during transition
-- **Background migration**: Move existing notifications to user subcollections
-- **Validation period**: Ensure data consistency
-- **Cutover**: Switch to new user-scoped system exclusively
-- **Cleanup**: Remove old global collections
-
 ### Query Patterns
 
 **Get user's pending notifications**:
@@ -506,7 +471,7 @@ User-scoped scheduled notification storage for optimal performance and security.
 collection(db, 'users', userId, 'scheduledNotifications')
   .where('status', '==', 'pending')
   .orderBy('scheduledFor', 'asc');
-```
+````
 
 **Get notifications for specific event**:
 
@@ -537,3 +502,267 @@ scheduledNotifications: {
   ];
 }
 ```
+
+## Interest Optimization System
+
+### Interest Index Subcollections
+
+**Collection**: `studios/{studioId}/interests/{interest}/users/{userId}`
+
+Optimized interest tracking for efficient event-interest matching notifications.
+
+```javascript
+{
+  // User identification
+  userId: string,               // User ID (redundant but useful for queries)
+  addedAt: timestamp,           // When user added this interest
+
+  // Optional metadata
+  source: string,               // 'event_detail' | 'interests_screen'
+  studioId: string              // Studio context (redundant but useful)
+}
+```
+
+### Interest Index Business Rules
+
+**Dual Storage Architecture**: Interests are stored in BOTH locations for optimal performance:
+
+1. **User Preferences**: `users/{userId}/preferences/interests[]` (existing)
+2. **Interest Index**: `studios/{studioId}/interests/{interest}/users/{userId}` (new)
+
+**Atomic Operations**: All interest additions/removals MUST update both locations atomically using writeBatch.
+
+**Interest Normalization**: Interest names are normalized to lowercase for consistent indexing:
+- User adds "Basketball" → Index key: "basketball"
+- User adds "TENNIS" → Index key: "tennis"
+
+### Interest-Based Event Notifications
+
+When new events are created, the system:
+
+1. **Extract interests** from event title using `extractInterestsFromEventTitle()`
+2. **Query interest index**: `studios/{studioId}/interests/{interest}/users`
+3. **Filter recipients**: Exclude event creator, cohosts, and invited users
+4. **Check preferences**: Honor user notification setting `settings.notifications.app.suggestedEvents`
+5. **Send notifications**: Use FCM to notify interested users
+
+### Query Patterns
+
+**Find users with specific interest**:
+```javascript
+collection(db, 'studios', studioId, 'interests', 'basketball', 'users')
+```
+
+**Add user to interest index**:
+```javascript
+doc(db, 'studios', studioId, 'interests', 'basketball', 'users', userId)
+```
+
+**Remove user from interest index**:
+```javascript
+deleteDoc(doc(db, 'studios', studioId, 'interests', 'basketball', 'users', userId))
+```
+
+### Performance Benefits
+
+- **O(1) interest lookup** instead of O(n) user scan
+- **Direct user lists** for each interest
+- **Efficient event notifications** without scanning all studio users
+- **Scalable architecture** supporting unlimited users per interest
+
+### Data Consistency Requirements
+
+- **Batch operations mandatory**: All interest changes MUST use writeBatch
+- **Dual storage sync**: User preferences and interest index must stay synchronized
+- **Atomic transitions**: Adding/removing interests must update both locations atomically
+- **Rollback safety**: If batch fails, no partial state changes occur
+
+### Interest Index Indexes Required
+
+```javascript
+interestUsers: {
+  compound_indexes: [
+    ['addedAt'], // Chronological interest additions
+    ['source'], // Track interest addition sources
+  ];
+}
+```
+
+## Admin Notification System
+
+### Admin Notifications Collection
+
+**Collection**: `adminNotifications/{notificationId}`
+
+Direct trigger collection for admin and moderation notifications using modern architecture.
+
+```javascript
+{
+  // Target and identification
+  targetUserId: string,             // User to receive notification
+  notificationId: string,           // Unique notification ID
+
+  // Notification classification
+  type: string,                     // 'ban' | 'warning' | 'strike' | 'announcement' | 'policy' | 'custom'
+  subType: string,                  // More specific classification ('temp_ban', 'perm_ban', 'system_announcement', etc.)
+  priority: string,                 // 'normal' | 'high' | 'urgent'
+
+  // Content
+  title: string,                    // Notification title (max 100 chars)
+  message: string,                  // Notification message (max 500 chars)
+  additionalInfo: string,           // Optional detailed information
+
+  // Admin metadata
+  issuedBy: string,                 // Admin user ID who issued notification
+  issuedByName: string,             // Admin display name (cached)
+  relatedReport: string,            // Related report ID if applicable
+
+  // Timestamps
+  createdAt: timestamp,             // When notification was created
+  scheduledFor: timestamp,          // When to send (default: immediate)
+  expiresAt: timestamp,             // Optional expiration time
+
+  // Processing status
+  processed: boolean,               // Whether notification has been processed
+  processedAt: timestamp,           // When notification was processed
+  attempts: number,                 // Number of delivery attempts
+
+  // Additional data
+  data: {
+    // Type-specific data
+    banType: string,                // For ban notifications: 'temporary' | 'permanent'
+    banDuration: number,            // For temp bans: days
+    banReason: string,              // Reason for ban
+    strikeCount: number,            // For strike notifications: current strike count
+    announcementId: string,         // For announcements: reference ID
+
+    // Navigation data
+    screen: string,                 // Screen to navigate to
+    params: object,                 // Navigation parameters
+
+    // Notification preferences
+    channels: string[],             // ['push', 'in_app']
+    requiresAck: boolean,           // Whether user must acknowledge
+  }
+}
+```
+
+### Admin Announcements Collection
+
+**Collection**: `adminAnnouncements/{announcementId}`
+
+Collection for broadcasting announcements to all users.
+
+```javascript
+{
+  // Announcement content
+  title: string,                    // Announcement title
+  message: string,                  // Announcement message
+  priority: string,                 // 'normal' | 'high' | 'urgent'
+
+  // Admin metadata
+  createdBy: string,                // Admin user ID
+  createdByName: string,            // Admin display name (cached)
+  createdAt: timestamp,             // When announcement was created
+
+  // Broadcasting settings
+  targetAudience: string,           // 'all_users' | 'active_users' | 'specific_users'
+  targetUserIds: string[],          // If specific users, array of user IDs
+  scheduledFor: timestamp,          // When to broadcast (default: immediate)
+  expiresAt: timestamp,             // When announcement expires
+
+  // Processing status
+  processed: boolean,               // Whether announcement has been processed
+  processedAt: timestamp,           // When processing started
+  notificationsSent: number,        // Number of notifications sent
+  notificationsFailed: number,      // Number of failed notifications
+
+  // Content data
+  data: {
+    type: 'system' | 'maintenance' | 'feature' | 'policy' | 'emergency',
+    actionRequired: boolean,        // Whether users must take action
+    actionUrl: string,              // Optional URL for action
+    actionLabel: string,            // Label for action button
+  }
+}
+```
+
+### Ban Notification Triggers
+
+Admin notifications are triggered by **moderation record changes**, not separate collections:
+
+**Direct Trigger**: `users/{userId}/moderation` (onUpdate)
+- **Detects**: Changes to `bans.tempBans[]` or `bans.permBan`
+- **Creates**: Document in `adminNotifications` collection
+- **Benefits**: Immediate notification when bans are issued
+
+### Admin Notification Business Rules
+
+**Processing Flow**:
+1. **Admin action** → Creates document in `adminNotifications/{notificationId}`
+2. **Firebase function** → Triggered by document creation
+3. **User validation** → Check notification preferences and user status
+4. **FCM delivery** → Send push notification directly
+5. **User storage** → Create notification in user's `scheduledNotifications` subcollection
+6. **Cleanup** → Mark trigger document as processed or delete
+
+**Notification Preferences**:
+- Honors user settings: `users/{userId}/userdata/settings/notifications/app`
+- Types: `adminMessages`, `moderationActions`, `systemAnnouncements`
+- Banned users still receive ban notifications (cannot be disabled)
+
+**Error Handling**:
+- Failed notifications are retried up to 3 times
+- Failed delivery logged with reason
+- System continues processing other notifications
+
+**Rate Limiting**:
+- Max 50 admin notifications per user per day
+- Announcement broadcasts processed in batches of 100 users
+- Automatic throttling for large broadcasts
+
+### Query Patterns
+
+**Create admin notification**:
+```javascript
+doc(db, 'adminNotifications', notificationId)
+```
+
+**Create announcement broadcast**:
+```javascript
+doc(db, 'adminAnnouncements', announcementId)
+```
+
+**Get user's admin notifications** (existing pattern):
+```javascript
+doc(db, 'users', userId).adminNotifications
+```
+
+### Indexes Required
+
+```javascript
+adminNotifications: {
+  compound_indexes: [
+    ['targetUserId', 'createdAt'],    // User-specific notifications
+    ['processed', 'scheduledFor'],    // Processing queue
+    ['type', 'priority'],             // Notification management
+    ['issuedBy', 'createdAt'],        // Admin audit trail
+  ];
+}
+
+adminAnnouncements: {
+  compound_indexes: [
+    ['processed', 'scheduledFor'],    // Processing queue
+    ['createdBy', 'createdAt'],       // Admin audit trail
+    ['targetAudience', 'priority'],   // Broadcast management
+  ];
+}
+```
+
+### Performance Benefits
+
+- **O(1) notification delivery** - Direct document triggers
+- **Batch processing** - Announcements sent in optimized batches
+- **Fail-safe operation** - Individual notification failures don't break system
+- **Automatic cleanup** - Processed notifications can be auto-deleted
+- **Audit trail** - Complete tracking of admin actions

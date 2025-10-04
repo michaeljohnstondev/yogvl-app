@@ -85,11 +85,63 @@ function UserProfile({ navigation, route }) {
     handleFollow: followAction,
     handleUnfollow: unfollowAction,
     isActionLoading,
-  } = useFollowActions(currentUserId, userData, loadFollowStats, null);
+  } = useFollowActions(
+    currentUserId,
+    userData,
+    null, // Don't refresh stats - using optimistic updates instead
+    null,
+    () => targetUserData // Return target user data if available
+  );
 
-  // Wrapper functions to handle targetUserId
-  const handleFollow = () => followAction(targetUserId);
-  const handleUnfollow = () => unfollowAction(targetUserId);
+  // Wrapper functions to handle targetUserId and update local state
+  const handleFollow = async () => {
+    const followLoading = isActionLoading(targetUserId);
+    // Don't do anything if already loading (button should be disabled)
+    if (followLoading) return;
+
+    // Optimistic update: increment follower count immediately
+    setFollowStats((prev) => ({
+      ...prev,
+      followerCount: prev.followerCount + 1,
+    }));
+    setIsFollowing(true); // Update local state immediately
+
+    // Check if operation succeeded
+    const succeeded = await followAction(targetUserId);
+
+    // Rollback if operation was blocked (throttled/cooldown) or failed
+    if (!succeeded) {
+      setFollowStats((prev) => ({
+        ...prev,
+        followerCount: prev.followerCount - 1,
+      }));
+      setIsFollowing(false);
+    }
+  };
+  const handleUnfollow = async () => {
+    const followLoading = isActionLoading(targetUserId);
+    // Don't do anything if already loading (button should be disabled)
+    if (followLoading) return;
+
+    // Optimistic update: decrement follower count immediately
+    setFollowStats((prev) => ({
+      ...prev,
+      followerCount: Math.max(0, prev.followerCount - 1), // Prevent negative
+    }));
+    setIsFollowing(false); // Update local state immediately
+
+    // Check if operation succeeded
+    const succeeded = await unfollowAction(targetUserId);
+
+    // Rollback if operation was blocked (throttled/cooldown) or failed
+    if (!succeeded) {
+      setFollowStats((prev) => ({
+        ...prev,
+        followerCount: prev.followerCount + 1,
+      }));
+      setIsFollowing(true);
+    }
+  };
   const followLoading = isActionLoading(targetUserId);
 
   const handleBlockUser = async () => {
@@ -734,17 +786,10 @@ function UserProfile({ navigation, route }) {
   if (!isOwnProfile && loadingUserData) {
     return (
       <View style={styles.container}>
-        <CloseButton
-          onPress={() => navigation.goBack()}
-          style={styles.closeButton}
-        />
-        <View
-          style={[
-            styles.container,
-            { justifyContent: 'center', alignItems: 'center' },
-          ]}
-        >
-          <Text style={styles.loadingText}>Loading profile...</Text>
+        <View style={styles.loadingContainer}>
+          <View style={styles.loadingContent}>
+            <Text style={styles.loadingText}>Loading profile...</Text>
+          </View>
         </View>
       </View>
     );
@@ -963,18 +1008,6 @@ function UserProfile({ navigation, route }) {
         <VibeCard title="Social">
           <VibeStatsGrid
             stats={[
-              {
-                value: loadingStats ? '...' : followStats.mutualCount,
-                label: 'Friends',
-                onPress: isOwnProfile
-                  ? () =>
-                      navigation.navigate('SocialList', {
-                        userId: currentUserId,
-                        type: 'friends',
-                        onStatsChange: loadFollowStats,
-                      })
-                  : undefined,
-              },
               {
                 value: loadingStats ? '...' : followStats.followingCount,
                 label: 'Following',

@@ -168,8 +168,8 @@ exports.onEventDeleted = functions.firestore
           const message = {
             token: fcmToken,
             notification: {
-              title: 'Event Cancelled',
-              body: `"${eventTitle}" has been cancelled by the host`
+              title: '🚫 Event Cancelled',
+              body: `"${eventTitle}" has been cancelled`
             },
             data: {
               type: 'event_deleted',

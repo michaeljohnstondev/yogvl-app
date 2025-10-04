@@ -9,6 +9,7 @@ const ScreenHeader = ({
   onClose,
   showBorder = true,
   showCloseButton = true,
+  rightButton = null, // Custom right-side button/component
 }) => {
   const displayTitle = count !== undefined ? `${title} (${count})` : title;
 
@@ -22,7 +23,11 @@ const ScreenHeader = ({
 
       <Text style={styles.title}>{displayTitle}</Text>
 
-      <View style={styles.headerSpacer} />
+      {rightButton ? (
+        rightButton
+      ) : (
+        <View style={styles.headerSpacer} />
+      )}
     </View>
   );
 };
@@ -32,11 +37,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    backgroundColor: theme.colors.headerBackground,
+    paddingHorizontal: 15,
+    paddingVertical: 15,
   },
   headerBorder: {
-    borderBottomWidth: 1,
+    borderBottomWidth: 3,
     borderBottomColor: theme.colors.vibeBlue,
   },
   closeButton: {
@@ -45,7 +51,7 @@ const styles = StyleSheet.create({
   title: {
     flex: 1,
     color: '#fff',
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: 'bold',
     textAlign: 'center',
     marginHorizontal: 16,

@@ -74,15 +74,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   gradient: {
-    borderRadius: 20,
-    padding: 2,
+    borderRadius: 24,
+    padding: 3,
   },
   card: {
-    backgroundColor: '#111',
-    borderRadius: 18,
+    backgroundColor: '#1A0A35',
+    borderRadius: 20,
     padding: 20,
+    paddingVertical: 24,
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 120,
   },
   title: {
     color: '#fff',

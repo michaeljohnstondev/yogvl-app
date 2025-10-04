@@ -53,6 +53,8 @@ export const What = ({
         placeholder="Enter event name"
         maxLength={30}
         isCompleted={formData.title && formData.title.trim().length > 0}
+        hasDropdownOpen={getFieldData('title', formData.title).isVisible}
+        style={{ padding: 16, fontSize: 18 }}
       />
       <VibeAutoComplete
         suggestions={getFieldData('title', formData.title).suggestions}

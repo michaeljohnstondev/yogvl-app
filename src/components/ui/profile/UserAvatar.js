@@ -11,7 +11,6 @@ import theme from '../../../theme/themes';
 
 const UserAvatar = memo(
   function UserAvatar({ userId, size = 32, style, onPress }) {
-    console.log('[UserAvatar] Rendering for user:', userId, 'size:', size);
     const { currentUserId } = useAuth();
     const { isUserBlocked } = usePrivacyValidation(currentUserId);
     const [userData, setUserData] = useState(null);

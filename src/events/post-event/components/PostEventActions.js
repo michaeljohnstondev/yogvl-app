@@ -89,7 +89,7 @@ const PostEventActions = ({
         await unfollowUser(currentUserId, targetUserId);
         setFollowingStatus((prev) => ({ ...prev, [targetUserId]: false }));
         setMutualFollowStatus((prev) => ({ ...prev, [targetUserId]: false }));
-        vibeAlert.success('Unfollowed', `You have unfollowed ${userName}.`);
+        // Success feedback provided by button state change
       } else {
         await followUser(currentUserId, targetUserId, userData);
         setFollowingStatus((prev) => ({ ...prev, [targetUserId]: true }));
@@ -102,7 +102,7 @@ const PostEventActions = ({
           ...prev,
           [targetUserId]: isMutual,
         }));
-        vibeAlert.success('Success', `You are now following ${userName}!`);
+        // Success feedback provided by button state change
       }
     } catch (error) {
       console.error('Error toggling follow:', error);
@@ -216,7 +216,7 @@ const PostEventActions = ({
           <VibeButton
             label="DELETE EVENT"
             onPress={handleDeleteEvent}
-            variant="danger"
+            variant="red"
             disabled={submitting}
             style={styles.deleteButton}
           />

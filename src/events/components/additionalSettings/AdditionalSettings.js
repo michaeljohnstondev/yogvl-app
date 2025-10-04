@@ -2,7 +2,7 @@
 
 import React, { useState, useImperativeHandle, forwardRef } from 'react';
 import { View, Text, Pressable } from 'react-native';
-import { VibeInput, VibeSegmentedControl } from '../../../components/ui';
+import { VibeInput, VibeSegmentedControl, VibeButton } from '../../../components/ui';
 
 export const AdditionalSettings = forwardRef(
   (
@@ -33,8 +33,8 @@ export const AdditionalSettings = forwardRef(
     return (
       <>
         {!showAdvancedSettings && (
-          <Pressable
-            style={[styles.toggleButton, { marginTop: 35 }]}
+          <VibeButton
+            label="SETTINGS"
             onPress={() => {
               const newState = !showAdvancedSettings;
               setShowAdvancedSettings(newState);
@@ -51,9 +51,8 @@ export const AdditionalSettings = forwardRef(
                 }
               }, 100);
             }}
-          >
-            <Text style={styles.toggleButtonText}>More Settings</Text>
-          </Pressable>
+            style={{ marginTop: 35 }}
+          />
         )}
 
         {showAdvancedSettings && (
@@ -101,18 +100,15 @@ export const AdditionalSettings = forwardRef(
               onSelect={(value) => updateField('attendanceType', value)}
             />
 
-            <Pressable
-              style={styles.toggleButton}
+            <VibeButton
+              label="HIDE SETTINGS"
               onPress={() => {
                 const newState = !showAdvancedSettings;
                 setShowAdvancedSettings(newState);
                 onExpansionChange && onExpansionChange(newState);
               }}
-            >
-              <Text style={styles.toggleButtonText}>
-                Hide Additional Settings
-              </Text>
-            </Pressable>
+              style={{ marginTop: 35 }}
+            />
           </>
         )}
       </>

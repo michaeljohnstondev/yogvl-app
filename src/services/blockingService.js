@@ -7,6 +7,8 @@ import {
   arrayRemove,
   getDoc,
   writeBatch,
+  increment,
+  Timestamp,
 } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 
@@ -28,30 +30,7 @@ class BlockingService {
     try {
       const batch = writeBatch(db);
 
-      // Add to current user's blocked list
-      const currentUserRef = doc(db, 'users', currentUserId);
-      batch.update(currentUserRef, {
-        blockedUsers: arrayUnion(targetUserId),
-      });
-
-      // Add to target user's blockedBy list
-      const targetUserRef = doc(db, 'users', targetUserId);
-      batch.update(targetUserRef, {
-        blockedBy: arrayUnion(currentUserId),
-      });
-
-      // Remove follow relationships in both directions
-      // Current user unfollows target
-      batch.update(currentUserRef, {
-        'userdata.social.following': arrayRemove(targetUserId),
-      });
-
-      // Target user unfollows current user
-      batch.update(targetUserRef, {
-        'userdata.social.following': arrayRemove(currentUserId),
-      });
-
-      // Remove from followers subcollections
+      // Check which follow relationships exist before deleting
       const currentUserFollowingRef = doc(
         db,
         'users',
@@ -81,10 +60,76 @@ class BlockingService {
         currentUserId
       );
 
-      batch.delete(currentUserFollowingRef);
-      batch.delete(currentUserFollowerRef);
-      batch.delete(targetUserFollowingRef);
-      batch.delete(targetUserFollowerRef);
+      const [
+        currentFollowsTarget,
+        targetFollowsCurrent,
+      ] = await Promise.all([
+        getDoc(currentUserFollowingRef),
+        getDoc(targetUserFollowingRef),
+      ]);
+
+      const timestamp = Timestamp.now();
+
+      // Add to current user's blocked list
+      const currentUserRef = doc(db, 'users', currentUserId);
+      batch.update(currentUserRef, {
+        blockedUsers: arrayUnion(targetUserId),
+      });
+
+      // Add to target user's blockedBy list
+      const targetUserRef = doc(db, 'users', targetUserId);
+      batch.update(targetUserRef, {
+        blockedBy: arrayUnion(currentUserId),
+      });
+
+      // Remove follow relationships in both directions
+      // Current user unfollows target
+      batch.update(currentUserRef, {
+        'userdata.social.following': arrayRemove(targetUserId),
+      });
+
+      // Target user unfollows current user
+      batch.update(targetUserRef, {
+        'userdata.social.following': arrayRemove(currentUserId),
+      });
+
+      // If current user was following target, decrement counts
+      if (currentFollowsTarget.exists()) {
+        console.log('[BlockingService] Current user was following target - decrementing counts');
+        batch.delete(currentUserFollowingRef);
+        batch.delete(targetUserFollowerRef);
+
+        // Decrement current user's following count
+        batch.update(currentUserRef, {
+          'userdata.metrics.social.followingCount': increment(-1),
+          'userdata.lastUpdated': timestamp,
+        });
+
+        // Decrement target user's follower count
+        batch.update(targetUserRef, {
+          'userdata.metrics.social.followersCount': increment(-1),
+          'userdata.lastUpdated': timestamp,
+        });
+      }
+
+      // If target user was following current user, decrement counts
+      if (targetFollowsCurrent.exists()) {
+        console.log('[BlockingService] Target user was following current - decrementing counts');
+        batch.delete(targetUserFollowingRef);
+        batch.delete(currentUserFollowerRef);
+
+        // Decrement target user's following count
+        batch.update(targetUserRef, {
+          'userdata.metrics.social.followingCount': increment(-1),
+          'userdata.lastUpdated': timestamp,
+        });
+
+        // Decrement current user's follower count
+        batch.update(currentUserRef, {
+          'userdata.metrics.social.followersCount': increment(-1),
+          'userdata.lastUpdated': timestamp,
+        });
+      }
 
       await batch.commit();
 

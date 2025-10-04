@@ -78,16 +78,18 @@ const ProfileActionButtons = ({
         style,
       ]}
     >
-      <LinearGradient
-        colors={['#CC0022', '#FF0844', '#AA001B']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.redGradientBorder}
-      >
-        <View style={styles.redButtonContent}>
-          <Text style={styles.redButtonText}>{label}</Text>
-        </View>
-      </LinearGradient>
+      <View style={styles.outerBorder}>
+        <LinearGradient
+          colors={['#CC0022', '#FF0844', '#AA001B']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.redGradientBorder}
+        >
+          <View style={styles.redButtonContent}>
+            <Text style={styles.redButtonText}>{label}</Text>
+          </View>
+        </LinearGradient>
+      </View>
     </Pressable>
   );
 
@@ -96,13 +98,10 @@ const ProfileActionButtons = ({
     if (isOwnProfile) {
       return (
         <View style={styles.buttonContainer}>
-          <VibeButton
+          <RedButton
             label="LOGOUT"
             onPress={onLogout}
-            variant="toggle"
-            color="red"
             style={styles.actionButton}
-            textStyle={{ fontWeight: '900', letterSpacing: 2 }}
           />
           <RedButton
             label="DELETE ACCOUNT"
@@ -191,6 +190,15 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
   },
   // Red gradient button styles (matching BlockButton)
+  outerBorder: {
+    borderBottomWidth: 4,
+    borderLeftWidth: 3,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+    borderColor: '#FFCC66',
+    borderRadius: theme.sizes.buttonRadius,
+    marginVertical: 10,
+  },
   redGradientBorder: {
     borderRadius: theme.sizes.buttonRadius,
     padding: 2,

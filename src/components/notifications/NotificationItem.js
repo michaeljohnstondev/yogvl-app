@@ -384,6 +384,8 @@ export default function NotificationItem({
         return '⏰';
       case 'new_follower':
         return '👥';
+      case 'interest_based_suggestion':
+        return '✨';
       case 'friend_request':
         return '👤'; // DEPRECATED
       case 'friend_accepted':

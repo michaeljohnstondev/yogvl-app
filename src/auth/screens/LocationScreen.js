@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import { useVibeAlert } from '../../components/ui/base/VibeAlertContext';
 import { CloseButton } from '../../components/ui/buttons';
+import ScreenHeader from '../../components/ui/layout/ScreenHeader';
+import { VibeButton } from '../../components/ui/base';
 import { LinearGradient } from 'expo-linear-gradient';
 import { doc, setDoc, getDoc } from '../../lib/firebase';
 import { auth, db } from '../services/firebase';
@@ -23,6 +25,7 @@ import { switchUserStudio } from '../../services/userService';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import theme from '../../theme/themes';
+import { useRef } from 'react';
 
 export default function LocationScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
@@ -40,12 +43,19 @@ export default function LocationScreen({ navigation }) {
   const [refreshingLocation, setRefreshingLocation] = useState(false);
   const [modalPreFill, setModalPreFill] = useState({ city: '', state: '' });
   const vibeAlert = useVibeAlert();
+  const scrollViewRef = useRef(null);
 
   const user = auth.currentUser;
 
   useEffect(() => {
     const initializeLocation = async () => {
+      // Safety timeout to prevent infinite loading (silent fallback)
+      const safetyTimeout = setTimeout(() => {
+        setLoading(false);
+      }, 30000); // 30 seconds max
+
       if (!user) {
+        clearTimeout(safetyTimeout);
         setLoading(false);
         return;
       }
@@ -62,7 +72,19 @@ export default function LocationScreen({ navigation }) {
         }
 
         // Ensure default studio exists
-        await StudioService.ensureDefaultStudio();
+        console.log('[LocationScreen] Ensuring default studio exists...');
+        try {
+          await Promise.race([
+            StudioService.ensureDefaultStudio(),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('ensureDefaultStudio timeout')), 5000)
+            ),
+          ]);
+          console.log('[LocationScreen] Default studio check complete');
+        } catch (studioError) {
+          console.warn('[LocationScreen] ensureDefaultStudio failed or timed out:', studioError.message);
+          // Continue anyway - not critical for showing the screen
+        }
 
         // Check for pending studio selection from deep link
         try {
@@ -108,12 +130,37 @@ export default function LocationScreen({ navigation }) {
           );
         }
 
-        // Request location permission
-        const { status } = await Location.requestForegroundPermissionsAsync();
+        // Check existing permission first, then request if needed
+        console.log('[LocationScreen] Checking location permission...');
+        let status = 'denied';
+        try {
+          // First check if we already have permission
+          const currentPermissions = await Location.getForegroundPermissionsAsync();
+          status = currentPermissions.status;
+          console.log('[LocationScreen] Current permission status:', status);
+
+          // Only request if we don't have it yet (and only if not denied)
+          if (status !== 'granted' && status !== 'denied') {
+            console.log('[LocationScreen] Requesting location permission...');
+            const result = await Promise.race([
+              Location.requestForegroundPermissionsAsync(),
+              new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Permission request timeout')), 3000)
+              ),
+            ]);
+            status = result.status;
+          }
+        } catch (permissionError) {
+          console.warn('[LocationScreen] Permission check/request failed:', permissionError.message);
+          // Default to denied and show all studios
+          status = 'denied';
+        }
+        console.log('[LocationScreen] Final permission status:', status);
         setLocationPermission(status);
 
         if (status === 'granted') {
           try {
+            console.log('[LocationScreen] Getting user location...');
             // Get user location with timeout
             const location = await Promise.race([
               Location.getCurrentPositionAsync({
@@ -125,16 +172,20 @@ export default function LocationScreen({ navigation }) {
                 setTimeout(() => reject(new Error('Location timeout')), 15000)
               ),
             ]);
+            console.log('[LocationScreen] Location obtained:', location.coords);
             setUserLocation(location.coords);
 
             // Get nearby studios
+            console.log('[LocationScreen] Getting nearby studios...');
             const closest = await StudioService.getClosestStudios(
               location.coords.latitude,
               location.coords.longitude,
               5
             );
+            console.log('[LocationScreen] Found', closest.length, 'nearby studios');
             setNearbyStudios(closest);
           } catch (locationError) {
+            console.log('[LocationScreen] Location error, using fallback:', locationError.message);
             // Fallback to showing all studios if location fails
             try {
               const allStudios = await StudioService.getAllStudios();
@@ -403,8 +454,27 @@ export default function LocationScreen({ navigation }) {
     try {
       console.log('[LocationScreen] Refreshing location and studios...');
 
-      // Re-request location permission and check system settings
-      const { status } = await Location.requestForegroundPermissionsAsync();
+      // Re-request location permission with timeout
+      let status = 'denied';
+      try {
+        const currentPermissions = await Location.getForegroundPermissionsAsync();
+        status = currentPermissions.status;
+        console.log('[LocationScreen] Current permission status:', status);
+
+        // Only request if not already granted or denied
+        if (status !== 'granted' && status !== 'denied') {
+          const result = await Promise.race([
+            Location.requestForegroundPermissionsAsync(),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Permission timeout')), 3000)
+            ),
+          ]);
+          status = result.status;
+        }
+      } catch (permError) {
+        console.warn('[LocationScreen] Permission check failed:', permError.message);
+        // Use existing status
+      }
       console.log('[LocationScreen] Permission status:', status);
       setLocationPermission(status);
 
@@ -505,29 +575,30 @@ export default function LocationScreen({ navigation }) {
     );
   }
 
+  // Function to scroll to search input
+  const scrollToSearchInput = () => {
+    if (scrollViewRef.current) {
+      // Add small delay to ensure keyboard timing doesn't interfere
+      setTimeout(() => {
+        scrollViewRef.current.scrollTo({ y: 400, animated: true });
+      }, 100);
+    }
+  };
+
   return (
     <View style={styles.screenContainer}>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      <ScreenHeader
+        title="Choose Your Studio"
+        showCloseButton={hasExistingStudio}
+        onClose={handleClose}
+      />
+      <ScrollView
+        ref={scrollViewRef}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        enableOnAndroid={true}
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          enableOnAndroid={true}
-        >
-          <View style={styles.headerRow}>
-            <Text style={[styles.title, styles.titleFlexible]}>
-              Choose Your Studio
-            </Text>
-            {hasExistingStudio && (
-              <View style={styles.closeButtonContainer}>
-                <CloseButton onPress={handleClose} />
-              </View>
-            )}
-          </View>
           <Text style={styles.subtitle}>
             Join your local studio to find events and connections
           </Text>
@@ -592,20 +663,12 @@ export default function LocationScreen({ navigation }) {
                     </View>
                   </View>
 
-                  <TouchableOpacity
-                    style={styles.buttonContainer}
+                  <VibeButton
+                    label={saving ? 'Joining...' : 'Join Studio'}
                     onPress={() => handleConfirmStudio()}
                     disabled={saving}
-                  >
-                    <LinearGradient
-                      colors={theme.colors.buttonGradient}
-                      style={[styles.button, saving && styles.buttonDisabled]}
-                    >
-                      <Text style={styles.buttonText}>
-                        {saving ? 'Joining...' : 'Join Studio'}
-                      </Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
+                    style={styles.joinButton}
+                  />
 
                   <TouchableOpacity
                     style={styles.secondaryButton}
@@ -772,20 +835,12 @@ export default function LocationScreen({ navigation }) {
                     </View>
                   </View>
 
-                  <TouchableOpacity
-                    style={styles.buttonContainer}
+                  <VibeButton
+                    label={saving ? 'Joining...' : 'Join Studio'}
                     onPress={() => handleConfirmStudio()}
                     disabled={saving}
-                  >
-                    <LinearGradient
-                      colors={theme.colors.buttonGradient}
-                      style={[styles.button, saving && styles.buttonDisabled]}
-                    >
-                      <Text style={styles.buttonText}>
-                        {saving ? 'Joining...' : 'Join Studio'}
-                      </Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
+                    style={styles.joinButton}
+                  />
 
                   <TouchableOpacity
                     style={styles.secondaryButton}
@@ -816,6 +871,7 @@ export default function LocationScreen({ navigation }) {
                     autoCapitalize="words"
                     autoCorrect={false}
                     onFocus={() => {
+                      scrollToSearchInput();
                       if (searchText.trim().length >= 2) {
                         setShowSuggestions(true);
                       }
@@ -825,6 +881,7 @@ export default function LocationScreen({ navigation }) {
                   {/* Suggestions Dropdown */}
                   {showSuggestions && suggestions.length > 0 && (
                     <View style={styles.suggestionsContainer}>
+                      <View style={styles.suggestionSeparator} />
                       {suggestions.map((suggestion, index) => (
                         <TouchableOpacity
                           key={index}
@@ -847,23 +904,12 @@ export default function LocationScreen({ navigation }) {
                     </View>
                   )}
 
-                  <TouchableOpacity
-                    style={styles.buttonContainer}
+                  <VibeButton
+                    label={saving ? 'Searching...' : 'Find My Studio'}
                     onPress={() => handleSearchStudio()}
                     disabled={saving || !searchText.trim()}
-                  >
-                    <LinearGradient
-                      colors={theme.colors.buttonGradient}
-                      style={[
-                        styles.button,
-                        (saving || !searchText.trim()) && styles.buttonDisabled,
-                      ]}
-                    >
-                      <Text style={styles.buttonText}>
-                        {saving ? 'Searching...' : 'Find My Studio'}
-                      </Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
+                    style={styles.joinButton}
+                  />
 
                   <TouchableOpacity
                     style={styles.requestStudioButtonSearch}
@@ -888,7 +934,6 @@ export default function LocationScreen({ navigation }) {
             </View>
           )}
         </ScrollView>
-      </KeyboardAvoidingView>
 
       <RequestStudioModal
         visible={showRequestModal}
@@ -916,26 +961,19 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingLeft: 24,
     paddingRight: 24,
-    paddingTop: 0, // Let SafeAreaView handle top spacing
-    paddingBottom: 50,
+    paddingTop: 20, // Add spacing below header
+    paddingBottom: 250, // Increased padding for keyboard space
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: theme.colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: 10,
-  },
   subtitle: {
     fontSize: 16,
     color: theme.colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 30,
+    marginBottom: 10,
     lineHeight: 22,
   },
   tabContainer: {
@@ -986,24 +1024,9 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: theme.colors.vibeBlue,
   },
-  buttonContainer: {
+  joinButton: {
     marginTop: 20,
     marginBottom: 10,
-    borderRadius: theme.sizes.buttonRadius,
-    overflow: 'hidden',
-  },
-  button: {
-    padding: 15,
-    borderRadius: theme.sizes.buttonRadius,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: theme.colors.textPrimary,
-    textAlign: 'center',
-    fontSize: 16,
-    fontWeight: '600',
   },
   secondaryButton: {
     paddingVertical: 12,
@@ -1020,22 +1043,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-    marginTop: 8, // Reduced since we now have paddingTop on scrollContent
-    marginLeft: 12, // Extra margin to ensure title shadow/glow isn't cut off on left
-  },
-  titleFlexible: {
-    flex: 1,
-    marginRight: 16,
-    textAlign: 'left', // Override center alignment since it's now in a row
-  },
-  closeButtonContainer: {
-    marginTop: 4, // Slight adjustment to align with title baseline
-  },
   loadingText: {
     marginTop: 16,
     color: theme.colors.textPrimary,
@@ -1049,19 +1056,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   searchCard: {
-    backgroundColor: 'rgba(0, 255, 150, 0.1)',
+    backgroundColor: theme.colors.vibeBackgroundBlue,
     borderRadius: 12,
     padding: 20,
     marginTop: 20,
     borderWidth: 1,
-    borderColor: 'rgba(0, 255, 150, 0.3)',
+    borderColor: theme.colors.vibeBlue,
   },
   searchTitle: {
     fontSize: 18,
-    color: theme.colors.textPrimary,
+    color: theme.colors.white,
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginBottom: 12,
     textAlign: 'center',
+    textShadowColor: theme.colors.vibeBlue,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
   },
   searchText: {
     fontSize: 14,
@@ -1071,9 +1081,9 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   searchInput: {
-    borderWidth: 1,
-    borderColor: theme.colors.inputBorder,
-    backgroundColor: theme.colors.inputBackground,
+    borderWidth: 3,
+    borderColor: theme.colors.vibeBlue,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     color: theme.colors.textPrimary,
     padding: theme.sizes.inputPadding,
     marginBottom: 20,
@@ -1173,17 +1183,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   requestStudioButtonSearch: {
-    backgroundColor: 'rgba(0, 255, 150, 0.05)',
+    backgroundColor: 'rgba(0, 198, 255, 0.1)',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(0, 255, 150, 0.3)',
+    borderColor: 'rgba(0, 198, 255, 0.3)',
     alignItems: 'center',
     marginTop: 12,
   },
   requestStudioButtonSearchText: {
-    color: theme.colors.vibeGreen,
+    color: theme.colors.vibeBlue,
     fontSize: 12,
     fontWeight: '500',
     textAlign: 'center',
@@ -1246,13 +1256,24 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   suggestionsContainer: {
-    backgroundColor: theme.colors.inputBackground,
-    borderWidth: 1,
-    borderColor: theme.colors.inputBorder,
-    borderRadius: theme.sizes.borderRadius,
-    marginTop: -15,
+    backgroundColor: theme.colors.headerBackground, // Solid dark purple background
+    borderBottomLeftRadius: theme.sizes.borderRadius,
+    borderBottomRightRadius: theme.sizes.borderRadius,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderLeftWidth: 3,
+    borderRightWidth: 3,
+    borderBottomWidth: 3,
+    borderTopWidth: 0,
+    borderColor: theme.colors.vibeBlue,
+    marginTop: -23, // Pull up to connect with input (marginBottom 20 + borderWidth 3)
     marginBottom: 20,
     maxHeight: 200,
+  },
+  suggestionSeparator: {
+    height: 1,
+    backgroundColor: theme.colors.vibeBlue,
+    marginHorizontal: 0,
   },
   suggestionItem: {
     flexDirection: 'row',
@@ -1272,5 +1293,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  activeStatus: {
+    color: theme.colors.vibeGreen,
   },
 });

@@ -7,7 +7,7 @@ export const TABS = {
 export const TAB_LABELS = {
   [TABS.APP]: 'App',
   [TABS.PHONE]: 'Phone',
-  [TABS.QR]: 'QR Code',
+  [TABS.QR]: 'QR',
 };
 
 export const USER_TYPES = {

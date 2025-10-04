@@ -470,8 +470,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   completedButton: {
-    borderColor: theme.colors.vibePurple,
-    borderWidth: 1,
+    // Removed purple border - keep neon blue regardless of state
   },
 });
 

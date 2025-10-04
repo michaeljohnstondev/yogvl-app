@@ -95,7 +95,7 @@ export const useComments = (eventId) => {
       db,
       `studios/${studioId}/events/${eventId}/comments`
     );
-    const q = query(commentsRef, orderBy('timestamp', 'desc'));
+    const q = query(commentsRef, orderBy('timestamp', 'asc'));
 
     const unsubscribe = onSnapshot(
       q,

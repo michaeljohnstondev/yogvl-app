@@ -1,6 +1,7 @@
 // FILE: components/ui/notifications/VibeNotificationBanner.jsx
 // Top notification banner for foreground FCM notifications
 // Displays at top of screen with auto-dismiss functionality
+// Uses unified vibeBlue design for all notification types
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -18,12 +19,11 @@ const { width: screenWidth } = Dimensions.get('window');
 const VibeNotificationBanner = ({
   title,
   message,
-  type = 'info',
   visible = false,
   onPress,
   onDismiss,
   autoHide = true,
-  duration = 4000,
+  duration = 7000,
 }) => {
   const [slideAnim] = useState(new Animated.Value(-100));
   const [isVisible, setIsVisible] = useState(false);
@@ -71,82 +71,22 @@ const VibeNotificationBanner = ({
     hideBanner();
   };
 
-  const getBannerColors = (type) => {
-    switch (type) {
-      case 'event_reminder':
-      case 'event_updated':
-      case 'event_comment':
-        return {
-          background: theme.colors.vibeBlue,
-          border: theme.colors.vibeBlue,
-          textColor: '#FFFFFF',
-          icon: '📅'
-        };
-      case 'follow_notification':
-      case 'mutual_follow':
-        return {
-          background: theme.colors.vibeGreen,
-          border: theme.colors.vibeGreen,
-          textColor: '#FFFFFF',
-          icon: '👤'
-        };
-      case 'invitation_received':
-        return {
-          background: theme.colors.vibePurple,
-          border: theme.colors.vibePurple,
-          textColor: '#FFFFFF',
-          icon: '🎉'
-        };
-      case 'admin_notification':
-        return {
-          background: theme.colors.vibeOrange,
-          border: theme.colors.vibeOrange,
-          textColor: '#000000',
-          icon: '⚠️'
-        };
-      case 'ban_notification':
-        return {
-          background: theme.colors.vibeRed,
-          border: theme.colors.vibeRed,
-          textColor: '#FFFFFF',
-          icon: '🚨'
-        };
-      case 'success':
-        return {
-          background: theme.colors.vibeGreen,
-          border: theme.colors.vibeGreen,
-          textColor: '#FFFFFF',
-          icon: '✅'
-        };
-      case 'error':
-        return {
-          background: theme.colors.vibeRed,
-          border: theme.colors.vibeRed,
-          textColor: '#FFFFFF',
-          icon: '❌'
-        };
-      case 'warning':
-        return {
-          background: theme.colors.vibeOrange,
-          border: theme.colors.vibeOrange,
-          textColor: '#000000',
-          icon: '⚠️'
-        };
-      default:
-        return {
-          background: theme.colors.vibeBlue,
-          border: theme.colors.vibeBlue,
-          textColor: '#FFFFFF',
-          icon: 'ℹ️'
-        };
-    }
+  const getBannerColors = () => {
+    // Dark background with glowing vibeBlue accents
+    return {
+      background: '#0A0A0A', // Very dark background
+      border: theme.colors.vibeBlue,
+      textColor: theme.colors.vibeBlue, // Glowing blue title
+      subtextColor: '#FFFFFF', // White for message text
+      icon: '🔔' // Single notification icon
+    };
   };
 
   if (!isVisible) {
     return null;
   }
 
-  const colors = getBannerColors(type);
+  const colors = getBannerColors();
 
   return (
     <Animated.View
@@ -155,7 +95,7 @@ const VibeNotificationBanner = ({
         {
           transform: [{ translateY: slideAnim }],
           backgroundColor: colors.background,
-          borderLeftColor: colors.border,
+          borderColor: colors.border,
         },
       ]}
     >
@@ -169,11 +109,11 @@ const VibeNotificationBanner = ({
         </View>
 
         <View style={styles.textContainer}>
-          <Text style={[styles.title, { color: colors.textColor }]} numberOfLines={1}>
+          <Text style={[styles.title, { color: colors.textColor, textShadowColor: colors.textColor, textShadowRadius: 8 }]} numberOfLines={1}>
             {title}
           </Text>
           {message && (
-            <Text style={[styles.message, { color: colors.textColor }]} numberOfLines={2}>
+            <Text style={[styles.message, { color: colors.subtextColor }]} numberOfLines={2}>
               {message}
             </Text>
           )}
@@ -194,21 +134,21 @@ const VibeNotificationBanner = ({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 50, // Below status bar
+    top: 50, // Below status bar - consider using SafeAreaView.paddingTop
     left: 16,
     right: 16,
     zIndex: 999999,
     borderRadius: 12,
-    borderLeftWidth: 4,
-    backgroundColor: '#1a1a1a', // Solid dark background
-    // Shadow for elevation
-    shadowColor: '#000',
+    borderWidth: 4,
+    backgroundColor: '#0A0A0A', // Very dark background
+    // Glow effect on border (punk aesthetic)
+    shadowColor: '#00C6FF',
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 0,
     },
-    shadowOpacity: 0.8,
-    shadowRadius: 12,
+    shadowOpacity: 0.6,
+    shadowRadius: 10,
     elevation: 12,
   },
   content: {

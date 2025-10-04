@@ -1,4 +1,7 @@
 // FILE: services/moderationService.js - User Moderation System
+// ⚠️ WARNING: This service creates notificationTriggers documents which have been ELIMINATED
+// ⚠️ Push notifications from this service are DISABLED to prevent zombie collection resurrection
+// ⚠️ Moderation notifications need to be migrated to direct Firebase function triggers
 
 import {
   doc,
@@ -687,6 +690,11 @@ class ModerationService {
    * @param {string} adminUserId - Admin who issued the ban
    */
   async sendBanNotification(userId, banStatus, adminUserId) {
+    console.warn('[moderationService] sendBanNotification disabled - notificationTriggers collection eliminated');
+    console.warn('Ban notifications need direct Firebase function trigger implementation');
+    return { success: false, reason: 'notificationTriggers collection eliminated' };
+
+    /* REMOVED - WAS CREATING ZOMBIE notificationTriggers COLLECTION
     try {
       // Create notification trigger for push notification
       const triggerId = `ban_${banStatus.type}_${userId}_${Date.now()}`;
@@ -733,6 +741,7 @@ class ModerationService {
       );
       // Don't throw - ban should still be enforced even if notification fails
     }
+    */
   }
 }
 

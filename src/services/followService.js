@@ -20,6 +20,22 @@ import { db } from '../auth/services/firebase';
 import { blockingService } from './blockingService';
 
 /**
+ * Module-level pending operations tracker to prevent duplicate requests
+ */
+const pendingOperations = new Map();
+
+/**
+ * Module-level cooldown tracker to prevent rapid toggling
+ * Stores timestamp of last operation completion
+ */
+const operationCooldowns = new Map();
+
+/**
+ * Cooldown period in milliseconds (prevent rapid toggling)
+ */
+const COOLDOWN_MS = 2000; // 2 seconds
+
+/**
  * DEFENSIVE PROGRAMMING UTILITY: Safe array includes check
  * Prevents indexOf errors by ensuring the array is valid before calling includes
  */
@@ -74,8 +90,10 @@ export const checkIfFollowing = async (followerId, targetUserId) => {
 
 /**
  * Get follow statistics for a user by counting actual subcollections
+ * @param {string} userId - User ID to get stats for
+ * @param {boolean} includeMutual - Whether to calculate mutual follows (expensive operation, defaults to false)
  */
-export const getFollowStats = async (userId) => {
+export const getFollowStats = async (userId, includeMutual = false) => {
   try {
     if (!userId || typeof userId !== 'string') {
       console.warn(
@@ -85,38 +103,32 @@ export const getFollowStats = async (userId) => {
       return { followingCount: 0, followerCount: 0, mutualCount: 0 };
     }
 
-    // Get actual counts from subcollections for accuracy with additional error handling
-    const [followingSnapshot, followersSnapshot] = await Promise.all([
-      getDocs(collection(db, 'users', userId, 'following')).catch((err) => {
-        console.error(
-          '[followService] Error fetching following collection:',
-          err
-        );
-        return { size: 0 };
-      }),
-      getDocs(collection(db, 'users', userId, 'followers')).catch((err) => {
-        console.error(
-          '[followService] Error fetching followers collection:',
-          err
-        );
-        return { size: 0 };
-      }),
-    ]);
+    // Read counts from user document (updated by increment() in follow/unfollow/block operations)
+    // This is much faster than counting entire collections
+    const userDoc = await getDoc(doc(db, 'users', userId));
 
-    const followingCount = followingSnapshot?.size || 0;
-    const followerCount = followersSnapshot?.size || 0;
+    if (!userDoc.exists()) {
+      console.warn('[followService] User document not found:', userId);
+      return { followingCount: 0, followerCount: 0, mutualCount: 0 };
+    }
 
-    // Calculate mutual follows count with additional error handling
+    const userData = userDoc.data();
+    const followingCount = userData?.userdata?.metrics?.social?.followingCount || 0;
+    const followerCount = userData?.userdata?.metrics?.social?.followersCount || 0;
+
+    // Only calculate mutual follows if explicitly requested (expensive operation)
     let mutualCount = 0;
-    try {
-      const mutualFollows = await getMutualFollows(userId);
-      mutualCount = Array.isArray(mutualFollows) ? mutualFollows.length : 0;
-    } catch (mutualError) {
-      console.error(
-        '[followService] Error getting mutual follows in getFollowStats:',
-        mutualError
-      );
-      mutualCount = 0;
+    if (includeMutual) {
+      try {
+        const mutualFollows = await getMutualFollows(userId);
+        mutualCount = Array.isArray(mutualFollows) ? mutualFollows.length : 0;
+      } catch (mutualError) {
+        console.error(
+          '[followService] Error getting mutual follows in getFollowStats:',
+          mutualError
+        );
+        mutualCount = 0;
+      }
     }
 
     return {
@@ -307,13 +319,21 @@ export const getMutualFollows = async (userId, limitCount = 50) => {
 /**
  * Follow a user
  */
-export const followUser = async (followerId, targetUserId, followerData) => {
+export const followUser = async (followerId, targetUserId, followerData, targetUserData = null) => {
   const operationKey = `${followerId}-${targetUserId}`;
 
-  // Check if operation is already in progress
-  const pendingOperations = new Map(); // Move this to module scope if needed
+  // Throttle: Check if operation is already in progress
   if (pendingOperations.has(operationKey)) {
-    throw new Error('Follow operation already in progress');
+    return { success: false, throttled: true };
+  }
+
+  // Cooldown: Check if user is toggling too rapidly
+  const lastOperationTime = operationCooldowns.get(operationKey);
+  if (lastOperationTime) {
+    const timeSinceLastOp = Date.now() - lastOperationTime;
+    if (timeSinceLastOp < COOLDOWN_MS) {
+      return { success: false, cooldown: true };
+    }
   }
 
   try {
@@ -323,105 +343,60 @@ export const followUser = async (followerId, targetUserId, followerData) => {
       throw new Error('Cannot follow yourself');
     }
 
-    // Check if already following (within the pending operation)
-    const isFollowing = await checkIfFollowing(followerId, targetUserId);
-    if (isFollowing) {
-      throw new Error('Already following this user');
-    }
+    // Skip "already following" check - UI manages this state
+    // Skip block status check - only handle if specifically needed
 
-    // Check if users are blocked and unblock if necessary
-    const blockStatus = await blockingService.isBlocked(
-      followerId,
-      targetUserId
-    );
-    if (blockStatus.isBlocked) {
-      console.log(
-        `[followService] Unblocking user ${targetUserId} before following`
-      );
-      await blockingService.unblockUser(followerId, targetUserId);
+    // Use provided target user data or fetch if not provided
+    let finalTargetUserData = targetUserData;
+    if (!finalTargetUserData) {
+      const targetUserDoc = await getDoc(doc(db, 'users', targetUserId));
+      if (!targetUserDoc.exists()) {
+        throw new Error('User not found');
+      }
+      finalTargetUserData = targetUserDoc.data();
     }
-
-    // Get target user data
-    const targetUserDoc = await getDoc(doc(db, 'users', targetUserId));
-    if (!targetUserDoc.exists()) {
-      throw new Error('User not found');
-    }
-
-    const targetUserData = targetUserDoc.data();
+    const timestamp = Timestamp.now();
     const batch = writeBatch(db);
 
-    // Create following relationship
-    const followingRef = doc(
-      db,
-      'users',
-      followerId,
-      'following',
-      targetUserId
-    );
+    // Create following relationship (optimized data storage)
+    const followingRef = doc(db, 'users', followerId, 'following', targetUserId);
     batch.set(followingRef, {
       id: targetUserId,
-      userId: followerId,
-      targetUserId,
-      createdAt: Timestamp.now(),
-      targetData: {
-        firstName:
-          targetUserData?.userdata?.contactInfo?.firstName || 'Unknown',
-        lastName: targetUserData?.userdata?.contactInfo?.lastName || '',
-        displayName:
-          `${targetUserData?.userdata?.contactInfo?.firstName || ''} ${targetUserData?.userdata?.contactInfo?.lastName || ''}`.trim() ||
-          'Unknown User',
-        profilePicture: targetUserData?.userdata?.contactInfo?.profilePicture || null,
-        email: targetUserData?.userdata?.contactInfo?.email || targetUserData?.email || '',
-        studios: targetUserData?.userdata?.studios || {},
-      },
+      createdAt: timestamp,
+      firstName: finalTargetUserData?.userdata?.contactInfo?.firstName || 'Unknown',
+      lastName: finalTargetUserData?.userdata?.contactInfo?.lastName || '',
+      profilePicture: finalTargetUserData?.userdata?.contactInfo?.profilePicture || null,
     });
 
-    // Create follower relationship
+    // Create follower relationship (optimized data storage)
     const followerRef = doc(db, 'users', targetUserId, 'followers', followerId);
     batch.set(followerRef, {
       id: followerId,
-      followerId,
-      userId: targetUserId,
-      createdAt: Timestamp.now(),
-      followerData: {
-        firstName: followerData?.userdata?.contactInfo?.firstName || 'Unknown',
-        lastName: followerData?.userdata?.contactInfo?.lastName || '',
-        displayName:
-          `${followerData?.userdata?.contactInfo?.firstName || ''} ${followerData?.userdata?.contactInfo?.lastName || ''}`.trim() ||
-          'Unknown User',
-        profilePicture: followerData?.userdata?.contactInfo?.profilePicture || null,
-        email: followerData?.userdata?.contactInfo?.email || followerData?.email || '',
-        studios: followerData?.userdata?.studios || {},
-      },
+      createdAt: timestamp,
+      firstName: followerData?.userdata?.contactInfo?.firstName || 'Unknown',
+      lastName: followerData?.userdata?.contactInfo?.lastName || '',
+      profilePicture: followerData?.userdata?.contactInfo?.profilePicture || null,
     });
 
     // Update follower's following count
     const followerUserRef = doc(db, 'users', followerId);
     batch.update(followerUserRef, {
-      'userdata.followingCount': increment(1),
-      'userdata.lastUpdated': Timestamp.now(),
+      'userdata.metrics.social.followingCount': increment(1),
+      'userdata.lastUpdated': timestamp,
     });
 
     // Update target's follower count
     const targetUserRef = doc(db, 'users', targetUserId);
     batch.update(targetUserRef, {
-      'userdata.followerCount': increment(1),
-      'userdata.lastUpdated': Timestamp.now(),
+      'userdata.metrics.social.followersCount': increment(1),
+      'userdata.lastUpdated': timestamp,
     });
 
+    // Execute all writes as single atomic operation
     await batch.commit();
 
-    // Send notification (import dynamically to avoid circular deps)
-    try {
-      console.log(
-        `[followUser] Follow notification will be sent by onUserFollowed Cloud Function`
-      );
-    } catch (notificationError) {
-      console.warn(
-        `[followUser] Follow successful but notification failed:`,
-        notificationError
-      );
-    }
+    // Set cooldown timestamp
+    operationCooldowns.set(operationKey, Date.now());
 
     return { success: true };
   } catch (error) {
@@ -438,21 +413,26 @@ export const followUser = async (followerId, targetUserId, followerData) => {
  */
 export const unfollowUser = async (followerId, targetUserId) => {
   const operationKey = `${followerId}-${targetUserId}`;
-  const pendingOperations = new Map(); // Move this to module scope if needed
 
-  // Check if operation is already in progress
+  // Throttle: Check if operation is already in progress
   if (pendingOperations.has(operationKey)) {
-    throw new Error('Unfollow operation already in progress');
+    console.warn('[unfollowUser] Operation already in progress, ignoring duplicate request');
+    return { success: false, throttled: true };
+  }
+
+  // Cooldown: Check if user is toggling too rapidly
+  const lastOperationTime = operationCooldowns.get(operationKey);
+  if (lastOperationTime) {
+    const timeSinceLastOp = Date.now() - lastOperationTime;
+    if (timeSinceLastOp < COOLDOWN_MS) {
+      return { success: false, cooldown: true };
+    }
   }
 
   try {
     pendingOperations.set(operationKey, 'unfollowing');
 
-    // Check if following (within the pending operation)
-    const isFollowing = await checkIfFollowing(followerId, targetUserId);
-    if (!isFollowing) {
-      throw new Error('Not following this user');
-    }
+    // Skip "not following" check - UI manages this state
 
     const batch = writeBatch(db);
 
@@ -473,18 +453,22 @@ export const unfollowUser = async (followerId, targetUserId) => {
     // Update follower's following count
     const followerUserRef = doc(db, 'users', followerId);
     batch.update(followerUserRef, {
-      'userdata.followingCount': increment(-1),
+      'userdata.metrics.social.followingCount': increment(-1),
       'userdata.lastUpdated': Timestamp.now(),
     });
 
     // Update target's follower count
     const targetUserRef = doc(db, 'users', targetUserId);
     batch.update(targetUserRef, {
-      'userdata.followerCount': increment(-1),
+      'userdata.metrics.social.followersCount': increment(-1),
       'userdata.lastUpdated': Timestamp.now(),
     });
 
     await batch.commit();
+
+    // Set cooldown timestamp
+    operationCooldowns.set(operationKey, Date.now());
+
     return { success: true };
   } catch (error) {
     console.error('Error unfollowing user:', error);

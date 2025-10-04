@@ -5,11 +5,15 @@ import theme from '../../../theme/themes';
 
 /**
  * VibeButton with variants:
- * - default: transparent fill with gradient border
+ * - default: transparent fill with gradient border (cyan/blue)
  * - toggle: toggle-style button with color parameter
+ * - red: red button with orange border for destructive actions
+ * - green: green button with cyan border for positive actions (forest green gradient)
  * Usage:
  * <VibeButton label="Click Me" onPress={...} />
  * <VibeButton label="Toggle" onPress={...} variant="toggle" color="purple" />
+ * <VibeButton label="Delete" onPress={...} variant="red" />
+ * <VibeButton label="Join Event" onPress={...} variant="green" />
  */
 export default function VibeButton({
   label,
@@ -18,6 +22,7 @@ export default function VibeButton({
   textStyle,
   variant = 'default',
   color = 'blue',
+  disabled = false,
 }) {
   // Get color values based on color parameter
   const getColorValues = (colorName) => {
@@ -43,10 +48,15 @@ export default function VibeButton({
     return (
       <Pressable
         onPress={onPress}
+        disabled={disabled}
+        delayPressIn={0}
+        delayPressOut={0}
+        hitSlop={4}
         style={({ pressed }) => [
           styles.toggleButton,
           { borderColor: themeColor },
-          { opacity: pressed ? 0.8 : 1 },
+          { opacity: pressed ? 0.7 : disabled ? 0.5 : 1 },
+          { transform: [{ scale: pressed ? 0.98 : 1 }] },
           style,
         ]}
       >
@@ -57,54 +67,129 @@ export default function VibeButton({
     );
   }
 
-  // Default variant (existing gradient button)
+  if (variant === 'red') {
+    return (
+      <Pressable
+        onPress={onPress}
+        disabled={disabled}
+        delayPressIn={0}
+        delayPressOut={0}
+        hitSlop={4}
+        style={({ pressed }) => [
+          {
+            opacity: pressed ? 0.7 : disabled ? 0.5 : 1,
+            transform: [{ scale: pressed ? 0.98 : 1 }]
+          },
+          style
+        ]}
+      >
+        <View style={styles.redOuterBorder}>
+          <View style={styles.redSolidFill}>
+            <View style={styles.buttonContent}>
+              <Text style={[styles.text, textStyle]}>{label}</Text>
+            </View>
+          </View>
+        </View>
+      </Pressable>
+    );
+  }
+
+  if (variant === 'green') {
+    return (
+      <Pressable
+        onPress={onPress}
+        disabled={disabled}
+        delayPressIn={0}
+        delayPressOut={0}
+        hitSlop={4}
+        style={({ pressed }) => [
+          {
+            opacity: pressed ? 0.7 : disabled ? 0.5 : 1,
+            transform: [{ scale: pressed ? 0.98 : 1 }]
+          },
+          style
+        ]}
+      >
+        <View style={styles.greenOuterBorder}>
+          <View style={styles.greenSolidFill}>
+            <View style={styles.buttonContent}>
+              <Text style={[styles.text, textStyle]}>{label}</Text>
+            </View>
+          </View>
+        </View>
+      </Pressable>
+    );
+  }
+
+  // Default variant (existing gradient button) - optimized for immediate response
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [{ opacity: pressed ? 0.8 : 1 }, style]}
+      disabled={disabled}
+      delayPressIn={0}
+      delayPressOut={0}
+      hitSlop={4}
+      style={({ pressed }) => [
+        {
+          opacity: (pressed && !disabled) ? 0.7 : 1,
+          transform: [{ scale: (pressed && !disabled) ? 0.98 : 1 }]
+        },
+        style
+      ]}
     >
-      <LinearGradient
-        colors={theme.colors.buttonGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.gradientBorder}
-      >
-        <View style={styles.buttonContent}>
-          <Text style={[styles.text, textStyle]}>{label}</Text>
+      <View style={styles.outerBorder}>
+        <View style={styles.gradientBorder}>
+          <View style={styles.buttonContent}>
+            <Text style={[styles.text, textStyle]}>{label}</Text>
+          </View>
         </View>
-      </LinearGradient>
+      </View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   // Default variant styles
-  gradientBorder: {
+  outerBorder: {
+    borderBottomWidth: 4,
+    borderLeftWidth: 3,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+    borderColor: '#00FFFF',
     borderRadius: theme.sizes.buttonRadius,
     marginVertical: 10,
   },
+  gradientBorder: {
+    borderRadius: theme.sizes.buttonRadius - 4,
+    padding: 3,
+    marginBottom: -0.5,
+    marginLeft: -0.5,
+    backgroundColor: '#0072ff',
+    overflow: 'hidden',
+  },
   buttonContent: {
     backgroundColor: 'transparent',
-    borderRadius: theme.sizes.buttonRadius,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
+    borderRadius: theme.sizes.buttonRadius - 6,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     alignItems: 'center',
+    overflow: 'hidden',
   },
   text: {
     color: theme.colors.textPrimary,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     fontFamily: theme.fonts.main,
   },
 
   // Toggle variant styles
   toggleButton: {
-    borderWidth: 2,
+    borderWidth: 3,
     borderRadius: theme.sizes.buttonRadius,
     paddingVertical: 12,
     paddingHorizontal: 24,
     alignItems: 'center',
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Dark transparent blacklight
     marginVertical: 0,
   },
   toggleText: {
@@ -114,4 +199,55 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
+  // Red variant styles (for destructive actions like delete/block)
+  redOuterBorder: {
+    borderBottomWidth: 4,
+    borderLeftWidth: 3,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+    borderColor: '#FFCC66', // Orange/yellow border
+    borderRadius: theme.sizes.buttonRadius,
+    marginVertical: 10,
+  },
+  redGradientBorder: {
+    borderRadius: theme.sizes.buttonRadius - 4,
+    padding: 2,
+    marginBottom: -0.5,
+    marginLeft: -0.5,
+    overflow: 'hidden',
+  },
+  redSolidFill: {
+    backgroundColor: '#CC0033', // Solid red (lightest from gradient)
+    borderRadius: theme.sizes.buttonRadius - 4,
+    padding: 2,
+    marginBottom: -0.5,
+    marginLeft: -0.5,
+    overflow: 'hidden',
+  },
+
+  // Green variant styles (for positive actions like join/accept with forest green gradient)
+  greenOuterBorder: {
+    borderBottomWidth: 4,
+    borderLeftWidth: 3,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+    borderColor: '#00FF41', // Vibe green border
+    borderRadius: theme.sizes.buttonRadius,
+    marginVertical: 10,
+  },
+  greenGradientBorder: {
+    borderRadius: theme.sizes.buttonRadius - 4,
+    padding: 2,
+    marginBottom: -0.5,
+    marginLeft: -0.5,
+    overflow: 'hidden',
+  },
+  greenSolidFill: {
+    backgroundColor: '#228B22', // Forest green - deeper, more saturated
+    borderRadius: theme.sizes.buttonRadius - 4,
+    padding: 2,
+    marginBottom: -0.5,
+    marginLeft: -0.5,
+    overflow: 'hidden',
+  },
 });

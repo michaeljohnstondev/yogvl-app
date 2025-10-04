@@ -144,19 +144,32 @@ export class StudioService {
     try {
       const studioDoc = await getDoc(doc(db, 'studios', studioId));
       if (studioDoc.exists()) {
-        return {
+        const studioData = {
           id: studioDoc.id,
           ...studioDoc.data(),
         };
+
+        // Add real-time member count
+        const memberCount = await this.getStudioMemberCount(studioId);
+        studioData.memberCount = memberCount;
+
+        return studioData;
       }
       return null;
     } catch (error) {
       console.error(`[StudioService] Error getting studio ${studioId}:`, error);
       // Fallback to hardcoded data
-      return (
-        this.getHardcodedStudios().find((studio) => studio.id === studioId) ||
-        null
-      );
+      const hardcodedStudio = this.getHardcodedStudios().find((studio) => studio.id === studioId);
+      if (hardcodedStudio) {
+        // Add real-time member count to hardcoded studio too
+        try {
+          const memberCount = await this.getStudioMemberCount(studioId);
+          return { ...hardcodedStudio, memberCount };
+        } catch {
+          return { ...hardcodedStudio, memberCount: 0 };
+        }
+      }
+      return null;
     }
   }
 

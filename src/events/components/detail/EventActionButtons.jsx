@@ -1,5 +1,6 @@
-import React, { memo } from 'react';
+import React, { memo, useCallback } from 'react';
 import { View, StyleSheet } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { VibeButton } from '../../../components/ui';
 import theme from '../../../theme/themes';
 
@@ -25,6 +26,27 @@ const EventActionButtons = memo(function EventActionButtons({
   pendingCohostInvitation,
   onAcceptCohostInvitation,
 }) {
+  // Handle invite completion results
+  const handleInviteResult = useCallback((selectedData) => {
+    vibeAlert.success(
+      'Success',
+      `Connected with ${selectedData.users.length} people! They can now see your events.`
+    );
+  }, [vibeAlert]);
+
+  // Navigation event listener for invite results
+  useFocusEffect(
+    useCallback(() => {
+      const unsubscribe = navigation.addListener('inviteComplete', (e) => {
+        const { inviteType, users, contacts, phoneContacts } = e.data || {};
+        if (inviteType === 'host_guests') {
+          handleInviteResult({ users, contacts, phoneContacts });
+        }
+      });
+      return unsubscribe;
+    }, [navigation, handleInviteResult])
+  );
+
   // Simplified validation for admin view
   React.useEffect(() => {
     if (
@@ -48,13 +70,7 @@ const EventActionButtons = memo(function EventActionButtons({
         eventTitle: event.title,
         eventId: event.id,
         source: 'host_invite',
-        onSave: (selectedData) => {
-          vibeAlert.success(
-            'Success',
-            `Connected with ${selectedData.users.length} people! They can now see your events.`
-          );
-          navigation.goBack();
-        },
+        inviteType: 'host_guests',
       });
     } else if (onInvite) {
       // Guest invite
@@ -160,6 +176,7 @@ const EventActionButtons = memo(function EventActionButtons({
               disabled={
                 isLoading || (!isSubscribed && !joinConstraints.canJoin)
               }
+              variant={!isSubscribed ? 'green' : 'default'}
             />
           )}
 
@@ -193,6 +210,7 @@ const EventActionButtons = memo(function EventActionButtons({
               disabled={
                 isLoading || (!isSubscribed && !joinConstraints.canJoin)
               }
+              variant={!isSubscribed ? 'green' : 'default'}
             />
           </>
         )}
@@ -226,6 +244,7 @@ const EventActionButtons = memo(function EventActionButtons({
               <VibeButton
                 label="DELETE EVENT"
                 onPress={onDelete}
+                variant="red"
               />
             )}
           </>

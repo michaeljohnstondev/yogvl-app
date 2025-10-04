@@ -23,13 +23,13 @@ export default function VibeButtonPlain({
 
 const styles = StyleSheet.create({
   button: {
-    borderWidth: 1,
-    borderColor: theme.colors.inputBorder,
+    borderWidth: 3,
+    borderColor: theme.colors.vibeBlue,
     borderRadius: theme.sizes.borderRadius,
     paddingVertical: 12,
     paddingHorizontal: 16,
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Dark transparent blacklight
   },
   text: {
     color: theme.colors.textPrimary,

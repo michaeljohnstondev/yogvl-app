@@ -29,7 +29,6 @@ const SubscriptionNotificationSettings = memo(function SubscriptionNotificationS
 
     // Reminders for the event
     eventReminders: attendingDefaults.eventReminders ?? true,
-    dayBeforeReminder: attendingDefaults.dayBeforeReminder ?? true,
 
     // Social activity
     hostComments: attendingDefaults.hostComments ?? true, // Host comments in social feed (batched after first) - default ON
@@ -53,7 +52,6 @@ const SubscriptionNotificationSettings = memo(function SubscriptionNotificationS
         'userdata.settings.notifications.attending': {
           hostChanges: subscriptionSettings.hostChanges,
           eventReminders: subscriptionSettings.eventReminders,
-          dayBeforeReminder: subscriptionSettings.dayBeforeReminder,
           hostComments: subscriptionSettings.hostComments,
           newComments: subscriptionSettings.newComments,
           reminderTemplates: subscriptionSettings.reminderTemplates,

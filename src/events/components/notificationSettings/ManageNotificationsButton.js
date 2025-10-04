@@ -15,10 +15,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     marginTop: 16,
-    backgroundColor: 'rgba(0, 198, 255, 0.1)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Dark transparent blacklight
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.vibeBlue || '#00C6FF',
+    borderWidth: 3,
+    borderColor: theme.colors.vibeBlue,
     alignItems: 'center',
   },
   buttonText: {

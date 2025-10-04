@@ -375,6 +375,15 @@ export const styles = StyleSheet.create({
   followButton: {
     alignSelf: 'stretch',
   },
+  loadingContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  loadingContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   loadingText: {
     color: theme.colors.white,
     fontSize: 16,

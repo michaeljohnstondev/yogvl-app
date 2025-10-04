@@ -66,23 +66,31 @@ export const sanitizeInterest = (interest) => {
   const sanitized = trimmed
     .replace(/[<>]/g, '')
     .replace(/javascript:/gi, '')
-    .replace(/[^\w\s\-&.']/g, '');
+    .replace(/[^\w\s\-&.']/g, '')
+    .trim(); // Trim again after removing special characters like emojis
 
   return sanitized || null;
 };
 
 /**
  * Validates an interests array for storage
- * Checks array length, sanitizes each interest
+ * Checks array length, sanitizes each interest, removes duplicates
  * @param {string[]} interests - Array of interests to validate
- * @returns {string[]} - Array of valid, sanitized interests
+ * @returns {string[]} - Array of valid, sanitized, unique interests
  */
 export const validateInterestsArray = (interests) => {
   if (!Array.isArray(interests)) return [];
 
-  // Limit to 50 interests max and sanitize each one
+  // Limit to 50 interests max, sanitize each one, and deduplicate (case-insensitive)
+  const seen = new Set();
   return interests
     .slice(0, 50)
     .map(sanitizeInterest)
-    .filter((interest) => interest !== null);
+    .filter((interest) => {
+      if (interest === null) return false;
+      const normalized = interest.toLowerCase();
+      if (seen.has(normalized)) return false;
+      seen.add(normalized);
+      return true;
+    });
 };

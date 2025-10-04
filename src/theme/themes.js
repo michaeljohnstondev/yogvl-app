@@ -1,7 +1,7 @@
 const theme = {
   colors: {
-    background: '#080B1E',
-    backgroundGradient: ['#080B1E', '#0B1125'],
+    background: '#2D1050',
+    backgroundGradient: ['#1A0A35', '#2D1050'],
     buttonGradient: ['#00c6ff', '#0072ff'],
     royalPurpleGradient: ['#4B0082', '#0066FF', '#4B0082', '#0066FF', '#4B0082'],
     textPrimary: '#FFFFFF',
@@ -31,6 +31,9 @@ const theme = {
     gray: '#778DA9',
     darkGray: '#2d2d2d',
 
+    // UI accent colors
+    headerBackground: '#1A0A35', // Match event cards exactly
+
     // VibeBackgroundColors
     vibeBackgroundBlue: 'rgba(0, 198, 255, 0.1)',
     vibeBackgroundGreen: 'rgba(0, 255, 65, 0.1)',
@@ -39,7 +42,7 @@ const theme = {
     vibeBackgroundYellow: 'rgba(255, 255, 0, 0.1)',
     vibeBackgroundPink: 'rgba(255, 16, 240, 0.1)',
     vibeBackgroundCyan: 'rgba(0, 255, 255, 0.1)',
-    vibeBackgroundTurquoise: 'rgba(64, 224, 208, 0.1)',
+    vibeBackgroundTurquoise: 'rgba(64, 224, 208, 0.2)',
     vibeBackgroundAqua: 'rgba(0, 255, 247, 0.1)',
     vibeBackgroundTeal: 'rgba(0, 255, 212, 0.1)',
     vibeBackgroundElectricBlue: 'rgba(0, 127, 255, 0.1)',
@@ -63,7 +66,7 @@ const theme = {
   sizes: {
     borderRadius: 12,
     buttonRadius: 12,
-    inputPadding: 16,
+    inputPadding: 12,
   },
   // UI Restrictions: NO glow effects - Use sharp neon borders instead
   // shadows: Removed - glow effects not allowed in punk aesthetic

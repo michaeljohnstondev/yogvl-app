@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,9 +10,10 @@ import {
   Platform,
   Keyboard,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
 import { VibeButton, VibeAutoComplete, CloseButton, VibeView } from '../components/ui';
+import { useStatusBar } from '../components/ui/base/VibeAppWrapper';
 import theme from '../theme/themes';
 import {
   getUserInterests,
@@ -36,6 +37,7 @@ export default function InterestsScreen() {
   const textInputRef = useRef(null);
   const scrollViewRef = useRef(null);
   const addInterestSectionRef = useRef(null);
+  const blurTimeoutRef = useRef(null);
 
   useEffect(() => {
     loadInterests();
@@ -55,6 +57,7 @@ export default function InterestsScreen() {
     const commonInterests = [
       'Basketball',
       'Football',
+      'Fantasy Football',
       'Soccer',
       'Tennis',
       'Pickleball',
@@ -66,36 +69,54 @@ export default function InterestsScreen() {
       'Yoga',
       'Fitness',
       'Music',
+      'Live Music',
       'Dance',
       'Art',
       'Painting',
       'Photography',
       'Cooking',
       'Gaming',
+      'Video Games',
+      'Board Games',
       'Chess',
       'Poker',
       'Trivia',
       'Karaoke',
       'Comedy',
+      'Stand-up Comedy',
       'Hiking',
       'Biking',
+      'Mountain Biking',
       'Climbing',
+      'Rock Climbing',
       'Skating',
       'Surfing',
       'Reading',
       'Writing',
+      'Creative Writing',
       'Movies',
       'Theater',
       'Gardening',
       'Technology',
       'Science',
+      'Craft Beer',
+      'Wine Tasting',
+      'Coffee',
+      'Meditation',
+      'Camping',
+      'Fishing',
     ];
 
     // Filter based on input and exclude already added interests
-    const filtered = [
+    const allInterests = [
       ...popularInterests.map((item) => item.interest),
       ...commonInterests,
-    ]
+    ];
+
+    console.log('[InterestsScreen] 🔍 Searching for:', searchTerm);
+    console.log('[InterestsScreen] 📋 All interests:', allInterests);
+
+    const filtered = allInterests
       .filter(
         (interest) =>
           interest.toLowerCase().includes(searchTerm) &&
@@ -104,6 +125,8 @@ export default function InterestsScreen() {
           )
       )
       .slice(0, 5); // Show max 5 suggestions
+
+    console.log('[InterestsScreen] ✅ Filtered suggestions:', filtered);
 
     setSuggestions([...new Set(filtered)]); // Remove duplicates
     setShowSuggestions(filtered.length > 0);
@@ -115,9 +138,18 @@ export default function InterestsScreen() {
   };
 
   const handleSuggestionSelect = (suggestion) => {
-    setNewInterest(suggestion);
-    setShowSuggestions(false);
-    textInputRef.current?.focus();
+    console.log('[InterestsScreen] 🎯 Suggestion selected:', suggestion);
+    console.log('[InterestsScreen] 🎯 Current newInterest value:', newInterest);
+
+    // VibeAutoComplete now sends clean text without emoji
+    const cleanSuggestion = typeof suggestion === 'string' ? suggestion.trim() : suggestion;
+
+    console.log('[InterestsScreen] ✅ Clean suggestion:', cleanSuggestion);
+    setNewInterest(cleanSuggestion);
+    console.log('[InterestsScreen] 📝 Set input to:', cleanSuggestion);
+
+    // Dismiss keyboard after selection
+    Keyboard.dismiss();
   };
 
   const scrollToAddSection = () => {
@@ -173,20 +205,18 @@ export default function InterestsScreen() {
   };
 
   const handleAddInterest = async (interest) => {
-    if (!interest || !currentUserId) return;
+    if (!interest || !currentUserId || adding) return; // Prevent double taps
 
     const trimmedInterest = interest.trim();
     if (!trimmedInterest) return;
 
     // Validate interest length (same as event title)
     if (trimmedInterest.length > 100) {
-      Alert.alert('Too Long', 'Interest must be 100 characters or less.');
       return;
     }
 
     // Validate minimum length
     if (trimmedInterest.length < 2) {
-      Alert.alert('Too Short', 'Interest must be at least 2 characters.');
       return;
     }
 
@@ -196,102 +226,90 @@ export default function InterestsScreen() {
         (existing) => existing.toLowerCase() === trimmedInterest.toLowerCase()
       )
     ) {
-      Alert.alert(
-        'Already Added',
-        'You already have this interest in your list.'
-      );
       return;
     }
 
     setAdding(true);
 
+    // Optimistically update UI immediately
+    setUserInterests((prev) => [...prev, trimmedInterest]);
+
+    // Remove from popular suggestions if it exists there
+    setPopularInterests((prev) =>
+      prev.filter(
+        (item) =>
+          item.interest.toLowerCase() !== trimmedInterest.toLowerCase()
+      )
+    );
+
+    // Clear input and refocus for next entry
+    if (interest === newInterest) {
+      setNewInterest('');
+      setTimeout(() => {
+        textInputRef.current?.focus();
+      }, 100);
+    }
+
     try {
       const success = await addUserInterest(currentUserId, trimmedInterest);
 
-      if (success) {
-        // Add to local state (keep original case)
-        setUserInterests((prev) => [...prev, trimmedInterest]);
-
-        // Remove from popular suggestions if it exists there
-        setPopularInterests((prev) =>
-          prev.filter(
-            (item) =>
-              item.interest.toLowerCase() !== trimmedInterest.toLowerCase()
-          )
+      if (!success) {
+        // Revert optimistic update on failure
+        setUserInterests((prev) =>
+          prev.filter((item) => item !== trimmedInterest)
         );
-
-        // Clear input and refocus for next entry
-        if (interest === newInterest) {
-          setNewInterest('');
-          // Small delay to ensure state is updated before focusing
-          setTimeout(() => {
-            textInputRef.current?.focus();
-          }, 100);
-        }
-
-        Alert.alert(
-          'Added!',
-          `"${trimmedInterest}" has been added to your interests.`
-        );
-      } else {
-        Alert.alert('Error', 'Failed to add interest. Please try again.');
+        await loadInterests(); // Reload to ensure consistency
       }
     } catch (error) {
       console.error('[InterestsScreen] Error adding interest:', error);
-      Alert.alert('Error', 'Failed to add interest. Please try again.');
+      // Revert optimistic update on error
+      setUserInterests((prev) =>
+        prev.filter((item) => item !== trimmedInterest)
+      );
+      await loadInterests(); // Reload to ensure consistency
     } finally {
       setAdding(false);
     }
   };
 
   const handleRemoveInterest = async (interest) => {
-    if (!currentUserId) return;
+    if (!currentUserId || adding) return; // Prevent double taps
 
-    Alert.alert(
-      'Remove Interest',
-      `Remove "${interest}" from your interests?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const success = await removeUserInterest(currentUserId, interest);
+    const studioId = userData?.userdata?.studios?.default?.studioId;
+    setAdding(true);
 
-              if (success) {
-                // Remove from local state
-                setUserInterests((prev) =>
-                  prev.filter((item) => item !== interest)
-                );
+    // Optimistically update UI immediately
+    setUserInterests((prev) => prev.filter((item) => item !== interest));
 
-                // Optionally re-add to popular suggestions if it's still popular
-                await loadInterests();
+    try {
+      const success = await removeUserInterest(currentUserId, interest);
 
-                Alert.alert(
-                  'Removed',
-                  `"${interest}" has been removed from your interests.`
-                );
-              } else {
-                Alert.alert(
-                  'Error',
-                  'Failed to remove interest. Please try again.'
-                );
-              }
-            } catch (error) {
-              console.error(
-                '[InterestsScreen] Error removing interest:',
-                error
-              );
-              Alert.alert(
-                'Error',
-                'Failed to remove interest. Please try again.'
-              );
-            }
-          },
-        },
-      ]
-    );
+      if (!success) {
+        // Revert optimistic update on failure
+        setUserInterests((prev) => [...prev, interest]);
+      } else if (studioId) {
+        // Reload popular interests without triggering loading state
+        const studioInterests = await getStudioInterests(studioId);
+        const updatedUserInterests = userInterests.filter((item) => item !== interest);
+
+        const availablePopular = studioInterests
+          .filter(
+            (item) =>
+              !updatedUserInterests.some(
+                (userInt) => userInt.toLowerCase() === item.interest.toLowerCase()
+              )
+          )
+          .slice(0, 20);
+
+        setPopularInterests(availablePopular);
+      }
+    } catch (error) {
+      console.error('[InterestsScreen] Error removing interest:', error);
+      // Revert optimistic update on error
+      setUserInterests((prev) => [...prev, interest]);
+    } finally {
+      setAdding(false);
+    }
   };
 
   const renderInterestChip = (
@@ -355,6 +373,7 @@ export default function InterestsScreen() {
           ref={scrollViewRef}
           style={styles.content}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           {/* User's Current Interests */}
           <View style={[styles.section, styles.yourInterestsSection]}>
@@ -421,12 +440,6 @@ export default function InterestsScreen() {
                   generateSuggestions(newInterest || '');
                   setTimeout(scrollToAddSection, 100);
                 }}
-                onBlur={() => {
-                  // Delay hiding suggestions to allow selection
-                  setTimeout(() => {
-                    setShowSuggestions(false);
-                  }, 150);
-                }}
                 onSubmitEditing={() => {
                   if (newInterest.trim()) {
                     handleAddInterest(newInterest);
@@ -445,6 +458,7 @@ export default function InterestsScreen() {
                 onSelect={handleSuggestionSelect}
                 visible={showSuggestions}
                 inputValue={newInterest}
+                onHide={() => setShowSuggestions(false)}
               />
             </View>
             {newInterest.length > 80 && (
@@ -478,6 +492,7 @@ const styles = {
     paddingTop: 0,
     paddingHorizontal: 20,
     paddingBottom: 20,
+    backgroundColor: theme.colors.headerBackground,
     borderBottomWidth: 2,
     borderBottomColor: theme.colors.vibeBlue,
   },
@@ -588,8 +603,8 @@ const styles = {
   },
   textInput: {
     backgroundColor: theme.colors.inputBackground,
-    borderWidth: 1,
-    borderColor: theme.colors.darkGray,
+    borderWidth: 3,
+    borderColor: theme.colors.vibeBlue,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,

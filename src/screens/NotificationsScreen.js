@@ -23,6 +23,7 @@ import { useRealtimeNotificationsContext } from '../contexts/RealtimeNotificatio
 import NotificationItem from '../components/notifications/NotificationItem';
 import VibeAppWrapper from '../components/ui/base/VibeAppWrapper';
 import { VibeButton, CloseButton } from '../components/ui';
+import ScreenHeader from '../components/ui/layout/ScreenHeader';
 import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
 import theme from '../theme/themes';
 
@@ -94,6 +95,12 @@ export default function NotificationsScreen({ navigation }) {
             if (data.followerId) {
               // For now, just mark as read. Later we can add profile navigation
               console.log('Navigate to follower profile:', data.followerId);
+            }
+            break;
+          case NOTIFICATION_TYPES.INTEREST_BASED_SUGGESTION:
+            // Navigate to event detail for interest-based suggestions
+            if (data.eventId) {
+              navigation.navigate('EventDetail', { eventId: data.eventId });
             }
             break;
           default:
@@ -460,14 +467,11 @@ export default function NotificationsScreen({ navigation }) {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container} edges={['bottom']}>
-        {/* Custom transparent header */}
-        <View style={styles.header}>
-          <View style={styles.headerContent}>
-            <Text style={styles.headerTitle}>Notifications</Text>
-          </View>
-          <CloseButton onPress={() => navigation.goBack()} />
-        </View>
-
+        <ScreenHeader
+          title="Notifications"
+          count={unreadCount}
+          onClose={() => navigation.goBack()}
+        />
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading notifications...</Text>
         </View>
@@ -477,14 +481,11 @@ export default function NotificationsScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      {/* Custom transparent header */}
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Notifications</Text>
-        </View>
-        <CloseButton onPress={() => navigation.goBack()} />
-      </View>
-
+      <ScreenHeader
+        title="Notifications"
+        count={unreadCount}
+        onClose={() => navigation.goBack()}
+      />
       <View style={styles.content}>
         {/* Notifications list */}
         {notifications.length > 0 ? (

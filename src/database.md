@@ -109,6 +109,13 @@ This document outlines the Firebase Firestore database structure for the Big Vib
       engagement: {
         totalRatings: number,               // Number of times rated as host
         lastRated?: Timestamp,
+      },
+
+      social: {
+        followersCount: number,             // Count of users following this user
+        followingCount: number,             // Count of users this user follows
+        profileViews: number,               // Profile view count
+        lastProfileView?: Timestamp,        // Last profile view timestamp
       }
     },
 
@@ -163,10 +170,6 @@ This document outlines the Firebase Firestore database structure for the Big Vib
       },
       lastUpdated?: Timestamp,
     },
-
-    // SOCIAL FEATURES (stored as subcollections now)
-    followingCount?: number,              // Count of users this user follows
-    followerCount?: number,              // Count of users following this user
   },
 
   // === HOST RATING SYSTEM ===

@@ -291,7 +291,7 @@ export const notifySubscribersOfCancellation = async ({
       ? `"${eventTitle}" has been cancelled. Reason: ${reason}`
       : `"${eventTitle}" has been cancelled by ${hostName}`;
 
-    // Send high priority notifications to all subscribers
+    // Send urgent priority notifications to all subscribers (shows red accent)
     const notificationPromises = subscriberIds.map((subscriberId) =>
       notificationEngine
         .createNotification({
@@ -306,7 +306,7 @@ export const notifySubscribersOfCancellation = async ({
             reason,
             actionType: 'cancelled',
           },
-          priority: NOTIFICATION_PRIORITY.HIGH,
+          priority: NOTIFICATION_PRIORITY.URGENT,
         })
         .catch((error) => {
           console.error(

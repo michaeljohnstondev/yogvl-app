@@ -28,6 +28,9 @@ import {
 import { moderationService } from '../services/moderationService';
 import { VenueService } from '../services/VenueService';
 import { StudioRequestService } from '../services/StudioRequestService';
+import { followUser } from '../services/followService';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../auth/services/firebase';
 
 export default function AdminScreen({ navigation }) {
   const { userData, currentUserId } = useAuth();
@@ -54,8 +57,34 @@ export default function AdminScreen({ navigation }) {
   const [studioRequests, setStudioRequests] = useState([]);
   const [loadingStudioRequests, setLoadingStudioRequests] = useState(false);
 
+  // Follow Claude state
+  const [followingClaude, setFollowingClaude] = useState(false);
+
   const handleGoBack = () => {
     navigation.goBack();
+  };
+
+  // Handle Claude Follow Me (so I get the notification)
+  const handleFollowClaude = async () => {
+    const CLAUDE_USER_ID = 'claude_ai_test_user';
+    setFollowingClaude(true);
+    try {
+      // Claude follows me (so I get the notification)
+      // Need to get Claude's user data first
+      const claudeUserDoc = await getDoc(doc(db, 'users', CLAUDE_USER_ID));
+      if (!claudeUserDoc.exists()) {
+        throw new Error('Claude user not found');
+      }
+      const claudeUserData = claudeUserDoc.data();
+
+      await followUser(CLAUDE_USER_ID, currentUserId, claudeUserData, userData);
+      Alert.alert('Success', 'Claude is now following you! Check your notifications.');
+    } catch (error) {
+      console.error('Error with Claude follow:', error);
+      Alert.alert('Error', 'Failed: ' + error.message);
+    } finally {
+      setFollowingClaude(false);
+    }
   };
 
   // Handle venue seeding
@@ -726,30 +755,15 @@ export default function AdminScreen({ navigation }) {
         >
           <NotificationTester />
 
-          {/* Venue Management Section */}
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Venue Management</Text>
-            <Text style={styles.sectionDescription}>
-              Seed the database with popular Greenville venues for address
-              auto-population.
-            </Text>
+          <View style={styles.testingSection}>
+            <Text style={styles.sectionTitle}>Follow Testing</Text>
 
             <VibeButton
-              label={
-                seedingVenues ? 'Seeding Venues...' : 'Seed Greenville Venues'
-              }
-              onPress={handleSeedVenues}
-              variant="outline"
-              color="green"
-              disabled={seedingVenues}
-              style={styles.seedButton}
+              label={followingClaude ? 'Processing...' : 'Claude Follow Me'}
+              onPress={handleFollowClaude}
+              disabled={followingClaude}
+              style={styles.testButton}
             />
-
-            <Text style={styles.noteText}>
-              Note: This adds ~25 popular Greenville venues to the database.
-              When users type these venue names in CreateEvent, the address will
-              auto-populate.
-            </Text>
           </View>
         </ScrollView>
       )}
@@ -848,6 +862,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.darkGray,
     paddingBottom: 8,
+  },
+  testingSection: {
+    marginBottom: 20,
+  },
+  testButton: {
+    marginBottom: 12,
   },
   buttonGrid: {
     gap: 10,

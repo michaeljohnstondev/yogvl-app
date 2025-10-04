@@ -34,8 +34,11 @@ export const eventDataService = {
       }
 
       // Check if current user is subscribed
+      // Handle both array format (legacy) and object format (new)
       const subscribers = event.subscribers || [];
-      const isSubscribed = subscribers.includes(currentUserId);
+      const isSubscribed = Array.isArray(subscribers)
+        ? subscribers.includes(currentUserId)
+        : subscribers[currentUserId] !== undefined;
 
       // Get creator data
       let creatorData = null;

@@ -5,8 +5,9 @@
 // ⚠️  Foreground notifications should be handled through FCM, not expo-notifications
 //
 
-import { Platform } from 'react-native';
+import { Platform, AppState } from 'react-native';
 import messaging from '@react-native-firebase/messaging';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
@@ -18,12 +19,25 @@ import { notificationEngine } from './shared/NotificationEngine';
 const STORAGE_KEYS = {
   FCM_TOKEN: 'fcm_push_token',
   PERMISSION_REQUESTED: 'notification_permission_requested',
+  PENDING_NOTIFICATION: 'pending_notification_action',
 };
 
 // Configure Firebase messaging for background message handling
 try {
   messaging().setBackgroundMessageHandler(async (remoteMessage) => {
-    // Handle background notification here if needed
+    console.log('[FCMService] Background message received:', remoteMessage.data);
+    // Store notification data for when app opens
+    if (remoteMessage?.data) {
+      try {
+        await SecureStore.setItemAsync(
+          STORAGE_KEYS.PENDING_NOTIFICATION,
+          JSON.stringify(remoteMessage.data)
+        );
+        console.log('[FCMService] Stored pending notification for app launch');
+      } catch (error) {
+        console.error('[FCMService] Failed to store pending notification:', error);
+      }
+    }
   });
 } catch (error) {
   console.warn('[FCMService] Failed to set background message handler:', error);
@@ -35,10 +49,14 @@ class FCMService {
     this.currentToken = null;
     this.currentUserId = null;
     this.navigationRef = null;
+    this.pendingNavigation = null;
+    this.initialNotification = null;
     this.foregroundListener = null;
     this.notificationOpenedListener = null;
     this.lastNavigationTime = 0;
     this.pendingNotifications = []; // Queue for notifications received before user login
+    this.isAuthReady = false; // Track if auth is complete
+    this.authReadyCallbacks = []; // Callbacks to run when auth is ready
   }
 
   /**
@@ -79,15 +97,50 @@ class FCMService {
    * Set up Firebase message listeners for foreground and tap handling
    */
   setupFirebaseListeners() {
+    console.log('[FCMService] Setting up Firebase listeners...');
+
     // Listener for messages received while app is in foreground
     this.foregroundListener = messaging().onMessage(async (remoteMessage) => {
+      console.log('[FCMService] *** Foreground listener fired ***');
+      // Store notification data for potential app restart (within 5 minutes)
+      if (remoteMessage?.data) {
+        try {
+          await AsyncStorage.setItem(
+            STORAGE_KEYS.PENDING_NOTIFICATION,
+            JSON.stringify({
+              data: remoteMessage.data,
+              timestamp: Date.now()
+            })
+          );
+          console.log('[FCMService] ✅ Stored foreground notification for potential restart');
+        } catch (error) {
+          console.error('[FCMService] Failed to store notification:', error);
+        }
+      }
       this.handleForegroundMessage(remoteMessage);
     });
 
+    console.log('[FCMService] Foreground listener registered');
+
     // Listener for when user taps on notification (app was in background)
     this.notificationOpenedListener = messaging().onNotificationOpenedApp(
-      (remoteMessage) => {
+      async (remoteMessage) => {
+        console.log('[FCMService] *** onNotificationOpenedApp fired ***');
+        console.log('[FCMService] App opened from background via notification tap');
         if (remoteMessage?.data) {
+          // Store notification with timestamp for potential app restart
+          try {
+            await AsyncStorage.setItem(
+              STORAGE_KEYS.PENDING_NOTIFICATION,
+              JSON.stringify({
+                data: remoteMessage.data,
+                timestamp: Date.now()
+              })
+            );
+            console.log('[FCMService] Stored background notification for potential restart');
+          } catch (error) {
+            console.error('[FCMService] Failed to store notification:', error);
+          }
           this.navigateFromNotification(remoteMessage.data);
         }
       }
@@ -95,19 +148,46 @@ class FCMService {
 
     // Check if app was opened from a notification (app was quit)
     messaging().getInitialNotification()
-      .then((remoteMessage) => {
+      .then(async (remoteMessage) => {
         if (remoteMessage) {
           console.log(
-            '[FCMService] App opened from notification:',
-            remoteMessage
+            '[FCMService] *** App opened from notification (quit state) ***'
           );
+          console.log('[FCMService] Notification data:', JSON.stringify(remoteMessage.data, null, 2));
           if (remoteMessage?.data) {
-            // Delay navigation to allow app to fully initialize
-            setTimeout(() => {
-              this.navigateFromNotification(remoteMessage.data);
-            }, 1000);
+            // Store initial notification to process after navigation is ready
+            this.initialNotification = remoteMessage.data;
+            console.log('[FCMService] 🔔 Stored initial notification - waiting for navigation and auth to be ready');
+            console.log('[FCMService] Current state:', {
+              hasNavigation: !!this.navigationRef,
+              hasAuth: this.isAuthReady
+            });
+          }
+        } else {
+          console.log('[FCMService] getInitialNotification returned null, checking storage...');
+          // Fallback: Check if we stored a notification
+          try {
+            const storedItem = await SecureStore.getItemAsync(STORAGE_KEYS.PENDING_NOTIFICATION);
+            if (storedItem) {
+              const notificationData = JSON.parse(storedItem);
+
+              console.log('[FCMService] *** Found stored notification from background handler ***');
+              console.log('[FCMService] Notification data:', JSON.stringify(notificationData, null, 2));
+
+              this.initialNotification = notificationData;
+
+              // Always clear the stored notification
+              await SecureStore.deleteItemAsync(STORAGE_KEYS.PENDING_NOTIFICATION);
+            } else {
+              console.log('[FCMService] No pending notification in storage (app opened normally)');
+            }
+          } catch (error) {
+            console.error('[FCMService] Error checking stored notification:', error);
           }
         }
+      })
+      .catch((error) => {
+        console.error('[FCMService] Error getting initial notification:', error);
       });
 
     // Note: Notification tap handling is managed by FCM onNotificationOpenedApp listener above
@@ -293,6 +373,23 @@ class FCMService {
    * Also stores notification in dashboard for later viewing
    */
   async handleForegroundMessage(remoteMessage) {
+    console.log('[FCMService] handleForegroundMessage called');
+
+    // ALWAYS store notification data for potential app restart (failsafe)
+    if (remoteMessage?.data) {
+      try {
+        await AsyncStorage.setItem(
+          STORAGE_KEYS.PENDING_NOTIFICATION,
+          JSON.stringify({
+            data: remoteMessage.data,
+            timestamp: Date.now()
+          })
+        );
+        console.log('[FCMService] ✅ Stored notification in handleForegroundMessage');
+      } catch (error) {
+        console.error('[FCMService] Failed to store notification:', error);
+      }
+    }
 
     try {
       // Display notification banner using VibeAlert system
@@ -347,14 +444,47 @@ class FCMService {
         return;
       }
 
+      // Determine priority based on notification type
+      let priority = 'normal';
+      if (type === 'event_deleted' || type === 'event_cancelled') {
+        priority = 'urgent'; // Red accent for cancelled events
+      } else if (type === 'cohost_invitation' || type === 'event_reminder') {
+        priority = 'high'; // Orange accent for important notifications
+      }
+
+      // For comment notifications, batch them by event
+      if (type === 'host_comment' || type === 'guest_comment') {
+        console.log(`[FCMService] 💬 Comment notification detected - type: ${type}`);
+        const eventId = remoteMessage.data?.eventId;
+        const eventTitle = remoteMessage.data?.eventTitle;
+
+        console.log(`[FCMService] Event data - eventId: ${eventId}, eventTitle: ${eventTitle}`);
+
+        if (eventId) {
+          console.log(`[FCMService] ✅ Calling batchCommentNotificationInDashboard for event ${eventId}`);
+          await this.batchCommentNotificationInDashboard({
+            userId: this.currentUserId,
+            eventId,
+            eventTitle,
+            type,
+            priority,
+            data: remoteMessage.data || {}
+          });
+          return;
+        } else {
+          console.log(`[FCMService] ⚠️ No eventId found, falling back to regular notification storage`);
+        }
+      }
+
       // Store in notification dashboard using NotificationEngine
+      console.log(`[FCMService] 📝 Storing notification via NotificationEngine - type: ${type}, title: ${title}`);
       const storeResult = await notificationEngine.storeInAppNotification({
         userId: this.currentUserId,
         type: type,
         title: title,
         message: message,
         data: remoteMessage.data || {},
-        priority: 'normal',
+        priority: priority,
       });
 
     } catch (error) {
@@ -363,14 +493,104 @@ class FCMService {
   }
 
   /**
+   * Batch comment notifications by event in the dashboard
+   * Updates existing notification or creates new one
+   */
+  async batchCommentNotificationInDashboard({ userId, eventId, eventTitle, type, priority, data }) {
+    try {
+      const { collection, query, where, getDocs, updateDoc, doc: firestoreDoc, setDoc, Timestamp } = await import('firebase/firestore');
+
+      console.log(`[FCMService] 🔍 Checking for existing comment notifications for event ${eventId}`);
+
+      // Check for existing unread comment notification for this event
+      const notificationsRef = collection(db, 'users', userId, 'notifications');
+      const q = query(
+        notificationsRef,
+        where('data.eventId', '==', eventId),
+        where('type', 'in', ['host_comment', 'guest_comment']),
+        where('read', '==', false)
+      );
+
+      const existingNotifs = await getDocs(q);
+
+      console.log(`[FCMService] 📋 Found ${existingNotifs.size} existing unread comment notification(s) for event ${eventId}`);
+
+      if (!existingNotifs.empty) {
+        // Update existing notification with count
+        const existingNotif = existingNotifs.docs[0];
+        const existingData = existingNotif.data();
+        const currentCount = existingData.data?.commentCount || 1;
+        const newCount = currentCount + 1;
+
+        console.log(`[FCMService] 📊 Batching comment notification - updating from ${currentCount} to ${newCount} messages for event ${eventId}`);
+
+        await updateDoc(existingNotif.ref, {
+          title: eventTitle,
+          message: `${newCount} new message${newCount > 1 ? 's' : ''}`,
+          'data.commentCount': newCount,
+          createdAt: Timestamp.now(), // Update timestamp to keep it at top
+        });
+
+        console.log(`[FCMService] ✅ Updated existing notification to ${newCount} messages`);
+      } else {
+        // Create new notification
+        console.log(`[FCMService] 📝 Creating new comment notification for event ${eventId}`);
+
+        const notificationId = `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const notificationRef = firestoreDoc(notificationsRef, notificationId);
+
+        await setDoc(notificationRef, {
+          id: notificationId,
+          type,
+          title: eventTitle,
+          message: '1 new message',
+          data: {
+            ...data,
+            commentCount: 1
+          },
+          priority,
+          read: false,
+          createdAt: Timestamp.now(),
+          expiresAt: Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)), // 30 days
+        });
+
+        console.log(`[FCMService] ✅ Created new notification with ID ${notificationId}`);
+      }
+    } catch (error) {
+      console.error('[FCMService] ❌ Failed to batch comment notification:', error);
+      console.error('[FCMService] Error details:', error.message);
+      console.error('[FCMService] Error stack:', error.stack);
+    }
+  }
+
+  /**
    * Navigate to appropriate screen based on notification data
    * Supports both legacy navigation and new navigation stack pattern
    */
-  navigateFromNotification(data) {
+  async navigateFromNotification(data) {
+    console.log('[FCMService] ========================================');
+    console.log('[FCMService] 📍 navigateFromNotification called');
+    console.log('[FCMService] ========================================');
+    console.log('[FCMService] Full notification data:', JSON.stringify(data, null, 2));
+    console.log('[FCMService] Notification type:', data?.type);
+    console.log('[FCMService] Event ID:', data?.eventId);
+    console.log('[FCMService] Screen:', data?.screen);
 
     if (!this.navigationRef) {
-      console.warn('[FCMService] Navigation ref not set, cannot navigate');
+      console.warn('[FCMService] ❌ Navigation ref not set, queueing navigation for later');
+      this.pendingNavigation = { data };
       return;
+    }
+
+    console.log('[FCMService] ✅ Navigation ref is set, proceeding with navigation');
+    console.log('[FCMService] Current navigation state:', this.navigationRef.getRootState());
+
+    // Clear stored notification since we're handling it now
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEYS.PENDING_NOTIFICATION);
+      console.log('[FCMService] Cleared stored notification');
+    } catch (error) {
+      // Ignore errors when clearing
     }
 
     // Prevent rapid navigation calls that can cause screen resets
@@ -384,53 +604,95 @@ class FCMService {
     try {
       // Check for new navigation stack pattern
       if (data.resetStack === 'true' && data.navigationStack) {
+        console.log('[FCMService] 📚 Using navigation stack pattern');
         this.handleNavigationStack(data);
         return;
       }
 
       // Legacy navigation handling (fallback)
       const { type, eventId, screen, userId } = data;
+      console.log('[FCMService] 📱 Using legacy navigation pattern');
+      console.log('[FCMService] Navigation data:', { type, eventId, screen, userId });
 
       switch (type) {
         case 'event_reminder':
         case 'event_updated':
         case 'event_comment':
+          console.log('[FCMService] 🎯 Navigating to EventDetail for type:', type);
           if (eventId) {
+            console.log('[FCMService] 🚀 Calling navigate("EventDetail", { eventId:', eventId, '})');
             this.navigationRef.navigate('EventDetail', { eventId });
+            console.log('[FCMService] ✅ Navigate call completed');
+          } else {
+            console.warn('[FCMService] ⚠️ No eventId provided for', type);
           }
           break;
 
         case 'follow_notification':
         case 'mutual_follow':
+          console.log('[FCMService] 👤 Navigating to UserProfile for type:', type);
           if (userId) {
+            console.log('[FCMService] 🚀 Calling navigate("UserProfile", { userId:', userId, '})');
             this.navigationRef.navigate('UserProfile', { userId });
+            console.log('[FCMService] ✅ Navigate call completed');
+          } else {
+            console.warn('[FCMService] ⚠️ No userId provided for', type);
           }
           break;
 
         case 'invitation_received':
+          console.log('[FCMService] 💌 Navigating to EventDetail for invitation');
           if (eventId) {
+            console.log('[FCMService] 🚀 Calling navigate("EventDetail", { eventId:', eventId, '})');
             this.navigationRef.navigate('EventDetail', { eventId });
+            console.log('[FCMService] ✅ Navigate call completed');
+          } else {
+            console.warn('[FCMService] ⚠️ No eventId provided for invitation');
+          }
+          break;
+
+        case 'interest_based_suggestion':
+          console.log('[FCMService] 🎯 Interest-based suggestion - navigating to EventDetail:', eventId);
+          if (eventId) {
+            console.log('[FCMService] 🚀 Calling navigate("EventDetail", { eventId:', eventId, '})');
+            this.navigationRef.navigate('EventDetail', { eventId });
+            console.log('[FCMService] ✅ Navigation called for interest suggestion');
+          } else {
+            console.warn('[FCMService] ⚠️ No eventId in interest suggestion data');
           }
           break;
 
         case 'admin_notification':
-          // Navigate to notifications screen for admin messages
+          console.log('[FCMService] 🔧 Navigating to Notifications for admin message');
+          console.log('[FCMService] 🚀 Calling navigate("Notifications")');
           this.navigationRef.navigate('Notifications');
+          console.log('[FCMService] ✅ Navigate call completed');
           break;
 
         case 'ban_notification':
-          // Navigate to home where banned modal will show
+          console.log('[FCMService] 🚫 Navigating to Home for ban notification');
+          console.log('[FCMService] 🚀 Calling navigate("Home")');
           this.navigationRef.navigate('Home');
+          console.log('[FCMService] ✅ Navigate call completed');
           break;
 
         default:
+          console.log('[FCMService] ❓ Unknown notification type:', type);
           if (screen) {
+            console.log('[FCMService] 🚀 Calling navigate with screen:', screen);
             this.navigationRef.navigate(screen);
+            console.log('[FCMService] ✅ Navigate call completed');
+          } else {
+            console.warn('[FCMService] ⚠️ No screen provided for unknown type');
           }
           break;
       }
+      console.log('[FCMService] ========================================');
+      console.log('[FCMService] 📍 navigateFromNotification completed');
+      console.log('[FCMService] ========================================');
     } catch (error) {
-      console.error('[FCMService] Navigation error:', error);
+      console.error('[FCMService] ❌❌❌ Navigation error:', error);
+      console.error('[FCMService] Error stack:', error.stack);
     }
   }
 
@@ -439,25 +701,33 @@ class FCMService {
    */
   handleNavigationStack(data) {
     try {
-      const screens = data.navigationStack.split(',');
+      const screens = data.navigationStack.split(',').map(s => s.trim());
+
+      console.log(`[FCMService] 📚 Navigation stack:`, screens);
+      console.log(`[FCMService] 📦 Full data:`, JSON.stringify(data, null, 2));
 
       // Get the final screen in the navigation stack (destination)
-      const finalScreen = screens[screens.length - 1].trim();
+      const finalScreen = screens[screens.length - 1];
       const params = this.getNavigationParams(finalScreen, data);
 
-      console.log(`[FCMService] Navigating directly to final destination: ${finalScreen} with params:`, params);
+      console.log(`[FCMService] 🎯 Final destination: ${finalScreen}`);
+      console.log(`[FCMService] 📋 Navigation params:`, JSON.stringify(params, null, 2));
 
       // Reset navigation stack to Home first
+      console.log(`[FCMService] 🔄 Resetting navigation to Home...`);
       this.navigationRef.reset({
         index: 0,
         routes: [{ name: 'Home' }],
       });
 
       // Navigate directly to the final destination
+      console.log(`[FCMService] 🚀 Navigating to ${finalScreen} with params...`);
       this.navigationRef.navigate(finalScreen, params);
+      console.log(`[FCMService] ✅ Navigation completed`);
 
     } catch (error) {
-      console.error('[FCMService] Navigation stack error:', error);
+      console.error('[FCMService] ❌ Navigation stack error:', error);
+      console.error('[FCMService] Error stack:', error.stack);
 
       // Fallback to legacy navigation
       this.navigateFromNotification({ ...data, resetStack: undefined, navigationStack: undefined });
@@ -488,7 +758,7 @@ class FCMService {
       case 'MessageBoard':
         return {
           eventId: data.eventId,
-          studioId: data.studioId,
+          eventTitle: data.eventTitle,
           ...(data.commentId && { scrollToComment: data.commentId })
         };
 
@@ -499,10 +769,81 @@ class FCMService {
   }
 
   /**
+   * Called when authentication is complete and user data is loaded
+   * This signals that we can safely navigate
+   */
+  setAuthReady(userId) {
+    console.log('[FCMService] 🔓 Auth ready for user:', userId);
+    console.log('[FCMService] Current state before setAuthReady:', {
+      hasNavigation: !!this.navigationRef,
+      hasAuth: this.isAuthReady,
+      hasPendingNotification: !!this.initialNotification
+    });
+
+    this.isAuthReady = true;
+    this.currentUserId = userId;
+
+    // Execute any auth-ready callbacks
+    this.authReadyCallbacks.forEach(callback => callback());
+    this.authReadyCallbacks = [];
+
+    // Try to execute initial notification if we have both navigation and auth ready
+    this.tryExecuteInitialNotification();
+  }
+
+  /**
    * Set navigation reference for deep linking
    */
   setNavigationRef(navigationRef) {
     this.navigationRef = navigationRef;
+    console.log('[FCMService] 🧭 Navigation ref set');
+    console.log('[FCMService] Current state after setNavigationRef:', {
+      hasNavigation: !!this.navigationRef,
+      hasAuth: this.isAuthReady,
+      hasPendingNotification: !!this.initialNotification
+    });
+
+    // Execute any pending navigation from background tap
+    if (this.pendingNavigation) {
+      console.log('[FCMService] Executing pending navigation (background tap)');
+      const { data } = this.pendingNavigation;
+      this.pendingNavigation = null;
+      this.navigateFromNotification(data);
+    }
+
+    // Try to execute initial notification if we have both navigation and auth ready
+    this.tryExecuteInitialNotification();
+  }
+
+  /**
+   * Execute initial notification only when both navigation and auth are ready
+   */
+  tryExecuteInitialNotification() {
+    console.log('[FCMService] tryExecuteInitialNotification called');
+    console.log('[FCMService] Prerequisites check:', {
+      hasInitialNotification: !!this.initialNotification,
+      hasNavigation: !!this.navigationRef,
+      hasAuth: this.isAuthReady,
+      allReady: !!(this.initialNotification && this.navigationRef && this.isAuthReady)
+    });
+
+    if (this.initialNotification && this.navigationRef && this.isAuthReady) {
+      console.log('[FCMService] ✅ Both navigation and auth ready - executing initial notification');
+      console.log('[FCMService] Notification type:', this.initialNotification.type);
+      console.log('[FCMService] Notification eventId:', this.initialNotification.eventId);
+      const data = this.initialNotification;
+      this.initialNotification = null;
+      // Small delay to ensure everything is settled
+      setTimeout(() => {
+        console.log('[FCMService] 🚀 Navigating now...');
+        this.navigateFromNotification(data);
+      }, 500);
+    } else if (this.initialNotification) {
+      console.log('[FCMService] ⏳ Still waiting - missing:', {
+        needsNavigation: !this.navigationRef,
+        needsAuth: !this.isAuthReady
+      });
+    }
   }
 
   /**
@@ -569,13 +910,39 @@ class FCMService {
       console.log(`[FCMService] Processing ${this.pendingNotifications.length} queued notifications`);
 
       for (const notification of this.pendingNotifications) {
+        // Determine priority based on notification type
+        let priority = 'normal';
+        if (notification.type === 'event_deleted' || notification.type === 'event_cancelled') {
+          priority = 'urgent'; // Red accent for cancelled events
+        } else if (notification.type === 'cohost_invitation' || notification.type === 'event_reminder') {
+          priority = 'high'; // Orange accent for important notifications
+        }
+
+        // For comment notifications, batch them by event
+        if (notification.type === 'host_comment' || notification.type === 'guest_comment') {
+          const eventId = notification.data?.eventId;
+          const eventTitle = notification.data?.eventTitle;
+
+          if (eventId) {
+            await this.batchCommentNotificationInDashboard({
+              userId: this.currentUserId,
+              eventId,
+              eventTitle,
+              type: notification.type,
+              priority,
+              data: notification.data
+            });
+            continue;
+          }
+        }
+
         await notificationEngine.storeInAppNotification({
           userId: this.currentUserId,
           type: notification.type,
           title: notification.title,
           message: notification.message,
           data: notification.data,
-          priority: 'normal',
+          priority: priority,
         });
       }
 

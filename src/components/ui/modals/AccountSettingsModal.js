@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { signOut } from '../../../lib/firebase/auth';
@@ -7,7 +7,7 @@ import { useVibeAlert } from '../base/VibeAlertContext';
 import CloseButton from '../buttons/CloseButton';
 import theme from '../../../theme/themes';
 
-export default function AccountSettingsDropdown({
+function AccountSettingsDropdown({
   visible,
   onClose,
   navigation,
@@ -15,7 +15,25 @@ export default function AccountSettingsDropdown({
 }) {
   const vibeAlert = useVibeAlert();
 
-  const handleLogout = async () => {
+  // Memoize user display data to prevent recalculation on every render
+  const { displayName, studioName } = useMemo(() => {
+    const firstName = userData?.userdata?.contactInfo?.firstName;
+    const lastName = userData?.userdata?.contactInfo?.lastName;
+
+    const name = firstName && lastName
+      ? `${firstName} ${lastName}`
+      : userData?.userdata?.contactInfo?.email || userData?.email || 'User';
+
+    const studio = userData?.userdata?.studios?.default?.studioName || 'Studio not set';
+
+    return {
+      displayName: name,
+      studioName: studio
+    };
+  }, [userData]);
+
+  // Memoize all handler functions to prevent recreation on every render
+  const handleLogout = useCallback(async () => {
     try {
       await signOut(auth);
       console.log('User logged out successfully');
@@ -25,136 +43,153 @@ export default function AccountSettingsDropdown({
       console.error('Error logging out:', error);
       vibeAlert.error('Error', 'Failed to log out. Please try again.');
     }
-  };
+  }, [onClose, vibeAlert]);
 
-  const handleLocationSettings = () => {
+  const handleLocationSettings = useCallback(() => {
     onClose();
     navigation.navigate('Location');
-  };
+  }, [onClose, navigation]);
 
-  const handleNotificationSettings = () => {
+  const handleNotificationSettings = useCallback(() => {
     onClose();
     navigation.navigate('NotificationSettings');
-  };
+  }, [onClose, navigation]);
 
-  const handlePrivacySettings = () => {
+  const handlePrivacySettings = useCallback(() => {
     onClose();
     navigation.navigate('Privacy');
-  };
+  }, [onClose, navigation]);
 
-  const handleProfile = () => {
+  const handleProfile = useCallback(() => {
     onClose();
     navigation.navigate('UserProfile');
-  };
+  }, [onClose, navigation]);
 
-  const handleInterests = () => {
+  const handleInterests = useCallback(() => {
     onClose();
     navigation.navigate('Interests');
-  };
+  }, [onClose, navigation]);
+
+  // Memoize the gradient colors to prevent recreation
+  const gradientColors = useMemo(() => theme.colors.backgroundGradient, []);
 
   if (!visible) return null;
 
   return (
     <View style={styles.dropdown}>
       <LinearGradient
-        colors={theme.colors.backgroundGradient}
+        colors={gradientColors}
         style={styles.dropdownContent}
       >
         {/* Profile Header */}
         <View style={styles.profileSection}>
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>
-              {userData?.userdata?.contactInfo?.firstName &&
-              userData?.userdata?.contactInfo?.lastName
-                ? `${userData.userdata.contactInfo.firstName} ${userData.userdata.contactInfo.lastName}`
-                : userData?.userdata?.contactInfo?.email ||
-                  userData?.email ||
-                  'User'}
+              {displayName}
             </Text>
             <Text style={styles.profileEmail}>
-              {userData?.userdata?.studios?.default?.studioName ||
-                'Studio not set'}
+              {studioName}
             </Text>
           </View>
-          <CloseButton onPress={onClose} />
+          <CloseButton onPress={onClose} style={{ marginRight: -12 }} />
         </View>
 
         {/* Settings Options */}
-        <View style={styles.separator} />
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity style={[styles.settingItem, { marginTop: 2 }]} onPress={handleProfile} activeOpacity={1}>
+            <Text style={styles.settingText}>My Profile</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.settingItem} onPress={handleProfile}>
-          <Text style={styles.settingText}>My Profile</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.settingItem} onPress={handleInterests} activeOpacity={1}>
+            <Text style={styles.settingText}>Interests</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.settingItem} onPress={handleInterests}>
-          <Text style={styles.settingText}>Interests</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={handleLocationSettings}
+            activeOpacity={1}
+          >
+            <Text style={styles.settingText}>Studios</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.settingItem}
-          onPress={handleLocationSettings}
-        >
-          <Text style={styles.settingText}>Studio Settings</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={handleNotificationSettings}
+            activeOpacity={1}
+          >
+            <Text style={styles.settingText}>Notification Settings</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.settingItem}
-          onPress={handleNotificationSettings}
-        >
-          <Text style={styles.settingText}>Notification Settings</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={handlePrivacySettings}
+            activeOpacity={1}
+          >
+            <Text style={styles.settingText}>Privacy Settings</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.settingItem}
-          onPress={handlePrivacySettings}
-        >
-          <Text style={styles.settingText}>Privacy Settings</Text>
-        </TouchableOpacity>
-
-        {/* Separator */}
-        <View style={styles.separator} />
-
-        {/* Logout Button */}
-        <TouchableOpacity style={styles.settingItem} onPress={handleLogout}>
-          <Text style={styles.settingText}>Log Out</Text>
-        </TouchableOpacity>
+          {/* Logout Button */}
+          <TouchableOpacity style={[styles.settingItem, { marginBottom: 2 }]} onPress={handleLogout} activeOpacity={1}>
+            <Text style={styles.settingText}>Log Out</Text>
+          </TouchableOpacity>
+        </View>
       </LinearGradient>
     </View>
   );
 }
 
+export default React.memo(AccountSettingsDropdown, (prevProps, nextProps) => {
+  // Custom comparison function for React.memo
+  return (
+    prevProps.visible === nextProps.visible &&
+    prevProps.userData === nextProps.userData &&
+    prevProps.onClose === nextProps.onClose &&
+    prevProps.navigation === nextProps.navigation
+  );
+});
+
 const styles = StyleSheet.create({
   dropdown: {
     position: 'absolute',
-    top: 60, // Position below the header
-    right: 16,
+    top: 7,
+    right: 12,
     width: 250,
     zIndex: 1000,
     borderRadius: 12,
     overflow: 'hidden',
-    shadowColor: theme.colors.vibeBlue,
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 198, 255, 0.3)',
+    // Simplified shadow for better performance
+    shadowColor: '#00C6FF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 198, 255, 0.3)',
   },
   dropdownContent: {
     padding: 0,
   },
+  buttonContainer: {
+    backgroundColor: theme.colors.vibeBlue,
+    marginTop: 1,
+  },
   profileSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 8,
     backgroundColor: 'rgba(0, 198, 255, 0.1)',
+    borderTopWidth: 2,
+    borderLeftWidth: 2,
+    borderRightWidth: 2,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 198, 255, 0.2)',
+    borderTopColor: '#00f2fe',
+    borderLeftColor: '#00f2fe',
+    borderRightColor: '#00f2fe',
+    borderBottomColor: theme.colors.vibeBlue,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
   },
   profileInfo: {
     flex: 1,
@@ -176,7 +211,7 @@ const styles = StyleSheet.create({
   separator: {
     height: 1,
     backgroundColor: 'rgba(0, 198, 255, 0.2)',
-    marginVertical: 4,
+    marginVertical: 1,
   },
   settingItem: {
     flexDirection: 'row',
@@ -184,15 +219,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderRadius: 8,
-    marginHorizontal: 8,
-    marginVertical: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    marginHorizontal: 2,
+    marginVertical: 1,
+    backgroundColor: theme.colors.headerBackground,
     borderWidth: 1,
     borderColor: 'transparent',
   },
   settingText: {
     color: theme.colors.textPrimary,
     fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'center',
     flex: 1,
   },
 });

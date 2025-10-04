@@ -42,13 +42,14 @@ export const fetchEventDetails = async (studioId, eventId) => {
 };
 
 /**
- * Delete an event (only by creator)
+ * Delete an event (only by creator or admin)
  * @param {string} studioId - Studio ID
  * @param {string} eventId - Event ID
  * @param {string} currentUserId - User requesting deletion
+ * @param {boolean} isAdmin - Whether user is an admin
  * @returns {Promise<Object>} Success result
  */
-export const deleteEvent = async (studioId, eventId, currentUserId) => {
+export const deleteEvent = async (studioId, eventId, currentUserId, isAdmin = false) => {
   try {
     return await runTransaction(db, async (transaction) => {
       const eventRef = doc(db, 'studios', studioId, 'events', eventId);
@@ -60,48 +61,26 @@ export const deleteEvent = async (studioId, eventId, currentUserId) => {
 
       const eventData = eventSnap.data();
 
-      // Only event creator can delete
-      if (eventData.createdBy !== currentUserId) {
+      // Only event creator or admin can delete
+      if (eventData.createdBy !== currentUserId && !isAdmin) {
         throw new Error('Only event creator can delete event');
+      }
+
+      if (isAdmin && eventData.createdBy !== currentUserId) {
+        console.log(`[EventCore] Admin ${currentUserId} deleting event ${eventId} created by ${eventData.createdBy}`);
       }
 
       console.log('[EventCore] Deleting event:', eventId);
       console.log('[EventCore] Event subscribers:', eventData.subscribers);
 
-      // Notify subscribers before deletion
-      if (eventData.subscribers && eventData.subscribers.length > 0) {
-        console.log('[EventCore] Sending cancellation notifications...');
-
-        // Get host name for notification
-        const hostDoc = await getDoc(doc(db, 'users', currentUserId));
-        const hostName = hostDoc.exists()
-          ? hostDoc.data()?.userdata?.contactInfo?.displayName || 'Event Host'
-          : 'Event Host';
-
-        // Send notifications (fire and forget to avoid transaction timeout)
-        setTimeout(async () => {
-          try {
-            await notifySubscribersOfCancellation({
-              eventId,
-              eventTitle: eventData.title || 'Event',
-              subscriberIds: eventData.subscribers,
-              hostName,
-              reason: 'Event has been deleted',
-            });
-          } catch (notificationError) {
-            console.error(
-              '[EventCore] Failed to send cancellation notifications:',
-              notificationError
-            );
-          }
-        }, 0);
-      }
+      // Note: Cancellation notifications are now handled by Firebase Cloud Function (onEventDeleted trigger)
+      // This prevents duplicate notifications to subscribers
 
       // Clean up user subscriptions and invitations
       const userCleanupPromises = [];
 
       // Clean up subscriber references
-      if (eventData.subscribers) {
+      if (eventData.subscribers && Array.isArray(eventData.subscribers)) {
         eventData.subscribers.forEach((userId) => {
           userCleanupPromises.push(
             updateDoc(doc(db, 'users', userId), {
@@ -112,10 +91,12 @@ export const deleteEvent = async (studioId, eventId, currentUserId) => {
             )
           );
         });
+      } else {
+        console.log('[EventCore] No subscribers to clean up (subscribers is not an array)');
       }
 
       // Clean up invitation references
-      if (eventData.invitations) {
+      if (eventData.invitations && Array.isArray(eventData.invitations)) {
         eventData.invitations.forEach((userId) => {
           userCleanupPromises.push(
             updateDoc(doc(db, 'users', userId), {
@@ -126,6 +107,8 @@ export const deleteEvent = async (studioId, eventId, currentUserId) => {
             )
           );
         });
+      } else {
+        console.log('[EventCore] No invitations to clean up (invitations is not an array)');
       }
 
       // Execute cleanup (fire and forget)

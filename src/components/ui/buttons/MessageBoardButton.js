@@ -76,11 +76,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   content: {
-    backgroundColor: theme.colors.inputBackground,
+    backgroundColor: theme.colors.vibeBackgroundTurquoise,
     borderRadius: theme.sizes.borderRadius,
     padding: 20,
-    borderWidth: 2,
-    borderColor: theme.colors.vibeBlue, // Blue instead of inputBorder
+    borderWidth: 3,
+    borderColor: theme.colors.vibeTurquoise,
   },
   header: {
     flexDirection: 'row',

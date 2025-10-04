@@ -9,7 +9,6 @@ import {
   arrayRemove,
 } from '../lib/firebase';
 import { db } from '../auth/services/firebase';
-import { StudioStatsService } from './studioStatsService';
 
 /**
  * Get all app users from the same studio as current user
@@ -240,14 +239,6 @@ export const registerUserWithStudio = async (userId, studioId) => {
       `[userService] Successfully registered user ${userId} with studio ${studioId}`
     );
 
-    // Update studio member count
-    try {
-      await StudioStatsService.incrementMemberCount(studioId);
-    } catch (error) {
-      console.warn('Failed to increment studio member count:', error);
-      // Don't fail the registration if stats update fails
-    }
-
     return { success: true };
   } catch (error) {
     console.error(
@@ -280,14 +271,6 @@ export const removeUserFromStudio = async (userId, studioId) => {
     console.log(
       `[userService] Successfully removed user ${userId} from studio ${studioId}`
     );
-
-    // Update studio member count
-    try {
-      await StudioStatsService.decrementMemberCount(studioId);
-    } catch (error) {
-      console.warn('Failed to decrement studio member count:', error);
-      // Don't fail the removal if stats update fails
-    }
 
     return { success: true };
   } catch (error) {

@@ -99,8 +99,10 @@ export const Details = forwardRef(
           placeholder="Enter details..."
           isCompleted={formData.details && formData.details.trim().length > 0}
           style={{
+            padding: 16,
+            fontSize: 16,
             textAlignVertical: 'top',
-            minHeight: 40,
+            minHeight: 90,
           }}
           maxLength={1500}
         />

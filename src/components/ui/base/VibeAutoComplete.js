@@ -111,19 +111,22 @@ const VibeAutoComplete = React.memo(
 
     // Handle selection and hide
     const handleSelect = (suggestion) => {
+      console.log('[VibeAutoComplete] 🔵 handleSelect called with:', suggestion);
+
       // Record selection time
       lastSelectionTimeRef.current = Date.now();
 
       // Calculate what the final value will be after selection
       const suggestionText =
         typeof suggestion === 'string' ? suggestion : suggestion?.text || '';
-      const finalValue = hasEmojiAtStart(suggestionText)
-        ? suggestionText
-        : `${getEmojiForText(suggestionText)} ${suggestionText}`;
-      lastSelectedValueRef.current = finalValue;
+
+      // Store the clean value (what we send to onSelect) for comparison
+      lastSelectedValueRef.current = suggestionText;
+
+      console.log('[VibeAutoComplete] 📤 Calling onSelect with:', suggestionText);
 
       // Call onSelect to update the field
-      onSelect(suggestion);
+      onSelect(suggestionText);
 
       // Call onHide as well
       if (onHide) {
@@ -134,12 +137,14 @@ const VibeAutoComplete = React.memo(
     if (!shouldShow) return null;
 
     const renderSuggestions = () => (
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={true}
-        keyboardShouldPersistTaps="handled"
-      >
-        {displaySuggestions.map((item, index) => {
+      <>
+        <View style={styles.separator} />
+        <ScrollView
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={true}
+          keyboardShouldPersistTaps="handled"
+        >
+          {displaySuggestions.map((item, index) => {
           // Handle both string and object suggestions
           const text = typeof item === 'string' ? item : item.text;
           const count = typeof item === 'object' ? item.count : null;
@@ -166,7 +171,8 @@ const VibeAutoComplete = React.memo(
             </Pressable>
           );
         })}
-      </ScrollView>
+        </ScrollView>
+      </>
     );
 
     // Use portal if enabled and position provided with valid coordinates
@@ -214,13 +220,20 @@ const styles = StyleSheet.create({
     top: '100%',
     left: 0,
     right: 0,
-    zIndex: 9999,
-    elevation: 9999,
-    backgroundColor: theme.colors.background,
-    borderRadius: theme.sizes.borderRadius,
-    borderWidth: 1,
-    borderColor: theme.colors.inputBorder,
+    zIndex: 999999,
+    elevation: 999999,
+    backgroundColor: theme.colors.headerBackground, // Solid dark purple background
+    borderBottomLeftRadius: theme.sizes.borderRadius,
+    borderBottomRightRadius: theme.sizes.borderRadius,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderLeftWidth: 3,
+    borderRightWidth: 3,
+    borderBottomWidth: 3,
+    borderTopWidth: 0,
+    borderColor: theme.colors.vibeBlue,
     maxHeight: 300,
+    marginTop: -3, // Pull up to connect with input border
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.8,
@@ -255,11 +268,18 @@ const styles = StyleSheet.create({
   },
   modalAutocomplete: {
     position: 'absolute',
-    backgroundColor: theme.colors.background,
-    borderRadius: theme.sizes.borderRadius,
-    borderWidth: 1,
-    borderColor: theme.colors.inputBorder,
+    backgroundColor: theme.colors.headerBackground, // Solid dark purple background
+    borderBottomLeftRadius: theme.sizes.borderRadius,
+    borderBottomRightRadius: theme.sizes.borderRadius,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderLeftWidth: 3,
+    borderRightWidth: 3,
+    borderBottomWidth: 3,
+    borderTopWidth: 0,
+    borderColor: theme.colors.vibeBlue,
     maxHeight: 300,
+    marginTop: -3, // Pull up to connect with input border
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.8,
@@ -268,6 +288,11 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flexGrow: 1,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: theme.colors.vibeBlue,
+    marginHorizontal: 0,
   },
 });
 

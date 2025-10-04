@@ -360,12 +360,12 @@ export default GuestListViewer;
 const styles = StyleSheet.create({
   // Compact viewer
   viewerButton: {
-    backgroundColor: theme.colors.inputBackground,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Dark transparent blacklight
     borderRadius: 12,
     padding: 16,
     marginVertical: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.vibeBlue,
+    borderWidth: 3,
+    borderColor: theme.colors.vibeTurquoise,
   },
   viewerContent: {
     flexDirection: 'row',
@@ -447,11 +447,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
-    backgroundColor: theme.colors.inputBackground,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Dark transparent blacklight
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.inputBorder,
   },
   activeTab: {
-    borderWidth: 2,
+    borderWidth: 3,
   },
   tabText: {
     color: theme.colors.gray,
@@ -480,8 +482,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: theme.colors.inputBackground,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.darkGray,
+    borderWidth: 3,
+    borderColor: theme.colors.vibeBlue,
     padding: 16,
     marginBottom: 8,
   },

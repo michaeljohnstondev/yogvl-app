@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,11 +8,12 @@ import {
   Switch,
   Alert,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { doc, updateDoc } from '../lib/firebase';
 import { db } from '../auth/services/firebase';
 import { VibeButton, VibeSegmentedControl } from '../components/ui';
-import { CloseButton } from '../components/ui/buttons';
 import { NotificationSettingItem } from '../components/ui';
+import ScreenHeader from '../components/ui/layout/ScreenHeader';
 import NotificationSettingsForm from '../components/notifications/NotificationSettingsForm';
 import GuestNotificationSettingsForm from '../components/notifications/GuestNotificationSettingsForm';
 import HostNotificationSettingsForm from '../components/notifications/HostNotificationSettingsForm';
@@ -72,9 +73,6 @@ function NotificationSettings({ navigation }) {
     eventReminders:
       userData?.userdata?.settings?.notifications?.attending?.eventReminders ??
       true,
-    dayBeforeReminder:
-      userData?.userdata?.settings?.notifications?.attending
-        ?.dayBeforeReminder ?? true,
     hostComments:
       userData?.userdata?.settings?.notifications?.attending?.hostComments ??
       true,
@@ -134,9 +132,6 @@ function NotificationSettings({ navigation }) {
     eventReminders:
       userData?.userdata?.settings?.notifications?.attending?.eventReminders ??
       true,
-    dayBeforeReminder:
-      userData?.userdata?.settings?.notifications?.attending
-        ?.dayBeforeReminder ?? true,
     hostComments:
       userData?.userdata?.settings?.notifications?.attending?.hostComments ??
       true,
@@ -193,14 +188,16 @@ function NotificationSettings({ navigation }) {
   ];
 
   return (
-    <ScrollView ref={scrollViewRef} style={styles.container} contentContainerStyle={styles.scrollContent}>
-      <View style={styles.header}>
-        <CloseButton onPress={() => navigation.goBack()} />
-        <Text style={styles.headerTitle}>Notification Settings</Text>
-      </View>
+    <View style={styles.outerContainer}>
+      {/* Header */}
+      <ScreenHeader
+        title="Notifications"
+        onClose={() => navigation.goBack()}
+      />
 
-      {/* Tab Selector */}
-      <View style={styles.tabSection}>
+      <ScrollView ref={scrollViewRef} style={styles.container} contentContainerStyle={styles.scrollContent}>
+        {/* Tab Selector */}
+        <View style={styles.tabSection}>
         <VibeSegmentedControl
           options={tabOptions}
           selectedValue={activeTab}
@@ -285,16 +282,19 @@ function NotificationSettings({ navigation }) {
           userContext="attending"
         />
       )}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 export default NotificationSettings;
 
 const styles = StyleSheet.create({
+  outerContainer: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    overflow: 'visible',
   },
   scrollContent: {
     paddingBottom: 50, // Extra bottom spacing for safe scrolling
@@ -302,11 +302,11 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: theme.colors.headerBackground,
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.darkGray,
+    paddingVertical: 15,
+    borderBottomWidth: 3,
+    borderBottomColor: theme.colors.vibeBlue,
   },
   headerTitle: {
     color: theme.colors.textPrimary,
@@ -338,16 +338,16 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   settingsGroup: {
-    backgroundColor: theme.colors.inputBackground,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     borderRadius: theme.sizes.borderRadius,
-    borderWidth: 1,
-    borderColor: theme.colors.inputBorder,
+    borderWidth: 3,
+    borderColor: theme.colors.vibeBlue,
   },
   reminderSection: {
-    backgroundColor: theme.colors.inputBackground,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     borderRadius: theme.sizes.borderRadius,
-    borderWidth: 1,
-    borderColor: theme.colors.inputBorder,
+    borderWidth: 3,
+    borderColor: theme.colors.vibeBlue,
     padding: 20,
   },
   reminderLabel: {

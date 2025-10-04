@@ -55,11 +55,44 @@ export default function InviteScreen() {
     inviteCode = null,
     studioId: routeStudioId = null,
     source = 'unknown',
-    onSave,
+    inviteType = null, // Type of invitation for event dispatching
+    onSave, // Keep for backward compatibility
   } = route.params || {};
 
   const isHostMode = type === USER_TYPES.HOSTS;
   const { themeColor, themeBgColor } = getThemeColors(isHostMode, theme);
+
+  // Helper function to handle invite completion
+  const handleInviteComplete = useCallback((selectedData, options = {}) => {
+    // Try to dispatch navigation event first (new approach)
+    if (inviteType && navigation.getParent) {
+      try {
+        const parentNavigator = navigation.getParent();
+        if (parentNavigator) {
+          parentNavigator.emit({
+            type: 'inviteComplete',
+            data: {
+              inviteType,
+              users: selectedData.users || [],
+              contacts: selectedData.contacts || [],
+              phoneContacts: selectedData.phoneContacts || [],
+              options
+            }
+          });
+        }
+      } catch (error) {
+        console.log('[InviteScreen] Navigation event dispatch failed, falling back to onSave:', error);
+      }
+    }
+
+    // Fallback to onSave for backward compatibility
+    if (onSave) {
+      onSave(selectedData, options);
+    }
+  }, [inviteType, navigation, onSave]);
+
+  // Get studioId before using it in hooks
+  const studioId = userData?.userdata?.studios?.default?.studioId;
 
   // Custom hooks
   const state = useInviteScreenState(
@@ -91,7 +124,6 @@ export default function InviteScreen() {
     () => contactManagement.appUsers.map((user) => user.id),
     [contactManagement.appUsers]
   );
-  const studioId = userData?.userdata?.studios?.default?.studioId;
   const userInterests = useUserInterests(userIds, studioId);
 
   // Calculate totals
@@ -106,9 +138,9 @@ export default function InviteScreen() {
     useCallback(() => {
       const onBackPress = () => {
         // For CreateEventScreen, just reopen guest list WITHOUT saving changes
-        if (onSave && !isExistingEvent) {
-          // Call onSave with empty data to trigger guest list reopening, but don't actually save selections
-          onSave(
+        if (!isExistingEvent) {
+          // Call handleInviteComplete with empty data to trigger guest list reopening, but don't actually save selections
+          handleInviteComplete(
             {
               users: [], // Don't save current selections
               contacts: [],
@@ -156,10 +188,8 @@ export default function InviteScreen() {
         routes: [{ name: 'EventDetail', params: { eventId } }],
       });
     } else {
-      // Batch for later (CreateEventScreen) - just call the onSave callback
-      if (onSave) {
-        onSave(selectedData, { reopenGuestList: false }); // Don't reopen guest list, stay on CreateEventScreen
-      }
+      // Batch for later (CreateEventScreen) - dispatch event or call callback
+      handleInviteComplete(selectedData, { reopenGuestList: false }); // Don't reopen guest list, stay on CreateEventScreen
       // Remove this screen from navigation stack
       navigation.pop();
     }
@@ -205,10 +235,8 @@ export default function InviteScreen() {
         }
       });
 
-      // Still call onSave callback if provided for any additional handling
-      if (onSave) {
-        onSave(selectedData);
-      }
+      // Still call callback if provided for any additional handling
+      handleInviteComplete(selectedData);
     } catch (error) {
       if (error.message === 'NO_INVITATIONS_SELECTED') {
         vibeAlert.info('No Invitations', 'Please select people to invite.');
@@ -262,16 +290,14 @@ export default function InviteScreen() {
             navigation.navigate('EventDetail', { eventId });
           } else {
             // For CreateEventScreen, just reopen guest list WITHOUT saving changes
-            if (onSave) {
-              onSave(
-                {
-                  users: [], // Don't save current selections
-                  contacts: [],
-                  phoneContacts: [],
-                },
-                { reopenGuestList: true, cancel: true }
-              );
-            }
+            handleInviteComplete(
+              {
+                users: [], // Don't save current selections
+                contacts: [],
+                phoneContacts: [],
+              },
+              { reopenGuestList: true, cancel: true }
+            );
             navigation.goBack();
           }
         }}
@@ -290,9 +316,9 @@ export default function InviteScreen() {
       >
         <VibeSegmentedControl
           options={[
-            { value: TABS.APP, label: 'App Users' },
-            { value: TABS.PHONE, label: 'Phone Contacts' },
-            { value: TABS.QR, label: 'QR Code' },
+            { value: TABS.APP, label: 'App' },
+            { value: TABS.PHONE, label: 'Phone' },
+            { value: TABS.QR, label: 'QR' },
           ]}
           selectedValue={state.activeTab}
           onSelect={state.setActiveTab}

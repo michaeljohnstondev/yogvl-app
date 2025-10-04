@@ -16,10 +16,14 @@ function EventInfoSection({
   eventInterests,
   showPrivacyFlash,
   isAdmin,
+  isSubscribed,
+  isEventPast,
   onInterestToggle,
   onPrivacyIconPress,
   onShowHostProfile,
   onShowAttendeesModal,
+  onNotificationSettings,
+  vibeAlert,
 }) {
   if (!event) return null;
 
@@ -73,9 +77,15 @@ function EventInfoSection({
 
   const handleLocationPress = useCallback(() => {
     if (event.address || event.location) {
-      mapUtils.openMapsWithLocation(event.location, event.address);
+      vibeAlert.confirm(
+        'Open Maps',
+        `Open ${event.location || 'this location'} in Maps?`,
+        () => {
+          mapUtils.openMapsWithLocation(event.location, event.address);
+        }
+      );
     }
-  }, [event.address, event.location]);
+  }, [event.address, event.location, vibeAlert]);
 
   const handleInterestPress = useCallback(
     (interest) => {
@@ -201,6 +211,16 @@ function EventInfoSection({
               )}
             </Text>
           </View>
+          {/* Notification Bell Button - Only show when subscribed and event is not past */}
+          {isSubscribed && !isEventPast && onNotificationSettings && (
+            <TouchableOpacity
+              style={styles.notificationButton}
+              onPress={onNotificationSettings}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.notificationIcon}>🔔</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -304,7 +324,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.sizes.borderRadius,
     marginVertical: 8,
     padding: 16,
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: theme.colors.vibeBlue,
   },
   eventNameRow: {
@@ -394,6 +414,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: theme.colors.vibeGreen,
     fontWeight: '600',
+  },
+  notificationButton: {
+    padding: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: theme.sizes.borderRadius,
+    marginLeft: 12,
+  },
+  notificationIcon: {
+    fontSize: 20,
   },
 });
 

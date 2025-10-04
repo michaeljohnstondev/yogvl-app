@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   ScrollView,
   Alert,
+  BackHandler,
 } from 'react-native';
 import { VibeButton } from '../../components/ui';
 import { MessageBoardButton } from '../../components/ui/buttons';
@@ -39,9 +40,10 @@ const EventDetailScreen = memo(function EventDetailScreen({
   route,
   navigation,
 }) {
-  const { eventId, studioId: routeStudioId } = route.params;
+  const { eventId, studioId: routeStudioId, openMessageBoard } = route.params;
   const { currentUserId, userData } = useAuth();
   const vibeAlert = useVibeAlert();
+  const hasNavigatedToMessageBoard = React.useRef(false);
 
   // Use studioId from route, or fallback to user's default studio
   const studioId =
@@ -98,6 +100,26 @@ const EventDetailScreen = memo(function EventDetailScreen({
         attendee.id !== event.createdBy && attendee.id !== currentUserId
     );
   }, [friendAttendees, event?.createdBy, currentUserId]);
+
+  // Auto-navigate to message board when opened from notification
+  useEffect(() => {
+    if (openMessageBoard && event?.title && !hasNavigatedToMessageBoard.current) {
+      console.log('[EventDetailScreen] 🔔 openMessageBoard param detected:', openMessageBoard);
+      console.log('[EventDetailScreen] 📋 Event loaded:', event.title);
+      console.log('[EventDetailScreen] 🚀 Auto-navigating to MessageBoard from notification');
+
+      hasNavigatedToMessageBoard.current = true;
+
+      // Small delay to ensure EventDetail is fully mounted
+      setTimeout(() => {
+        navigation.navigate('MessageBoard', {
+          eventId,
+          eventTitle: event.title,
+        });
+        console.log('[EventDetailScreen] ✅ Navigation to MessageBoard completed');
+      }, 300);
+    }
+  }, [openMessageBoard, event?.title, eventId, navigation]);
 
   // Privacy flash timeout cleanup
   useEffect(() => {
@@ -205,13 +227,8 @@ const EventDetailScreen = memo(function EventDetailScreen({
           return;
         }
 
-        vibeAlert.subscribe(
-          'Join Event',
-          'Choose your notification preferences for this event:',
-          () => subscribeWithDefaults(),
-          () => setShowSubscriptionModal(true),
-          () => setIsLoading(false)
-        );
+        // Join with default settings directly
+        await subscribeWithDefaults();
         return;
       }
 
@@ -232,7 +249,6 @@ const EventDetailScreen = memo(function EventDetailScreen({
       eventCancellation: true,
       hostChanges: userNotificationDefaults.hostChanges ?? true,
       eventReminders: userNotificationDefaults.eventReminders ?? true,
-      dayBeforeReminder: userNotificationDefaults.dayBeforeReminder ?? true,
       hostComments: userNotificationDefaults.hostComments ?? true,
       newComments: userNotificationDefaults.newComments ?? false,
       reminderTemplates: userNotificationDefaults.reminderTemplates || [],
@@ -285,9 +301,20 @@ const EventDetailScreen = memo(function EventDetailScreen({
           setShowSubscriptionModal(false);
         });
 
-        vibeAlert.success(
-          'Joined Event',
-          'You have successfully joined this event!'
+        vibeAlert.joinedEvent(
+          'Joined Event!',
+          'You have successfully joined this event!',
+          () => {}, // View Event - already on event detail screen, do nothing
+          () => setShowSubscriptionModal(true), // Customize Alerts
+          () => navigation.navigate('Invite', { eventId, eventTitle: event.title }), // Invite Friends
+          () => {
+            // Go Home and trigger refresh
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Home', params: { refresh: Date.now() } }]
+            });
+          },
+          () => {} // Cancel - do nothing
         );
       }
     } catch (error) {
@@ -369,16 +396,17 @@ const EventDetailScreen = memo(function EventDetailScreen({
       `Are you sure you want to delete "${event.title}"? This cannot be undone.`,
       async () => {
         try {
-          await eventService.deleteEvent(studioId, eventId, currentUserId);
+          await eventService.deleteEvent(studioId, eventId, currentUserId, userData?.isAdmin || userData?.isGlobalAdmin);
+
+          // Immediately navigate away to prevent refetch errors
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Home' }],
+          });
+
           vibeAlert.success(
             'Event Deleted',
-            'Event has been deleted successfully.',
-            [
-              {
-                text: 'OK',
-                onPress: () => navigation.goBack(),
-              },
-            ]
+            'Event has been deleted successfully.'
           );
         } catch (error) {
           console.error('[EventDetailScreen] Error deleting event:', error);
@@ -433,13 +461,7 @@ const EventDetailScreen = memo(function EventDetailScreen({
       eventId: eventId, // Pass eventId for proper filtering
       studioId: studioId, // Pass studioId for proper filtering
       source: 'guest_invite',
-      onSave: (selectedData) => {
-        vibeAlert.success(
-          'Invites Sent',
-          `Invited ${selectedData.users.length} people to the event!`
-        );
-        navigation.goBack();
-      },
+      inviteType: 'guest_invite',
     });
   };
 
@@ -514,6 +536,27 @@ const EventDetailScreen = memo(function EventDetailScreen({
     }
   };
 
+  // Handle invite completion results
+  const handleInviteResult = useCallback((selectedData) => {
+    vibeAlert.success(
+      'Invites Sent',
+      `Invited ${selectedData.users.length} people to the event!`
+    );
+  }, [vibeAlert]);
+
+  // Navigation event listener for invite results
+  useFocusEffect(
+    useCallback(() => {
+      const unsubscribe = navigation.addListener('inviteComplete', (e) => {
+        const { inviteType, users, contacts, phoneContacts } = e.data || {};
+        if (inviteType === 'guest_invite') {
+          handleInviteResult({ users, contacts, phoneContacts });
+        }
+      });
+      return unsubscribe;
+    }, [navigation, handleInviteResult])
+  );
+
   // Load event data on focus
   useFocusEffect(
     useCallback(() => {
@@ -539,11 +582,14 @@ const EventDetailScreen = memo(function EventDetailScreen({
           );
           setFriendAttendees(filteredAttendees);
 
-          // Load interests
-          const [userInterestsData, eventInterestsData] = await Promise.all([
-            getUserInterests(currentUserId),
-            extractInterestsFromEventTitle(eventData.event.title),
-          ]);
+          // Load user interests first
+          const userInterestsData = await getUserInterests(currentUserId);
+
+          // Extract interests from title that match user's interests
+          const eventInterestsData = extractInterestsFromEventTitle(
+            eventData.event.title,
+            userInterestsData
+          );
 
           setUserInterests(userInterestsData);
           setEventInterests(eventInterestsData);
@@ -581,6 +627,20 @@ const EventDetailScreen = memo(function EventDetailScreen({
     }, [studioId, eventId, currentUserId, navigation, vibeAlert])
   );
 
+  // Handle Android back button - always navigate to Home instead of closing app
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        navigation.navigate('Home');
+        return true; // Prevent default back behavior
+      };
+
+      BackHandler.addEventListener('hardwareBackPress', onBackPress);
+
+      return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+    }, [navigation])
+  );
+
   if (!event) {
     return (
       <View style={styles.loadingContainer}>
@@ -611,6 +671,10 @@ const EventDetailScreen = memo(function EventDetailScreen({
         isSubscribed={isSubscribed}
         onNotificationSettings={handleNotificationSettings}
         onReportEvent={handleReportEvent}
+        onBack={() => navigation.reset({
+          index: 0,
+          routes: [{ name: 'Home' }],
+        })}
       />
 
       {/* Event Info Section */}
@@ -624,10 +688,14 @@ const EventDetailScreen = memo(function EventDetailScreen({
         eventInterests={eventInterests}
         showPrivacyFlash={showPrivacyFlash}
         isAdmin={userData?.isAdmin}
+        isSubscribed={isSubscribed}
+        isEventPast={isEventPast}
         onInterestToggle={handleInterestToggleWithFeedback}
         onPrivacyIconPress={handlePrivacyIconPress}
         onShowHostProfile={handleShowHostProfile}
         onShowAttendeesModal={() => setShowFriendsModal(true)}
+        onNotificationSettings={handleNotificationSettings}
+        vibeAlert={vibeAlert}
       />
 
       {/* Message Board Button */}

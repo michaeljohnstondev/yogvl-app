@@ -606,11 +606,13 @@ export default function HostNotificationSettingsForm({
                   <Text style={styles.attendanceToggleIcon}>▼</Text>
                 </TouchableOpacity>
               </View>
+              <View style={styles.settingBorder} />
               <SettingItem
                 title="Event Recap"
                 description="Send a summary notification after the event ends"
                 value={settings?.eventRecap ?? false}
                 onToggle={() => toggleSetting('eventRecap')}
+                isLast
               />
             </View>
           </View>
@@ -634,16 +636,16 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: theme.colors.vibeGreen,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginBottom: 10,
     letterSpacing: 1,
   },
   settingsGroup: {
-    backgroundColor: theme.colors.inputBackground,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     borderRadius: theme.sizes.borderRadius,
-    borderWidth: 1,
-    borderColor: theme.colors.inputBorder,
+    borderWidth: 3,
+    borderColor: theme.colors.vibeBlue,
     overflow: 'visible',
     zIndex: 1,
     elevation: 1,

@@ -14,32 +14,37 @@ exports.onUserFollowed = functions.firestore
   .onCreate(async (snap, context) => {
     const { userId, followerId } = context.params;
 
-    console.log(`[Follow Notification] User ${followerId} followed user ${userId}`);
+    console.log(`[Follow Notification] 🔔 TRIGGERED: User ${followerId} followed user ${userId}`);
 
     try {
       // Get the followed user's document and notification settings
       const userDoc = await admin.firestore().doc(`users/${userId}`).get();
 
       if (!userDoc.exists) {
-        console.log(`[Follow Notification] User ${userId} not found`);
+        console.log(`[Follow Notification] ❌ User ${userId} not found`);
         return;
       }
 
       const userData = userDoc.data();
+      console.log(`[Follow Notification] ✅ User ${userId} document found`);
 
       // Check if user has enabled new follower notifications
       const newFollowersEnabled = userData?.userdata?.settings?.notifications?.app?.newFollowers;
 
+      console.log(`[Follow Notification] 📋 Notification settings - newFollowersEnabled: ${newFollowersEnabled}`);
+
       if (!newFollowersEnabled) {
-        console.log(`[Follow Notification] User ${userId} has disabled new follower notifications`);
+        console.log(`[Follow Notification] ⚠️ User ${userId} has disabled new follower notifications`);
         return;
       }
 
       // Get user's FCM token
       const fcmToken = userData?.deviceInfo?.fcmToken;
 
+      console.log(`[Follow Notification] 🔑 FCM Token ${fcmToken ? 'EXISTS' : 'MISSING'} for user ${userId}`);
+
       if (!fcmToken) {
-        console.log(`[Follow Notification] User ${userId} has no FCM token`);
+        console.log(`[Follow Notification] ❌ User ${userId} has no FCM token`);
         return;
       }
 
@@ -47,12 +52,14 @@ exports.onUserFollowed = functions.firestore
       const followerDoc = await admin.firestore().doc(`users/${followerId}`).get();
 
       if (!followerDoc.exists) {
-        console.log(`[Follow Notification] Follower ${followerId} not found`);
+        console.log(`[Follow Notification] ❌ Follower ${followerId} not found`);
         return;
       }
 
       const followerData = followerDoc.data();
       const followerName = followerData?.userdata?.contactInfo?.displayName || 'Someone';
+
+      console.log(`[Follow Notification] 👤 Follower name: ${followerName}`);
 
       // Send FCM notification with profile navigation data
       const message = {
@@ -71,9 +78,11 @@ exports.onUserFollowed = functions.firestore
         }
       };
 
+      console.log(`[Follow Notification] 📤 Sending FCM message to ${userId}`);
+
       await admin.messaging().send(message);
 
-      console.log(`[Follow Notification] Successfully sent notification to user ${userId} about follower ${followerId}`);
+      console.log(`[Follow Notification] ✅ Successfully sent notification to user ${userId} about follower ${followerId}`);
 
     } catch (error) {
       console.error(`[Follow Notification] Error sending notification:`, error);

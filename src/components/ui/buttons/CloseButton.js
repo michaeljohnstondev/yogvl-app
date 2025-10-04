@@ -1,9 +1,9 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { Pressable, Text, StyleSheet } from 'react-native';
 import theme from '../../../theme/themes';
 
 /**
- * Reusable CloseButton component for modals and back buttons
+ * Reusable CloseButton component for modals and back buttons - optimized for immediate response
  * Usage: <CloseButton onPress={handleClose} /> or <CloseButton onPress={handleBack} children="←" />
  */
 export default function CloseButton({
@@ -13,9 +13,22 @@ export default function CloseButton({
   children = '✕',
 }) {
   return (
-    <TouchableOpacity style={[styles.closeButton, style]} onPress={onPress}>
+    <Pressable
+      style={({ pressed }) => [
+        styles.closeButton,
+        {
+          opacity: pressed ? 0.7 : 1,
+          transform: [{ scale: pressed ? 0.95 : 1 }]
+        },
+        style
+      ]}
+      onPress={onPress}
+      delayPressIn={0}
+      delayPressOut={0}
+      hitSlop={6}
+    >
       <Text style={[styles.closeText, textStyle]}>{children}</Text>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
@@ -26,9 +39,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   closeText: {
-    color: theme.colors.white,
-    fontSize: 18,
-    fontWeight: 'bold',
-    lineHeight: 18,
+    color: theme.colors.vibeBlue,
+    fontSize: 24,
+    fontWeight: '900',
+    lineHeight: 24,
   },
 });

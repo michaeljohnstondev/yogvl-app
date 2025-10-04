@@ -34,6 +34,7 @@ export const NOTIFICATION_TYPES = {
   FRIEND_REQUEST: 'friend_request', // When someone sends a friend request
   FRIEND_ACCEPTED: 'friend_accepted', // When a friend request is accepted
   INVITATION_RECEIVED: 'invitation_received',
+  INTEREST_BASED_SUGGESTION: 'interest_based_suggestion', // When an event matches user's interests
   ADMIN_NOTIFICATION: 'admin_notification',
   BAN_NOTIFICATION: 'ban_notification',
 };
@@ -257,9 +258,19 @@ class NotificationEngine {
   }
 
   /**
-   * Send FCM push notification - unified implementation
+   * Send FCM push notification - DISABLED (removed notificationTriggers)
+   * This method was used to create notificationTriggers documents which has been eliminated.
+   * Push notifications now happen through direct Firebase function triggers.
    */
   async sendPushNotification({ userId, title, message, data, priority }) {
+    console.warn('[NotificationEngine] sendPushNotification disabled - notificationTriggers collection eliminated');
+    console.warn('Push notifications now happen through direct Firebase function triggers');
+    return {
+      success: false,
+      reason: 'notificationTriggers collection eliminated - use direct triggers instead'
+    };
+
+    /* REMOVED - WAS CREATING ZOMBIE notificationTriggers COLLECTION
     try {
       // Create a notification trigger document that Cloud Functions will pick up
       const triggerId = `engine_${data.type || 'general'}_${userId}_${Date.now()}`;
@@ -290,6 +301,7 @@ class NotificationEngine {
       console.error('[NotificationEngine] Push notification failed:', error);
       return { success: false, error: error.message };
     }
+    */
   }
 
   /**

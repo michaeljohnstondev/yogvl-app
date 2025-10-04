@@ -5,6 +5,7 @@ import {
   getStatusColor,
   isPastEvent,
 } from '../../lib/eventUtils';
+import { CloseButton } from '../../../components/ui/buttons';
 import theme from '../../../theme/themes';
 
 const EventStatusBadges = memo(function EventStatusBadges({
@@ -12,6 +13,7 @@ const EventStatusBadges = memo(function EventStatusBadges({
   isSubscribed,
   onNotificationSettings,
   onReportEvent,
+  onBack,
 }) {
   if (!event) return null;
 
@@ -35,15 +37,9 @@ const EventStatusBadges = memo(function EventStatusBadges({
   return (
     <View style={styles.badgesSection}>
       <View style={styles.badgeRow}>
-        {/* Notification Bell Button - Only show when subscribed to event and event is not past */}
-        {isSubscribed && !isEventPast && (
-          <TouchableOpacity
-            style={styles.notificationButton}
-            onPress={handleNotificationPress}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.notificationIcon}>🔔</Text>
-          </TouchableOpacity>
+        {/* Back/Home Button */}
+        {onBack && (
+          <CloseButton onPress={onBack} style={styles.backButton} />
         )}
 
         <View style={styles.titleBadges}>
@@ -103,17 +99,10 @@ const styles = StyleSheet.create({
     width: '100%',
     position: 'relative',
   },
-  notificationButton: {
+  backButton: {
     position: 'absolute',
     top: 0,
     left: 0,
-    padding: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: theme.sizes.borderRadius,
-  },
-  notificationIcon: {
-    fontSize: 18,
   },
   titleBadges: {
     flexDirection: 'row',

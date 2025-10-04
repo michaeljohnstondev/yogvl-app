@@ -28,92 +28,60 @@ const shouldHideEventDueToRSVPDeadline = (eventData) => {
 };
 
 /**
- * Get events from users that the current user is following
- * This replaces the old invitation-based event discovery
+ * Get events from users that the current user is following (optimized version with pre-fetched following)
  */
-export const getFollowedUsersEvents = async (
+const getFollowedUsersEventsWithFollowing = async (
   currentUserId,
   userStudio,
+  followedUserIds,
   limitCount = 50
 ) => {
   try {
-    if (!currentUserId || !userStudio) {
+    if (!currentUserId || !userStudio || followedUserIds.length === 0) {
       return [];
     }
-
-    // Get list of users that current user is following
-    const following = await getFollowing(currentUserId, 100);
-
-    if (following.length === 0) {
-      return [];
-    }
-
-    const followedUserIds = following.map((f) => f.targetUserId);
 
     // Get all events from followed users in the same studio
     const eventsRef = collection(db, 'studios', userStudio, 'events');
     const now = Timestamp.now();
 
-    // Query for upcoming PUBLIC events created by followed users
-    const q = query(
-      eventsRef,
-      where('createdBy', 'in', followedUserIds.slice(0, 10)), // Firestore 'in' limit is 10
-      where('eventTimestamp', '>=', now),
-      where('isPrivate', '==', false), // Only public events
-      orderBy('eventTimestamp', 'asc'),
-      firestoreLimit(limitCount)
-    );
+    // Create batch queries for all followed users (optimized parallel execution)
+    const batchQueries = [];
 
-    const snapshot = await getDocs(q);
+    // Split followedUserIds into batches of 10 (Firestore 'in' limit)
+    for (let i = 0; i < followedUserIds.length; i += 10) {
+      const batch = followedUserIds.slice(i, i + 10);
+      const batchQuery = query(
+        eventsRef,
+        where('createdBy', 'in', batch),
+        where('eventTimestamp', '>=', now),
+        where('isPrivate', '==', false), // Only public events
+        orderBy('eventTimestamp', 'asc'),
+        firestoreLimit(limitCount)
+      );
+      batchQueries.push(getDocs(batchQuery));
+    }
+
+    // Execute all batch queries in parallel for maximum performance
+    const batchResults = await Promise.all(batchQueries);
     const events = [];
 
-    snapshot.docs.forEach((doc) => {
-      const eventData = {
-        id: doc.id,
-        ...doc.data(),
-        isFromFollowedUser: true,
-        category: 'followed_events',
-      };
+    // Process all results
+    batchResults.forEach((snapshot) => {
+      snapshot.docs.forEach((doc) => {
+        const eventData = {
+          id: doc.id,
+          ...doc.data(),
+          isFromFollowedUser: true,
+          category: 'followed_events',
+        };
 
-      // Skip events with past RSVP deadlines
-      if (!shouldHideEventDueToRSVPDeadline(eventData)) {
-        events.push(eventData);
-      }
-    });
-
-    // If we have more than 10 followed users, need to make additional queries
-    if (followedUserIds.length > 10) {
-      const additionalBatches = [];
-      for (let i = 10; i < followedUserIds.length; i += 10) {
-        const batch = followedUserIds.slice(i, i + 10);
-        const batchQuery = query(
-          eventsRef,
-          where('createdBy', 'in', batch),
-          where('eventTimestamp', '>=', now),
-          where('isPrivate', '==', false), // Only public events
-          orderBy('eventTimestamp', 'asc'),
-          firestoreLimit(limitCount)
-        );
-        additionalBatches.push(getDocs(batchQuery));
-      }
-
-      const additionalResults = await Promise.all(additionalBatches);
-      additionalResults.forEach((snapshot) => {
-        snapshot.docs.forEach((doc) => {
-          const eventData = {
-            id: doc.id,
-            ...doc.data(),
-            isFromFollowedUser: true,
-            category: 'followed_events',
-          };
-
-          // Skip events with past RSVP deadlines
-          if (!shouldHideEventDueToRSVPDeadline(eventData)) {
-            events.push(eventData);
-          }
-        });
+        // Skip events with past RSVP deadlines
+        if (!shouldHideEventDueToRSVPDeadline(eventData)) {
+          events.push(eventData);
+        }
       });
-    }
+    });
 
     // Sort all events by date and limit to requested count
     events.sort((a, b) => {
@@ -137,12 +105,41 @@ export const getFollowedUsersEvents = async (
 };
 
 /**
- * Get suggested events from studio members (not followed)
- * These are public events from other studio members that the user might be interested in
+ * Get events from users that the current user is following
+ * This replaces the old invitation-based event discovery
  */
-export const getSuggestedEvents = async (
+export const getFollowedUsersEvents = async (
   currentUserId,
   userStudio,
+  limitCount = 50
+) => {
+  try {
+    if (!currentUserId || !userStudio) {
+      return [];
+    }
+
+    // Get list of users that current user is following
+    const following = await getFollowing(currentUserId, 100);
+
+    if (following.length === 0) {
+      return [];
+    }
+
+    const followedUserIds = following.map((f) => f.targetUserId);
+
+    return getFollowedUsersEventsWithFollowing(currentUserId, userStudio, followedUserIds, limitCount);
+  } catch (error) {
+    return [];
+  }
+};
+
+/**
+ * Get suggested events from studio members (not followed) - optimized version with pre-fetched following
+ */
+const getSuggestedEventsWithFollowing = async (
+  currentUserId,
+  userStudio,
+  followedUserIds,
   limitCount = 20
 ) => {
   try {
@@ -151,12 +148,9 @@ export const getSuggestedEvents = async (
       return [];
     }
 
-    // Get list of users that current user is following
-    const following = await getFollowing(currentUserId, 100);
-    const followedUserIds = new Set(following.map((f) => f.targetUserId));
-
-    // Add current user to exclusion list
-    followedUserIds.add(currentUserId);
+    // Convert to Set for efficient lookup and add current user to exclusion list
+    const followedUserIdsSet = new Set(followedUserIds);
+    followedUserIdsSet.add(currentUserId);
 
     // Get all upcoming public events from the studio
     const eventsRef = collection(db, 'studios', userStudio, 'events');
@@ -177,7 +171,7 @@ export const getSuggestedEvents = async (
       const eventData = { id: doc.id, ...doc.data() };
 
       // Skip events from followed users or current user
-      if (!followedUserIds.has(eventData.createdBy)) {
+      if (!followedUserIdsSet.has(eventData.createdBy)) {
         // Skip events with past RSVP deadlines
         if (!shouldHideEventDueToRSVPDeadline(eventData)) {
           suggestedEvents.push({
@@ -198,6 +192,31 @@ export const getSuggestedEvents = async (
 };
 
 /**
+ * Get suggested events from studio members (not followed)
+ * These are public events from other studio members that the user might be interested in
+ */
+export const getSuggestedEvents = async (
+  currentUserId,
+  userStudio,
+  limitCount = 20
+) => {
+  try {
+    if (!currentUserId || !userStudio) {
+      console.warn('[feedService] Missing currentUserId or userStudio');
+      return [];
+    }
+
+    // Get list of users that current user is following
+    const following = await getFollowing(currentUserId, 100);
+    const followedUserIds = following.map((f) => f.targetUserId);
+
+    return getSuggestedEventsWithFollowing(currentUserId, userStudio, followedUserIds, limitCount);
+  } catch (error) {
+    return [];
+  }
+};
+
+/**
  * Get comprehensive event feed combining followed users events and suggestions
  */
 export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
@@ -208,19 +227,25 @@ export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
       includeSubscribed = true,
     } = options;
 
-    // Get events from followed users
-    const followedEvents = await getFollowedUsersEvents(
-      currentUserId,
-      userStudio,
-      followedLimit
-    );
+    // Get following list once and share it between queries for efficiency
+    const following = await getFollowing(currentUserId, 100);
+    const followedUserIds = following.map((f) => f.targetUserId);
 
-    // Get suggested events from non-followed users
-    const suggestedEvents = await getSuggestedEvents(
-      currentUserId,
-      userStudio,
-      suggestedLimit
-    );
+    // Execute feed queries in parallel for better performance
+    const [followedEvents, suggestedEvents] = await Promise.all([
+      getFollowedUsersEventsWithFollowing(
+        currentUserId,
+        userStudio,
+        followedUserIds,
+        followedLimit
+      ),
+      getSuggestedEventsWithFollowing(
+        currentUserId,
+        userStudio,
+        followedUserIds,
+        suggestedLimit
+      )
+    ]);
 
     // Get user's subscribed events if requested
     let subscribedEvents = [];

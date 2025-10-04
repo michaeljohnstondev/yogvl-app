@@ -15,7 +15,6 @@ const MessageInput = memo(function MessageInput({
   submitting,
   disabled,
 }) {
-  console.log('[MessageInput] Rendering input component');
   const [messageText, setMessageText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
 
@@ -49,8 +48,9 @@ const MessageInput = memo(function MessageInput({
           editable={!disabled}
         />
 
-        {/* Character counter */}
-        <View style={styles.counterContainer}>
+        {/* Bottom row with counter and send button */}
+        <View style={styles.bottomRow}>
+          {/* Character counter */}
           <Text
             style={[
               styles.characterCounter,
@@ -59,21 +59,21 @@ const MessageInput = memo(function MessageInput({
           >
             {messageText.length}/500
           </Text>
-        </View>
 
-        {/* Send button */}
-        <TouchableOpacity
-          onPress={handleSend}
-          style={[
-            styles.sendButton,
-            (!messageText.trim() || submitting) && styles.sendButtonDisabled,
-          ]}
-          disabled={!messageText.trim() || submitting}
-        >
-          <Text style={styles.sendButtonText}>
-            {submitting ? 'Sending...' : 'Send'}
-          </Text>
-        </TouchableOpacity>
+          {/* Send button */}
+          <TouchableOpacity
+            onPress={handleSend}
+            style={[
+              styles.sendButton,
+              (!messageText.trim() || submitting) && styles.sendButtonDisabled,
+            ]}
+            disabled={!messageText.trim() || submitting}
+          >
+            <Text style={styles.sendButtonText}>
+              {submitting ? 'Sending...' : 'Send'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -81,16 +81,16 @@ const MessageInput = memo(function MessageInput({
 
 const styles = StyleSheet.create({
   inputContainer: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    paddingTop: 0,
     backgroundColor: theme.colors.cardBackground,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
   },
   inputWrapper: {
-    backgroundColor: theme.colors.inputBackground,
+    backgroundColor: '#1A0A35',
     borderRadius: 12,
-    borderWidth: 2,
-    borderColor: theme.colors.inputBorder,
+    borderWidth: 3,
+    borderColor: theme.colors.vibeBlue,
     paddingHorizontal: 16,
     paddingVertical: 12,
     minHeight: 60,
@@ -99,10 +99,11 @@ const styles = StyleSheet.create({
     color: theme.colors.white,
     fontSize: 16,
     fontFamily: theme.fonts.main,
+    minHeight: 40,
     maxHeight: 120,
     textAlignVertical: 'top',
   },
-  counterContainer: {
+  bottomRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -110,7 +111,7 @@ const styles = StyleSheet.create({
   },
   characterCounter: {
     color: theme.colors.textSecondary,
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: theme.fonts.main,
   },
   counterWarning: {
@@ -121,8 +122,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
-    alignSelf: 'flex-end',
-    marginTop: 8,
   },
   sendButtonDisabled: {
     backgroundColor: theme.colors.textSecondary,

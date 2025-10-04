@@ -108,7 +108,6 @@ export const getDefaultUserMetrics = () => ({
   social: {
     followersCount: 0,
     followingCount: 0,
-    mutualFriendsCount: 0,
     profileViews: 0,
     lastProfileView: null,
   },
