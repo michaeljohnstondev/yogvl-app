@@ -85,7 +85,7 @@ export const getStudioUsers = async (currentUserId, userStudio) => {
     // Check follow relationships and favorites for each user
     try {
       const { checkIfFollowing } = await import('./followService');
-      const { checkIfFavorite } = await import('./friendService');
+      const { checkIfFavorite } = await import('./shared/userRelationshipsService');
 
       // Check follow status and favorites for each user
       for (const user of users) {

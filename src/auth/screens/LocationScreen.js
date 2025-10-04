@@ -8,8 +8,6 @@ import {
   Alert,
   TextInput,
   ScrollView,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { useVibeAlert } from '../../components/ui/base/VibeAlertContext';
 import { CloseButton } from '../../components/ui/buttons';

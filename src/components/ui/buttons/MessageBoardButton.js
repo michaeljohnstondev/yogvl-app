@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
     marginRight: 16,
     width: 40,
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 32,
   },
   textContent: {
     flex: 1,

@@ -6,8 +6,6 @@ import {
   Text,
   ScrollView,
   Pressable,
-  KeyboardAvoidingView,
-  Platform,
   StyleSheet,
   Dimensions,
   BackHandler,
@@ -760,10 +758,7 @@ export default function CreateEventForm({
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ flex: 1 }}
-    >
+    <View style={{ flex: 1 }}>
       {/* Header */}
       <ScreenHeader
         title={isEditMode ? 'Edit Event' : 'Create Event'}
@@ -926,7 +921,7 @@ export default function CreateEventForm({
 
         {/* Notification Settings - now handled via navigation */}
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

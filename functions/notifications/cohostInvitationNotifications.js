@@ -69,6 +69,7 @@ exports.onCohostInvitation = functions.firestore
       const eventTitle = eventData?.title || 'Untitled Event';
 
       // Send FCM notification with navigation stack
+      // IMPORTANT: All FCM data fields MUST be strings
       const message = {
         token: fcmToken,
         notification: {
@@ -79,12 +80,12 @@ exports.onCohostInvitation = functions.firestore
           type: 'cohost_invitation',
           resetStack: 'true',
           navigationStack: 'Home,EventDetail',
-          eventId: eventId,
-          studioId: studioId || '',
-          eventTitle: eventTitle,
-          inviterId: inviterId,
-          inviterName: inviterName,
-          invitationId: invitationId,
+          eventId: String(eventId || ''),
+          studioId: String(studioId || ''),
+          eventTitle: String(eventTitle || 'Untitled Event'),
+          inviterId: String(inviterId || ''),
+          inviterName: String(inviterName || 'Someone'),
+          invitationId: String(invitationId || ''),
           actionType: 'cohost_invitation'
         }
       };

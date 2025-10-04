@@ -25,7 +25,10 @@ const STORAGE_KEYS = {
 // Configure Firebase messaging for background message handling
 try {
   messaging().setBackgroundMessageHandler(async (remoteMessage) => {
-    console.log('[FCMService] Background message received:', remoteMessage.data);
+    console.log('[FCMService] 📱 Background message received');
+    console.log('[FCMService] Type:', remoteMessage?.data?.type);
+    console.log('[FCMService] Event ID:', remoteMessage?.data?.eventId);
+
     // Store notification data for when app opens
     if (remoteMessage?.data) {
       try {
@@ -33,7 +36,7 @@ try {
           STORAGE_KEYS.PENDING_NOTIFICATION,
           JSON.stringify(remoteMessage.data)
         );
-        console.log('[FCMService] Stored pending notification for app launch');
+        console.log(`[FCMService] ✅ Stored ${remoteMessage.data.type} notification for app launch`);
       } catch (error) {
         console.error('[FCMService] Failed to store pending notification:', error);
       }
@@ -721,9 +724,9 @@ class FCMService {
       });
 
       // Navigate directly to the final destination
-      console.log(`[FCMService] 🚀 Navigating to ${finalScreen} with params...`);
+      console.log(`[FCMService] 🚀 Navigating to ${finalScreen} with params:`, params);
       this.navigationRef.navigate(finalScreen, params);
-      console.log(`[FCMService] ✅ Navigation completed`);
+      console.log(`[FCMService] ✅ Navigation to ${finalScreen} completed successfully`);
 
     } catch (error) {
       console.error('[FCMService] ❌ Navigation stack error:', error);
@@ -738,9 +741,12 @@ class FCMService {
    * Get navigation parameters for each screen type
    */
   getNavigationParams(screen, data) {
+    const notificationType = data.type || 'unknown';
+    console.log(`[FCMService] 🔍 Getting params for ${screen}, notification type: ${notificationType}`);
+
     switch (screen) {
       case 'EventDetail':
-        return {
+        const params = {
           eventId: data.eventId,
           studioId: data.studioId,
           // If coming from a comment notification, pass comment data
@@ -749,6 +755,13 @@ class FCMService {
             openMessageBoard: true
           })
         };
+
+        // Log invitation-specific navigation
+        if (notificationType === 'cohost_invitation' || notificationType === 'event_invitation') {
+          console.log(`[FCMService] 📨 ${notificationType} - navigating to event ${data.eventId}`);
+        }
+
+        return params;
 
       case 'UserProfile':
         return {

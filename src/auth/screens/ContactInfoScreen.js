@@ -3,9 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  KeyboardAvoidingView,
   ScrollView,
-  Platform,
 } from 'react-native';
 import {
   VibeInput,
@@ -212,10 +210,7 @@ export default function ContactInfoScreen({ navigation }) {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.keyboardContainer}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <>
       <LinearGradient
         colors={theme.colors.backgroundGradient}
         style={StyleSheet.absoluteFillObject}
@@ -272,14 +267,11 @@ export default function ContactInfoScreen({ navigation }) {
           />
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  keyboardContainer: {
-    flex: 1,
-  },
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'center',

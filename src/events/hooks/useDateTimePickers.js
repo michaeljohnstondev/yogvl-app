@@ -95,8 +95,16 @@ const useDateTimePickers = (config = {}, onUpdate = () => {}) => {
       }
 
       hidePicker(pickerId, 'Date');
+
+      // Automatically navigate to time picker if time hasn't been selected yet
+      if (!currentPicker?.timeSelected) {
+        // Use setTimeout to ensure the date picker is fully closed first
+        setTimeout(() => {
+          showPicker(pickerId, 'Time');
+        }, 300);
+      }
     },
-    [updatePicker, hidePicker, pickerData]
+    [updatePicker, hidePicker, showPicker, pickerData]
   );
 
   // Handle time confirmation

@@ -8,7 +8,7 @@
  * Usage: Already implemented in App.js - do not use elsewhere
  */
 import React, { createContext, useState, useContext } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -33,14 +33,20 @@ export default function VibeAppWrapper({
   const [statusBarBg, setStatusBarBg] = useState(theme.colors.headerBackground);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <StatusBarContext.Provider value={{ statusBarBg, setStatusBarBg }}>
         <View style={{ flex: 1, backgroundColor: statusBarBg }}>
           <StatusBar style="light" />
           <SafeAreaView style={styles.safeArea} edges={edges}>
-            <View style={styles.contentWrapper}>
-              {children}
-            </View>
+            <KeyboardAvoidingView
+              style={styles.keyboardView}
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+              keyboardVerticalOffset={0}
+            >
+              <View style={styles.contentWrapper}>
+                {children}
+              </View>
+            </KeyboardAvoidingView>
           </SafeAreaView>
         </View>
       </StatusBarContext.Provider>
@@ -51,6 +57,10 @@ export default function VibeAppWrapper({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+  },
+  keyboardView: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
   },
   contentWrapper: {
     flex: 1,

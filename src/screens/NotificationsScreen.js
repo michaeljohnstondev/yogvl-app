@@ -63,7 +63,11 @@ export default function NotificationsScreen({ navigation }) {
           case NOTIFICATION_TYPES.COHOST_INVITATION:
             // Navigate to event detail for both guest and cohost invitations
             if (data.eventId) {
-              navigation.navigate('EventDetail', { eventId: data.eventId });
+              console.log(`[NotificationsScreen] 📨 ${type} - navigating to event ${data.eventId}`);
+              navigation.navigate('EventDetail', {
+                eventId: data.eventId,
+                studioId: data.studioId
+              });
             }
             break;
           case NOTIFICATION_TYPES.INVITATION_ACCEPTED:
@@ -141,7 +145,7 @@ export default function NotificationsScreen({ navigation }) {
     async (notification) => {
       try {
         const { acceptFriendRequest } = await import(
-          '../services/friendService'
+          '../services/shared/userRelationshipsService'
         );
         const { senderId } = notification.data;
 
@@ -168,7 +172,7 @@ export default function NotificationsScreen({ navigation }) {
     async (notification) => {
       try {
         const { declineFriendRequest } = await import(
-          '../services/friendService'
+          '../services/shared/userRelationshipsService'
         );
         const { senderId } = notification.data;
 
@@ -259,9 +263,9 @@ export default function NotificationsScreen({ navigation }) {
           );
           await declineInvitation(invitationId, currentUserId);
         } else {
-          // Direct guest invitation - use friendService.js system
+          // Direct guest invitation - use guestInvitationsService
           const { declineGuestInvitation } = await import(
-            '../services/friendService'
+            '../services/shared/guestInvitationsService'
           );
           await declineGuestInvitation(invitationId, currentUserId);
         }
@@ -289,7 +293,7 @@ export default function NotificationsScreen({ navigation }) {
     async (notification) => {
       try {
         const { acceptCohostInvitation } = await import(
-          '../services/friendService'
+          '../services/shared/cohostInvitationsService'
         );
         const { invitationId, eventId } = notification.data;
 
@@ -356,7 +360,7 @@ export default function NotificationsScreen({ navigation }) {
     async (notification) => {
       try {
         const { declineCohostInvitation } = await import(
-          '../services/friendService'
+          '../services/shared/cohostInvitationsService'
         );
         const { invitationId } = notification.data;
 

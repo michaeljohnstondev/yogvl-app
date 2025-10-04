@@ -36,12 +36,22 @@ export const sendCohostInvitation = async (
   studioId = null
 ) => {
   try {
+    console.log('[CohostInvitations] 🎯 sendCohostInvitation called with:', {
+      inviterId,
+      recipientId,
+      eventId,
+      studioId,
+      hasInviterData: !!inviterData,
+      hasEventData: !!eventData
+    });
+
     // Check if invitation already exists
     const existingInvitation = await getCohostInvitationStatus(
       recipientId,
       eventId
     );
     if (existingInvitation) {
+      console.log('[CohostInvitations] ⚠️ Invitation already exists:', existingInvitation);
       throw new Error('Cohost invitation already exists');
     }
 
@@ -92,10 +102,15 @@ export const sendCohostInvitation = async (
 
     await setDoc(invitationRef, invitation);
 
+    console.log('[CohostInvitations] ✅ Cohost invitation created successfully:', {
+      invitationId,
+      path: `users/${recipientId}/cohostInvitations/${invitationId}`
+    });
+
     return { success: true, invitationId };
   } catch (error) {
     console.error(
-      '[CohostInvitations] Error sending cohost invitation:',
+      '[CohostInvitations] ❌ Error sending cohost invitation:',
       error
     );
     throw error;

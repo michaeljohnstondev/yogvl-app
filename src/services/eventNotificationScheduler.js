@@ -67,6 +67,7 @@ class EventNotificationScheduler {
   /**
    * Cancel all scheduled notifications for an event
    * Call this when events are cancelled/deleted
+   * Note: This uses server-side Cloud Function to cancel all user notifications for the event
    */
   static async cancelEventReminders(eventId) {
     try {
@@ -75,14 +76,16 @@ class EventNotificationScheduler {
         eventId
       );
 
+      // Use Cloud Function to cancel all scheduled notifications for this event
+      // This handles cancellation across all subscribers without needing to iterate client-side
       const result =
-        await ScheduledNotificationService.cancelEventNotifications(
+        await ScheduledNotificationService.cancelAllEventScheduledNotifications(
           eventId,
-          'Event cancelled or deleted'
+          'Event updated - rescheduling notifications'
         );
 
       console.log(
-        `[EventScheduler] Cancelled ${result.cancelledCount} server-side reminders for event ${eventId}`
+        `[EventScheduler] Cancelled server-side reminders for event ${eventId}`
       );
       return result;
     } catch (error) {
@@ -96,6 +99,11 @@ class EventNotificationScheduler {
   /**
    * Reschedule notifications when event time changes
    * Call this when events are updated
+   *
+   * NOTE: This method is deprecated and should not be called from client-side code.
+   * Server-side Cloud Functions handle notification rescheduling automatically when
+   * event documents are updated. Client-side rescheduling is unnecessary and creates
+   * duplicate work.
    */
   static async rescheduleEventReminders(
     eventId,
@@ -103,29 +111,13 @@ class EventNotificationScheduler {
     userId,
     customReminderTemplates = []
   ) {
-    try {
-      console.log(
-        '[EventScheduler] Rescheduling server-side reminders for event:',
-        eventId
-      );
+    console.log(
+      '[EventScheduler] ⚠️  Skipping client-side reschedule - Cloud Functions handle event notification updates automatically when event is updated'
+    );
 
-      // Cancel existing notifications
-      await this.cancelEventReminders(eventId);
-
-      // Schedule new notifications
-      return await this.scheduleEventReminders(
-        eventId,
-        eventData,
-        userId,
-        customReminderTemplates
-      );
-    } catch (error) {
-      console.error(
-        '[EventScheduler] Failed to reschedule server-side event reminders:',
-        error
-      );
-      return [];
-    }
+    // Return empty array to indicate no client-side notifications were scheduled
+    // Server-side Cloud Functions will detect the event update and handle rescheduling
+    return [];
   }
 
   /**

@@ -33,7 +33,8 @@ export const NOTIFICATION_TYPES = {
   FOLLOW_REQUEST: 'follow_request', // When someone follows you
   FRIEND_REQUEST: 'friend_request', // When someone sends a friend request
   FRIEND_ACCEPTED: 'friend_accepted', // When a friend request is accepted
-  INVITATION_RECEIVED: 'invitation_received',
+  INVITATION_RECEIVED: 'event_invitation', // Guest invitation to event
+  COHOST_INVITATION: 'cohost_invitation', // Cohost invitation to event
   INTEREST_BASED_SUGGESTION: 'interest_based_suggestion', // When an event matches user's interests
   ADMIN_NOTIFICATION: 'admin_notification',
   BAN_NOTIFICATION: 'ban_notification',

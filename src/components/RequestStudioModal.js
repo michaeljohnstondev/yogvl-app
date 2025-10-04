@@ -6,8 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
   Alert,
 } from 'react-native';
@@ -215,10 +213,7 @@ const RequestStudioModal = ({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+      <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Request New Studio</Text>
           <TouchableOpacity onPress={handleCancel} style={styles.closeButton}>
@@ -318,7 +313,7 @@ const RequestStudioModal = ({
             </Text>
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 };

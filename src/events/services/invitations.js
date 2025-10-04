@@ -958,9 +958,9 @@ export const sendBulkCohostInvitations = async ({
     for (const invite of cohostInvitations) {
       try {
         if (invite.type === 'user' && invite.guestId) {
-          // Use existing sendCohostInvitation from friendService
+          // Use sendCohostInvitation from cohostInvitationsService
           const { sendCohostInvitation } = await import(
-            '../../services/friendService'
+            '../../services/shared/cohostInvitationsService'
           );
 
           const result = await sendCohostInvitation(

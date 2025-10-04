@@ -4,9 +4,7 @@ import {
   Text,
   Animated,
   StyleSheet,
-  KeyboardAvoidingView,
   ScrollView,
-  Platform,
 } from 'react-native';
 import {
   VibeInput,
@@ -132,74 +130,66 @@ export default function LandingScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.keyboardContainer}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <ScrollView
+      contentContainerStyle={styles.scrollContainer}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
     >
-      <ScrollView
-        contentContainerStyle={styles.scrollContainer}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
-          <Text style={styles.title}>Big Vibe Studios</Text>
+      <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
+        <Text style={styles.title}>Big Vibe Studios</Text>
 
-          {/* Auth Mode Toggle */}
-          <VibeSegmentedControl
-            options={[
-              { label: 'Sign Up', value: 'signup' },
-              { label: 'Log In', value: 'login' },
-            ]}
-            selectedValue={authMode}
-            onSelect={setAuthMode}
-            style={styles.authToggle}
-          />
+        {/* Auth Mode Toggle */}
+        <VibeSegmentedControl
+          options={[
+            { label: 'Sign Up', value: 'signup' },
+            { label: 'Log In', value: 'login' },
+          ]}
+          selectedValue={authMode}
+          onSelect={setAuthMode}
+          style={styles.authToggle}
+        />
 
-          {/* Email/Password Form */}
-          <VibeInput
-            placeholder="Email"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            onChangeText={setEmail}
-            value={email}
-            maxLength={254}
-            style={styles.authInput}
-          />
+        {/* Email/Password Form */}
+        <VibeInput
+          placeholder="Email"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          onChangeText={setEmail}
+          value={email}
+          maxLength={254}
+          style={styles.authInput}
+        />
 
-          <VibeInput
-            placeholder="Password"
-            secureTextEntry
-            autoCapitalize="none"
-            onChangeText={setPassword}
-            value={password}
-            maxLength={128}
-            style={styles.authInput}
-          />
+        <VibeInput
+          placeholder="Password"
+          secureTextEntry
+          autoCapitalize="none"
+          onChangeText={setPassword}
+          value={password}
+          maxLength={128}
+          style={styles.authInput}
+        />
 
-          <VibeButton
-            label={
-              loading
-                ? authMode === 'login'
-                  ? 'Signing In...'
-                  : 'Creating Account...'
-                : authMode === 'login'
-                  ? 'Sign In'
-                  : 'Sign Up'
-            }
-            onPress={authMode === 'login' ? handleLogin : handleSignUp}
-            disabled={loading}
-            style={styles.authButton}
-          />
-        </Animated.View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        <VibeButton
+          label={
+            loading
+              ? authMode === 'login'
+                ? 'Signing In...'
+                : 'Creating Account...'
+              : authMode === 'login'
+                ? 'Sign In'
+                : 'Sign Up'
+          }
+          onPress={authMode === 'login' ? handleLogin : handleSignUp}
+          disabled={loading}
+          style={styles.authButton}
+        />
+      </Animated.View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  keyboardContainer: {
-    flex: 1,
-  },
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'center',

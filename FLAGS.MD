@@ -114,10 +114,45 @@ Largest service files that may benefit from review:
 ## Code Quality Issues Flagged
 
 ### Naming Convention Issues
-**None identified** - Service and function names appear appropriate for their functionality.
+
+## 🔧 RESOLVED: Deleted Redundant Service Files
+
+#### ✅ friendService.js - DELETED
+**Former File**: `/c/dev/bvs-app/src/services/friendService.js`
+**Resolution Date**: 2025-10-04
+
+**Issue**: File was a misleading compatibility layer that just re-exported from three other services.
+
+**Actions Taken**:
+1. ✅ Updated `userService.js` to import `checkIfFavorite` from `shared/userRelationshipsService`
+2. ✅ Updated `events/services/invitations.js` to import `sendCohostInvitation` from `shared/cohostInvitationsService`
+3. ✅ Deleted `friendService.js`
+
+**Impact**: Cleaner imports, no more misleading file names, direct access to actual services.
+
+#### ✅ invitationService.js - DELETED
+**Former File**: `/c/dev/bvs-app/src/services/invitationService.js`
+**Resolution Date**: 2025-10-04
+
+**Issue**: Redundant file that wrapped `sendGuestInvitation` and contained UI formatting logic in a service.
+
+**Actions Taken**:
+1. ✅ Refactored `InviteScreen.js` to import `sendGuestInvitation` directly from `shared/guestInvitationsService`
+2. ✅ Moved UI formatting logic inline into InviteScreen component
+3. ✅ Deleted `invitationService.js`
+
+**Impact**: Removed name collision with `events/services/invitations.js`, proper separation of concerns, cleaner architecture.
 
 ### File/Folder Structure Issues
-**None identified** - Current structure follows project conventions outlined in CLAUDE.md.
+
+## 🔧 RESOLVED: Duplicate Invitation Services
+
+**Former Files**:
+- `/c/dev/bvs-app/src/events/services/invitations.js` (1328 lines) - KEPT
+- `/c/dev/bvs-app/src/services/invitationService.js` (164 lines) - DELETED
+**Resolution Date**: 2025-10-04
+
+**Resolution**: Deleted redundant `invitationService.js`. All invitation logic now consolidated in `events/services/invitations.js`.
 
 ### Spaghetti Code Patterns
 **File**: `/c/dev/bvs-app/src/services/shared/NotificationEngine.js`

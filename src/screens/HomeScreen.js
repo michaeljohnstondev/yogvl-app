@@ -450,6 +450,8 @@ export default function HomeScreen({ navigation, route }) {
           contentContainerStyle={styles.container}
           scrollEnabled={true}
           nestedScrollEnabled={true}
+          scrollEventThrottle={16}
+          directionalLockEnabled={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}

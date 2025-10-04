@@ -76,7 +76,8 @@ function EventInfoSection({
   }, [attendeeCount]);
 
   const handleLocationPress = useCallback(() => {
-    if (event.address || event.location) {
+    // Only open maps if there's an actual address (not just a location name)
+    if (event.address) {
       vibeAlert.confirm(
         'Open Maps',
         `Open ${event.location || 'this location'} in Maps?`,
@@ -203,13 +204,40 @@ function EventInfoSection({
           <Text style={styles.infoIcon}>📅</Text>
           <View style={styles.infoContent}>
             <Text style={styles.infoLabel}>Date & Time</Text>
-            <Text style={styles.infoValue}>
-              {FormatDate(
+            {(() => {
+              const fullDateTime = FormatDate(
                 event.eventTimestamp?.toDate() || event.utcDateTime,
                 event.eventTimeZone ||
                   Intl.DateTimeFormat().resolvedOptions().timeZone
-              )}
-            </Text>
+              );
+
+              // Split by @ symbol for "Today @ 3:00 PM" format
+              if (fullDateTime.includes('@')) {
+                const [datePart, timePart] = fullDateTime.split('@').map(s => s.trim());
+                return (
+                  <>
+                    <Text style={styles.infoValue}>{datePart}</Text>
+                    <Text style={styles.infoValue}>{timePart}</Text>
+                  </>
+                );
+              }
+
+              // Split by last comma for "Mon, Jan 15, 3:00 PM" format
+              const lastCommaIndex = fullDateTime.lastIndexOf(',');
+              if (lastCommaIndex > 0) {
+                const datePart = fullDateTime.substring(0, lastCommaIndex);
+                const timePart = fullDateTime.substring(lastCommaIndex + 1).trim();
+                return (
+                  <>
+                    <Text style={styles.infoValue}>{datePart}</Text>
+                    <Text style={styles.infoValue}>{timePart}</Text>
+                  </>
+                );
+              }
+
+              // Fallback: show as single line if can't split
+              return <Text style={styles.infoValue}>{fullDateTime}</Text>;
+            })()}
           </View>
           {/* Notification Bell Button - Only show when subscribed and event is not past */}
           {isSubscribed && !isEventPast && onNotificationSettings && (
@@ -228,7 +256,7 @@ function EventInfoSection({
       <TouchableOpacity
         style={styles.infoCard}
         onPress={handleLocationPress}
-        disabled={!event.address && !event.location}
+        disabled={!event.address}
       >
         <View style={styles.infoRow}>
           <Text style={styles.infoIcon}>📍</Text>
@@ -238,7 +266,7 @@ function EventInfoSection({
               {event.location || 'Location TBD'}
             </Text>
           </View>
-          {(event.address || event.location) && (
+          {event.address && (
             <Text style={styles.tapToOpenMaps}>🗺️</Text>
           )}
         </View>
@@ -349,6 +377,7 @@ const styles = StyleSheet.create({
   },
   starButton: {
     padding: 4,
+    paddingRight: 5,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -387,6 +416,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: theme.colors.vibeBlue,
     marginLeft: 8,
+    marginRight: 5,
     alignSelf: 'center',
   },
   cohostsContainer: {
@@ -417,6 +447,7 @@ const styles = StyleSheet.create({
   },
   notificationButton: {
     padding: 8,
+    paddingRight: 5,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: theme.sizes.borderRadius,

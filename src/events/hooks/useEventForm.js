@@ -648,7 +648,7 @@ Hope to see you there! 🎉`;
       selectedInvitations = {},
       vibeAlert
     ) => {
-      const { doc, updateDoc } = await import('../../lib/firebase/firestore');
+      const { doc, updateDoc, getDoc } = await import('../../lib/firebase/firestore');
       const userStudio = userData?.studioId || 'greenville_sc';
 
       // Remove subscriber/cohost arrays from eventData for editing - we don't want to overwrite existing attendees
@@ -656,41 +656,19 @@ Hope to see you there! 🎉`;
 
       const eventRef = doc(db, 'studios', userStudio, 'events', eventId);
 
+      // Fetch existing event data before updating
+      const existingEventDoc = await getDoc(eventRef);
+      if (!existingEventDoc.exists()) {
+        throw new Error('Event not found');
+      }
+      const existingEvent = existingEventDoc.data();
+
       // Update only the event metadata, not the attendee/cohost arrays
       await updateDoc(eventRef, eventDataWithoutArrays);
 
-      // Reschedule server-side FCM notifications for the updated event
-      try {
-        // Use host's actual notification settings instead of empty array
-        const hostReminderTemplates = userData?.userdata?.settings?.notifications?.hosting?.reminderTemplates || {};
-        console.log('[EventForm] Using host reminder templates for reschedule:', hostReminderTemplates);
-
-        await EventNotificationScheduler.rescheduleEventReminders(
-          eventId,
-          {
-            title: eventData.title,
-            startTime: eventData.eventTimestamp,
-            eventTimestamp: eventData.eventTimestamp, // Also include as eventTimestamp for compatibility
-            location: eventData.location,
-            studioId: userStudio,
-            subscribers: existingEvent.subscribers || [currentUserId],
-            createdBy: existingEvent.createdBy || currentUserId,
-          },
-          currentUserId,
-          hostReminderTemplates
-        );
-        console.log(
-          '[EventForm] Rescheduled server-side FCM notifications for event:',
-          eventId,
-          `(${Object.keys(hostReminderTemplates).length} reminder settings)`
-        );
-      } catch (notificationError) {
-        console.warn(
-          '[EventForm] Failed to reschedule server-side notifications:',
-          notificationError
-        );
-        // Don't fail event update if notification scheduling fails
-      }
+      // NOTE: Notification rescheduling is handled automatically by Cloud Functions
+      // when the event document is updated. No client-side reschedule needed.
+      console.log('[EventForm] Event updated - Cloud Functions will handle notification updates automatically');
 
       // Send invitations for new cohosts/guests if any were selected
       if (

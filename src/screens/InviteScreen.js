@@ -198,21 +198,58 @@ export default function InviteScreen() {
   // Handle sending invitations immediately for existing events
   const handleSendInvitations = async (selectedData) => {
     try {
-      const { sendEventInvitations, formatInvitationMessages } = await import(
-        '../services/invitationService'
+      const { sendGuestInvitation } = await import(
+        '../services/shared/guestInvitationsService'
       );
 
-      const result = await sendEventInvitations({
-        currentUserId,
-        eventId,
-        studioId: routeStudioId || studioId,
-        userData,
-        eventTitle,
-        source,
-        users: selectedData.users,
-        contacts: selectedData.contacts,
-        phoneContacts: selectedData.phoneContacts,
-      });
+      const { users = [], contacts = [], phoneContacts = [] } = selectedData;
+      const totalInvitations = users.length + contacts.length + phoneContacts.length;
+
+      if (totalInvitations === 0) {
+        vibeAlert.info('No Invitations', 'Please select people to invite.');
+        return;
+      }
+
+      let successfulInvitations = 0;
+      let alreadyInvitedCount = 0;
+      const errors = [];
+
+      // Send guest invitations for app users
+      if (users.length > 0) {
+        const invitationPromises = users.map(async (user) => {
+          try {
+            await sendGuestInvitation(
+              currentUserId,
+              user.id,
+              eventId,
+              routeStudioId || studioId,
+              userData,
+              { title: eventTitle },
+              source
+            );
+            successfulInvitations++;
+          } catch (error) {
+            console.error(`Failed to send invitation to ${user.name}:`, error);
+            if (
+              error.message?.includes('already been invited') ||
+              error.message?.includes('already attending')
+            ) {
+              alreadyInvitedCount++;
+            } else {
+              errors.push({
+                userId: user.id,
+                userName: user.name,
+                error: error.message,
+              });
+            }
+          }
+        });
+
+        await Promise.all(invitationPromises);
+      }
+
+      // Add phone contacts to successful count (they don't have the same validation)
+      successfulInvitations += phoneContacts.length;
 
       // Refresh invitation data to update the UI
       if (contactManagement.loadPendingInvitations) {
@@ -220,32 +257,35 @@ export default function InviteScreen() {
       }
 
       // Display formatted messages
-      const messages = formatInvitationMessages(result);
-      messages.forEach((msg) => {
-        switch (msg.type) {
-          case 'success':
-            vibeAlert.success(msg.title, msg.message);
-            break;
-          case 'info':
-            vibeAlert.info(msg.title, msg.message);
-            break;
-          case 'warning':
-            vibeAlert.warning(msg.title, msg.message);
-            break;
-        }
-      });
+      if (successfulInvitations > 0) {
+        vibeAlert.success(
+          'Invitations Sent!',
+          `Sent ${successfulInvitations} invitation${successfulInvitations === 1 ? '' : 's'}! 📬`
+        );
+      }
+
+      if (alreadyInvitedCount > 0) {
+        vibeAlert.info(
+          'Some Already Invited',
+          `${alreadyInvitedCount} user${alreadyInvitedCount === 1 ? ' was' : 's were'} already invited or attending this event.`
+        );
+      }
+
+      if (errors.length > 0) {
+        vibeAlert.warning(
+          'Some Invitations Failed',
+          `${errors.length} invitation${errors.length === 1 ? '' : 's'} could not be sent. Please try again.`
+        );
+      }
 
       // Still call callback if provided for any additional handling
       handleInviteComplete(selectedData);
     } catch (error) {
-      if (error.message === 'NO_INVITATIONS_SELECTED') {
-        vibeAlert.info('No Invitations', 'Please select people to invite.');
-      } else {
-        vibeAlert.error(
-          'Error',
-          'Failed to send invitations. Please try again.'
-        );
-      }
+      console.error('[InviteScreen] Error sending invitations:', error);
+      vibeAlert.error(
+        'Error',
+        'Failed to send invitations. Please try again.'
+      );
     }
   };
 
