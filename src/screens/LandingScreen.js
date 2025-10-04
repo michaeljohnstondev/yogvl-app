@@ -203,8 +203,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 48,
-    fontWeight: '900',
-    fontFamily: theme.fonts.main,
+    fontFamily: theme.fonts.comicBold,
     color: theme.colors.textPrimary,
     textAlign: 'center',
     marginBottom: 40,

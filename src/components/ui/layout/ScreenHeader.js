@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: '#fff',
     fontSize: 24,
-    fontWeight: 'bold',
+    fontFamily: theme.fonts.comicBold,
     textAlign: 'center',
     marginHorizontal: 16,
   },

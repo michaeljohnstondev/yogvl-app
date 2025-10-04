@@ -856,8 +856,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: theme.colors.white,
     fontSize: 18,
-    fontWeight: 'bold',
-    fontFamily: theme.fonts.main,
+    fontFamily: theme.fonts.comicBold,
     marginBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.darkGray,

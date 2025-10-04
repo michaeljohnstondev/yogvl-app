@@ -61,8 +61,13 @@ const theme = {
     commentOtherBg: 'rgba(0, 123, 255, 0.1)',
   },
   fonts: {
-    main: 'ComicNeue_400Regular',
-    bold: 'ComicNeue_700Bold',
+    // Comic Neue (fun, casual)
+    comic: 'ComicNeue_400Regular',
+    comicBold: 'ComicNeue_700Bold',
+
+    // System fonts (clean, professional)
+    main: 'System',
+    bold: 'System',
   },
   sizes: {
     borderRadius: 12,

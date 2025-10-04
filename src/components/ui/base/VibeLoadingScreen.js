@@ -41,7 +41,7 @@ const styles = StyleSheet.create({
   brandingText: {
     color: theme.colors.white,
     fontSize: 42,
-    fontWeight: 'bold',
+    fontFamily: theme.fonts.comicBold,
     textAlign: 'center',
     lineHeight: 46,
   },

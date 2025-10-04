@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: theme.colors.vibeBlue,
     fontSize: 14,
-    fontWeight: 'bold',
+    fontFamily: theme.fonts.comicBold,
     letterSpacing: 1,
     marginBottom: 15,
   },

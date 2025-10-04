@@ -895,7 +895,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: theme.fonts.comicBold,
     color: theme.colors.textPrimary,
     marginBottom: 16,
     textAlign: 'center',

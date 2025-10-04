@@ -319,7 +319,7 @@ export const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: theme.fonts.comicBold,
     color: '#fff',
     marginBottom: 12,
   },

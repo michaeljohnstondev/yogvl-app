@@ -463,7 +463,7 @@ export default function HomeScreen({ navigation, route }) {
         >
           {myEvents.length > 0 && (
             <>
-              <Text style={styles.sectionHeader}>My Events</Text>
+              <Text style={styles.sectionHeader}>Your Events</Text>
               <VibeCarousel
                 data={myEvents}
                 scrollViewRef={scrollViewRef}
@@ -655,8 +655,8 @@ const styles = StyleSheet.create({
   headerTitle: {
     color: theme.colors.white,
     fontSize: 24,
-    fontWeight: 'bold',
     marginLeft: -8,
+    fontFamily: theme.fonts.comicBold,
   },
   headerIcons: {
     flexDirection: 'row',
@@ -693,7 +693,7 @@ const styles = StyleSheet.create({
   sectionHeader: {
     color: '#fff',
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: theme.fonts.comicBold,
     marginBottom: 10,
     marginTop: 20,
     marginLeft: 4,

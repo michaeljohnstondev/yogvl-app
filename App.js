@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { StatusBar } from 'expo-status-bar';
 import Navigation from './src/Navigation';
 import { VibeAlertProvider, VibeAppWrapper } from './src/components/ui/base';
 import { useEventEndNotifications } from './src/hooks/useEventEndNotifications';
@@ -62,7 +63,7 @@ export default function App() {
   }, [fontsLoaded]);
 
   if (!fontsLoaded) {
-    return null;
+    return <StatusBar style="light" />;
   }
 
   return (

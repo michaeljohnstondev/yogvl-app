@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: theme.colors.vibeGreen,
     fontSize: 12,
-    fontWeight: 'bold',
+    fontFamily: theme.fonts.comicBold,
     letterSpacing: 1,
     marginBottom: 10,
   },

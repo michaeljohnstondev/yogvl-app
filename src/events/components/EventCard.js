@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FormatDate } from '../../lib/formatDate';
+import theme from '../../theme/themes';
 
 export default function EventCard({
   title,

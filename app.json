@@ -35,6 +35,10 @@
         "backgroundColor": "#2D1050"
       },
       "backgroundColor": "#2D1050",
+      "statusBar": {
+        "backgroundColor": "#2D1050",
+        "barStyle": "light-content"
+      },
       "package": "com.bigvibestudios.bvs",
       "googleServicesFile": "./google-services.json",
       "permissions": [

@@ -527,8 +527,7 @@ const styles = {
   sectionTitle: {
     color: theme.colors.white,
     fontSize: 18,
-    fontWeight: 'bold',
-    fontFamily: theme.fonts.main,
+    fontFamily: theme.fonts.comicBold,
     marginBottom: 6,
   },
   sectionSubtitle: {
