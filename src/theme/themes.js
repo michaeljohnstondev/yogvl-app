@@ -61,7 +61,8 @@ const theme = {
     commentOtherBg: 'rgba(0, 123, 255, 0.1)',
   },
   fonts: {
-    main: 'Segoe UI',
+    main: 'ComicNeue_400Regular',
+    bold: 'ComicNeue_700Bold',
   },
   sizes: {
     borderRadius: 12,
