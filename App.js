@@ -17,7 +17,7 @@ SplashScreen.preventAutoHideAsync().catch(() => {
   // In case splash screen is already hidden, ignore the error
 });
 
-function AppWithNotifications() {
+function AppWithNotifications({ onReady }) {
   // Initialize event end notification service
   useEventEndNotifications();
   // Initialize notification display service with VibeAlert
@@ -48,7 +48,7 @@ function AppWithNotifications() {
     };
   }, []);
 
-  return <Navigation />;
+  return <Navigation onReady={onReady} />;
 }
 
 export default function App() {

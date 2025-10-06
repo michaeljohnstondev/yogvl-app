@@ -59,7 +59,8 @@
       "Bash(taskkill:*)",
       "Bash(npx tsc:*)",
       "WebFetch(domain:rnfirebase.io)",
-      "WebFetch(domain:firebase.google.com)"
+      "WebFetch(domain:firebase.google.com)",
+      "Bash(del:*)"
     ],
     "deny": [],
     "ask": [],
