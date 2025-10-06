@@ -118,13 +118,19 @@ export default function CreateEventForm({
   // Listen for invite results from InviteScreen
   useFocusEffect(
     useCallback(() => {
+      console.log('[CreateEventForm] Registering inviteComplete listener');
       const unsubscribe = navigation.addListener('inviteComplete', (e) => {
+        console.log('[CreateEventForm] inviteComplete event received:', e.data);
         const { inviteType, users, contacts, phoneContacts, options = {} } = e.data || {};
 
         if (inviteType === 'guests') {
+          console.log('[CreateEventForm] Handling guest invite result');
           handleGuestInviteResult({ users, contacts, phoneContacts }, options);
         } else if (inviteType === 'hosts') {
+          console.log('[CreateEventForm] Handling host invite result');
           handleHostInviteResult({ users, contacts, phoneContacts }, options);
+        } else {
+          console.warn('[CreateEventForm] Unknown inviteType:', inviteType);
         }
       });
 
@@ -331,12 +337,15 @@ export default function CreateEventForm({
     handleTextContactsChange(allTextContacts);
 
     // Call the co-host invitation change callback
+    console.log('[CreateEventForm] Calling onCohostInvitationChange with:', { users, contacts, phoneContacts });
     if (onCohostInvitationChange) {
       onCohostInvitationChange({
         users: users,
         contacts: contacts,
         phoneContacts: phoneContacts,
       });
+    } else {
+      console.warn('[CreateEventForm] onCohostInvitationChange callback is not defined!');
     }
 
     // Update guest invitation callback as well (since guest lists were filtered)
@@ -364,6 +373,10 @@ export default function CreateEventForm({
       maxLimit: null,
       eventTitle: formData.title,
       inviteType: 'guests', // Add identifier for event listener
+      onSave: (selectedData, options) => {
+        console.log('[CreateEventForm] Guest onSave callback called');
+        handleGuestInviteResult(selectedData, options);
+      }
     });
   };
 
@@ -376,6 +389,10 @@ export default function CreateEventForm({
       maxLimit: 10,
       eventTitle: formData.title,
       inviteType: 'hosts', // Add identifier for event listener
+      onSave: (selectedData, options) => {
+        console.log('[CreateEventForm] Host onSave callback called');
+        handleHostInviteResult(selectedData, options);
+      }
     });
   };
 

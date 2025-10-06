@@ -39,6 +39,7 @@ import theme from '../theme/themes';
 
 export default function HomeScreen({ navigation, route }) {
   const [myEvents, setMyEvents] = useState([]);
+  const [invitedEvents, setInvitedEvents] = useState([]);
   const [followedEvents, setFollowedEvents] = useState([]);
   const [interestBasedEvents, setInterestBasedEvents] = useState([]);
   const [otherEvents, setOtherEvents] = useState([]);
@@ -112,9 +113,13 @@ export default function HomeScreen({ navigation, route }) {
       // Separate events by category
       const now = new Date();
       const myUpcoming = [];
+      const invited = [];
       const followed = [];
       const suggested = [];
       const myPast = [];
+
+      // Get user's pending invitations
+      const pendingInvitations = new Set(userData?.userdata?.pendingInvitations || []);
 
       feedData.subscribedEvents.forEach((event) => {
         const eventDate =
@@ -143,10 +148,17 @@ export default function HomeScreen({ navigation, route }) {
           event.eventTimestamp?.toDate() || new Date(event.utcDateTime);
         // Only add if it's upcoming AND user hasn't subscribed to it
         if (eventDate >= now && !subscribedEventIds.has(event.id)) {
-          followed.push({
+          const enrichedEvent = {
             ...event,
             isHostedByUser: event.createdBy === currentUserId,
-          });
+          };
+
+          // Check if this is an invited event
+          if (pendingInvitations.has(event.id)) {
+            invited.push(enrichedEvent);
+          } else {
+            followed.push(enrichedEvent);
+          }
         }
       });
 
@@ -167,18 +179,24 @@ export default function HomeScreen({ navigation, route }) {
             isHostedByUser: event.createdBy === currentUserId,
           };
 
-          // Check if event title matches any user interests (using sanitized interests)
-          const matchedInterests = extractInterestsFromEventTitle(event.title, sanitizedInterests);
-
-          if (matchedInterests.length > 0) {
-            interestBased.push(enrichedEvent);
+          // Check if this is an invited event (takes priority)
+          if (pendingInvitations.has(event.id)) {
+            invited.push(enrichedEvent);
           } else {
-            other.push(enrichedEvent);
+            // Check if event title matches any user interests (using sanitized interests)
+            const matchedInterests = extractInterestsFromEventTitle(event.title, sanitizedInterests);
+
+            if (matchedInterests.length > 0) {
+              interestBased.push(enrichedEvent);
+            } else {
+              other.push(enrichedEvent);
+            }
           }
         }
       });
 
       setMyEvents(myUpcoming);
+      setInvitedEvents(invited);
       setFollowedEvents(followed);
       setInterestBasedEvents(interestBased);
       setOtherEvents(other);
@@ -315,6 +333,7 @@ export default function HomeScreen({ navigation, route }) {
   // Check if user has no events at all
   const hasNoEvents =
     myEvents.length === 0 &&
+    invitedEvents.length === 0 &&
     followedEvents.length === 0 &&
     interestBasedEvents.length === 0 &&
     otherEvents.length === 0 &&
@@ -458,6 +477,7 @@ export default function HomeScreen({ navigation, route }) {
               onRefresh={handleRefresh}
               tintColor={theme.colors.vibeBlue}
               colors={[theme.colors.vibeBlue]}
+              progressBackgroundColor={theme.colors.background}
             />
           }
         >
@@ -466,6 +486,28 @@ export default function HomeScreen({ navigation, route }) {
               <Text style={styles.sectionHeader}>Your Events</Text>
               <VibeCarousel
                 data={myEvents}
+                scrollViewRef={scrollViewRef}
+                renderItem={(item, isScrolling) => (
+                  <EventCard
+                    {...item}
+                    onPress={() => {
+                      if (!isScrolling) {
+                        navigation.navigate('EventDetail', {
+                          eventId: item.id,
+                        });
+                      }
+                    }}
+                  />
+                )}
+              />
+            </>
+          )}
+
+          {invitedEvents.length > 0 && (
+            <>
+              <Text style={styles.sectionHeader}>Invited To</Text>
+              <VibeCarousel
+                data={invitedEvents}
                 scrollViewRef={scrollViewRef}
                 renderItem={(item, isScrolling) => (
                   <EventCard

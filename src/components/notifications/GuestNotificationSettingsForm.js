@@ -381,21 +381,6 @@ const GuestNotificationSettingsForm = memo(function GuestNotificationSettingsFor
         </View>
       )}
 
-      {/* Event Updates */}
-      {showEventUpdates && (
-        <View style={[styles.section, sectionStyle]}>
-          <Text style={styles.sectionTitle}>EVENT UPDATES</Text>
-          <View style={styles.settingsGroup}>
-            <SettingItem
-              title="Host Changes"
-              description="Time, location, details, fees, and other event changes"
-              value={settings?.hostChanges ?? true}
-              onToggle={() => toggleSetting('hostChanges')}
-              isLast
-            />
-          </View>
-        </View>
-      )}
 
       {/* Custom Reminder Templates */}
       {showReminders && (
@@ -525,11 +510,17 @@ const GuestNotificationSettingsForm = memo(function GuestNotificationSettingsFor
         </View>
       )}
 
-      {/* Social Activity */}
+      {/* Event Activity */}
       {showSocialActivity && (
         <View style={[styles.section, sectionStyle]}>
-          <Text style={styles.sectionTitle}>SOCIAL ACTIVITY</Text>
+          <Text style={styles.sectionTitle}>EVENT ACTIVITY</Text>
           <View style={styles.settingsGroup}>
+            <SettingItem
+              title="Host Changes"
+              description="Time, location, details, fees, and other event changes"
+              value={settings?.hostChanges ?? true}
+              onToggle={() => toggleSetting('hostChanges')}
+            />
             <SettingItem
               title="Host Comments"
               description="Comments from the event host"
@@ -565,9 +556,9 @@ const styles = StyleSheet.create({
     elevation: 99,
   },
   sectionTitle: {
-    color: theme.colors.vibeGreen,
+    color: theme.colors.vibeBlue,
     fontSize: 12,
-    fontWeight: 'bold',
+    fontFamily: theme.fonts.comicBold,
     marginBottom: 10,
     letterSpacing: 1,
   },

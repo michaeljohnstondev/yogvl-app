@@ -15,6 +15,11 @@ import {
   increment,
 } from 'firebase/firestore';
 import { db } from '../../auth/services/firebase';
+import {
+  sendInvitation,
+  acceptInvitation,
+  declineInvitation
+} from './unifiedInvitationsService';
 // Notification imports removed - using Cloud Function triggers instead
 
 /**
@@ -45,69 +50,18 @@ export const sendCohostInvitation = async (
       hasEventData: !!eventData
     });
 
-    // Check if invitation already exists
-    const existingInvitation = await getCohostInvitationStatus(
-      recipientId,
-      eventId
-    );
-    if (existingInvitation) {
-      console.log('[CohostInvitations] ⚠️ Invitation already exists:', existingInvitation);
-      throw new Error('Cohost invitation already exists');
-    }
-
-    // Get recipient data for notification
-    const recipientDoc = await getDoc(doc(db, 'users', recipientId));
-    if (!recipientDoc.exists()) {
-      throw new Error('Recipient user not found');
-    }
-
-    const inviterName =
-      inviterData?.userdata?.contactInfo?.firstName ||
-      inviterData?.userdata?.contactInfo?.displayName ||
-      'Someone';
-    const eventTitle = eventData?.title || 'Untitled Event';
-
-    // Create cohost invitation document
-    const invitationId = `${inviterId}_${recipientId}_${eventId}_${Date.now()}`;
-    const invitationRef = doc(
-      db,
-      'users',
-      recipientId,
-      'cohostInvitations',
-      invitationId
-    );
-
-    const invitation = {
-      id: invitationId,
+    // Use unified invitation service
+    const result = await sendInvitation({
       inviterId,
       recipientId,
       eventId,
-      studioId: studioId || null,
-      status: 'pending',
-      createdAt: Timestamp.now(),
-      inviterData: {
-        firstName: inviterData?.userdata?.contactInfo?.firstName || 'Unknown',
-        displayName:
-          inviterData?.userdata?.contactInfo?.displayName ||
-          `${inviterData?.userdata?.contactInfo?.firstName || ''} ${inviterData?.userdata?.contactInfo?.lastName || ''}`.trim() ||
-          'Unknown',
-        email: inviterData?.userdata?.contactInfo?.email || null,
-      },
-      eventData: {
-        title: eventData?.title || null,
-        date: eventData?.date || null,
-        location: eventData?.location || null,
-      },
-    };
-
-    await setDoc(invitationRef, invitation);
-
-    console.log('[CohostInvitations] ✅ Cohost invitation created successfully:', {
-      invitationId,
-      path: `users/${recipientId}/cohostInvitations/${invitationId}`
+      studioId,
+      type: 'cohost'
     });
 
-    return { success: true, invitationId };
+    console.log('[CohostInvitations] ✅ Cohost invitation created successfully');
+
+    return result;
   } catch (error) {
     console.error(
       '[CohostInvitations] ❌ Error sending cohost invitation:',
@@ -119,7 +73,7 @@ export const sendCohostInvitation = async (
 
 /**
  * Accept cohost invitation
- * @param {string} invitationId - Invitation ID
+ * @param {string} invitationId - Invitation ID (DEPRECATED - kept for backwards compatibility)
  * @param {string} recipientId - User accepting invitation
  * @param {string} eventId - Event ID
  * @returns {Promise<Object>} Success result
@@ -136,102 +90,28 @@ export const acceptCohostInvitation = async (
       eventId,
     });
 
-    const batch = writeBatch(db);
+    // Get user data to find studioId from pending invitations
+    const userDoc = await getDoc(doc(db, 'users', recipientId));
+    if (!userDoc.exists()) {
+      throw new Error('User not found');
+    }
 
-    // Get invitation
-    const invitationRef = doc(
-      db,
-      'users',
-      recipientId,
-      'cohostInvitations',
-      invitationId
-    );
-    const invitationDoc = await getDoc(invitationRef);
+    const userData = userDoc.data();
+    const pendingInvitations = userData.userdata?.pendingInvitations || [];
 
-    if (!invitationDoc.exists()) {
+    // Find the invitation for this event
+    const invitation = pendingInvitations.find(inv => inv.eventId === eventId && inv.type === 'cohost');
+
+    if (!invitation) {
       throw new Error('Cohost invitation not found');
     }
 
-    const invitationData = invitationDoc.data();
-    if (invitationData.status !== 'pending') {
-      throw new Error('Cohost invitation is no longer pending');
-    }
+    const studioId = invitation.studioId;
 
-    // Get studioId from invitation
-    const studioId = invitationData.studioId;
-    if (!studioId) {
-      throw new Error('Studio information missing from invitation');
-    }
-
-    // Get user data for notifications
-    const recipientDoc = await getDoc(doc(db, 'users', recipientId));
-    const inviterDoc = await getDoc(doc(db, 'users', invitationData.inviterId));
-    const eventDoc = await getDoc(
-      doc(db, 'studios', studioId, 'events', eventId)
-    );
-
-    if (!recipientDoc.exists() || !inviterDoc.exists() || !eventDoc.exists()) {
-      throw new Error('Required data not found');
-    }
-
-    const recipientData = recipientDoc.data();
-    const eventData = eventDoc.data();
-
-    console.log(
-      '[CohostInvitations] Recipient data structure:',
-      JSON.stringify(recipientData, null, 2)
-    );
-
-    // Extract user's full name (prioritize displayName which is set in ContactInfoScreen)
-    const displayName = recipientData?.userdata?.contactInfo?.displayName || '';
-    const firstName = recipientData?.userdata?.contactInfo?.firstName || '';
-    const lastName = recipientData?.userdata?.contactInfo?.lastName || '';
-
-    const accepterName =
-      displayName ||
-      (firstName && lastName ? `${firstName} ${lastName}` : firstName) ||
-      'Someone';
-    const eventTitle = eventData?.title || 'Untitled Event';
-
-    console.log('[CohostInvitations] Extracted accepter name:', accepterName);
-
-    // Update invitation status
-    batch.update(invitationRef, {
-      status: 'accepted',
-      acceptedAt: Timestamp.now(),
-    });
-
-    // Add user as cohost to event
-    const eventRef = doc(db, 'studios', studioId, 'events', eventId);
-
-    // Ensure cohosts and subscribers are always arrays
-    const existingCohosts = Array.isArray(eventData.cohosts)
-      ? eventData.cohosts
-      : [];
-    const existingSubscribers = Array.isArray(eventData.subscribers)
-      ? eventData.subscribers
-      : [];
-
-    // Check if user is already a cohost
-    if (existingCohosts.includes(recipientId)) {
-      throw new Error('User is already a co-host for this event');
-    }
-
-    // Add to both cohosts and subscribers arrays (cohosts are also attendees)
-    const updatedSubscribers = existingSubscribers.includes(recipientId)
-      ? existingSubscribers
-      : [...existingSubscribers, recipientId];
-
-    batch.update(eventRef, {
-      cohosts: [...existingCohosts, recipientId],
-      subscribers: updatedSubscribers,
-      subscriberCount: updatedSubscribers.length,
-    });
-
-    await batch.commit();
+    // Use unified invitation service
+    const result = await acceptInvitation(recipientId, eventId, studioId);
 
     // Cancel any existing scheduled notifications for this user/event
-    // (since they're now a cohost with different notification needs)
     try {
       const { ScheduledNotificationService } = await import('../../scheduledNotifications');
       await ScheduledNotificationService.cancelUserEventNotifications(
@@ -245,15 +125,13 @@ export const acceptCohostInvitation = async (
       // Don't fail the whole operation for this
     }
 
-    // Notification will be sent automatically by Cloud Function when invitation status changes
+    console.log('[CohostInvitations] ✅ Cohost invitation accepted successfully');
 
     return {
       success: true,
       newCohost: {
         id: recipientId,
-        name: accepterName,
         eventId,
-        eventTitle
       }
     };
   } catch (error) {
@@ -267,24 +145,38 @@ export const acceptCohostInvitation = async (
 
 /**
  * Decline cohost invitation
- * @param {string} invitationId - Invitation ID
+ * @param {string} invitationId - Invitation ID (DEPRECATED - kept for backwards compatibility)
  * @param {string} recipientId - User declining invitation
+ * @param {string} eventId - Event ID (optional - will be looked up from invitationId)
  * @returns {Promise<Object>} Success result
  */
-export const declineCohostInvitation = async (invitationId, recipientId) => {
+export const declineCohostInvitation = async (invitationId, recipientId, eventId = null) => {
   try {
-    const invitationRef = doc(
-      db,
-      'users',
-      recipientId,
-      'cohostInvitations',
-      invitationId
-    );
+    // Get user data to find the invitation
+    const userDoc = await getDoc(doc(db, 'users', recipientId));
+    if (!userDoc.exists()) {
+      throw new Error('User not found');
+    }
 
-    await updateDoc(invitationRef, {
-      status: 'declined',
-      declinedAt: Timestamp.now(),
-    });
+    const userData = userDoc.data();
+    const pendingInvitations = userData.userdata?.pendingInvitations || [];
+
+    // Find cohost invitation - use eventId if provided, otherwise find any cohost invitation
+    const invitation = eventId
+      ? pendingInvitations.find(inv => inv.eventId === eventId && inv.type === 'cohost')
+      : pendingInvitations.find(inv => inv.type === 'cohost');
+
+    if (!invitation) {
+      throw new Error('Cohost invitation not found');
+    }
+
+    const studioId = invitation.studioId;
+    const actualEventId = invitation.eventId;
+
+    // Use unified invitation service
+    await declineInvitation(recipientId, actualEventId, studioId);
+
+    console.log('[CohostInvitations] ✅ Cohost invitation declined successfully');
 
     return { success: true };
   } catch (error) {

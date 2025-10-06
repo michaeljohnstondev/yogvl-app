@@ -390,12 +390,12 @@ const styles = StyleSheet.create({
   },
   redCancelButton: {
     backgroundColor: 'transparent',
-    borderColor: theme.colors.vibeRed,
+    borderColor: theme.colors.vibeOrange, // Orange border for error/destructive actions
     borderWidth: 3,
   },
   greenButton: {
-    backgroundColor: '#228B22',
-    borderColor: '#00FF41',
+    backgroundColor: theme.colors.vibeForest, // Forest green background
+    borderColor: theme.colors.vibeForest, // Forest green border (matching background)
   },
   blueButton: {
     backgroundColor: '#0072ff',

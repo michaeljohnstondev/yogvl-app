@@ -195,10 +195,15 @@ Event documents track invitation state for filtering:
 ```javascript
 // In studios/{studioId}/events/{eventId}
 {
-  // Invitation state arrays (user IDs only)
-  invitations: string[],     // User IDs with pending invitations
-  subscribers: string[],     // User IDs who accepted invitations or subscribed directly
-  cohosts: string[],        // User IDs who are event cohosts
+  // Invitation state arrays (unified for guest and cohost)
+  invitations: [
+    {
+      userId: string,           // User ID being invited
+      type: 'guest' | 'cohost'  // Type of invitation
+    }
+  ],
+  subscribers: string[],     // User IDs who accepted guest invitations or joined directly
+  cohosts: string[],        // User IDs who accepted cohost invitations
 
   // Host is tracked separately
   createdBy: string         // User ID of event host
@@ -213,9 +218,18 @@ User documents track invitation state for user experience:
 // In users/{userId}
 {
   userdata: {
-    // Event participation arrays
-    pendingInvitations: string[],    // Event IDs user has pending invitations for
-    subscribedEvents: string[],      // Event IDs user is subscribed to
+    // Pending invitations (minimal metadata)
+    pendingInvitations: [
+      {
+        eventId: string,           // Event ID
+        type: 'guest' | 'cohost',  // Type of invitation
+        studioId: string           // Studio context for event lookup
+      }
+    ],
+
+    // Accepted invitations and event participation
+    subscribedEvents: string[],    // Event IDs user is attending (guest)
+    cohostEvents: string[],        // Event IDs user is co-hosting (NEW)
 
     // Existing user data...
     contactInfo: { ... },
@@ -226,35 +240,80 @@ User documents track invitation state for user experience:
 
 ### Invitation State Transitions (Atomic Batch Operations)
 
-1. **Send Invitation**:
-   - Add user ID to `event.invitations[]`
-   - Add event ID to `user.userdata.pendingInvitations[]`
+#### 1. **Send Guest Invitation**:
+   - Add invitation object to `event.invitations[]`:
+     ```javascript
+     { userId, type: 'guest' }
+     ```
+   - Add invitation object to `user.userdata.pendingInvitations[]`:
+     ```javascript
+     { eventId, type: 'guest', studioId }
+     ```
 
-2. **Accept Invitation**:
-   - Move user ID from `event.invitations[]` to `event.subscribers[]`
-   - Move event ID from `user.userdata.pendingInvitations[]` to `user.userdata.subscribedEvents[]`
+#### 2. **Send Cohost Invitation**:
+   - Add invitation object to `event.invitations[]`:
+     ```javascript
+     { userId, type: 'cohost' }
+     ```
+   - Add invitation object to `user.userdata.pendingInvitations[]`:
+     ```javascript
+     { eventId, type: 'cohost', studioId }
+     ```
 
-3. **Decline Invitation**:
-   - Remove user ID from `event.invitations[]`
-   - Remove event ID from `user.userdata.pendingInvitations[]`
+#### 3. **Accept Guest Invitation**:
+   - Remove invitation object from `event.invitations[]` (where userId matches)
+   - Add user ID to `event.subscribers[]`
+   - Remove invitation object from `user.userdata.pendingInvitations[]` (where eventId matches)
+   - Add event ID to `user.userdata.subscribedEvents[]`
+
+#### 4. **Accept Cohost Invitation**:
+   - Remove invitation object from `event.invitations[]` (where userId matches)
+   - Add user ID to `event.cohosts[]`
+   - Remove invitation object from `user.userdata.pendingInvitations[]` (where eventId matches)
+   - Add event ID to `user.userdata.cohostEvents[]`
+
+#### 5. **Decline Invitation** (guest or cohost):
+   - Remove invitation object from `event.invitations[]` (where userId matches)
+   - Remove invitation object from `user.userdata.pendingInvitations[]` (where eventId matches)
 
 ### Invitation Filtering Logic
 
 ```javascript
 // To filter users for invitations:
 const eventData = await getDoc(eventRef);
-const invited = eventData.invitations || [];
+const invitations = eventData.invitations || [];
 const subscribed = eventData.subscribers || [];
 const cohosts = eventData.cohosts || [];
 const hostId = eventData.createdBy;
 
+// Extract user IDs from invitation objects
+const invitedUserIds = invitations.map(inv => inv.userId);
+
 const availableUsers = allUsers.filter(
   (user) =>
     user.id !== hostId &&
-    !invited.includes(user.id) &&
+    !invitedUserIds.includes(user.id) &&
     !subscribed.includes(user.id) &&
     !cohosts.includes(user.id)
 );
+```
+
+### Checking Invitation Type
+
+```javascript
+// Check if user has pending invitation and what type
+const userInvitation = event.invitations?.find(inv => inv.userId === currentUserId);
+if (userInvitation) {
+  console.log(`User has pending ${userInvitation.type} invitation`);
+  // userInvitation.type === 'guest' or 'cohost'
+}
+
+// Get all user's pending invitations by type
+const userDoc = await getDoc(doc(db, 'users', userId));
+const pendingInvites = userDoc.data()?.userdata?.pendingInvitations || [];
+
+const guestInvites = pendingInvites.filter(inv => inv.type === 'guest');
+const cohostInvites = pendingInvites.filter(inv => inv.type === 'cohost');
 ```
 
 ### Why Dual Storage Architecture

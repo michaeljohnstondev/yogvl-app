@@ -17,7 +17,6 @@ const eventCommentNotifications = require('./notifications/eventCommentNotificat
 const eventChangeNotifications = require('./notifications/eventChangeNotifications');
 const eventInvitationNotifications = require('./notifications/eventInvitationNotifications');
 const eventInterestNotifications = require('./notifications/eventInterestNotifications');
-const cohostInvitationNotifications = require('./notifications/cohostInvitationNotifications');
 const cohostJoinedNotifications = require('./notifications/cohostJoinedNotifications');
 const adminNotifications = require('./notifications/adminNotifications');
 const adminPushNotifications = require('./notifications/adminPushNotifications');
@@ -52,14 +51,11 @@ module.exports = {
   onEventUpdated: eventChangeNotifications.onEventUpdated,
   onEventDeleted: eventChangeNotifications.onEventDeleted,
 
-  // Event invitation notifications (new architecture)
+  // Unified invitation notifications (guest + cohost) - event-triggered
   onEventInvitation: eventInvitationNotifications.onEventInvitation,
 
   // Event interest-based notifications (new architecture)
   onEventCreated: eventInterestNotifications.onEventCreated,
-
-  // Cohost invitation notifications (new architecture)
-  onCohostInvitation: cohostInvitationNotifications.onCohostInvitation,
 
   // Cohost joined notifications (new architecture)
   onCohostJoined: cohostJoinedNotifications.onCohostJoined,

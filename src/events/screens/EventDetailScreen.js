@@ -7,6 +7,7 @@ import {
   ScrollView,
   Alert,
   BackHandler,
+  Share,
 } from 'react-native';
 import { VibeButton } from '../../components/ui';
 import { MessageBoardButton } from '../../components/ui/buttons';
@@ -160,6 +161,29 @@ const EventDetailScreen = memo(function EventDetailScreen({
   const handlePrivacyIconPress = useCallback(() => {
     setShowPrivacyFlash(true);
   }, []);
+
+  const handleShareEvent = useCallback(async () => {
+    if (!event) return;
+
+    try {
+      // Create deep link to the event using the app's configured scheme
+      const deepLink = `bvs-app://event/${eventId}`;
+
+      const message = `Check out this event: ${event.title}\n\n${event.what || 'Join us for an awesome event!'}\n\nOpen in app: ${deepLink}`;
+
+      const result = await Share.share({
+        message: message,
+        url: deepLink, // iOS will use this
+      });
+
+      if (result.action === Share.sharedAction) {
+        console.log('[EventDetailScreen] Event shared successfully');
+      }
+    } catch (error) {
+      console.error('[EventDetailScreen] Error sharing event:', error);
+      vibeAlert.error('Error', 'Failed to share event');
+    }
+  }, [event, eventId, vibeAlert]);
 
   const handleNotificationSettings = useCallback(() => {
     startTransition(() => {
@@ -737,6 +761,7 @@ const EventDetailScreen = memo(function EventDetailScreen({
         currentUserId={currentUserId}
         pendingCohostInvitation={pendingCohostInvitation}
         onAcceptCohostInvitation={handleAcceptCohostInvitation}
+        onShareEvent={handleShareEvent}
       />
 
       {/* Subscription Modal */}

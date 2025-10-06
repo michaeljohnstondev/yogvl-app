@@ -13,7 +13,8 @@ const theme = {
     //vibeColors
     vibeBlue: '#00C6FF',
     vibeGreen: '#00FF41',
-    vibeOrange: '#fd7e14',
+    vibeForest: '#228B22', // Forest green - for positive actions
+    vibeOrange: '#FFCC66',
     vibePurple: '#6B00CC',
     vibeYellow: '#FFFF00',
     vibePink: '#FF10F0',

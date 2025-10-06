@@ -16,6 +16,7 @@ import {
   BackHandler,
 } from 'react-native';
 import { VibeButton, CloseButton } from '../../../components/ui';
+import ScreenHeader from '../../../components/ui/layout/ScreenHeader';
 import theme from '../../../theme/themes';
 
 const GuestListViewer = forwardRef(
@@ -24,6 +25,7 @@ const GuestListViewer = forwardRef(
       hosts = [],
       selectedTextContacts = [],
       invitedGuests = [],
+      pendingInvitations = [], // NEW: Array of pending invitation objects {userId, type}
       currentUser = null,
       onInvitePress,
       onAddHostPress, // New prop for adding hosts
@@ -37,7 +39,6 @@ const GuestListViewer = forwardRef(
     ref
   ) => {
     const [showModal, setShowModal] = useState(false);
-    const [activeTab, setActiveTab] = useState('hosts'); // 'hosts' or 'guests'
 
     // Expose methods to parent component
     useImperativeHandle(ref, () => ({
@@ -54,6 +55,15 @@ const GuestListViewer = forwardRef(
         setShowModal(false);
       },
     }));
+
+    // Debug logging
+    console.log('[GuestListViewer] Props received:', {
+      hostsCount: hosts?.length || 0,
+      invitedGuestsCount: invitedGuests?.length || 0,
+      selectedGuestCount,
+      selectedCohostCount,
+      currentUser: currentUser?.id || 'none'
+    });
 
     // Combine all hosts including the creator
     const allHosts = [
@@ -119,9 +129,36 @@ const GuestListViewer = forwardRef(
                 : null) ||
               'Unknown Contact',
             phone: contact.phone,
-            status: 'invited_via_text',
+            role: 'guest',
             isTextInvite: true,
           }));
+
+    // Mark all current attendees as accepted (subscribers)
+    const acceptedAttendees = [...allHosts, ...guests].map(attendee => ({
+      ...attendee,
+      status: 'accepted'
+    }));
+
+    // Add pending invitations (TODO: parent component should pass user data for pending invites)
+    // For now, this is just a placeholder for future enhancement
+    const pendingAttendees = pendingInvitations.map((inv, index) => ({
+      id: inv.userId || `pending_${index}`,
+      name: 'Pending User', // TODO: fetch user data
+      role: inv.type === 'cohost' ? 'cohost' : 'guest',
+      status: 'pending'
+    }));
+
+    // Combine all attendees and sort by: status (accepted first), then role
+    const allAttendees = [...acceptedAttendees, ...pendingAttendees].sort((a, b) => {
+      // First, sort by status: accepted (0) before pending (1)
+      const statusOrder = { accepted: 0, pending: 1 };
+      const statusDiff = statusOrder[a.status] - statusOrder[b.status];
+      if (statusDiff !== 0) return statusDiff;
+
+      // Within same status, sort by role: creator -> cohost -> guest
+      const roleOrder = { creator: 0, cohost: 1, guest: 2 };
+      return roleOrder[a.role] - roleOrder[b.role];
+    });
 
     // Use override counts when available (for editing mode), otherwise calculate from arrays
     const actualHostCount =
@@ -138,84 +175,61 @@ const GuestListViewer = forwardRef(
         ? 'No people added yet'
         : `${totalPeople} ${totalPeople === 1 ? 'total' : 'total'}`;
 
-    // Render host item
-    const renderHostItem = ({ item }) => (
-      <View style={styles.personItem}>
-        <View style={styles.personInfo}>
-          <Text style={[styles.personName, item.isYou && styles.youText]}>
-            {item.name}
-            {item.isYou ? ' (You)' : ''}
-          </Text>
-          <Text
-            style={[
-              styles.roleText,
-              item.role === 'creator' ? styles.creatorRole : styles.cohostRole,
-            ]}
-          >
-            {item.role === 'creator' ? 'Event Creator' : 'Co-Host'}
-          </Text>
-        </View>
-        <View style={styles.statusContainer}>
-          <View
-            style={[
-              styles.statusDot,
-              item.role === 'creator' ? styles.creatorDot : styles.cohostDot,
-            ]}
-          />
-          <Text
-            style={[
-              styles.statusText,
-              item.role === 'creator'
-                ? styles.creatorStatusText
-                : styles.cohostStatusText,
-            ]}
-          >
-            {item.role === 'creator' ? 'Host' : 'Co-Host'}
-          </Text>
-        </View>
-      </View>
-    );
+    // Unified render for all attendees (hosts and guests)
+    const renderAttendeeItem = ({ item, index }) => {
+      const isHost = item.role === 'creator' || item.role === 'cohost';
+      const isCreator = item.role === 'creator';
+      const isPending = item.status === 'pending';
 
-    // Render guest item
-    const renderGuestItem = ({ item }) => (
-      <View style={styles.personItem}>
-        <View style={styles.personInfo}>
-          <Text style={styles.personName}>{item.name}</Text>
-          <Text style={styles.inviteTypeText}>
-            {item.isTextInvite
-              ? 'Will receive SMS invitation'
-              : 'Invited via app'}
-          </Text>
-        </View>
-        <View style={styles.statusContainer}>
-          <View style={[styles.statusDot, styles.guestDot]} />
-          <Text style={[styles.statusText, styles.guestStatusText]}>Guest</Text>
-        </View>
-      </View>
-    );
-
-    // Render tab button
-    const renderTabButton = (tab, label, count) => {
-      const isActive = activeTab === tab;
       return (
-        <TouchableOpacity
-          style={[
-            styles.tabButton,
-            isActive && styles.activeTab,
-            isActive && styles.activeBlueTab,
-          ]}
-          onPress={() => setActiveTab(tab)}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              isActive && styles.activeTabText,
-              isActive && { color: theme.colors.vibeBlue },
-            ]}
-          >
-            {label} ({count})
-          </Text>
-        </TouchableOpacity>
+        <View style={[styles.personItem, index === 0 && styles.firstItem]}>
+          <View style={styles.personInfo}>
+            <Text style={[styles.personName, item.isYou && styles.youText]}>
+              {item.name}
+              {item.isYou ? ' (You)' : ''}
+              {isPending ? ' (Pending)' : ''}
+            </Text>
+            <Text
+              style={[
+                isHost ? styles.roleText : styles.inviteTypeText,
+                isCreator && styles.creatorRole,
+                item.role === 'cohost' && styles.cohostRole,
+              ]}
+            >
+              {isCreator && 'Event Creator'}
+              {item.role === 'cohost' && (isPending ? 'Invited as Co-Host' : 'Co-Host')}
+              {item.role === 'guest' && (
+                isPending
+                  ? 'Invitation Pending'
+                  : (item.isTextInvite
+                    ? 'Will receive SMS invitation'
+                    : 'Invited via app')
+              )}
+            </Text>
+          </View>
+          <View style={styles.statusContainer}>
+            <View
+              style={[
+                styles.statusDot,
+                isCreator && styles.creatorDot,
+                item.role === 'cohost' && styles.cohostDot,
+                item.role === 'guest' && styles.guestDot,
+                isPending && styles.pendingDot,
+              ]}
+            />
+            <Text
+              style={[
+                styles.statusText,
+                isCreator && styles.creatorStatusText,
+                item.role === 'cohost' && styles.cohostStatusText,
+                item.role === 'guest' && styles.guestStatusText,
+                isPending && styles.pendingStatusText,
+              ]}
+            >
+              {isPending ? 'Pending' : (isCreator ? 'Host' : item.role === 'cohost' ? 'Co-Host' : 'Guest')}
+            </Text>
+          </View>
+        </View>
       );
     };
 
@@ -264,61 +278,33 @@ const GuestListViewer = forwardRef(
         >
           <View style={styles.modalContainer}>
             {/* Header */}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Guest List</Text>
-              <CloseButton onPress={() => setShowModal(false)} />
+            <View style={styles.headerWrapper}>
+              <ScreenHeader
+                title="Guest List"
+                showCloseButton={true}
+                onClose={() => setShowModal(false)}
+              />
+              <Text style={styles.countText}>{totalPeople}</Text>
             </View>
 
-            {/* Tabs */}
-            <View style={styles.tabContainer}>
-              {renderTabButton('hosts', 'Hosts', actualHostCount)}
-              {renderTabButton('guests', 'Guests', actualGuestCount)}
-            </View>
-
-            {/* Content */}
+            {/* Unified Attendees List */}
             <View style={styles.contentContainer}>
-              {activeTab === 'hosts' ? (
-                <>
-                  {allHosts.length > 0 ? (
-                    <FlatList
-                      data={allHosts}
-                      renderItem={renderHostItem}
-                      keyExtractor={(item) => item.id}
-                      style={styles.list}
-                      showsVerticalScrollIndicator={false}
-                    />
-                  ) : (
-                    <View style={styles.emptyState}>
-                      <Text style={styles.emptyIcon}>👑</Text>
-                      <Text style={styles.emptyText}>No co-hosts added</Text>
-                      <Text style={styles.emptySubtext}>
-                        Add co-hosts to help manage your event
-                      </Text>
-                    </View>
-                  )}
-                </>
+              {allAttendees.length > 0 ? (
+                <FlatList
+                  data={allAttendees}
+                  renderItem={renderAttendeeItem}
+                  keyExtractor={(item) => item.id}
+                  style={styles.list}
+                  showsVerticalScrollIndicator={false}
+                />
               ) : (
-                <>
-                  {guests.length > 0 ? (
-                    <FlatList
-                      data={guests}
-                      renderItem={renderGuestItem}
-                      keyExtractor={(item) => item.id}
-                      style={styles.list}
-                      showsVerticalScrollIndicator={false}
-                    />
-                  ) : (
-                    <View style={styles.emptyState}>
-                      <Text style={styles.emptyIcon}>👥</Text>
-                      <Text style={styles.emptyText}>
-                        No guests invited yet
-                      </Text>
-                      <Text style={styles.emptySubtext}>
-                        Add guests using the invite section below
-                      </Text>
-                    </View>
-                  )}
-                </>
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyIcon}>👥</Text>
+                  <Text style={styles.emptyText}>No attendees yet</Text>
+                  <Text style={styles.emptySubtext}>
+                    Add co-hosts and guests using the buttons below
+                  </Text>
+                </View>
               )}
             </View>
 
@@ -420,6 +406,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
+  headerWrapper: {
+    position: 'relative',
+  },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -486,6 +475,18 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.vibeBlue,
     padding: 16,
     marginBottom: 8,
+  },
+  firstItem: {
+    marginTop: 16,
+  },
+  countText: {
+    position: 'absolute',
+    right: 20,
+    top: 25,
+    color: theme.colors.vibeBlue,
+    fontSize: 20,
+    fontFamily: theme.fonts.comicBold,
+    zIndex: 100,
   },
   personInfo: {
     flex: 1,
@@ -557,6 +558,12 @@ const styles = StyleSheet.create({
   },
   guestStatusText: {
     color: theme.colors.gray,
+  },
+  pendingDot: {
+    backgroundColor: theme.colors.vibeOrange,
+  },
+  pendingStatusText: {
+    color: theme.colors.vibeOrange,
   },
 
   // Empty states

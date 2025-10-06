@@ -568,48 +568,9 @@ export default function HostNotificationSettingsForm({
           <View style={[styles.section, sectionStyle, styles.lastSection]}>
             <Text style={styles.sectionTitle}>POST-EVENT</Text>
             <View style={styles.settingsGroup}>
-              <View style={styles.attendanceItem}>
-                <View style={styles.attendanceContent}>
-                  <Text style={styles.attendanceTitle}>
-                    Attendance Reminders
-                  </Text>
-                  <Text style={styles.attendanceDescription}>
-                    Tap to change when to receive reminders 1 hour after events end
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.attendanceToggle}
-                  onPress={() => {
-                    const currentValue = settings?.attendanceReminders ?? 'none';
-                    const options = ['none', 'strict', 'both'];
-                    const currentIndex = options.indexOf(currentValue);
-                    const nextIndex = (currentIndex + 1) % options.length;
-                    const nextValue = options[nextIndex];
-
-                    onUpdateSettings({
-                      ...settings,
-                      attendanceReminders: nextValue
-                    });
-                  }}
-                >
-                  <Text style={styles.attendanceToggleText}>
-                    {(() => {
-                      const value = settings?.attendanceReminders ?? 'none';
-                      switch (value) {
-                        case 'none': return 'Not at all';
-                        case 'strict': return 'Strict only';
-                        case 'both': return 'Both types';
-                        default: return 'Not at all';
-                      }
-                    })()}
-                  </Text>
-                  <Text style={styles.attendanceToggleIcon}>▼</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={styles.settingBorder} />
               <SettingItem
                 title="Event Recap"
-                description="Send a summary notification after the event ends"
+                description="Send a notification to manage attendance"
                 value={settings?.eventRecap ?? false}
                 onToggle={() => toggleSetting('eventRecap')}
                 isLast
@@ -635,9 +596,9 @@ const styles = StyleSheet.create({
     marginBottom: 25, // Extra margin at bottom for last section
   },
   sectionTitle: {
-    color: theme.colors.vibeGreen,
+    color: theme.colors.vibeBlue,
     fontSize: 12,
-    fontWeight: 'bold',
+    fontFamily: theme.fonts.comicBold,
     marginBottom: 10,
     letterSpacing: 1,
   },

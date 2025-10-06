@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { doc, updateDoc, getDoc } from '../lib/firebase';
 import { db } from '../auth/services/firebase';
-import { VibeButton, CloseButton } from '../components/ui';
+import { VibeButton } from '../components/ui';
+import ScreenHeader from '../components/ui/layout/ScreenHeader';
 import { useAuth } from '../auth/AuthContext';
 import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
 import { blockingService } from '../services/blockingService';
@@ -189,32 +190,6 @@ function PrivacySettings({ navigation }) {
     }
   };
 
-  const resetToDefaults = () => {
-    Alert.alert(
-      'Reset Privacy Settings',
-      'Are you sure you want to reset all privacy settings to their defaults? This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reset',
-          style: 'destructive',
-          onPress: () => {
-            setSettings({
-              emailVisibility: VISIBILITY_OPTIONS.FRIENDS,
-              phoneVisibility: VISIBILITY_OPTIONS.FRIENDS,
-              locationVisibility: VISIBILITY_OPTIONS.ALWAYS,
-              requireFollowForEvents: false,
-              dataCollectionConsent: true,
-              shareLocation: false,
-              personalizedAds: true,
-            });
-            setHasChanges(true);
-          },
-        },
-      ]
-    );
-  };
-
   // Simple toggle setting component
   const SettingItem = ({
     title,
@@ -233,7 +208,7 @@ function PrivacySettings({ navigation }) {
         onValueChange={onToggle}
         trackColor={{
           false: theme.colors.darkGray,
-          true: theme.colors.vibeBlue,
+          true: theme.colors.vibeGreen,
         }}
         thumbColor={value ? theme.colors.white : theme.colors.gray}
       />
@@ -278,18 +253,13 @@ function PrivacySettings({ navigation }) {
   );
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <View style={styles.headerContent}>
-            <Text style={styles.headerTitle}>Privacy Settings</Text>
-            <Text style={styles.headerSubtitle}>
-              Control who can see your information and how your data is used
-            </Text>
-          </View>
-          <CloseButton onPress={() => navigation.goBack()} />
-        </View>
-      </View>
+    <View style={styles.container}>
+      <ScreenHeader
+        title="Privacy Settings"
+        onClose={() => navigation.goBack()}
+      />
+
+      <ScrollView showsVerticalScrollIndicator={false}>
 
       {/* Contact Information Section */}
       <View style={styles.section}>
@@ -415,35 +385,9 @@ function PrivacySettings({ navigation }) {
             (!hasChanges || saving) && styles.disabledButton,
           ]}
         />
-
-        <TouchableOpacity onPress={resetToDefaults} style={styles.resetButton}>
-          <Text style={styles.resetButtonText}>Reset to Defaults</Text>
-        </TouchableOpacity>
       </View>
-
-      {/* Help Text */}
-      <View style={styles.helpSection}>
-        <Text style={styles.helpTitle}>Privacy Levels Explained</Text>
-        <View style={styles.helpItem}>
-          <Text style={styles.helpLabel}>• Never:</Text>
-          <Text style={styles.helpText}>
-            Information is never visible to anyone
-          </Text>
-        </View>
-        <View style={styles.helpItem}>
-          <Text style={styles.helpLabel}>• Mutual Friends:</Text>
-          <Text style={styles.helpText}>
-            Only people you both follow can see this
-          </Text>
-        </View>
-        <View style={styles.helpItem}>
-          <Text style={styles.helpLabel}>• Everyone:</Text>
-          <Text style={styles.helpText}>
-            All app users can see this information
-          </Text>
-        </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -452,33 +396,6 @@ export default PrivacySettings;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.darkGray,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-  },
-  headerContent: {
-    flex: 1,
-    marginRight: 15,
-  },
-  headerTitle: {
-    color: theme.colors.textPrimary,
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  headerSubtitle: {
-    color: theme.colors.textSecondary,
-    fontSize: 14,
-    lineHeight: 20,
   },
   section: {
     marginTop: 30,
@@ -492,17 +409,17 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   settingsGroup: {
-    backgroundColor: theme.colors.inputBackground,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     borderRadius: theme.sizes.borderRadius,
-    borderWidth: 1,
-    borderColor: theme.colors.inputBorder,
+    borderWidth: 3,
+    borderColor: theme.colors.vibeBlue,
   },
   settingItem: {
     padding: 20,
   },
   settingBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.inputBorder,
+    borderBottomWidth: 2,
+    borderBottomColor: theme.colors.vibeBlue,
   },
   settingContent: {
     flex: 1,
@@ -560,16 +477,6 @@ const styles = StyleSheet.create({
   disabledButton: {
     opacity: 0.6,
   },
-  resetButton: {
-    padding: 15,
-    alignItems: 'center',
-  },
-  resetButtonText: {
-    color: theme.colors.textSecondary,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-
   // Blocked Users Section
   blockedUserItem: {
     padding: 15,
@@ -605,35 +512,5 @@ const styles = StyleSheet.create({
     color: theme.colors.white,
     fontSize: 12,
     fontWeight: '600',
-  },
-
-  // Help Section
-  helpSection: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-    marginTop: 20,
-  },
-  helpTitle: {
-    color: theme.colors.textPrimary,
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 15,
-  },
-  helpItem: {
-    flexDirection: 'row',
-    marginBottom: 8,
-    alignItems: 'flex-start',
-  },
-  helpLabel: {
-    color: theme.colors.vibeBlue,
-    fontSize: 14,
-    fontWeight: '600',
-    width: 100,
-  },
-  helpText: {
-    color: theme.colors.textSecondary,
-    fontSize: 14,
-    lineHeight: 20,
-    flex: 1,
   },
 });

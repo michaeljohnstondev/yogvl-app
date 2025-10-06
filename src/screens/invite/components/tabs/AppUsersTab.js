@@ -50,6 +50,7 @@ const AppUsersTab = ({
   eventSubscribers = [],
   loadingSubscribers = false,
   hasEventId = false,
+  currentUserId = null,
 }) => {
   const filteredAppUsers = filterAndSortAppUsers(
     appUsers,
@@ -130,8 +131,12 @@ const AppUsersTab = ({
           const isAlreadyParticipating =
             item.ineligibilityReason === 'already_participating';
 
-          // Skip rendering this user if they're already subscribed, invited, or participating
+          // Skip rendering this user if they're the current user (can't invite yourself)
+          const isCurrentUser = item.id === currentUserId;
+
+          // Skip rendering this user if they're already subscribed, invited, participating, or it's yourself
           if (
+            isCurrentUser ||
             isAlreadySubscribed ||
             isAlreadyInvited ||
             isAlreadyParticipating

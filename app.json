@@ -11,7 +11,7 @@
       "newArchEnabled": false
     },
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#2D1050"
     },

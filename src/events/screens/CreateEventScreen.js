@@ -715,6 +715,10 @@ export default function CreateEventScreen({ navigation, route }) {
           selectedCohostContacts.length +
           selectedCohostPhoneContacts.length
         }
+        // Current cohosts for display (pre-creation selection display)
+        currentCohosts={selectedCohostUsers}
+        // Current attendees/guests for display
+        currentAttendees={selectedGuestUsers}
       />
 
       {/* Template Selection Modal */}

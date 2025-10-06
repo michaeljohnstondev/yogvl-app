@@ -25,6 +25,7 @@ const EventActionButtons = memo(function EventActionButtons({
   currentUserId, // Add currentUserId prop for validation
   pendingCohostInvitation,
   onAcceptCohostInvitation,
+  onShareEvent,
 }) {
   // Handle invite completion results
   const handleInviteResult = useCallback((selectedData) => {
@@ -194,15 +195,6 @@ const EventActionButtons = memo(function EventActionButtons({
               />
             )}
 
-            {/* Invite guests button for non-hosts (public events or private with guest invites allowed) */}
-            {(!event?.isPrivate ||
-              (event?.allowGuestInvites && isSubscribed)) && (
-              <VibeButton
-                label="INVITE GUESTS"
-                onPress={handleInviteGuests}
-              />
-            )}
-
             {/* Join/Leave event button */}
             <VibeButton
               label={isSubscribed ? 'LEAVE EVENT' : 'JOIN EVENT'}
@@ -212,6 +204,21 @@ const EventActionButtons = memo(function EventActionButtons({
               }
               variant={!isSubscribed ? 'green' : 'default'}
             />
+
+            {/* Invite guests button for non-hosts (public events or private with guest invites allowed) */}
+            {(!event?.isPrivate ||
+              (event?.allowGuestInvites && isSubscribed)) && (
+              <>
+                <VibeButton
+                  label="INVITE GUESTS"
+                  onPress={handleInviteGuests}
+                />
+                <VibeButton
+                  label="SHARE EVENT"
+                  onPress={onShareEvent}
+                />
+              </>
+            )}
           </>
         )}
 
@@ -231,6 +238,12 @@ const EventActionButtons = memo(function EventActionButtons({
             <VibeButton
               label="INVITE GUESTS"
               onPress={handleInviteGuests}
+            />
+
+            {/* Share Event */}
+            <VibeButton
+              label="SHARE EVENT"
+              onPress={onShareEvent}
             />
 
             {/* Edit Event */}

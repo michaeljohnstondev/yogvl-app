@@ -64,11 +64,15 @@ export default function InviteScreen() {
 
   // Helper function to handle invite completion
   const handleInviteComplete = useCallback((selectedData, options = {}) => {
+    console.log('[InviteScreen] handleInviteComplete called with:', { inviteType, selectedData, options });
+
     // Try to dispatch navigation event first (new approach)
     if (inviteType && navigation.getParent) {
       try {
         const parentNavigator = navigation.getParent();
+        console.log('[InviteScreen] Parent navigator:', parentNavigator ? 'found' : 'not found');
         if (parentNavigator) {
+          console.log('[InviteScreen] Emitting inviteComplete event with type:', inviteType);
           parentNavigator.emit({
             type: 'inviteComplete',
             data: {
@@ -79,14 +83,18 @@ export default function InviteScreen() {
               options
             }
           });
+          console.log('[InviteScreen] Event emitted successfully');
         }
       } catch (error) {
         console.log('[InviteScreen] Navigation event dispatch failed, falling back to onSave:', error);
       }
+    } else {
+      console.log('[InviteScreen] No inviteType or getParent not available');
     }
 
     // Fallback to onSave for backward compatibility
     if (onSave) {
+      console.log('[InviteScreen] Calling onSave callback');
       onSave(selectedData, options);
     }
   }, [inviteType, navigation, onSave]);
@@ -165,10 +173,33 @@ export default function InviteScreen() {
     }, [navigation, isExistingEvent, eventId, onSave])
   );
 
-  // Handle avatar/icon actions - in invite context, avatar taps should toggle selection
-  const handleAvatarAction = (user) => {
-    // In invitation context, avatar taps should behave the same as main selection
-    selectionHandlers.toggleUserSelection(user);
+  // Handle avatar/icon actions - toggle follow status
+  const handleAvatarAction = async (user) => {
+    try {
+      const { followUser, unfollowUser } = await import('../services/followService');
+
+      if (user.isFollowing) {
+        // Unfollow
+        await unfollowUser(currentUserId, user.id);
+        // Update local state to reflect change
+        contactManagement.updateUserStatus(user.id, {
+          isFollowing: false,
+          isMutualFollow: false,
+        });
+        vibeAlert.success('Unfollowed', `You unfollowed ${user.name}`);
+      } else {
+        // Follow
+        await followUser(currentUserId, user.id, userData);
+        // Update local state to reflect change
+        contactManagement.updateUserStatus(user.id, {
+          isFollowing: true,
+        });
+        vibeAlert.success('Following', `You are now following ${user.name}`);
+      }
+    } catch (error) {
+      console.error('[InviteScreen] Error toggling follow:', error);
+      vibeAlert.error('Error', 'Failed to update follow status');
+    }
   };
 
   // Save and return
@@ -343,11 +374,13 @@ export default function InviteScreen() {
         }}
       />
 
+      {/* REMOVED: Counter showing "X of Y hosts added" per user request
       {maxLimit && totalSelected > 0 && (
         <View style={styles.limitContainer}>
           <Text style={styles.limitText}>{limitText}</Text>
         </View>
       )}
+      */}
 
       <ScrollView
         style={styles.content}
@@ -399,6 +432,7 @@ export default function InviteScreen() {
               eventSubscribers={contactManagement.eventSubscribers}
               loadingSubscribers={contactManagement.loadingSubscribers}
               hasEventId={!!eventId}
+              currentUserId={currentUserId}
             />
           )}
 
@@ -432,7 +466,7 @@ export default function InviteScreen() {
           )}
         </View>
 
-        {/* Hide selected items list when QR tab is active */}
+        {/* HIDDEN: Selected items list removed per user request
         {state.activeTab !== TABS.QR && (
           <SelectedItemsList
             localSelectedUsers={state.localSelectedUsers}
@@ -445,6 +479,7 @@ export default function InviteScreen() {
             themeColor={themeColor}
           />
         )}
+        */}
       </ScrollView>
 
       {/* Hide invite button when QR tab is active - QR codes handle invitations */}

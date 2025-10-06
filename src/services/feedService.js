@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 import { getFollowing } from './followService';
+import { blockingService } from './blockingService';
 
 /**
  * Helper function to check if an event should be hidden due to past RSVP deadline
@@ -227,9 +228,14 @@ export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
       includeSubscribed = true,
     } = options;
 
-    // Get following list once and share it between queries for efficiency
-    const following = await getFollowing(currentUserId, 100);
+    // Get following list and blocked users once for efficiency
+    const [following, blockedUsersResult] = await Promise.all([
+      getFollowing(currentUserId, 100),
+      blockingService.getBlockedUsers(currentUserId)
+    ]);
+
     const followedUserIds = following.map((f) => f.targetUserId);
+    const blockedUserIds = blockedUsersResult.blockedUsers || [];
 
     // Execute feed queries in parallel for better performance
     const [followedEvents, suggestedEvents] = await Promise.all([
@@ -308,10 +314,19 @@ export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
       ...suggestedEvents,
     ];
     const seenEventIds = new Set();
+    const blockedUserIdsSet = new Set(blockedUserIds);
+
     const uniqueEvents = allEvents.filter((event) => {
+      // Filter out duplicate events
       if (seenEventIds.has(event.id)) {
         return false;
       }
+
+      // Filter out events from blocked users
+      if (blockedUserIdsSet.has(event.createdBy)) {
+        return false;
+      }
+
       seenEventIds.add(event.id);
       return true;
     });

@@ -9,6 +9,7 @@ import {
   arrayRemove,
 } from '../lib/firebase';
 import { db } from '../auth/services/firebase';
+import { blockingService } from './blockingService';
 
 /**
  * Get all app users from the same studio as current user
@@ -82,6 +83,10 @@ export const getStudioUsers = async (currentUserId, userStudio) => {
       });
     }
 
+    // Get blocked users list
+    const { blockedUsers } = await blockingService.getBlockedUsers(currentUserId);
+    const blockedUsersSet = new Set(blockedUsers);
+
     // Check follow relationships and favorites for each user
     try {
       const { checkIfFollowing } = await import('./followService');
@@ -106,13 +111,30 @@ export const getStudioUsers = async (currentUserId, userStudio) => {
       // Continue with default false values if follow check fails
     }
 
+    // Filter out users who you blocked or who blocked you
+    const filteredUsers = [];
+    for (const user of users) {
+      // Skip if you blocked this user
+      if (blockedUsersSet.has(user.id)) {
+        continue;
+      }
+
+      // Skip if this user blocked you
+      const isBlockedByUser = await blockingService.isBlockedBy(currentUserId, user.id);
+      if (isBlockedByUser) {
+        continue;
+      }
+
+      filteredUsers.push(user);
+    }
+
     // Sort by first name
-    users.sort((a, b) => a.firstName.localeCompare(b.firstName));
+    filteredUsers.sort((a, b) => a.firstName.localeCompare(b.firstName));
 
     console.log(
-      `[userService] Found ${users.length} studio users with follow status`
+      `[userService] Found ${filteredUsers.length} studio users (${users.length - filteredUsers.length} blocked)`
     );
-    return users;
+    return filteredUsers;
   } catch (error) {
     console.error('[userService] Error fetching studio users:', error);
     return [];
