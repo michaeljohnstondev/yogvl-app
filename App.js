@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { View, Image, ActivityIndicator, StyleSheet } from 'react-native';
+import * as SplashScreen from 'expo-splash-screen';
 import Navigation from './src/Navigation';
 import { VibeAlertProvider, VibeAppWrapper } from './src/components/ui/base';
 import { useEventEndNotifications } from './src/hooks/useEventEndNotifications';
@@ -9,11 +10,12 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import fcmService from './src/services/fcmServiceWrapper';
 import { initializeNotificationServices } from './src/services/notificationInit';
 import { useFonts, ComicNeue_400Regular, ComicNeue_700Bold } from '@expo-google-fonts/comic-neue';
-import * as SplashScreen from 'expo-splash-screen';
 import theme from './src/theme/themes';
 
-// Prevent splash screen from auto-hiding
-SplashScreen.preventAutoHideAsync();
+// Keep the native splash screen visible until we tell it to hide
+SplashScreen.preventAutoHideAsync().catch(() => {
+  // In case splash screen is already hidden, ignore the error
+});
 
 function AppWithNotifications() {
   // Initialize event end notification service
@@ -58,53 +60,37 @@ export default function App() {
     ComicNeue_700Bold,
   });
 
+  // Track if app is ready (fonts loaded)
+  const [appReady, setAppReady] = useState(false);
+
   useEffect(() => {
     if (fontsLoaded) {
-      SplashScreen.hideAsync();
+      setAppReady(true);
     }
   }, [fontsLoaded]);
 
-  if (!fontsLoaded) {
-    // Show splash screen with loading indicator at bottom
-    return (
-      <View style={styles.splashContainer}>
-        <Image
-          source={require('./assets/splash.png')}
-          style={styles.splashImage}
-          resizeMode="contain"
-        />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.vibeBlue} />
-        </View>
-      </View>
-    );
+  // Callback to hide splash screen when Navigation is ready
+  const onNavigationReady = useCallback(() => {
+    if (appReady) {
+      SplashScreen.hideAsync().catch(() => {
+        // Ignore if already hidden
+      });
+    }
+  }, [appReady]);
+
+  // Don't render anything until fonts are loaded
+  // This keeps the native splash visible
+  if (!appReady) {
+    return null;
   }
 
   return (
     <SafeAreaProvider>
       <VibeAppWrapper>
         <VibeAlertProvider>
-          <AppWithNotifications />
+          <AppWithNotifications onReady={onNavigationReady} />
         </VibeAlertProvider>
       </VibeAppWrapper>
     </SafeAreaProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  splashContainer: {
-    flex: 1,
-    backgroundColor: '#2D1050', // Match splash background from app.json
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  splashImage: {
-    width: '100%',
-    height: '100%',
-  },
-  loadingContainer: {
-    position: 'absolute',
-    bottom: 100,
-    alignSelf: 'center',
-  },
-});

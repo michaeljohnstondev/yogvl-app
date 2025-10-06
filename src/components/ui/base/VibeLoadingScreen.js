@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, ImageBackground, StyleSheet, StatusBar } from 'react-native';
 import theme from '../../../theme/themes';
 
 export default function VibeLoadingScreen({
@@ -10,17 +10,20 @@ export default function VibeLoadingScreen({
 }) {
   return (
     <View style={styles.container}>
-      {showBranding && (
-        <View style={styles.brandingContainer}>
-          <Text style={styles.brandingText}>BIG</Text>
-          <Text style={styles.brandingText}>VIBE</Text>
-          <Text style={styles.brandingText}>STUDIOS</Text>
-        </View>
-      )}
+      <StatusBar hidden={true} />
 
+      {/* Image background with absolute positioning to prevent layout shift */}
+      <ImageBackground
+        source={require('../../../../assets/splash.png')}
+        style={styles.splashBackground}
+        resizeMode="cover"
+        fadeDuration={0}
+      />
+
+      {/* Loading indicator at bottom */}
       <View style={styles.loadingContainer}>
         <ActivityIndicator size={size} color={color} />
-        <Text style={styles.loadingText}>{loadingText}</Text>
+        {loadingText && <Text style={styles.loadingText}>{loadingText}</Text>}
       </View>
     </View>
   );
@@ -29,23 +32,22 @@ export default function VibeLoadingScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
+    backgroundColor: '#2D1050', // Match splash background (shows while image loads)
   },
-  brandingContainer: {
+  splashBackground: {
     position: 'absolute',
-    top: '10%',
-    alignItems: 'center',
-  },
-  brandingText: {
-    color: theme.colors.white,
-    fontSize: 42,
-    fontFamily: theme.fonts.comicBold,
-    textAlign: 'center',
-    lineHeight: 46,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
   },
   loadingContainer: {
+    position: 'absolute',
+    bottom: 100,
+    left: 0,
+    right: 0,
     alignItems: 'center',
   },
   loadingText: {

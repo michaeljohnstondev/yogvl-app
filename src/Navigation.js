@@ -56,11 +56,12 @@ const auth = firebaseAuth;
 
 const db = getFirestore(app);
 
-export default function Navigation() {
+export default function Navigation({ onReady }) {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
   const [userDataLoading, setUserDataLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("Initializing app...");
 
   // Navigation reference for deep linking
   const navigationRef = React.useRef();
@@ -377,13 +378,28 @@ export default function Navigation() {
     handlePendingDeepLink();
   }, [user, userData, userDataLoading]);
 
-  if (loading) {
-    return (
-      <VibeLoadingScreen
-        loadingText="Initializing app..."
-        showBranding={true}
-      />
-    );
+  // Update loading message based on current state
+  useEffect(() => {
+    if (loading) {
+      setLoadingMessage("Initializing app...");
+    } else if (userDataLoading) {
+      setLoadingMessage("Loading your profile...");
+    }
+  }, [loading, userDataLoading]);
+
+  // Call onReady when loading is complete
+  useEffect(() => {
+    if (!loading && !userDataLoading && onReady) {
+      // Small delay to ensure everything is rendered
+      setTimeout(() => {
+        onReady();
+      }, 100);
+    }
+  }, [loading, userDataLoading, onReady]);
+
+  // Return null during loading - native splash will remain visible
+  if (loading || userDataLoading) {
+    return null;
   }
 
   // Get user completion status based on actual data
@@ -420,11 +436,6 @@ export default function Navigation() {
             >
               <Stack.Screen name="Landing" component={LandingScreen} />
             </Stack.Navigator>
-          ) : userDataLoading ? (
-            <VibeLoadingScreen
-              loadingText="Loading your profile..."
-              showBranding={false}
-            />
           ) : userData === null || !userStatus.hasContactInfo ? (
             <Stack.Navigator
               initialRouteName="ContactInfo"

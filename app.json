@@ -5,14 +5,14 @@
     "version": "1.0.0",
     "scheme": "bvs-app",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/logo.png",
     "userInterfaceStyle": "dark",
     "experiments": {
       "newArchEnabled": false
     },
     "splash": {
       "image": "./assets/splash.png",
-      "resizeMode": "contain",
+      "resizeMode": "cover",
       "backgroundColor": "#2D1050"
     },
     "assetBundlePatterns": [
@@ -31,7 +31,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#2D1050"
       },
       "backgroundColor": "#2D1050",
