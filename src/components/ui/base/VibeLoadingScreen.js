@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ActivityIndicator, ImageBackground, StyleSheet, StatusBar } from 'react-native';
+import { View, Text, ActivityIndicator, ImageBackground, StyleSheet } from 'react-native';
 import theme from '../../../theme/themes';
 
 export default function VibeLoadingScreen({
@@ -10,8 +10,6 @@ export default function VibeLoadingScreen({
 }) {
   return (
     <View style={styles.container}>
-      <StatusBar hidden={true} />
-
       {/* Image background with absolute positioning to prevent layout shift */}
       <ImageBackground
         source={require('../../../../assets/splash.png')}
@@ -32,7 +30,7 @@ export default function VibeLoadingScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#2D1050', // Match splash background (shows while image loads)
+    backgroundColor: '#000814', // Match splash background for seamless transition
   },
   splashBackground: {
     position: 'absolute',

@@ -13,7 +13,7 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "cover",
-      "backgroundColor": "#2D1050"
+      "backgroundColor": "#000814"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -32,9 +32,9 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/logo.png",
-        "backgroundColor": "#2D1050"
+        "backgroundColor": "#000814"
       },
-      "backgroundColor": "#2D1050",
+      "backgroundColor": "#000814",
       "statusBar": {
         "backgroundColor": "#2D1050",
         "barStyle": "light-content"
