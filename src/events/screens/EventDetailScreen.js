@@ -93,14 +93,22 @@ const EventDetailScreen = memo(function EventDetailScreen({
   const { eventStatus, statusColor, isEventPast, isFullEvent } =
     useEventStatus(event);
 
-  // Filter out host and current user from attendees list for modal display
+  // Filter attendees list for modal display
+  // Hosts and cohosts see ALL attendees, regular guests only see friends
   const filteredAttendees = useMemo(() => {
     if (!event?.createdBy) return friendAttendees;
+
+    const isHost = event.createdBy === currentUserId;
+    const isCohost = event.cohosts?.includes(currentUserId);
+    const isHostOrCohost = isHost || isCohost;
+
+    // Hosts and cohosts see all attendees (except themselves and the host)
+    // Regular guests only see their friends
     return friendAttendees.filter(
       (attendee) =>
         attendee.id !== event.createdBy && attendee.id !== currentUserId
     );
-  }, [friendAttendees, event?.createdBy, currentUserId]);
+  }, [friendAttendees, event?.createdBy, event?.cohosts, currentUserId]);
 
   // Auto-navigate to message board when opened from notification
   useEffect(() => {
@@ -166,14 +174,47 @@ const EventDetailScreen = memo(function EventDetailScreen({
     if (!event) return;
 
     try {
-      // Create deep link to the event using the app's configured scheme
-      const deepLink = `bvs-app://event/${eventId}`;
+      // Format date and time
+      const eventDate = event.eventTimestamp?.toDate
+        ? event.eventTimestamp.toDate()
+        : new Date(event.eventTimestamp);
 
-      const message = `Check out this event: ${event.title}\n\n${event.what || 'Join us for an awesome event!'}\n\nOpen in app: ${deepLink}`;
+      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+      const dateFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone,
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+
+      const timeFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone,
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+
+      const formattedDate = dateFormatter.format(eventDate);
+      const formattedTime = timeFormatter.format(eventDate);
+
+      // Build share message with event details
+      let shareMessage = `🎉 ${event.title}\n\n`;
+      shareMessage += `📅 ${formattedDate}\n`;
+      shareMessage += `🕐 ${formattedTime}\n`;
+      shareMessage += `📍 ${event.location || event.address || 'Location TBA'}\n`;
+
+      // Add description if available
+      if (event.description) {
+        const truncatedDesc = textUtils.truncateText(event.description, 150);
+        shareMessage += `\n${truncatedDesc}\n`;
+      }
+
+      shareMessage += `\n📲 Download the BVS app to find other local events!\n`;
+      shareMessage += `https://bigvibestudios.com/app`;
 
       const result = await Share.share({
-        message: message,
-        url: deepLink, // iOS will use this
+        message: shareMessage,
       });
 
       if (result.action === Share.sharedAction) {
@@ -275,7 +316,7 @@ const EventDetailScreen = memo(function EventDetailScreen({
       eventReminders: userNotificationDefaults.eventReminders ?? true,
       hostComments: userNotificationDefaults.hostComments ?? true,
       newComments: userNotificationDefaults.newComments ?? false,
-      reminderTemplates: userNotificationDefaults.reminderTemplates || [],
+      reminderTemplates: userNotificationDefaults.reminderTemplates || {}, // Object format, not array
     };
 
     await handleSubscribeWithSettings(defaultSettings);
@@ -325,12 +366,18 @@ const EventDetailScreen = memo(function EventDetailScreen({
           setShowSubscriptionModal(false);
         });
 
+        // Check if guest can invite/share based on event rules
+        // Public events: guests can always invite/share
+        // Private events: only if allowGuestInvites is true
+        const canGuestInvite = !event.isPrivate || event.allowGuestInvites;
+
         vibeAlert.joinedEvent(
           'Joined Event!',
           'You have successfully joined this event!',
           () => {}, // View Event - already on event detail screen, do nothing
           () => setShowSubscriptionModal(true), // Customize Alerts
-          () => navigation.navigate('Invite', { eventId, eventTitle: event.title }), // Invite Friends
+          canGuestInvite ? () => navigation.navigate('Invite', { eventId, eventTitle: event.title }) : null, // Invite Friends - only if allowed
+          canGuestInvite ? handleShareEvent : null, // Share Event - only if allowed (same as invite)
           () => {
             // Go Home and trigger refresh
             navigation.reset({
@@ -338,7 +385,7 @@ const EventDetailScreen = memo(function EventDetailScreen({
               routes: [{ name: 'Home', params: { refresh: Date.now() } }]
             });
           },
-          () => {} // Cancel - do nothing
+          () => performUnsubscribe() // Cancel - unsubscribe from event
         );
       }
     } catch (error) {
@@ -383,6 +430,9 @@ const EventDetailScreen = memo(function EventDetailScreen({
   const performUnsubscribe = useCallback(async () => {
     if (!event || !currentUserId) return;
 
+    // Show "Leaving..." banner
+    vibeAlert.banner('Leaving...', '', 'info', null, false);
+
     try {
       const result = await eventService.unsubscribeFromEvent(
         currentUserId,
@@ -400,12 +450,14 @@ const EventDetailScreen = memo(function EventDetailScreen({
         setIsSubscribed(false);
       });
 
-      vibeAlert.success('Left Event', 'You have left this event.');
+      // Hide the banner once unsubscribe is complete
+      vibeAlert.hideBanner();
     } catch (error) {
       console.error(
         '[EventDetailScreen] Error unsubscribing from event:',
         error
       );
+      vibeAlert.hideBanner();
       vibeAlert.error('Error', 'Failed to leave event. Please try again.');
     } finally {
       setIsLoading(false);
@@ -501,43 +553,20 @@ const EventDetailScreen = memo(function EventDetailScreen({
       );
 
       if (result.success) {
-        // Show success message
-        vibeAlert.success('Success', "You're now a co-host for this event! ⭐");
-
-        // Ask if they want to manage notifications for the event
+        // Show success message with navigation options
         vibeAlert.confirm(
-          'Notification Settings',
-          `You're now a co-host for "${result.newCohost?.eventTitle || event?.title || 'this event'}"!\n\nWould you like to manage your notification preferences for this event?`,
-          [
-            {
-              text: 'Not Now',
-              style: 'cancel'
-            },
-            {
-              text: 'Manage Notifications',
-              onPress: () => {
-                // Navigation stack: reset to Home → EventDetail → NotificationSettings
-                navigation.reset({
-                  index: 1,
-                  routes: [
-                    { name: 'Home' },
-                    {
-                      name: 'EventDetail',
-                      params: { eventId, studioId }
-                    }
-                  ]
-                });
-                // Navigate to notification settings for this specific event
-                setTimeout(() => {
-                  navigation.navigate('NotificationSettings', {
-                    eventId,
-                    studioId,
-                    eventTitle: event?.title
-                  });
-                }, 100);
-              }
+          'You\'re Now a Co-Host! ⭐',
+          `Would you like to view the event details or return home?`,
+          () => {
+            // onConfirm - Stay on EventDetail (if already here) or navigate to it
+            if (navigation.getState().routes[navigation.getState().index]?.name !== 'EventDetail') {
+              navigation.navigate('EventDetail', { eventId, studioId });
             }
-          ]
+          },
+          () => {
+            // onCancel - Go home
+            navigation.navigate('Home');
+          }
         );
 
         // Clear the pending invitation and refresh event data
@@ -619,10 +648,15 @@ const EventDetailScreen = memo(function EventDetailScreen({
           setEventInterests(eventInterestsData);
 
           // Check for pending cohost invitation
+          console.log('[EventDetailScreen] 🔍 Checking for cohost invitation...', { currentUserId, eventId });
           const cohostInvitation = await getCohostInvitationStatus(currentUserId, eventId);
+          console.log('[EventDetailScreen] 📩 Cohost invitation result:', cohostInvitation);
+
           if (cohostInvitation && cohostInvitation.status === 'pending') {
+            console.log('[EventDetailScreen] ✅ Setting pending cohost invitation:', cohostInvitation);
             setPendingCohostInvitation(cohostInvitation);
           } else {
+            console.log('[EventDetailScreen] ❌ No pending cohost invitation found');
             setPendingCohostInvitation(null);
           }
         } catch (error) {

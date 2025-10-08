@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     padding: 3,
   },
   card: {
-    backgroundColor: '#1A0A35',
+    backgroundColor: 'rgba(0, 8, 20, 0.8)', // Less transparent dark navy
     borderRadius: 20,
     padding: 20,
     paddingVertical: 20,

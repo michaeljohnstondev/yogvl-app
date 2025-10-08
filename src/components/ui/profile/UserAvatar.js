@@ -1,12 +1,13 @@
 // UserAvatar.js - Avatar component that takes userId and fetches user data
 
 import React, { useState, useEffect, memo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { doc, getDoc } from '../../../lib/firebase';
 import { db } from '../../../auth/services/firebase';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../../auth/AuthContext';
 import { usePrivacyValidation } from '../../../hooks/usePrivacyValidation';
+import { getProfilePictureUrl } from '../../../services/profilePictureService';
 import theme from '../../../theme/themes';
 
 const UserAvatar = memo(
@@ -20,9 +21,12 @@ const UserAvatar = memo(
     useEffect(() => {
       const fetchUserData = async () => {
         if (!userId) {
+          console.log('[UserAvatar] No userId provided');
           setLoading(false);
           return;
         }
+
+        console.log('[UserAvatar] Fetching data for userId:', userId);
 
         try {
           // Check if user is blocked first - for efficiency
@@ -32,6 +36,7 @@ const UserAvatar = memo(
 
             // If blocked, don't fetch user data - show generic avatar
             if (blocked) {
+              console.log('[UserAvatar] User is blocked:', userId);
               setUserData(null);
               setLoading(false);
               return;
@@ -43,7 +48,11 @@ const UserAvatar = memo(
           const userSnap = await getDoc(userRef);
 
           if (userSnap.exists()) {
-            setUserData(userSnap.data());
+            const data = userSnap.data();
+            console.log('[UserAvatar] User data fetched:', userId, data?.userdata?.contactInfo);
+            setUserData(data);
+          } else {
+            console.log('[UserAvatar] User document does not exist:', userId);
           }
         } catch (error) {
           console.error(
@@ -79,12 +88,14 @@ const UserAvatar = memo(
     }
 
     // Handle blocked users - show generic avatar
-    const contactInfo = userData?.userdata?.contactInfo || {};
+    // Support both nested (userdata.contactInfo) and flat (root level) structures
+    const contactInfo = userData?.userdata?.contactInfo || userData || {};
     const displayName = isBlocked
       ? 'User' // Generic name for blocked users
-      : contactInfo.firstName && contactInfo.lastName
-        ? `${contactInfo.firstName} ${contactInfo.lastName}`
-        : contactInfo.firstName || contactInfo.email || 'User';
+      : contactInfo.displayName ||
+        (contactInfo.firstName && contactInfo.lastName
+          ? `${contactInfo.firstName} ${contactInfo.lastName}`
+          : contactInfo.firstName || contactInfo.email || 'User');
 
     // Get initials
     const getInitials = (name) => {
@@ -98,6 +109,7 @@ const UserAvatar = memo(
     };
 
     const initials = getInitials(displayName);
+    const profilePictureUrl = !isBlocked ? getProfilePictureUrl(userData) : null;
 
     const avatarContent = (
       <View
@@ -115,15 +127,26 @@ const UserAvatar = memo(
             isBlocked && styles.blockedAvatar, // Additional styling for blocked users
           ]}
         >
-          <Text
-            style={[
-              styles.initials,
-              { fontSize: size * 0.4 },
-              isBlocked && styles.blockedInitials,
-            ]}
-          >
-            {initials}
-          </Text>
+          {profilePictureUrl ? (
+            <Image
+              source={{ uri: profilePictureUrl }}
+              style={[
+                styles.profileImage,
+                { width: size - 4, height: size - 4, borderRadius: (size - 4) / 2 },
+              ]}
+              resizeMode="cover"
+            />
+          ) : (
+            <Text
+              style={[
+                styles.initials,
+                { fontSize: size * 0.4 },
+                isBlocked && styles.blockedInitials,
+              ]}
+            >
+              {initials}
+            </Text>
+          )}
         </LinearGradient>
       </View>
     );
@@ -167,6 +190,10 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     borderWidth: 2,
     borderColor: theme.colors.gray,
+  },
+  profileImage: {
+    width: '100%',
+    height: '100%',
   },
   initials: {
     color: theme.colors.white,

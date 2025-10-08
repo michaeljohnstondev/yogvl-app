@@ -41,6 +41,7 @@ export class ScheduledNotificationCore {
     type,
     title,
     message,
+    reminderType = null, // Optional: Template ID for event reminders (e.g., '15m', '1h', '55m')
     data = {},
     scheduledFor,
     priority = NOTIFICATION_PRIORITY.NORMAL,
@@ -62,6 +63,7 @@ export class ScheduledNotificationCore {
         type,
         title,
         message,
+        ...(reminderType && { reminderType }), // Add reminderType at root level if provided (for Cloud Function validation)
         data,
         scheduledFor: Timestamp.fromDate(scheduledFor),
         createdAt: Timestamp.now(),
@@ -74,7 +76,7 @@ export class ScheduledNotificationCore {
       await setDoc(scheduledNotificationRef, scheduledNotification);
 
       console.log(
-        `[ScheduledCore] Scheduled notification ${scheduleId} for ${scheduledFor.toISOString()}`
+        `[ScheduledCore] Scheduled notification ${scheduleId} for ${scheduledFor.toISOString()}${reminderType ? ` (reminderType: ${reminderType})` : ''}`
       );
       return scheduleId;
     } catch (error) {

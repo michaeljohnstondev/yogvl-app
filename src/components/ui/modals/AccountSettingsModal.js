@@ -35,6 +35,20 @@ function AccountSettingsDropdown({
   // Memoize all handler functions to prevent recreation on every render
   const handleLogout = useCallback(async () => {
     try {
+      const userId = auth.currentUser?.uid;
+
+      // Remove FCM token before logout to prevent cross-account notifications
+      if (userId) {
+        try {
+          const fcmService = (await import('../../../services/fcmService')).default;
+          await fcmService.removeTokenForUser(userId);
+          console.log('[AccountSettings] ✅ FCM token removed for user:', userId);
+        } catch (fcmError) {
+          // Non-critical - continue with logout even if FCM cleanup fails
+          console.warn('[AccountSettings] ⚠️  Failed to remove FCM token:', fcmError);
+        }
+      }
+
       await signOut(auth);
       console.log('User logged out successfully');
       onClose();

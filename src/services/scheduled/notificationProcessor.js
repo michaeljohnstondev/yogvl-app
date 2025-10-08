@@ -467,4 +467,190 @@ export class NotificationProcessor {
   }
 }
 
+/**
+ * GLOBAL COLLECTION METHODS - For use with /scheduledNotifications (scalable approach)
+ * These work with the global scheduledNotifications collection instead of user subcollections
+ */
+
+/**
+ * Cancel pending notifications for an event in global collection
+ * @param {string} eventId - Event ID
+ * @param {string} reason - Cancellation reason
+ * @returns {Promise<Object>} Result with cancelledCount
+ */
+export const cancelGlobalEventNotifications = async (eventId, reason = 'Event updated') => {
+  try {
+    console.log(`[NotificationProcessor] Cancelling global notifications for event ${eventId}, reason: ${reason}`);
+
+    // Query all pending notifications for this event in global collection
+    const q = query(
+      collection(db, 'scheduledNotifications'),
+      where('eventId', '==', eventId),
+      where('status', '==', 'pending')
+    );
+
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+      console.log(`[NotificationProcessor] No pending notifications for event ${eventId}`);
+      return { cancelledCount: 0 };
+    }
+
+    // Batch update all to cancelled
+    const batch = writeBatch(db);
+    snapshot.docs.forEach(doc => {
+      batch.update(doc.ref, {
+        status: 'cancelled',
+        cancelledAt: Timestamp.now(),
+        cancelReason: reason,
+      });
+    });
+
+    await batch.commit();
+
+    console.log(`[NotificationProcessor] Cancelled ${snapshot.size} notifications for event ${eventId}`);
+    return { cancelledCount: snapshot.size };
+  } catch (error) {
+    console.error('[NotificationProcessor] Error cancelling global notifications:', error);
+    throw error;
+  }
+};
+
+/**
+ * Cancel pending notifications for specific user and event in global collection
+ * @param {string} userId - User ID
+ * @param {string} eventId - Event ID
+ * @param {string} reason - Cancellation reason
+ * @returns {Promise<Object>} Result with cancelledCount
+ */
+export const cancelGlobalUserEventNotifications = async (userId, eventId, reason = 'Event updated') => {
+  try {
+    const q = query(
+      collection(db, 'scheduledNotifications'),
+      where('userId', '==', userId),
+      where('eventId', '==', eventId),
+      where('status', '==', 'pending')
+    );
+
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+      return { cancelledCount: 0 };
+    }
+
+    const batch = writeBatch(db);
+    snapshot.docs.forEach(doc => {
+      batch.update(doc.ref, {
+        status: 'cancelled',
+        cancelledAt: Timestamp.now(),
+        cancelReason: reason,
+      });
+    });
+
+    await batch.commit();
+
+    console.log(`[NotificationProcessor] Cancelled ${snapshot.size} global notifications for user ${userId}, event ${eventId}`);
+    return { cancelledCount: snapshot.size };
+  } catch (error) {
+    console.error('[NotificationProcessor] Error cancelling global user notifications:', error);
+    throw error;
+  }
+};
+
+/**
+ * Reschedule all notifications for an event after time change (global collection)
+ * @param {string} eventId - Event ID
+ * @param {string} studioId - Studio ID
+ * @param {Object} newEventData - Updated event data with new dateTime
+ * @returns {Promise<Object>} Result with rescheduledCount
+ */
+export const rescheduleEventNotifications = async (eventId, studioId, newEventData) => {
+  try {
+    console.log(`[NotificationProcessor] Rescheduling notifications for event ${eventId}`);
+
+    // Get all subscribers for this event
+    const { doc, getDoc } = await import('../../lib/firebase/firestore');
+
+    const eventRef = doc(db, 'studios', studioId, 'events', eventId);
+    const eventSnap = await getDoc(eventRef);
+
+    if (!eventSnap.exists()) {
+      throw new Error('Event not found');
+    }
+
+    const eventData = eventSnap.data();
+    const subscribers = eventData.subscribers || [];
+
+    if (subscribers.length === 0) {
+      console.log(`[NotificationProcessor] No subscribers for event ${eventId}`);
+      return { rescheduledCount: 0 };
+    }
+
+    console.log(`[NotificationProcessor] Found ${subscribers.length} subscribers to reschedule`);
+
+    // Get each subscriber's notification settings from their event subscription
+    const { ScheduledNotificationService } = await import('./index');
+
+    let rescheduledCount = 0;
+
+    for (const userId of subscribers) {
+      try {
+        // Cancel existing notifications for this user
+        await cancelGlobalUserEventNotifications(userId, eventId, 'Event time changed');
+
+        // Get user's notification settings for this event
+        const userEventSettingsRef = doc(db, 'users', userId, 'eventSubscriptions', eventId);
+        const settingsSnap = await getDoc(userEventSettingsRef);
+
+        let notificationSettings = {};
+
+        if (settingsSnap.exists()) {
+          // User has custom settings for this event
+          notificationSettings = settingsSnap.data().notificationSettings || {};
+          console.log(`[NotificationProcessor] Using custom settings for user ${userId}`);
+        } else {
+          // Fall back to user's global defaults
+          const userRef = doc(db, 'users', userId);
+          const userSnap = await getDoc(userRef);
+
+          if (userSnap.exists()) {
+            const userData = userSnap.data();
+            // Check if user is host
+            const isHost = eventData.createdBy === userId;
+            const context = isHost ? 'hosting' : 'attending';
+            notificationSettings = userData?.userdata?.settings?.notifications?.[context] || {};
+            console.log(`[NotificationProcessor] Using ${context} defaults for user ${userId}`);
+          }
+        }
+
+        // Only reschedule if they have event reminders enabled and templates set
+        if (notificationSettings.eventReminders !== false && notificationSettings.reminderTemplates) {
+          // Reschedule with new event time
+          await ScheduledNotificationService.subscribeToEventNotifications(
+            userId,
+            eventId,
+            studioId,
+            notificationSettings
+          );
+          rescheduledCount++;
+          console.log(`[NotificationProcessor] Rescheduled notifications for user ${userId}`);
+        } else {
+          console.log(`[NotificationProcessor] Skipping user ${userId} - no reminders enabled`);
+        }
+
+      } catch (error) {
+        console.error(`[NotificationProcessor] Failed to reschedule for user ${userId}:`, error);
+        // Continue with other users even if one fails
+      }
+    }
+
+    console.log(`[NotificationProcessor] Rescheduled notifications for ${rescheduledCount}/${subscribers.length} subscribers`);
+    return { rescheduledCount };
+
+  } catch (error) {
+    console.error('[NotificationProcessor] Error rescheduling notifications:', error);
+    throw error;
+  }
+};
+
 export default NotificationProcessor;

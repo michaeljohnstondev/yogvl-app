@@ -34,9 +34,9 @@
         "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#000814"
       },
-      "backgroundColor": "#000814",
+      "backgroundColor": "#001020",
       "statusBar": {
-        "backgroundColor": "#2D1050",
+        "backgroundColor": "#001020",
         "barStyle": "light-content"
       },
       "package": "com.bigvibestudios.bvs",

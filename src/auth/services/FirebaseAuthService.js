@@ -36,6 +36,20 @@ export async function login(email, password) {
 
 export async function logout() {
   try {
+    const userId = auth.currentUser?.uid;
+
+    // Remove FCM token before logout to prevent cross-account notifications
+    if (userId) {
+      try {
+        const fcmService = (await import('../../services/fcmService')).default;
+        await fcmService.removeTokenForUser(userId);
+        console.log('[Auth] ✅ FCM token removed for user:', userId);
+      } catch (fcmError) {
+        // Non-critical - continue with logout even if FCM cleanup fails
+        console.warn('[Auth] ⚠️  Failed to remove FCM token:', fcmError);
+      }
+    }
+
     await signOut(auth);
   } catch (error) {
     throw error;

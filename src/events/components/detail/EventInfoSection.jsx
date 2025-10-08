@@ -62,18 +62,30 @@ function EventInfoSection({
   const isHostOrCohost = isHost || isCohost;
 
   const { cleanTitle } = textUtils.extractEmoji(event.title);
-  const attendeeCount = Math.max(0, (event.subscriberCount || 0) - 1);
 
-  // Format attendee display: "You + X others"
+  // Calculate guest count (exclude host and cohosts from subscribers)
+  const guestCount = useMemo(() => {
+    const totalSubscribers = event.subscriberCount || 0;
+    const cohostCount = event.cohosts?.length || 0;
+    // Subtract 1 for the host and cohosts to get actual guest count
+    return Math.max(0, totalSubscribers - 1 - cohostCount);
+  }, [event.subscriberCount, event.cohosts]);
+
+  // Format guest/attendee display
   const attendeeDisplayText = useMemo(() => {
-    if (attendeeCount === 0) return 'No attendees yet';
-
-    if (attendeeCount === 1) {
-      return 'You';
+    // If viewing as host/cohost, show guest count
+    if (isHostOrCohost) {
+      if (guestCount === 0) return 'No guests yet';
+      if (guestCount === 1) return '1 guest';
+      return `${guestCount} guests`;
     }
 
+    // If viewing as regular attendee
+    const attendeeCount = guestCount;
+    if (attendeeCount === 0) return 'No attendees yet';
+    if (attendeeCount === 1) return 'You';
     return `You + ${attendeeCount - 1} ${attendeeCount === 2 ? 'other' : 'others'}`;
-  }, [attendeeCount]);
+  }, [guestCount, isHostOrCohost]);
 
   const handleLocationPress = useCallback(() => {
     // Only open maps if there's an actual address (not just a location name)
@@ -103,8 +115,8 @@ function EventInfoSection({
 
   const handleAttendeesPress = useCallback(() => {
     const canViewAttendees =
-      (isHostOrCohost && (event?.subscriberCount || 0) > 1) ||
-      (isAdmin && (event?.subscriberCount || 0) > 1) ||
+      (isHostOrCohost && guestCount > 0) ||
+      (isAdmin && guestCount > 0) ||
       friendAttendees.length > 0;
 
     if (canViewAttendees && onShowAttendeesModal) {
@@ -113,14 +125,14 @@ function EventInfoSection({
   }, [
     isHostOrCohost,
     isAdmin,
-    event?.subscriberCount,
+    guestCount,
     friendAttendees.length,
     onShowAttendeesModal,
   ]);
 
   const canViewAttendees =
-    (isHostOrCohost && attendeeCount > 0) ||
-    (isAdmin && attendeeCount > 0) ||
+    (isHostOrCohost && guestCount > 0) ||
+    (isAdmin && guestCount > 0) ||
     friendAttendees.length > 0;
 
   return (
@@ -308,8 +320,8 @@ function EventInfoSection({
         </View>
       </View>
 
-      {/* Attendees - Show to host/cohost if any guests, or to others if 2+ attendees */}
-      {((isHostOrCohost && attendeeCount > 0) || (!isHostOrCohost && attendeeCount >= 2)) && (
+      {/* Guests - Show to host/cohost if any guests, or to regular guests if there are other guests besides themselves */}
+      {((isHostOrCohost && guestCount > 0) || (!isHostOrCohost && guestCount > 1 && isSubscribed)) && (
         <View style={styles.infoCard}>
           <TouchableOpacity
             style={styles.infoRow}
@@ -320,7 +332,7 @@ function EventInfoSection({
             <Text style={styles.infoIcon}>👥</Text>
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>
-                Attendees{event.maxGuests ? ` (${event.maxGuests} max)` : ''}
+                Guests{event.maxGuests ? ` (${event.maxGuests} max)` : ''}
               </Text>
               <Text style={styles.infoValue}>
                 {attendeeDisplayText}

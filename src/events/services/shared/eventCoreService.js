@@ -335,18 +335,29 @@ export const updateEventDetails = async (
         throw new Error('No valid updates provided');
       }
 
+      // DETECT IF DATE/TIME CHANGED (for notification rescheduling)
+      const dateTimeChanged = validUpdates.dateTime &&
+        validUpdates.dateTime.getTime() !== eventData.dateTime?.toDate?.().getTime();
+
       validUpdates.lastUpdated = new Date();
 
       transaction.update(eventRef, validUpdates);
 
       console.log(
         `[EventCore] Event ${eventId} updated by ${currentUserId}:`,
-        Object.keys(validUpdates)
+        Object.keys(validUpdates),
+        dateTimeChanged ? '⏰ TIME CHANGED' : ''
       );
 
       return {
         success: true,
+        eventId,
         updatedFields: Object.keys(validUpdates),
+        dateTimeChanged, // Return this flag so caller can reschedule notifications
+        updatedEventData: {
+          ...eventData,
+          ...validUpdates
+        }
       };
     });
   } catch (error) {

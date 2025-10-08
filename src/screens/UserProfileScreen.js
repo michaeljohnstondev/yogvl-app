@@ -401,6 +401,20 @@ function UserProfile({ navigation, route }) {
   };
 
   const handleLogout = async () => {
+    const userId = user?.uid;
+
+    // Remove FCM token before logout to prevent cross-account notifications
+    if (userId) {
+      try {
+        const fcmService = (await import('../services/fcmService')).default;
+        await fcmService.removeTokenForUser(userId);
+        console.log('[UserProfile] ✅ FCM token removed for user:', userId);
+      } catch (fcmError) {
+        // Non-critical - continue with logout even if FCM cleanup fails
+        console.warn('[UserProfile] ⚠️  Failed to remove FCM token:', fcmError);
+      }
+    }
+
     await logout();
     navigation.reset({
       index: 0,

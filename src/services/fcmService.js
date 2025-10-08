@@ -371,6 +371,50 @@ class FCMService {
   }
 
   /**
+   * Remove FCM token from user document on logout
+   * Prevents cross-account notification delivery bug
+   */
+  async removeTokenForUser(userId) {
+    try {
+      if (!userId) {
+        console.warn('[FCMService] No user ID provided for token removal');
+        return false;
+      }
+
+      console.log(`[FCMService] 🗑️  Removing FCM token for user ${userId}`);
+
+      const userRef = doc(db, 'users', userId);
+
+      // Remove FCM token from user document
+      await updateDoc(userRef, {
+        'deviceInfo.fcmToken': null,
+        'deviceInfo.lastTokenUpdate': new Date(),
+        'deviceInfo.notificationsEnabled': false,
+      });
+
+      // Clear local state
+      this.currentUserId = null;
+      this.currentToken = null;
+
+      // Clear local storage
+      try {
+        await SecureStore.deleteItemAsync(STORAGE_KEYS.FCM_TOKEN);
+        await AsyncStorage.removeItem(STORAGE_KEYS.PENDING_NOTIFICATION);
+        console.log('[FCMService] ✅ Cleared local FCM storage');
+      } catch (storageError) {
+        // Non-critical - continue even if storage clear fails
+        console.warn('[FCMService] ⚠️  Failed to clear local storage:', storageError);
+      }
+
+      console.log(`[FCMService] ✅ Removed FCM token for user ${userId}`);
+      return true;
+    } catch (error) {
+      console.error('[FCMService] ❌ Failed to remove token for user:', error);
+      return false;
+    }
+  }
+
+  /**
    * Handle messages received when app is in foreground
    * Uses NotificationDisplayService to show VibeAlert banners
    * Also stores notification in dashboard for later viewing
@@ -579,6 +623,20 @@ class FCMService {
     console.log('[FCMService] Event ID:', data?.eventId);
     console.log('[FCMService] Screen:', data?.screen);
 
+    // Guard: Ignore navigation if data is invalid or empty
+    if (!data || (!data.type && !data.screen && !data.eventId)) {
+      console.warn('[FCMService] ⚠️ Ignoring navigation - data is empty or invalid');
+      // Clear any stale stored notifications
+      try {
+        await AsyncStorage.removeItem(STORAGE_KEYS.PENDING_NOTIFICATION);
+        await SecureStore.deleteItemAsync(STORAGE_KEYS.PENDING_NOTIFICATION);
+        console.log('[FCMService] ✅ Cleared stale notification storage');
+      } catch (error) {
+        // Ignore errors
+      }
+      return;
+    }
+
     if (!this.navigationRef) {
       console.warn('[FCMService] ❌ Navigation ref not set, queueing navigation for later');
       this.pendingNavigation = { data };
@@ -621,6 +679,7 @@ class FCMService {
         case 'event_reminder':
         case 'event_updated':
         case 'event_comment':
+        case 'event_recap':
           console.log('[FCMService] 🎯 Navigating to EventDetail for type:', type);
           if (eventId) {
             console.log('[FCMService] 🚀 Calling navigate("EventDetail", { eventId:', eventId, '})');
@@ -644,7 +703,8 @@ class FCMService {
           break;
 
         case 'invitation_received':
-          console.log('[FCMService] 💌 Navigating to EventDetail for invitation');
+        case 'cohost_invitation':
+          console.log('[FCMService] 💌 Navigating to EventDetail for invitation (type:', type, ')');
           if (eventId) {
             console.log('[FCMService] 🚀 Calling navigate("EventDetail", { eventId:', eventId, '})');
             this.navigationRef.navigate('EventDetail', { eventId });

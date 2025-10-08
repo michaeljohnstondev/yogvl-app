@@ -1,6 +1,7 @@
 // Barrel export for main app screens
 export { default as LandingScreen } from './LandingScreen';
 export { default as HomeScreen } from './HomeScreen';
+export { default as EventListScreen } from './EventListScreen';
 export { default as NotificationsScreen } from './NotificationsScreen';
 export { default as InviteScreen } from './InviteScreen';
 export { default as PrivacySettingsScreen } from './PrivacySettingsScreen';

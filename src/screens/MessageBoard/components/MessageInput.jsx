@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1A0A35',
     borderRadius: 12,
     borderWidth: 3,
-    borderColor: theme.colors.vibeBlue,
+    borderColor: theme.colors.vibeCyan,
     paddingHorizontal: 16,
     paddingVertical: 12,
     minHeight: 60,

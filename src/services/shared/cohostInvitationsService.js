@@ -50,6 +50,35 @@ export const sendCohostInvitation = async (
       hasEventData: !!eventData
     });
 
+    // Validate critical parameters
+    if (!studioId) {
+      console.error('[CohostInvitations] ❌ CRITICAL: studioId is missing!', {
+        inviterId,
+        recipientId,
+        eventId,
+        studioId,
+      });
+      throw new Error('studioId is required for cohost invitations');
+    }
+
+    if (!inviterId || !recipientId || !eventId) {
+      console.error('[CohostInvitations] ❌ CRITICAL: Missing required parameters!', {
+        hasInviterId: !!inviterId,
+        hasRecipientId: !!recipientId,
+        hasEventId: !!eventId,
+        hasStudioId: !!studioId,
+      });
+      throw new Error('inviterId, recipientId, eventId, and studioId are all required');
+    }
+
+    console.log('[CohostInvitations] 📞 Calling unifiedInvitationsService.sendInvitation with:', {
+      inviterId,
+      recipientId,
+      eventId,
+      studioId,
+      type: 'cohost',
+    });
+
     // Use unified invitation service
     const result = await sendInvitation({
       inviterId,
@@ -59,13 +88,24 @@ export const sendCohostInvitation = async (
       type: 'cohost'
     });
 
-    console.log('[CohostInvitations] ✅ Cohost invitation created successfully');
+    console.log('[CohostInvitations] ✅ Cohost invitation created successfully:', {
+      result,
+      recipientId,
+      eventId,
+    });
 
     return result;
   } catch (error) {
     console.error(
       '[CohostInvitations] ❌ Error sending cohost invitation:',
-      error
+      {
+        error: error.message,
+        stack: error.stack,
+        inviterId,
+        recipientId,
+        eventId,
+        studioId,
+      }
     );
     throw error;
   }
@@ -113,7 +153,7 @@ export const acceptCohostInvitation = async (
 
     // Cancel any existing scheduled notifications for this user/event
     try {
-      const { ScheduledNotificationService } = await import('../../scheduledNotifications');
+      const { ScheduledNotificationService } = await import('../scheduledNotifications');
       await ScheduledNotificationService.cancelUserEventNotifications(
         recipientId,
         eventId,
@@ -304,31 +344,45 @@ export const removeCohostFromEvent = async (
 
 /**
  * Get cohost invitation status for a user and event
+ * Uses the unified invitation system (userdata.pendingInvitations)
  * @param {string} userId - User ID
  * @param {string} eventId - Event ID
  * @returns {Promise<Object|null>} Invitation data or null
  */
 export const getCohostInvitationStatus = async (userId, eventId) => {
   try {
-    const invitationsQuery = query(
-      collection(db, 'users', userId, 'cohostInvitations'),
-      where('eventId', '==', eventId)
-    );
-    const snapshot = await getDocs(invitationsQuery);
+    console.log('[CohostInvitations] 🔍 Checking cohost invitation status:', { userId, eventId });
 
-    if (snapshot.empty) {
+    // Get user document to check pendingInvitations
+    const userDoc = await getDoc(doc(db, 'users', userId));
+    if (!userDoc.exists()) {
+      console.log('[CohostInvitations] ❌ User document not found:', userId);
       return null;
     }
 
-    // Return the most recent invitation
-    const invitations = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    const userData = userDoc.data();
+    const pendingInvitations = userData?.userdata?.pendingInvitations || [];
 
-    // Sort by creation date, most recent first
-    invitations.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
-    return invitations[0];
+    console.log('[CohostInvitations] 📋 User has pending invitations:', pendingInvitations.length);
+
+    // Find cohost invitation for this event
+    const cohostInvitation = pendingInvitations.find(
+      inv => inv.eventId === eventId && inv.type === 'cohost'
+    );
+
+    if (cohostInvitation) {
+      console.log('[CohostInvitations] ✅ Found cohost invitation:', cohostInvitation);
+      return {
+        id: `${userId}_${eventId}_cohost`, // Generate consistent ID
+        eventId: cohostInvitation.eventId,
+        studioId: cohostInvitation.studioId,
+        type: 'cohost',
+        status: 'pending'
+      };
+    }
+
+    console.log('[CohostInvitations] ❌ No cohost invitation found for event:', eventId);
+    return null;
   } catch (error) {
     console.error(
       '[CohostInvitations] Error getting cohost invitation status:',

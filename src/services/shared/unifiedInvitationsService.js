@@ -90,21 +90,53 @@ export const sendInvitation = async ({
       studioId,
     };
 
+    console.log('[UnifiedInvitations] 📝 Creating invitation objects:', {
+      eventInvitation,
+      userInvitation,
+    });
+
     // Use batch to update both event and user atomically
     const batch = writeBatch(db);
 
     // Add to event.invitations[]
+    const eventPath = `studios/${studioId}/events/${eventId}`;
+    console.log('[UnifiedInvitations] 📍 Updating event document:', {
+      path: eventPath,
+      operation: 'arrayUnion(invitations)',
+      value: eventInvitation,
+    });
     batch.update(eventRef, {
       invitations: arrayUnion(eventInvitation),
     });
 
     // Add to user.userdata.pendingInvitations[]
     const userRef = doc(db, 'users', recipientId);
+    const userPath = `users/${recipientId}`;
+    console.log('[UnifiedInvitations] 📍 Updating user document:', {
+      path: userPath,
+      operation: 'arrayUnion(userdata.pendingInvitations)',
+      value: userInvitation,
+    });
     batch.update(userRef, {
       'userdata.pendingInvitations': arrayUnion(userInvitation),
     });
 
-    await batch.commit();
+    console.log('[UnifiedInvitations] 🚀 Committing batch write...');
+
+    try {
+      await batch.commit();
+      console.log('[UnifiedInvitations] ✅ Batch write committed successfully!');
+    } catch (batchError) {
+      console.error('[UnifiedInvitations] ❌ BATCH WRITE FAILED:', {
+        error: batchError.message,
+        stack: batchError.stack,
+        eventPath,
+        userPath,
+        eventInvitation,
+        userInvitation,
+      });
+      throw new Error(`Batch write failed: ${batchError.message}`);
+    }
 
     console.log('[UnifiedInvitations] ✅ Invitation sent successfully');
 

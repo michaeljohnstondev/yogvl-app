@@ -98,7 +98,7 @@ const ProfileActionButtons = ({
     if (isOwnProfile) {
       return (
         <View style={styles.buttonContainer}>
-          <RedButton
+          <VibeButton
             label="LOGOUT"
             onPress={onLogout}
             style={styles.actionButton}
@@ -113,13 +113,16 @@ const ProfileActionButtons = ({
     } else {
       return (
         <View style={styles.socialButtonContainer}>
-          <FollowButton
-            isFollowing={isFollowing}
-            isLoading={isFollowLoading}
-            onFollow={onFollow}
-            onUnfollow={onUnfollow}
-            style={styles.followButton}
-          />
+          {/* Only show Follow button if user is not blocked */}
+          {!isBlocked && (
+            <FollowButton
+              isFollowing={isFollowing}
+              isLoading={isFollowLoading}
+              onFollow={onFollow}
+              onUnfollow={onUnfollow}
+              style={styles.followButton}
+            />
+          )}
           <BlockButton
             onPress={isBlocked ? onUnblock : onBlock}
             isLoading={isBlockLoading}
@@ -163,6 +166,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     backgroundColor: theme.colors.vibeBlue, // Should be blue #00C6FF
+    borderWidth: 2,
+    borderColor: theme.colors.vibeCyan,
   },
   editButtonText: {
     color: theme.colors.white,

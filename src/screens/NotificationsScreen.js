@@ -12,6 +12,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   getUserNotifications,
   markAllNotificationsAsRead,
@@ -36,6 +37,22 @@ export default function NotificationsScreen({ navigation }) {
     useRealtimeNotificationsContext();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Auto-clear notification badge when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      if (currentUserId && unreadCount > 0) {
+        console.log(`[NotificationsScreen] 🔔 Auto-clearing ${unreadCount} unread notifications`);
+        markAllNotificationsAsRead(currentUserId)
+          .then(() => {
+            console.log('[NotificationsScreen] ✅ Badge cleared successfully');
+          })
+          .catch((error) => {
+            console.error('[NotificationsScreen] ❌ Failed to clear badge:', error);
+          });
+      }
+    }, [currentUserId, unreadCount])
+  );
 
   // Handle real-time errors
   useEffect(() => {
@@ -94,11 +111,30 @@ export default function NotificationsScreen({ navigation }) {
               });
             }
             break;
-          case NOTIFICATION_TYPES.NEW_FOLLOWER:
-            // Navigate to the follower's profile or followers list
+          case NOTIFICATION_TYPES.FOLLOW_NOTIFICATION:
+          case NOTIFICATION_TYPES.FOLLOW_REQUEST:
+          case 'new_follower':
+            // Navigate to the follower's user profile
             if (data.followerId) {
-              // For now, just mark as read. Later we can add profile navigation
-              console.log('Navigate to follower profile:', data.followerId);
+              console.log('[NotificationsScreen] 👥 Navigating to follower profile:', data.followerId);
+              navigation.navigate('UserProfile', {
+                userId: data.followerId,
+                userName: data.followerName || 'User',
+              });
+            }
+            break;
+          case 'new_comment':
+          case 'batch_comments':
+          case 'message_board_activity':
+          case 'host_comment':
+          case 'guest_comment':
+            // Navigate to event message board
+            if (data.eventId) {
+              console.log('[NotificationsScreen] 💬 Navigating to message board:', data.eventId);
+              navigation.navigate('MessageBoard', {
+                eventId: data.eventId,
+                eventTitle: data.eventTitle || 'Event',
+              });
             }
             break;
           case NOTIFICATION_TYPES.INTEREST_BASED_SUGGESTION:
@@ -303,46 +339,21 @@ export default function NotificationsScreen({ navigation }) {
         // Delete notification after successful acceptance (no longer needed)
         await handleNotificationDelete(notification.id);
 
-        vibeAlert.success('Success', "You're now a co-host for this event! ⭐");
-
-        // Simultaneously ask if they want to manage notifications for the event
+        // Ask if they want to view the event details or go home
         vibeAlert.confirm(
-          'Notification Settings',
-          `You're now a co-host for "${result.newCohost?.eventTitle || 'this event'}"!\n\nWould you like to manage your notification preferences for this event?`,
-          [
-            {
-              text: 'Manage Notifications',
-              onPress: () => {
-                // Navigation stack: reset to Home → EventDetail → NotificationSettings
-                navigation.reset({
-                  index: 0,
-                  routes: [{ name: 'Home' }]
-                });
-
-                // Navigate to EventDetail
-                setTimeout(() => {
-                  navigation.navigate('EventDetail', {
-                    eventId,
-                    studioId: notification.data.studioId || result.newCohost?.studioId
-                  });
-
-                  // Then navigate to NotificationSettings for this event
-                  setTimeout(() => {
-                    navigation.navigate('NotificationSettings', {
-                      eventId,
-                      eventTitle: result.newCohost?.eventTitle,
-                      userId: currentUserId,
-                      role: 'cohost'
-                    });
-                  }, 100);
-                }, 100);
-              }
-            },
-            {
-              text: 'Keep Current Settings',
-              style: 'cancel'
-            }
-          ]
+          'You\'re Now a Co-Host! ⭐',
+          `Would you like to view the event details or return home?`,
+          () => {
+            // onConfirm - Navigate to EventDetail
+            navigation.navigate('EventDetail', {
+              eventId,
+              studioId: notification.data.studioId || result.newCohost?.studioId
+            });
+          },
+          () => {
+            // onCancel - Go home
+            navigation.navigate('Home');
+          }
         );
       } catch (error) {
         console.error('Error accepting cohost invitation:', error);
@@ -483,6 +494,32 @@ export default function NotificationsScreen({ navigation }) {
     );
   }
 
+  const handleDeleteAll = useCallback(async () => {
+    if (notifications.length === 0) return;
+
+    vibeAlert.confirm(
+      'Delete All Notifications',
+      'Are you sure you want to delete all notifications? This cannot be undone.',
+      async () => {
+        try {
+          // Delete all notifications one by one
+          const deletePromises = notifications.map(notification =>
+            deleteNotification(currentUserId, notification.id)
+          );
+          await Promise.all(deletePromises);
+
+          refreshNotifications();
+        } catch (error) {
+          console.error('Error deleting all notifications:', error);
+          vibeAlert.error('Error', 'Failed to delete all notifications');
+        }
+      },
+      () => {
+        // User cancelled
+      }
+    );
+  }, [currentUserId, notifications, vibeAlert, refreshNotifications]);
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScreenHeader
@@ -531,6 +568,18 @@ export default function NotificationsScreen({ navigation }) {
           </ScrollView>
         )}
       </View>
+
+      {/* Sticky Delete All Button */}
+      {notifications.length > 0 && (
+        <View style={styles.stickyButtonContainer}>
+          <VibeButton
+            label="DELETE ALL"
+            onPress={handleDeleteAll}
+            variant="filled"
+            style={styles.stickyButton}
+          />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -576,7 +625,22 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
-    paddingBottom: 50, // Extra bottom spacing for safe scrolling
+    paddingBottom: 120, // Extra bottom spacing for sticky button
+  },
+  stickyButtonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingBottom: 20,
+    backgroundColor: theme.colors.background,
+    borderTopWidth: 2,
+    borderTopColor: theme.colors.vibeBlue,
+  },
+  stickyButton: {
+    width: '100%',
   },
   emptyScrollView: {
     flex: 1,

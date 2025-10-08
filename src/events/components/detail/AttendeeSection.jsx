@@ -21,7 +21,7 @@ export default function AttendeeSection({
   onKickAttendee,
   navigation,
 }) {
-  const modalTitle = isHost ? 'All Attendees' : 'Friends Attending';
+  const modalTitle = isHost ? 'Guests' : 'Friends Attending';
 
   const handleKickPress = (attendeeId, attendeeName) => {
     onClose();
@@ -114,7 +114,7 @@ export default function AttendeeSection({
             {attendees.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyStateText}>
-                  {isHost ? 'No attendees yet' : 'No friends attending'}
+                  {isHost ? 'No guests yet' : 'No friends attending'}
                 </Text>
               </View>
             ) : (
@@ -136,7 +136,9 @@ export default function AttendeeSection({
             <View style={styles.modalFooter}>
               <Text style={styles.attendeeCount}>
                 {attendees.length}{' '}
-                {attendees.length === 1 ? 'attendee' : 'attendees'}
+                {isHost
+                  ? attendees.length === 1 ? 'guest' : 'guests'
+                  : attendees.length === 1 ? 'attendee' : 'attendees'}
               </Text>
             </View>
           )}

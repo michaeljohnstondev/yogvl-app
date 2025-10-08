@@ -35,7 +35,7 @@ const SubscriptionNotificationSettings = memo(function SubscriptionNotificationS
     newComments: attendingDefaults.newComments ?? false, // All other comments (batched after first)
 
     // Custom reminder templates
-    reminderTemplates: attendingDefaults.reminderTemplates || [],
+    reminderTemplates: attendingDefaults.reminderTemplates || {}, // Object format, not array
   });
 
   const handleSubscribe = useCallback(() => {

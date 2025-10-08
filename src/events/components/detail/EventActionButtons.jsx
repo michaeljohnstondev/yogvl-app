@@ -142,6 +142,11 @@ const EventActionButtons = memo(function EventActionButtons({
 
   if (!event) return null;
 
+  // Debug: Log pending cohost invitation
+  React.useEffect(() => {
+    console.log('[EventActionButtons] 🎯 pendingCohostInvitation:', pendingCohostInvitation);
+  }, [pendingCohostInvitation]);
+
   // Additional safeguard: Double-check permissions before rendering
   const isActualCreator = event.createdBy === currentUserId;
   const isActualCohost = event.cohosts?.includes(currentUserId) || false;
@@ -166,6 +171,16 @@ const EventActionButtons = memo(function EventActionButtons({
     <View style={styles.container}>
       {/* Action Buttons for Active Events */}
       <View style={styles.buttonContainer}>
+        {/* Cohost invitation button - show for ALL users (guest or admin) with pending invitation */}
+        {!isEventPast && pendingCohostInvitation && !isActualCohost && (
+          <VibeButton
+            label="JOIN AS COHOST"
+            onPress={onAcceptCohostInvitation}
+            disabled={isLoading}
+            variant="green"
+          />
+        )}
+
         {/* Admin Join/Leave button (show for admins who aren't creators) */}
         {!isEventPast &&
           permissions?.isAdmin &&
@@ -184,16 +199,6 @@ const EventActionButtons = memo(function EventActionButtons({
         {/* Non-host user buttons */}
         {!isEventPast && shouldShowGuestView && (
           <>
-            {/* Cohost invitation button - show above other buttons for prominence */}
-            {pendingCohostInvitation && (
-              <VibeButton
-                label="JOIN AS COHOST"
-                onPress={onAcceptCohostInvitation}
-                disabled={isLoading}
-                variant="primary"
-                style={styles.cohostButton}
-              />
-            )}
 
             {/* Join/Leave event button */}
             <VibeButton

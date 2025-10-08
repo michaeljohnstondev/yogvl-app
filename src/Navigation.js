@@ -24,6 +24,7 @@ import fcmService from './services/fcmServiceWrapper';
 import {
   LandingScreen,
   HomeScreen,
+  EventListScreen,
   NotificationsScreen,
   InviteScreen,
   PrivacySettingsScreen,
@@ -465,6 +466,7 @@ export default function Navigation({ onReady }) {
               }}
             >
               <Stack.Screen name="Home" component={HomeScreen} />
+              <Stack.Screen name="EventList" component={EventListScreen} />
               <Stack.Screen name="CreateEvent" component={CreateEventScreen} />
               <Stack.Screen
                 name="HostEventNotifications"

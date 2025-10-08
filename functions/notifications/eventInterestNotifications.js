@@ -60,10 +60,30 @@ exports.onEventCreated = functions.firestore
         }
       }
 
+      // Extract user IDs from unified invitation objects
+      // invitations is now [{userId, type}, ...] not just [userId, ...]
+      const invitedUserIds = invitations.map(inv => inv.userId || inv);
+
+      console.log(`[Event Interest Notification] 🔍 Exclusion analysis:`, {
+        hostId,
+        cohostsCount: cohosts.length,
+        cohosts,
+        invitationsRaw: invitations,
+        invitedUserIds,
+        totalExcluded: 1 + cohosts.length + invitedUserIds.length
+      });
+
       // Remove duplicates and filter out excluded users
-      const excludeUserIds = new Set([hostId, ...cohosts, ...invitations]);
+      const excludeUserIds = new Set([hostId, ...cohosts, ...invitedUserIds]);
       const uniqueInterestedUsers = [...new Set(interestedUserIds)]
         .filter(userId => !excludeUserIds.has(userId));
+
+      console.log(`[Event Interest Notification] 📊 Filtering results:`, {
+        totalInterestedUsers: interestedUserIds.length,
+        uniqueInterestedUsers: [...new Set(interestedUserIds)].length,
+        afterExclusion: uniqueInterestedUsers.length,
+        excluded: [...new Set(interestedUserIds)].length - uniqueInterestedUsers.length
+      });
 
       if (uniqueInterestedUsers.length === 0) {
         console.log(`[Event Interest Notification] No eligible users to notify for event ${eventId}`);

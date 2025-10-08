@@ -60,7 +60,8 @@
       "Bash(npx tsc:*)",
       "WebFetch(domain:rnfirebase.io)",
       "WebFetch(domain:firebase.google.com)",
-      "Bash(del:*)"
+      "Bash(del:*)",
+      "Bash(firebase functions:delete:*)"
     ],
     "deny": [],
     "ask": [],

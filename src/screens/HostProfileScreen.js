@@ -839,13 +839,16 @@ const HostProfileScreen = ({ navigation, route }) => {
         {!isCurrentUser && (
           <View style={styles.infoSection}>
             <View style={styles.buttonContainer}>
-              <FollowButton
-                isFollowing={isFollowing}
-                isLoading={isFollowLoading}
-                onFollow={handleFollowClick}
-                onUnfollow={handleUnfollowClick}
-                style={styles.followButton}
-              />
+              {/* Only show Follow button if user is not blocked */}
+              {!blockStatus.isBlocked && (
+                <FollowButton
+                  isFollowing={isFollowing}
+                  isLoading={isFollowLoading}
+                  onFollow={handleFollowClick}
+                  onUnfollow={handleUnfollowClick}
+                  style={styles.followButton}
+                />
+              )}
 
               {/* Block/Unblock Button */}
               <BlockButton

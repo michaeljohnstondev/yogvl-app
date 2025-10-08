@@ -20,7 +20,7 @@ export const VibeAlertProvider = ({ children }) => {
   const showAlert = useCallback((
     title,
     message,
-    buttons = [{ text: 'OK' }],
+    buttons = [],
     type = 'info'
   ) => {
     console.log('🚨 Context showAlert called:', { title, message, type });
@@ -103,17 +103,20 @@ export const VibeAlertProvider = ({ children }) => {
         'subscribe'
       );
     },
-    joinedEvent: (title, message, onViewEvent, onCustomizeAlerts, onInviteFriends, onGoHome, onCancel) => {
+    joinedEvent: (title, message, onViewEvent, onCustomizeAlerts, onInviteFriends, onShareEvent, onGoHome, onCancel) => {
+      const buttons = [
+        { text: 'Customize Alerts', onPress: onCustomizeAlerts, style: 'blue' },
+        // Only include Invite Friends button if callback is provided (permission-based)
+        ...(onInviteFriends ? [{ text: 'Invite Friends', onPress: onInviteFriends, style: 'blue' }] : []),
+        // Only include Share Event button if callback is provided (permission-based, same as invite)
+        ...(onShareEvent ? [{ text: 'Share Event', onPress: onShareEvent, style: 'blue' }] : []),
+        { text: 'Return Home', onPress: onGoHome, style: 'blue' },
+      ];
+
       showAlert(
         title,
         message,
-        [
-          { text: 'View Event', onPress: onViewEvent, style: 'green' },
-          { text: 'Customize Alerts', onPress: onCustomizeAlerts, style: 'blue' },
-          { text: 'Invite Friends', onPress: onInviteFriends, style: 'blue' },
-          { text: 'Go Home', onPress: onGoHome, style: 'blue' },
-          { text: 'Cancel', onPress: onCancel, style: 'cancel' },
-        ],
+        buttons,
         'joinedEvent'
       );
     },
@@ -151,7 +154,7 @@ export const VibeAlertProvider = ({ children }) => {
       case 'teal':
         return { border: theme.colors.vibeTeal, icon: '💠' };
       default:
-        return { border: '#00FFFF', icon: 'ℹ️' };
+        return { border: '#00FFFF', icon: '' };
     }
   };
 
@@ -181,7 +184,16 @@ export const VibeAlertProvider = ({ children }) => {
         />
       )}
       {alert && (
-        <View style={styles.overlay}>
+        <TouchableOpacity
+          style={styles.overlay}
+          activeOpacity={1}
+          onPress={() => {
+            // Only close on tap if there are no buttons (simple alerts)
+            if (!alert.buttons || alert.buttons.length === 0) {
+              hideAlert();
+            }
+          }}
+        >
           <View style={styles.alertContainer}>
             <View
               style={[
@@ -191,9 +203,11 @@ export const VibeAlertProvider = ({ children }) => {
               ]}
             >
               <View style={styles.header}>
-                <Text style={styles.icon}>
-                  {getAlertColors(alert.type).icon}
-                </Text>
+                {getAlertColors(alert.type).icon && (
+                  <Text style={styles.icon}>
+                    {getAlertColors(alert.type).icon}
+                  </Text>
+                )}
                 <Text
                   style={[
                     styles.title,
@@ -208,7 +222,8 @@ export const VibeAlertProvider = ({ children }) => {
                 <Text style={styles.message}>{alert.message}</Text>
               ) : null}
 
-              <View
+              {alert.buttons && alert.buttons.length > 0 && (
+                <View
                 style={[
                   styles.buttonContainer,
                   (alert.type === 'subscribe' ||
@@ -227,6 +242,8 @@ export const VibeAlertProvider = ({ children }) => {
                   const isSecondary = button.style === 'secondary';
                   const isGreen = button.style === 'green';
                   const isBlue = button.style === 'blue';
+                  const isRed = button.style === 'red';
+                  const isDefault = button.style === 'default';
                   const isCancel = button.style === 'cancel';
                   const isLastButton = index === alert.buttons.length - 1;
 
@@ -244,6 +261,8 @@ export const VibeAlertProvider = ({ children }) => {
                         isSecondary && styles.secondaryButton,
                         isGreen && styles.greenButton,
                         isBlue && styles.blueButton,
+                        isRed && styles.redButton,
+                        isDefault && styles.defaultButton,
                         isCancel && !isJoinedEvent && styles.cancelButton,
                         isCancel && isJoinedEvent && styles.redCancelButton,
                         !isSubscribe &&
@@ -252,6 +271,8 @@ export const VibeAlertProvider = ({ children }) => {
                           !isRedMenu &&
                           !isGreen &&
                           !isBlue &&
+                          !isRed &&
+                          !isDefault &&
                           !isCancel && {
                             backgroundColor: getAlertColors(alert.type).border,
                           },
@@ -284,9 +305,10 @@ export const VibeAlertProvider = ({ children }) => {
                   );
                 })}
               </View>
+              )}
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
       )}
     </VibeAlertContext.Provider>
   );
@@ -320,6 +342,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 12,
   },
   icon: {
@@ -330,7 +353,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: '#00f2fe',
-    flex: 1,
+    textAlign: 'center',
   },
   message: {
     fontSize: 16,
@@ -338,6 +361,7 @@ const styles = StyleSheet.create({
     color: theme.colors.white,
     marginBottom: 20,
     lineHeight: 22,
+    textAlign: 'center',
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -400,6 +424,14 @@ const styles = StyleSheet.create({
   blueButton: {
     backgroundColor: '#0072ff',
     borderColor: '#00FFFF',
+  },
+  redButton: {
+    backgroundColor: '#CC0033', // Solid red fill to match VibeButton red variant
+    borderColor: '#FFCC66', // Orange/yellow border to match VibeButton red variant
+  },
+  defaultButton: {
+    backgroundColor: theme.colors.vibeBlue,
+    borderColor: theme.colors.vibeBlue,
   },
   buttonText: {
     color: theme.colors.white,

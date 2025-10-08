@@ -43,9 +43,14 @@ export default function VibeAppWrapper({
               behavior={Platform.OS === 'ios' ? 'padding' : undefined}
               keyboardVerticalOffset={0}
             >
-              <View style={styles.contentWrapper}>
+              <LinearGradient
+                colors={theme.colors.backgroundGradient}
+                style={styles.contentWrapper}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+              >
                 {children}
-              </View>
+              </LinearGradient>
             </KeyboardAvoidingView>
           </SafeAreaView>
         </View>
@@ -60,10 +65,9 @@ const styles = StyleSheet.create({
   },
   keyboardView: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: 'transparent',
   },
   contentWrapper: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
 });

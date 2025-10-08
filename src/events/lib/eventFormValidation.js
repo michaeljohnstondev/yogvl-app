@@ -376,7 +376,8 @@ export const formatEventForStorage = (
     title: title.trim(),
     location: location.trim(),
     eventTimestamp: new Date(combined.toUTC().toISO()),
-    createdBy: currentUserId,
+    // IMPORTANT: Only set createdBy for new events, not when editing (preserve original creator)
+    ...(isEditing ? {} : { createdBy: currentUserId }),
     createdAt: null, // Will be set in the create handler
 
     // DETAILS

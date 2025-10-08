@@ -66,8 +66,12 @@ export default function HostEventNotificationsScreen() {
     saveTimeoutRef.current = setTimeout(() => {
       // Only save if settings have actually changed from initial values
       if (JSON.stringify(localSettings) !== JSON.stringify(initialSettings)) {
-        // Emit navigation event to update the form
-        navigation.emit('settingsUpdated', { data: localSettings });
+        // Navigate back to CreateEvent with updated settings
+        // Note: navigation.emit() is not supported in React Navigation v7
+        navigation.navigate('CreateEvent', {
+          updatedNotificationSettings: localSettings,
+          timestamp: Date.now() // Force re-render on CreateEventForm
+        });
       }
     }, 500);
 

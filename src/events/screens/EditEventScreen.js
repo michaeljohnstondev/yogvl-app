@@ -38,6 +38,9 @@ export default function EditEventScreen({ navigation, route }) {
   const [eventUpdatedSuccessfully, setEventUpdatedSuccessfully] =
     useState(false);
 
+  // Ref to bypass navigation blocking when user confirms discard
+  const shouldAllowNavigation = useRef(false);
+
   // Load event data if not provided via params
   useEffect(() => {
     if (!routeEventData && eventId && !isLoadingEventData) {
@@ -441,76 +444,77 @@ export default function EditEventScreen({ navigation, route }) {
     eventData,
   ]);
 
-  // Handle back navigation (both hardware and header back button)
-  const handleBackNavigation = useCallback(() => {
-    // Allow navigation if event was successfully updated
-    if (eventUpdatedSuccessfully) {
+  // Handle back navigation confirmation logic
+  const handleBackNavigation = useCallback(
+    (onConfirm) => {
+      // Allow navigation if event was successfully updated or already navigating
+      if (eventUpdatedSuccessfully || shouldAllowNavigation.current) {
+        if (onConfirm) onConfirm();
+        return false;
+      }
+
+      // Only show confirmation if user has made actual changes
+      if (hasActualChanges()) {
+        // Show confirmation dialog when form has changes
+        vibeAlert.confirm(
+          'Discard Changes?',
+          'You have unsaved changes. Are you sure you want to go back?',
+          () => {
+            // Set flag to prevent re-triggering and execute navigation
+            shouldAllowNavigation.current = true;
+            if (onConfirm) {
+              onConfirm();
+            }
+          },
+          () => {
+            // Do nothing - stay on screen
+          }
+        );
+        return true; // Prevent navigation
+      }
+
+      // Allow navigation when no meaningful changes
+      if (onConfirm) onConfirm();
       return false;
-    }
-
-    // Only show confirmation if user has made actual changes
-    if (hasActualChanges()) {
-      // Show confirmation dialog when form has changes
-      vibeAlert.confirm(
-        'Discard Changes?',
-        'You have unsaved changes. Are you sure you want to go back?',
-        () => {
-          // Navigate back without saving
-          navigation.goBack();
-        },
-        () => {
-          // Do nothing - stay on screen
-        }
-      );
-      return true; // Prevent navigation
-    }
-
-    // Allow navigation when no meaningful changes
-    return false;
-  }, [eventUpdatedSuccessfully, hasActualChanges, vibeAlert, navigation]);
+    },
+    [eventUpdatedSuccessfully, hasActualChanges, vibeAlert]
+  );
 
   // Handle hardware back button
   useFocusEffect(
     useCallback(() => {
       const backHandler = BackHandler.addEventListener(
         'hardwareBackPress',
-        handleBackNavigation
+        () => {
+          // Always handle the back press ourselves and prevent default behavior
+          handleBackNavigation(() => navigation.goBack());
+          return true; // Always prevent default back behavior
+        }
       );
       return () => backHandler.remove();
-    }, [handleBackNavigation])
+    }, [handleBackNavigation, navigation])
   );
 
   // Handle header back button and navigation away
   useFocusEffect(
     useCallback(() => {
       const unsubscribe = navigation.addListener('beforeRemove', (e) => {
-        // Allow navigation if event was successfully updated
-        if (eventUpdatedSuccessfully) {
+        // If we're already navigating back (user confirmed), allow it
+        if (shouldAllowNavigation.current || eventUpdatedSuccessfully) {
           return;
         }
 
-        // Only show confirmation if user has made actual changes
-        if (hasActualChanges()) {
-          // Prevent default behavior
-          e.preventDefault();
+        const shouldPrevent = handleBackNavigation(() => {
+          navigation.dispatch(e.data.action);
+        });
 
-          // Show confirmation dialog
-          vibeAlert.confirm(
-            'Discard Changes?',
-            'You have unsaved changes. Are you sure you want to leave?',
-            () => {
-              // Continue navigation without saving
-              navigation.dispatch(e.data.action);
-            },
-            () => {
-              // Do nothing - stay on screen
-            }
-          );
+        if (shouldPrevent) {
+          e.preventDefault();
         }
       });
 
       return unsubscribe;
-    }, [navigation, eventUpdatedSuccessfully, hasActualChanges, vibeAlert])
+    }, [navigation, handleBackNavigation, eventUpdatedSuccessfully])
   );
 
   const handleSaveAsTemplate = useCallback(async () => {

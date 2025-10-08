@@ -955,13 +955,37 @@ export const sendBulkCohostInvitations = async ({
     };
 
     // Process invitations sequentially for co-hosts to avoid conflicts
+    console.log('[invitations] 🔄 Processing cohost invitations sequentially:', {
+      count: cohostInvitations.length,
+      eventId,
+      hostId,
+      studioId,
+      hasEventData: !!eventData,
+      hasHostData: !!hostData,
+    });
+
     for (const invite of cohostInvitations) {
       try {
+        console.log('[invitations] 📨 Processing individual cohost invitation:', {
+          type: invite.type,
+          guestId: invite.guestId,
+          guestEmail: invite.guestEmail,
+        });
+
         if (invite.type === 'user' && invite.guestId) {
           // Use sendCohostInvitation from cohostInvitationsService
           const { sendCohostInvitation } = await import(
             '../../services/shared/cohostInvitationsService'
           );
+
+          console.log('[invitations] 🚀 Calling sendCohostInvitation with params:', {
+            hostId,
+            recipientId: invite.guestId,
+            eventId,
+            studioId,
+            hasHostData: !!hostData,
+            hasEventData: !!eventData,
+          });
 
           const result = await sendCohostInvitation(
             hostId,
@@ -972,17 +996,28 @@ export const sendBulkCohostInvitations = async ({
             studioId
           );
 
+          console.log('[invitations] ✅ Cohost invitation sent successfully:', {
+            recipientId: invite.guestId,
+            result,
+          });
+
           results.successful.push({
             ...invite,
             invitationId:
               result.invitationId || `cohost_${invite.guestId}_${eventId}`,
           });
         } else {
+          console.warn('[invitations] ⚠️  Cohost invitation is email type or missing guestId - not supported yet');
           throw new Error(
             'Co-host invitations currently only support app users'
           );
         }
       } catch (error) {
+        console.error('[invitations] ❌ Failed to send cohost invitation:', {
+          invite,
+          error: error.message,
+          stack: error.stack,
+        });
         results.failed.push({
           ...invite,
           error: error.message,

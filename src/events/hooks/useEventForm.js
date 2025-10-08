@@ -428,11 +428,24 @@ Hope to see you there! 🎉`;
         }
 
         // Prepare co-host invitations
+        console.log('[useEventForm] 🎯 Preparing cohost invitations from selectedInvitations:', {
+          hasCohosts: !!selectedInvitations.cohosts,
+          cohostsCount: selectedInvitations.cohosts?.length || 0,
+          hasCohostContacts: !!selectedInvitations.cohostContacts,
+          cohostContactsCount: selectedInvitations.cohostContacts?.length || 0,
+          userStudio,
+          eventId: eventRef.id,
+        });
+
         const cohostInvitations = [];
 
         // Add selected co-host users
         if (selectedInvitations.cohosts) {
           selectedInvitations.cohosts.forEach((user) => {
+            console.log('[useEventForm] 📝 Adding cohost user invitation:', {
+              userId: user.id,
+              userName: user.userdata?.contactInfo?.displayName || 'Unknown',
+            });
             cohostInvitations.push({
               type: 'user',
               guestId: user.id,
@@ -445,6 +458,9 @@ Hope to see you there! 🎉`;
         if (selectedInvitations.cohostContacts) {
           selectedInvitations.cohostContacts.forEach((contact) => {
             if (contact.email) {
+              console.log('[useEventForm] 📧 Adding cohost email invitation:', {
+                email: contact.email,
+              });
               cohostInvitations.push({
                 type: 'email',
                 guestEmail: contact.email,
@@ -455,14 +471,21 @@ Hope to see you there! 🎉`;
           });
         }
 
+        console.log('[useEventForm] ✅ Cohost invitations prepared:', {
+          total: cohostInvitations.length,
+          cohostInvitations,
+        });
+
         // Send batch invitations
         if (guestInvitations.length > 0 || cohostInvitations.length > 0) {
-          console.log(`[useEventForm] Sending invitations:`, {
+          console.log(`[useEventForm] 📤 Sending invitations:`, {
             guestInvitations: guestInvitations.length,
             cohostInvitations: cohostInvitations.length,
             eventId: eventRef.id,
             hostId: currentUserId,
             studioId: userStudio,
+            hasEventData: !!eventDataWithStudio,
+            hasHostData: !!userData,
           });
 
           const invitationResults = await sendEventInvitations({
@@ -663,12 +686,36 @@ Hope to see you there! 🎉`;
       }
       const existingEvent = existingEventDoc.data();
 
+      // Detect if event time changed
+      const dateTimeChanged = eventDataWithoutArrays.dateTime &&
+        existingEvent.dateTime &&
+        new Date(eventDataWithoutArrays.dateTime).getTime() !== existingEvent.dateTime.toDate().getTime();
+
       // Update only the event metadata, not the attendee/cohost arrays
       await updateDoc(eventRef, eventDataWithoutArrays);
 
-      // NOTE: Notification rescheduling is handled automatically by Cloud Functions
-      // when the event document is updated. No client-side reschedule needed.
-      console.log('[EventForm] Event updated - Cloud Functions will handle notification updates automatically');
+      // If date/time changed, reschedule notifications for all subscribers
+      if (dateTimeChanged) {
+        console.log('[EventForm] Event time changed, rescheduling notifications in background...');
+
+        // Run rescheduling in background without blocking UI
+        setTimeout(async () => {
+          try {
+            const { rescheduleEventNotifications } = await import('../../services/scheduled/notificationProcessor');
+            const result = await rescheduleEventNotifications(
+              eventId,
+              userStudio,
+              { ...existingEvent, ...eventDataWithoutArrays }
+            );
+            console.log(`[EventForm] Successfully rescheduled notifications for ${result.rescheduledCount} subscribers`);
+          } catch (error) {
+            console.error('[EventForm] Failed to reschedule notifications:', error);
+            // Don't fail the update - notifications are secondary
+          }
+        }, 0);
+      } else {
+        console.log('[EventForm] Event updated - no time change, notifications unchanged');
+      }
 
       // Send invitations for new cohosts/guests if any were selected
       if (

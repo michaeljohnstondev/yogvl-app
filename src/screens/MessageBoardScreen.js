@@ -406,14 +406,15 @@ const styles = StyleSheet.create({
     paddingBottom: 30, // Bottom spacing requirement for comfortable scrolling
   },
   messageContainer: {
-    marginBottom: 20,
+    marginBottom: 12,
     paddingHorizontal: 16,
     position: 'relative',
   },
   messageCard: {
     backgroundColor: theme.colors.inputBackground,
     borderRadius: theme.sizes.borderRadius,
-    padding: 16,
+    paddingVertical: 5,
+    paddingHorizontal: 16,
     borderWidth: 3,
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -459,9 +460,10 @@ const styles = StyleSheet.create({
     // UI Restrictions: NO borders, NO background colors on close/report buttons
   },
   deleteButtonText: {
-    fontSize: 14,
-    color: theme.colors.vibeRed || '#FF4444',
+    fontSize: 17,
+    color: theme.colors.vibeBlue,
     fontWeight: '900',
+    lineHeight: 17,
     // Simple clean text only - no borders or backgrounds
   },
   emptyState: {
@@ -495,8 +497,8 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     backgroundColor: theme.colors.inputBackground,
     borderRadius: 24,
-    borderWidth: 1,
-    borderColor: theme.colors.inputBorder,
+    borderWidth: 2,
+    borderColor: theme.colors.vibeTurquoise,
     paddingHorizontal: 16,
     paddingVertical: 8,
     minHeight: 48,

@@ -697,8 +697,10 @@ const styles = StyleSheet.create({
   animatedContainer: {
     position: 'relative',
     zIndex: 1,
-    backgroundColor: theme.colors.darkGray,
+    backgroundColor: 'rgba(0, 8, 20, 0.6)',
     borderRadius: 8,
+    borderWidth: 2,
+    borderColor: 'rgba(0, 198, 255, 0.3)',
   },
   container: {
     flexDirection: 'row',

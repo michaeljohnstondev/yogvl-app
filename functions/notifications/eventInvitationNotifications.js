@@ -92,9 +92,13 @@ exports.onEventInvitation = functions.firestore
       // Send notifications to each newly invited user
       const notificationPromises = newInvitations.map(async (invitation) => {
         // Extract userId and type (support both old and new format)
+        console.log('[Event Invitation] Raw invitation object:', JSON.stringify(invitation, null, 2));
+
         const inviteeId = invitation.userId || invitation;
         const invitationType = invitation.type || 'guest'; // Default to guest for old format
 
+        console.log('[Event Invitation] Extracted inviteeId:', inviteeId, 'type:', typeof inviteeId);
+        console.log('[Event Invitation] Extracted invitationType:', invitationType);
         console.log(`[Event Invitation] Processing ${invitationType} invitation for user ${inviteeId}`);
 
         // Skip if invitee is the event creator (can't invite yourself)

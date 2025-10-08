@@ -123,6 +123,21 @@ export const subscribeToEvent = async (
         // Update user metrics in background
         await updateEventSubscription(userId, eventId);
 
+        // Store user's notification settings for this event (for rescheduling)
+        try {
+          const userEventSettingsRef = doc(db, 'users', userId, 'eventSubscriptions', eventId);
+          await setDoc(userEventSettingsRef, {
+            notificationSettings,
+            subscribedAt: Timestamp.now(),
+            eventId,
+            studioId,
+          });
+          console.log(`[EventSubscription] Stored notification settings for user ${userId}, event ${eventId}`);
+        } catch (settingsError) {
+          console.error('[EventSubscription] Failed to store notification settings:', settingsError);
+          // Don't fail subscription if settings storage fails
+        }
+
         // Add notification subscription with user's settings
         await addEventNotificationSubscription(
           userId,

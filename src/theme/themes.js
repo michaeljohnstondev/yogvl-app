@@ -1,7 +1,7 @@
 const theme = {
   colors: {
-    background: '#2D1050',
-    backgroundGradient: ['#1A0A35', '#2D1050'],
+    background: '#001020',
+    backgroundGradient: ['#001020', '#001840', '#002060'],
     buttonGradient: ['#00c6ff', '#0072ff'],
     royalPurpleGradient: ['#4B0082', '#0066FF', '#4B0082', '#0066FF', '#4B0082'],
     textPrimary: '#FFFFFF',
@@ -33,7 +33,8 @@ const theme = {
     darkGray: '#2d2d2d',
 
     // UI accent colors
-    headerBackground: '#1A0A35', // Match event cards exactly
+    headerBackground: '#001020', // Match header gradient top
+    statusBarBackground: '#001020', // Match header gradient top
 
     // VibeBackgroundColors
     vibeBackgroundBlue: 'rgba(0, 198, 255, 0.1)',

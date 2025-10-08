@@ -9,6 +9,7 @@ import {
   BackHandler,
   RefreshControl,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   VibeButton,
   VibeLoadingScreen,
@@ -435,7 +436,12 @@ export default function HomeScreen({ navigation, route }) {
   return (
     <View style={styles.screen}>
       {/* Header - Always visible */}
-      <View style={styles.header}>
+      <LinearGradient
+        colors={['#001020', '#001840']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={styles.header}
+      >
         <Text style={styles.headerTitle}>Big Vibe Studios</Text>
         <View style={styles.headerIcons}>
           <NotificationButton
@@ -458,7 +464,7 @@ export default function HomeScreen({ navigation, route }) {
             {profileAvatar}
           </Pressable>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* Show empty state if no events exist anywhere */}
       {hasNoEvents ? (
@@ -483,7 +489,16 @@ export default function HomeScreen({ navigation, route }) {
         >
           {myEvents.length > 0 && (
             <>
-              <Text style={styles.sectionHeader}>Your Events</Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('EventList', {
+                  title: 'Your Events',
+                  events: myEvents
+                })}
+                activeOpacity={0.6}
+                hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
+              >
+                <Text style={styles.sectionHeader}>Your Events</Text>
+              </TouchableOpacity>
               <VibeCarousel
                 data={myEvents}
                 scrollViewRef={scrollViewRef}
@@ -505,7 +520,16 @@ export default function HomeScreen({ navigation, route }) {
 
           {invitedEvents.length > 0 && (
             <>
-              <Text style={styles.sectionHeader}>Invited To</Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('EventList', {
+                  title: 'Invited To',
+                  events: invitedEvents
+                })}
+                activeOpacity={0.6}
+                hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
+              >
+                <Text style={styles.sectionHeader}>Invited To</Text>
+              </TouchableOpacity>
               <VibeCarousel
                 data={invitedEvents}
                 scrollViewRef={scrollViewRef}
@@ -527,9 +551,18 @@ export default function HomeScreen({ navigation, route }) {
 
           {followedEvents.length > 0 && (
             <>
-              <Text style={styles.sectionHeader}>
-                Events from People You Follow
-              </Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('EventList', {
+                  title: 'Events from People You Follow',
+                  events: followedEvents
+                })}
+                activeOpacity={0.6}
+                hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
+              >
+                <Text style={styles.sectionHeader}>
+                  Events from People You Follow
+                </Text>
+              </TouchableOpacity>
               <VibeCarousel
                 data={followedEvents}
                 scrollViewRef={scrollViewRef}
@@ -551,9 +584,18 @@ export default function HomeScreen({ navigation, route }) {
 
           {interestBasedEvents.length > 0 && (
             <>
-              <Text style={styles.sectionHeader}>
-                For You in {studioCity}
-              </Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('EventList', {
+                  title: `For You in ${studioCity}`,
+                  events: interestBasedEvents
+                })}
+                activeOpacity={0.6}
+                hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
+              >
+                <Text style={styles.sectionHeader}>
+                  For You in {studioCity}
+                </Text>
+              </TouchableOpacity>
               <VibeCarousel
                 data={interestBasedEvents}
                 scrollViewRef={scrollViewRef}
@@ -575,9 +617,18 @@ export default function HomeScreen({ navigation, route }) {
 
           {otherEvents.length > 0 && (
             <>
-              <Text style={styles.sectionHeader}>
-                Discover {studioCity}
-              </Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('EventList', {
+                  title: `Discover ${studioCity}`,
+                  events: otherEvents
+                })}
+                activeOpacity={0.6}
+                hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
+              >
+                <Text style={styles.sectionHeader}>
+                  Discover {studioCity}
+                </Text>
+              </TouchableOpacity>
               <VibeCarousel
                 data={otherEvents}
                 scrollViewRef={scrollViewRef}
@@ -599,7 +650,16 @@ export default function HomeScreen({ navigation, route }) {
 
           {pastEvents.length > 0 && (
             <>
-              <Text style={styles.sectionHeader}>My Past Events</Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('EventList', {
+                  title: 'Your Past Events',
+                  events: pastEvents
+                })}
+                activeOpacity={0.6}
+                hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
+              >
+                <Text style={styles.sectionHeader}>Your Past Events</Text>
+              </TouchableOpacity>
               <VibeCarousel
                 data={pastEvents}
                 scrollViewRef={scrollViewRef}
@@ -619,23 +679,27 @@ export default function HomeScreen({ navigation, route }) {
             </>
           )}
 
-          <View style={styles.buttonStack}>
-            <VibeButton
-              label="CREATE EVENT"
-              onPress={() => navigation.navigate('CreateEvent')}
-              variant="filled"
-              style={styles.fullButton}
-            />
-            {hasAdminAccess(userData) && (
+          {hasAdminAccess(userData) && (
+            <View style={styles.buttonStack}>
               <VibeButton
                 label="ADMIN TOOLS"
                 onPress={handleAdminMenu}
-                style={[styles.fullButton, styles.adminButton]}
+                style={styles.fullButton}
               />
-            )}
-          </View>
+            </View>
+          )}
         </ScrollView>
       )}
+
+      {/* Sticky Create Event Button */}
+      <View style={styles.stickyButtonContainer}>
+        <VibeButton
+          label="CREATE AN EVENT"
+          onPress={() => navigation.navigate('CreateEvent')}
+          variant="filled"
+          style={styles.stickyButton}
+        />
+      </View>
 
       {showAccountSettings && (
         <>
@@ -690,7 +754,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 16,
-    backgroundColor: theme.colors.headerBackground,
     borderBottomWidth: 3,
     borderBottomColor: theme.colors.vibeBlue,
   },
@@ -713,7 +776,7 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingTop: 20,
-    paddingBottom: 60,
+    paddingBottom: 120,
     paddingHorizontal: 16,
     overflow: 'visible',
   },
@@ -724,16 +787,29 @@ const styles = StyleSheet.create({
   buttonStack: {
     flexDirection: 'column',
     marginTop: 30,
+    marginBottom: 20,
     gap: 12,
   },
   fullButton: {
     width: '100%',
   },
-  adminButton: {
-    // Removed fixed opacity to allow press feedback
+  stickyButtonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingBottom: 20,
+    backgroundColor: theme.colors.background,
+    borderTopWidth: 2,
+    borderTopColor: theme.colors.vibeBlue,
+  },
+  stickyButton: {
+    width: '100%',
   },
   sectionHeader: {
-    color: '#fff',
+    color: theme.colors.vibeCyan,
     fontSize: 20,
     fontFamily: theme.fonts.comicBold,
     marginBottom: 10,

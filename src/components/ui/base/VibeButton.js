@@ -11,12 +11,14 @@ import theme from '../../../theme/themes';
  * - green: green button with cyan border for positive actions (forest green gradient)
  * Usage:
  * <VibeButton label="Click Me" onPress={...} />
+ * <VibeButton onPress={...}>Click Me</VibeButton>
  * <VibeButton label="Toggle" onPress={...} variant="toggle" color="purple" />
  * <VibeButton label="Delete" onPress={...} variant="red" />
  * <VibeButton label="Join Event" onPress={...} variant="green" />
  */
 export default function VibeButton({
   label,
+  children,
   onPress,
   style,
   textStyle,
@@ -24,6 +26,8 @@ export default function VibeButton({
   color = 'blue',
   disabled = false,
 }) {
+  // Support both label prop and children
+  const buttonText = label || children;
   // Get color values based on color parameter
   const getColorValues = (colorName) => {
     const colorMap = {
@@ -61,7 +65,7 @@ export default function VibeButton({
         ]}
       >
         <Text style={[styles.toggleText, { color: themeColor }, textStyle]}>
-          {label}
+          {buttonText}
         </Text>
       </Pressable>
     );
@@ -86,7 +90,7 @@ export default function VibeButton({
         <View style={styles.redOuterBorder}>
           <View style={styles.redSolidFill}>
             <View style={styles.buttonContent}>
-              <Text style={[styles.text, textStyle]}>{label}</Text>
+              <Text style={[styles.text, textStyle]}>{buttonText}</Text>
             </View>
           </View>
         </View>
@@ -113,7 +117,7 @@ export default function VibeButton({
         <View style={styles.greenOuterBorder}>
           <View style={styles.greenSolidFill}>
             <View style={styles.buttonContent}>
-              <Text style={[styles.text, textStyle]}>{label}</Text>
+              <Text style={[styles.text, textStyle]}>{buttonText}</Text>
             </View>
           </View>
         </View>
@@ -140,7 +144,7 @@ export default function VibeButton({
       <View style={styles.outerBorder}>
         <View style={styles.gradientBorder}>
           <View style={styles.buttonContent}>
-            <Text style={[styles.text, textStyle]}>{label}</Text>
+            <Text style={[styles.text, textStyle]}>{buttonText}</Text>
           </View>
         </View>
       </View>

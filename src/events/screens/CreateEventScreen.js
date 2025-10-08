@@ -677,6 +677,8 @@ export default function CreateEventScreen({ navigation, route }) {
         isCreating={isSubmitting}
         templates={templates}
         vibeAlert={vibeAlert}
+        // Navigation route (for receiving params from other screens)
+        route={route}
         // Input handlers
         onInputChange={handleInputChange}
         onInputFocus={(field) => handleInputFocus(field, formData)}

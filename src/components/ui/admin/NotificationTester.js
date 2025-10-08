@@ -254,7 +254,7 @@ export default function NotificationTester() {
         hasRsvpDeadline: false,
         subscribers: [claudeUserId],
         subscriberCount: 1,
-        invitations: [],
+        invitations: [{ userId: currentUserId, type: 'cohost' }], // Add current user as cohost invitation (unified format)
         cohosts: [],
         notificationSettings: {
           enabled: true,
@@ -269,15 +269,43 @@ export default function NotificationTester() {
         status: 'active'
       };
 
-      // Create event document
+      // Create event document (with currentUserId in invitations to prevent interest notification)
       await setDoc(doc(db, 'studios', studioId, 'events', eventId), eventData);
       console.log('✅ [CreateClaudeEvent] Event created successfully');
 
-      Alert.alert(
-        'Claude Test Event Created! 🎉',
-        `Event created successfully!\n\nEvent ID: ${eventId}\nTime: ${eventTime.toLocaleString()}\n(${randomHours} hours from now)\n\nLocation: The Velo Fellow, Greenville\n\nYou can find it in your events list!`,
-        [{ text: 'Great!' }]
-      );
+      // Import and send cohost invitation to current user
+      console.log('📨 [CreateClaudeEvent] Sending cohost invitation to current user:', currentUserId);
+      try {
+        const { sendCohostInvitation } = await import('../../../services/shared/cohostInvitationsService');
+
+        // Get Claude's user data
+        const claudeUserDoc = await getDoc(doc(db, 'users', claudeUserId));
+        const claudeUserData = claudeUserDoc.exists() ? claudeUserDoc.data() : null;
+
+        await sendCohostInvitation(
+          claudeUserId,        // inviterId (Claude)
+          currentUserId,       // recipientId (You)
+          eventId,             // eventId
+          claudeUserData,      // inviterData
+          eventData,           // eventData
+          studioId             // studioId
+        );
+
+        console.log('✅ [CreateClaudeEvent] Cohost invitation sent successfully to:', currentUserId);
+
+        Alert.alert(
+          'Claude Test Event Created! 🎉',
+          `Event created successfully!\n\nEvent ID: ${eventId}\nTime: ${eventTime.toLocaleString()}\n(${randomHours} hours from now)\n\nLocation: The Velo Fellow, Greenville\n\n🎯 You've been invited as a cohost!\nCheck your notifications to accept!`,
+          [{ text: 'Great!' }]
+        );
+      } catch (inviteError) {
+        console.error('❌ [CreateClaudeEvent] Failed to send cohost invitation:', inviteError);
+        Alert.alert(
+          'Event Created (Invite Failed)',
+          `Event created but cohost invitation failed!\n\nEvent ID: ${eventId}\nError: ${inviteError.message}\n\nCheck console for details.`,
+          [{ text: 'OK' }]
+        );
+      }
 
     } catch (error) {
       console.error('[CreateClaudeEvent] Failed to create event:', error);

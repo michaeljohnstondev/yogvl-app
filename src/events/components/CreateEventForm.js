@@ -99,20 +99,24 @@ export default function CreateEventForm({
   // Current attendees/cohosts (for edit mode display)
   currentAttendees = [],
   currentCohosts = [],
+
+  // Navigation route (for receiving params from other screens)
+  route,
 }) {
   const navigation = useNavigation();
 
   // Listen for notification settings updates from HostEventNotifications screen
+  // Uses route params instead of navigation.emit() (React Navigation v7 compatible)
   useFocusEffect(
     useCallback(() => {
-      const unsubscribe = navigation.addListener('settingsUpdated', (e) => {
-        const updatedSettings = e.data;
-        if (updatedSettings && updateField) {
-          updateField('notificationSettings', updatedSettings);
-        }
-      });
-      return unsubscribe;
-    }, [navigation, updateField])
+      const updatedSettings = route?.params?.updatedNotificationSettings;
+      if (updatedSettings && updateField) {
+        console.log('[CreateEventForm] Received updated notification settings from HostEventNotifications');
+        updateField('notificationSettings', updatedSettings);
+        // Clear the param so it doesn't re-apply on next focus
+        navigation.setParams({ updatedNotificationSettings: undefined });
+      }
+    }, [route?.params?.updatedNotificationSettings, route?.params?.timestamp, updateField, navigation])
   );
 
   // Listen for invite results from InviteScreen

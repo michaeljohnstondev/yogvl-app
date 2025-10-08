@@ -60,7 +60,7 @@ function NotificationSettings({ navigation }) {
       userData?.userdata?.settings?.notifications?.hosting?.eventRecap ?? false,
     reminderTemplates:
       userData?.userdata?.settings?.notifications?.hosting?.reminderTemplates ??
-      [],
+      {}, // Object format, not array
   });
 
   // Attending default notification settings (for events user joins)
@@ -81,7 +81,7 @@ function NotificationSettings({ navigation }) {
       false,
     reminderTemplates:
       userData?.userdata?.settings?.notifications?.attending
-        ?.reminderTemplates || [],
+        ?.reminderTemplates || {}, // Object format, not array
   });
 
   const reminderOptions = [
@@ -120,7 +120,7 @@ function NotificationSettings({ navigation }) {
       userData?.userdata?.settings?.notifications?.hosting?.eventRecap ?? false,
     reminderTemplates:
       userData?.userdata?.settings?.notifications?.hosting?.reminderTemplates ??
-      [],
+      {}, // Object format, not array
   };
 
   const initialAttendingSettings = {
@@ -140,7 +140,7 @@ function NotificationSettings({ navigation }) {
       false,
     reminderTemplates:
       userData?.userdata?.settings?.notifications?.attending
-        ?.reminderTemplates || [],
+        ?.reminderTemplates || {}, // Object format, not array
   };
 
   // Auto-save hooks with debouncing

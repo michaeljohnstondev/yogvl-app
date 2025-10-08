@@ -15,61 +15,75 @@ export const REMINDER_INTERVALS = {
 export class EventReminderTemplates {
   /**
    * Map user notification settings to intervals
-   * @param {Object} reminderTemplates - User's reminder templates settings (e.g., {'1h': true, '1d': false})
+   * @param {Object} reminderTemplates - User's reminder templates settings (e.g., {'1h': true, '1d': false, '5m': true})
    * @returns {Array} Array of intervals for enabled notifications
    */
   static mapUserSettingsToIntervals(reminderTemplates) {
     const intervals = [];
 
-    if (reminderTemplates['15m']) {
+    // Iterate through all template keys and only include enabled ones (value === true)
+    for (const [templateId, isEnabled] of Object.entries(reminderTemplates)) {
+      if (!isEnabled) continue; // Skip disabled templates
+
+      // Parse template ID format: "15m", "2h", "1d", "1w", "3months" -> amount + unit
+      const match = templateId.match(/^(\d+)([mhdwy])$/);
+
+      if (!match) {
+        console.warn(`[EventReminderTemplates] Invalid template ID format: ${templateId}, skipping`);
+        continue;
+      }
+
+      const [, amount, unitChar] = match;
+      const numAmount = parseInt(amount);
+
+      // Map unit character to minutes
+      let minutes;
+      let title;
+
+      switch (unitChar) {
+        case 'm': // minutes
+          minutes = numAmount;
+          title = `Event Starting in ${numAmount} Minute${numAmount === 1 ? '' : 's'}!`;
+          break;
+        case 'h': // hours
+          minutes = numAmount * 60;
+          title = numAmount === 1
+            ? 'Event Starting Soon!'
+            : `Event in ${numAmount} Hours`;
+          break;
+        case 'd': // days
+          minutes = numAmount * 24 * 60;
+          title = numAmount === 1
+            ? 'Event Tomorrow!'
+            : `Event in ${numAmount} Days`;
+          break;
+        case 'w': // weeks
+          minutes = numAmount * 7 * 24 * 60;
+          title = numAmount === 1
+            ? 'Event Next Week!'
+            : `Event in ${numAmount} Weeks`;
+          break;
+        case 'y': // months (y = "year-like" but actually months based on GuestNotificationSettingsForm)
+          minutes = numAmount * 30 * 24 * 60; // Approximate 30 days per month
+          title = numAmount === 1
+            ? 'Event Next Month!'
+            : `Event in ${numAmount} Months`;
+          break;
+        default:
+          console.warn(`[EventReminderTemplates] Unknown unit: ${unitChar}, skipping template ${templateId}`);
+          continue;
+      }
+
       intervals.push({
-        key: '15m',
-        minutes: 15,
-        title: 'Event Starting in 15 Minutes!',
+        key: templateId,
+        minutes,
+        title,
       });
     }
 
-    if (reminderTemplates['30m']) {
-      intervals.push({
-        key: '30m',
-        minutes: 30,
-        title: 'Event Starting in 30 Minutes!',
-      });
-    }
+    console.log(`[EventReminderTemplates] Mapped ${intervals.length} enabled intervals from user settings:`,
+      intervals.map(i => `${i.key} (${i.minutes}min)`).join(', '));
 
-    if (reminderTemplates['1h']) {
-      intervals.push({
-        key: '1h',
-        minutes: 60,
-        title: 'Event Starting Soon!',
-      });
-    }
-
-    if (reminderTemplates['2h']) {
-      intervals.push({
-        key: '2h',
-        minutes: 120,
-        title: 'Event in 2 Hours',
-      });
-    }
-
-    if (reminderTemplates['1d']) {
-      intervals.push({
-        key: '1d',
-        minutes: 1440, // 24 * 60
-        title: 'Event Tomorrow!',
-      });
-    }
-
-    if (reminderTemplates['1w']) {
-      intervals.push({
-        key: '1w',
-        minutes: 10080, // 7 * 24 * 60
-        title: 'Event Next Week!',
-      });
-    }
-
-    console.log(`[EventReminderTemplates] Mapped ${intervals.length} enabled intervals from user settings`);
     return intervals;
   }
 
@@ -180,15 +194,29 @@ export class EventReminderTemplates {
         };
       }
 
+      console.log(`[EventReminderTemplates] Event time: ${eventTime.toISOString()}, processing ${intervals.length} intervals`);
+
       for (const interval of intervals) {
         const reminderTime = new Date(
           eventTime.getTime() - interval.minutes * 60 * 1000
         );
 
+        const now = new Date();
+        const isPast = reminderTime <= now;
+
+        console.log(`[EventReminderTemplates] Checking ${interval.key} reminder:`, {
+          eventTime: eventTime.toISOString(),
+          minutesBefore: interval.minutes,
+          reminderTime: reminderTime.toISOString(),
+          now: now.toISOString(),
+          isPast,
+          willSchedule: !isPast
+        });
+
         // Skip if reminder time is in the past
-        if (reminderTime <= new Date()) {
+        if (isPast) {
           console.log(
-            `[EventReminderTemplates] Skipping ${interval.key} reminder for ${eventId} - time has passed`
+            `[EventReminderTemplates] ⏭️  Skipping ${interval.key} reminder for ${eventId} - time has passed (${reminderTime.toISOString()} is before ${now.toISOString()})`
           );
           continue;
         }
@@ -207,11 +235,11 @@ export class EventReminderTemplates {
               type: NOTIFICATION_TYPES.EVENT_REMINDER,
               title: customTitle,
               message: customMessage,
+              reminderType: interval.key, // Template ID at root level for Cloud Function validation
               data: {
                 eventId,
                 eventTitle: title,
                 eventTime: eventTime.toISOString(),
-                reminderType: interval.key,
                 isHost: userId === createdBy,
                 customTemplate: interval.template || null,
               },
@@ -221,6 +249,8 @@ export class EventReminderTemplates {
                   ? NOTIFICATION_PRIORITY.HIGH
                   : NOTIFICATION_PRIORITY.NORMAL,
             });
+
+          console.log(`[EventReminderTemplates] ✅ Scheduled ${interval.key} for user ${userId} at ${reminderTime.toISOString()}`);
 
           notifications.push({
             scheduleId,
@@ -270,24 +300,22 @@ export class EventReminderTemplates {
         : new Date(eventTimestamp);
       const notifications = [];
 
-      // Determine which reminders to schedule based on user settings
-      const remindersToSchedule = [];
+      // Use mapUserSettingsToIntervals to convert user's reminder template settings to intervals
+      // reminderTemplates is an object like {'15m': true, '1h': false, '1d': true}
+      const remindersToSchedule = this.mapUserSettingsToIntervals(
+        notificationSettings.reminderTemplates || {}
+      );
 
-      // Default reminder if no templates are set (fallback)
-      if (!notificationSettings.reminderTemplates || Object.keys(notificationSettings.reminderTemplates).length === 0) {
+      // If no reminders are enabled, schedule default 1-hour reminder as fallback
+      if (remindersToSchedule.length === 0) {
+        console.log(
+          `[EventReminderTemplates] No reminder templates enabled for user ${userId}, using default 1-hour reminder`
+        );
         remindersToSchedule.push({
           key: 'DEFAULT_1HOUR',
           minutes: REMINDER_INTERVALS.ONE_HOUR,
           title: 'Event Starting Soon!',
         });
-      }
-
-      // Custom reminder templates
-      if (notificationSettings.reminderTemplates?.length > 0) {
-        const customIntervals = this.convertCustomTemplates(
-          notificationSettings.reminderTemplates
-        );
-        remindersToSchedule.push(...customIntervals);
       }
 
       // Schedule each reminder
@@ -311,12 +339,10 @@ export class EventReminderTemplates {
             type: NOTIFICATION_TYPES.EVENT_REMINDER,
             title: `${reminder.title} 🎉`,
             message: `"${title}" ${this.getTimeMessage(reminder.minutes)}`,
+            reminderType: reminder.key, // Template ID at root level for Cloud Function validation (e.g., '15m', '1h', '5m')
             data: {
               eventId,
               eventTitle: title,
-              reminderType: reminder.key,
-              minutesBefore: reminder.minutes,
-              isCustomTemplate: reminder.key.startsWith('CUSTOM_'),
             },
             scheduledFor: reminderTime,
             priority: NOTIFICATION_PRIORITY.NORMAL,
