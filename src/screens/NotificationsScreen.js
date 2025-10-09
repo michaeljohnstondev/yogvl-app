@@ -331,10 +331,10 @@ export default function NotificationsScreen({ navigation }) {
         const { acceptCohostInvitation } = await import(
           '../services/shared/cohostInvitationsService'
         );
-        const { invitationId, eventId } = notification.data;
+        const { eventId } = notification.data;
 
-        // Accept the cohost invitation
-        const result = await acceptCohostInvitation(invitationId, currentUserId, eventId);
+        // Accept the cohost invitation (invitationId not needed - function will find it by eventId)
+        const result = await acceptCohostInvitation(null, currentUserId, eventId);
 
         // Delete notification after successful acceptance (no longer needed)
         await handleNotificationDelete(notification.id);

@@ -35,6 +35,7 @@ import {
   getThemeColors,
 } from './invite/utils/inviteScreenUtils';
 import styles from './invite/styles/inviteScreenStyles';
+import { addFavorite, removeFavorite } from '../services/favoriteService';
 
 export default function InviteScreen() {
   const navigation = useNavigation();
@@ -173,32 +174,27 @@ export default function InviteScreen() {
     }, [navigation, isExistingEvent, eventId, onSave])
   );
 
-  // Handle avatar/icon actions - toggle follow status
+  // Handle avatar/icon actions - toggle favorite status
   const handleAvatarAction = async (user) => {
     try {
-      const { followUser, unfollowUser } = await import('../services/followService');
-
-      if (user.isFollowing) {
-        // Unfollow
-        await unfollowUser(currentUserId, user.id);
+      if (user.isFavorite) {
+        // Remove from favorites
+        await removeFavorite(currentUserId, user.id);
         // Update local state to reflect change
         contactManagement.updateUserStatus(user.id, {
-          isFollowing: false,
-          isMutualFollow: false,
+          isFavorite: false,
         });
-        vibeAlert.success('Unfollowed', `You unfollowed ${user.name}`);
       } else {
-        // Follow
-        await followUser(currentUserId, user.id, userData);
+        // Add to favorites
+        await addFavorite(currentUserId, user.id);
         // Update local state to reflect change
         contactManagement.updateUserStatus(user.id, {
-          isFollowing: true,
+          isFavorite: true,
         });
-        vibeAlert.success('Following', `You are now following ${user.name}`);
       }
     } catch (error) {
-      console.error('[InviteScreen] Error toggling follow:', error);
-      vibeAlert.error('Error', 'Failed to update follow status');
+      console.error('[InviteScreen] Error toggling favorite:', error);
+      vibeAlert.error('Error', 'Failed to update favorite status');
     }
   };
 

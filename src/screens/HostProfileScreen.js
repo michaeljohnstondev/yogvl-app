@@ -12,7 +12,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { VibeButton } from '../components/ui';
-import { BlockButton, FollowButton } from '../components/ui/buttons';
+import { BlockButton, FollowButton, CloseButton } from '../components/ui/buttons';
 import { ProfileAvatar } from '../components/ui/profile';
 import { UserReliabilityCard } from '../events/components/UserReliabilityCard';
 import { getUserEventStats } from '../events/lib/userMetrics';
@@ -410,9 +410,7 @@ const HostProfileScreen = ({ navigation, route }) => {
         {/* Profile Info - No Card */}
         <View style={styles.profileSection}>
           {/* Close button - left side */}
-          <TouchableOpacity onPress={handleBack} style={styles.closeButton}>
-            <Text style={styles.closeButtonText}>✕</Text>
-          </TouchableOpacity>
+          <CloseButton onPress={handleBack} style={styles.closeButton} />
 
           {/* Report button - only show for other users' profiles */}
           {hostData?.id && currentUserId && hostData.id !== currentUserId && (
@@ -575,7 +573,7 @@ const HostProfileScreen = ({ navigation, route }) => {
               <View style={styles.statsRow}>
                 <View style={styles.statItem}>
                   <Text style={styles.statNumber}>
-                    {stats.averageAttendees.toFixed(1)}
+                    {stats.averageAttendees === 0 ? '0' : stats.averageAttendees.toFixed(1)}
                   </Text>
                   <Text style={styles.statLabel}>Avg Attendees</Text>
                 </View>
@@ -922,14 +920,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 20,
     top: 18,
-    borderRadius: theme.sizes.borderRadius,
-    padding: 8,
     zIndex: 10,
-  },
-  closeButtonText: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: 'bold',
   },
   reportButtonTop: {
     position: 'absolute',

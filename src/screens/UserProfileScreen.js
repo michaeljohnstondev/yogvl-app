@@ -47,6 +47,7 @@ import {
 import { blockingService } from '../services/blockingService';
 import { getVisibleContactInfo } from '../services/privacyService';
 import { reportUser } from '../services/reportingService';
+import { addFavorite, removeFavorite, isFavorite } from '../services/favoriteService';
 import { auth } from '../auth/services/firebase';
 import { doc, updateDoc, getDoc } from '../lib/firebase';
 import { db } from '../auth/services/firebase';
@@ -79,6 +80,8 @@ function UserProfile({ navigation, route }) {
   const [visibleContactInfo, setVisibleContactInfo] = useState({});
   const [isFollowing, setIsFollowing] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
 
   // Use existing follow actions hook
   const {
@@ -173,6 +176,38 @@ function UserProfile({ navigation, route }) {
         }
       }
     );
+  };
+
+  const handleAddFavorite = async () => {
+    if (!currentUserId || !targetUserId || favoriteLoading) return;
+
+    setFavoriteLoading(true);
+    setIsFavorited(true); // Optimistic update
+    try {
+      await addFavorite(currentUserId, targetUserId);
+    } catch (error) {
+      console.error('[UserProfile] Error adding to favorites:', error);
+      setIsFavorited(false); // Rollback on error
+      vibeAlert.error('Error', 'Failed to add to favorites');
+    } finally {
+      setFavoriteLoading(false);
+    }
+  };
+
+  const handleRemoveFavorite = async () => {
+    if (!currentUserId || !targetUserId || favoriteLoading) return;
+
+    setFavoriteLoading(true);
+    setIsFavorited(false); // Optimistic update
+    try {
+      await removeFavorite(currentUserId, targetUserId);
+    } catch (error) {
+      console.error('[UserProfile] Error removing from favorites:', error);
+      setIsFavorited(true); // Rollback on error
+      vibeAlert.error('Error', 'Failed to remove from favorites');
+    } finally {
+      setFavoriteLoading(false);
+    }
   };
 
   // Use target user's data if viewing someone else, otherwise use current user's data
@@ -764,6 +799,25 @@ function UserProfile({ navigation, route }) {
     checkAdditionalRelationshipStatus();
   }, [currentUserId, targetUserId, isOwnProfile, isFollowing, isBlocked]);
 
+  // STEP 4: Check if user is favorited
+  useEffect(() => {
+    const checkFavoriteStatus = async () => {
+      if (isOwnProfile || !currentUserId || !targetUserId) {
+        setIsFavorited(false);
+        return;
+      }
+
+      try {
+        const favorited = await isFavorite(currentUserId, targetUserId);
+        setIsFavorited(favorited);
+      } catch (error) {
+        console.error('[UserProfile] Error checking favorite status:', error);
+      }
+    };
+
+    checkFavoriteStatus();
+  }, [currentUserId, targetUserId, isOwnProfile]);
+
   const formatPhoneNumber = (phoneNumber) => {
     if (!phoneNumber) return null;
 
@@ -847,6 +901,11 @@ function UserProfile({ navigation, route }) {
               onReportUser: handleReportUser,
               onSave: handleSave,
               isSaving,
+              // Favorite props
+              isFavorite: isFavorited,
+              isFavoriteLoading: favoriteLoading,
+              onAddFavorite: handleAddFavorite,
+              onRemoveFavorite: handleRemoveFavorite,
             });
             return actionButtons.topButtons;
           })()}
@@ -1092,6 +1151,11 @@ function UserProfile({ navigation, route }) {
               isBlockLoading: false, // Add if needed
               onBlock: handleBlockUser,
               onUnblock: handleBlockUser, // Same handler for now
+              // Favorite props
+              isFavorite: isFavorited,
+              isFavoriteLoading: favoriteLoading,
+              onAddFavorite: handleAddFavorite,
+              onRemoveFavorite: handleRemoveFavorite,
               // Own profile actions
               onSettings: () => navigation.navigate('Privacy'),
               onNotificationSettings: () =>

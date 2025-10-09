@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import VibeButton from '../base/VibeButton';
 import FollowButton from '../buttons/FollowButton';
 import BlockButton from '../buttons/BlockButton';
+import FavoriteButton from '../buttons/FavoriteButton';
 import theme from '../../../theme/themes';
 
 const ProfileActionButtons = ({
@@ -23,6 +24,11 @@ const ProfileActionButtons = ({
   isBlockLoading,
   onBlock,
   onUnblock,
+  // Favorite props
+  isFavorite,
+  isFavoriteLoading,
+  onAddFavorite,
+  onRemoveFavorite,
   // Own profile actions
   onSettings,
   onNotificationSettings,
@@ -113,15 +119,24 @@ const ProfileActionButtons = ({
     } else {
       return (
         <View style={styles.socialButtonContainer}>
-          {/* Only show Follow button if user is not blocked */}
+          {/* Only show Follow and Favorite buttons if user is not blocked */}
           {!isBlocked && (
-            <FollowButton
-              isFollowing={isFollowing}
-              isLoading={isFollowLoading}
-              onFollow={onFollow}
-              onUnfollow={onUnfollow}
-              style={styles.followButton}
-            />
+            <>
+              <FollowButton
+                isFollowing={isFollowing}
+                isLoading={isFollowLoading}
+                onFollow={onFollow}
+                onUnfollow={onUnfollow}
+                style={styles.followButton}
+              />
+              <FavoriteButton
+                isFavorite={isFavorite}
+                isLoading={isFavoriteLoading}
+                onAdd={onAddFavorite}
+                onRemove={onRemoveFavorite}
+                style={styles.followButton}
+              />
+            </>
           )}
           <BlockButton
             onPress={isBlocked ? onUnblock : onBlock}

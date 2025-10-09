@@ -62,6 +62,7 @@ exports.onEventCreated = functions.firestore
 
       // Extract user IDs from unified invitation objects
       // invitations is now [{userId, type}, ...] not just [userId, ...]
+      // Force redeploy - handle both object and legacy string formats
       const invitedUserIds = invitations.map(inv => inv.userId || inv);
 
       console.log(`[Event Interest Notification] 🔍 Exclusion analysis:`, {

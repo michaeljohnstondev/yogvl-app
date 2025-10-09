@@ -16,7 +16,7 @@ const theme = {
     vibeForest: '#228B22', // Forest green - for positive actions
     vibeOrange: '#FFCC66',
     vibePurple: '#6B00CC',
-    vibeYellow: '#FFFF00',
+    vibeYellow: '#FFD700', // Gold - slightly more yellow
     vibePink: '#FF10F0',
     vibeRed: '#FF4444',
     vibeCyan: '#00FFFF',

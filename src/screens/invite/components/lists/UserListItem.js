@@ -35,7 +35,7 @@ const UserListItem = ({
       <View style={styles.personInfo}>
         <TouchableOpacity style={styles.avatarButton} onPress={onAvatarPress}>
           <Text style={styles.personAvatar}>
-            {item.isFavorite ? '⭐' : item.isFriend ? '👫' : '🌐'}
+            {item.isFavorite ? '⭐' : item.isMutualFollow ? '👫' : '🌐'}
           </Text>
         </TouchableOpacity>
         <View style={styles.personDetails}>

@@ -254,7 +254,7 @@ export default function NotificationTester() {
         hasRsvpDeadline: false,
         subscribers: [claudeUserId],
         subscriberCount: 1,
-        invitations: [{ userId: currentUserId, type: 'cohost' }], // Add current user as cohost invitation (unified format)
+        invitations: [], // Will be added by sendCohostInvitation below
         cohosts: [],
         notificationSettings: {
           enabled: true,

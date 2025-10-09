@@ -35,6 +35,11 @@
         "backgroundColor": "#000814"
       },
       "backgroundColor": "#001020",
+      "splash": {
+        "image": "./assets/splash.png",
+        "resizeMode": "cover",
+        "backgroundColor": "#000814"
+      },
       "statusBar": {
         "backgroundColor": "#001020",
         "barStyle": "light-content"
