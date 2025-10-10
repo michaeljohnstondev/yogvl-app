@@ -630,4 +630,73 @@ export default StyleSheet.create({
     // VibeButton handles its own styling, just override margins if needed
     marginVertical: 0,
   },
+
+  // Add To Group Modal
+  addToGroupModalContainer: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  addToGroupModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    paddingTop: 60,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.darkGray,
+  },
+  addToGroupModalTitle: {
+    color: theme.colors.white,
+    fontSize: 18,
+    fontWeight: 'bold',
+    fontFamily: theme.fonts.main,
+    flex: 1,
+  },
+  addToGroupSearchContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.darkGray,
+  },
+  addToGroupSearchInput: {
+    marginBottom: 0,
+  },
+  addToGroupSelectedCount: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    backgroundColor: theme.colors.vibeBackgroundBlue,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.vibeBlue,
+  },
+  addToGroupSelectedText: {
+    color: theme.colors.vibeBlue,
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: theme.fonts.main,
+  },
+  addToGroupModalContent: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+  },
+  addToGroupModalFooter: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.darkGray,
+    backgroundColor: theme.colors.background,
+  },
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyStateText: {
+    color: theme.colors.gray,
+    fontSize: 16,
+    fontFamily: theme.fonts.main,
+    textAlign: 'center',
+  },
 });

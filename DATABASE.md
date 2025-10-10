@@ -825,3 +825,58 @@ adminAnnouncements: {
 - **Fail-safe operation** - Individual notification failures don't break system
 - **Automatic cleanup** - Processed notifications can be auto-deleted
 - **Audit trail** - Complete tracking of admin actions
+
+---
+
+## Invite Groups (User Data)
+
+**Location**: `users/{userId}/userdata/inviteGroups`
+
+User-created groups for organizing contacts and quickly inviting multiple people to events. Groups are stored as an array within the user's document.
+
+```javascript
+inviteGroups: [
+  {
+    id: string,           // Client-generated unique ID (e.g., "group_1234567890_abc123")
+    name: string,         // Group name (may include emoji at start, e.g., "⛳ Golf Buddies")
+    emoji: string,        // Separate emoji field (empty string if emoji is in name)
+    description: string,  // Optional group description
+    members: string[]     // Array of user IDs who are members of this group
+  }
+]
+```
+
+### Group Structure Notes
+
+- **Storage**: Groups are stored in the user's document, not a separate collection
+- **Ownership**: All groups belong to the user who created them
+- **Emoji Handling**: Groups can store emoji in two ways:
+  1. Separate `emoji` field + plain text `name` (e.g., `emoji: "⛳", name: "Golf Buddies"`)
+  2. Emoji in `name` + empty `emoji` field (e.g., `emoji: "", name: "⛳ Golf Buddies"`)
+  - This dual approach allows for backward compatibility and user flexibility
+
+### Accessing Groups
+
+**Get User's Groups**:
+```javascript
+const userRef = doc(db, 'users', userId);
+const userDoc = await getDoc(userRef);
+const groups = userDoc.data()?.userdata?.inviteGroups || [];
+```
+
+### Group Operations
+
+All operations modify the `userdata.inviteGroups` array in the user's document:
+
+- **Create**: Generate client-side ID, append new group to array
+- **Update**: Find group by ID, update fields, write back to array
+- **Add Member**: Find group, append userId to `members` array
+- **Remove Member**: Find group, filter userId from `members` array
+- **Delete**: Filter out group from array by ID
+
+### Use Cases
+
+1. **Quick Event Invites**: Select a group to invite all members at once
+2. **Contact Organization**: Organize app users into logical groups
+3. **Recurring Events**: Maintain consistent invite lists across multiple events
+4. **Personal Management**: Groups are private and belong only to the creating user

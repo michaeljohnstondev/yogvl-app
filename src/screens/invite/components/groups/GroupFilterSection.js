@@ -67,16 +67,6 @@ const GroupFilterSection = ({
           Tap filters, long press adds
         </Text>
       </Text>
-      <View style={styles.groupButtons}>
-        <TouchableOpacity
-          style={styles.manageGroupsButton}
-          onPress={() => setShowGroupModal(true)}
-        >
-          <Text style={styles.manageGroupsText}>+ Manage</Text>
-        </TouchableOpacity>
-      </View>
-
-      <Text style={[styles.filterLabel, { marginTop: 20 }]}>Filters:</Text>
       {groupsLoading ? (
         <View style={styles.groupLoadingContainer}>
           <ActivityIndicator size="small" color={themeColor} />
@@ -84,90 +74,6 @@ const GroupFilterSection = ({
         </View>
       ) : (
         <View style={styles.groupButtons}>
-          <TouchableOpacity
-            style={[
-              styles.groupButton,
-              showFavorites && {
-                backgroundColor: themeBgColor,
-                borderColor: themeColor,
-              },
-            ]}
-            onPress={() => setShowFavorites(!showFavorites)}
-          >
-            <Text
-              style={[
-                styles.groupButtonText,
-                showFavorites && { color: themeColor },
-              ]}
-            >
-              ⭐ Favorites
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.groupButton,
-              showFriends && {
-                backgroundColor: themeBgColor,
-                borderColor: themeColor,
-              },
-            ]}
-            onPress={() => setShowFriends(!showFriends)}
-          >
-            <Text
-              style={[
-                styles.groupButtonText,
-                showFriends && { color: themeColor },
-              ]}
-            >
-              👫 Friends
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.groupButton,
-              showLocalNode && {
-                backgroundColor: themeBgColor,
-                borderColor: themeColor,
-              },
-            ]}
-            onPress={() => setShowLocalNode(!showLocalNode)}
-          >
-            <Text
-              style={[
-                styles.groupButtonText,
-                showLocalNode && { color: themeColor },
-              ]}
-            >
-              🌐 Local
-            </Text>
-          </TouchableOpacity>
-
-          {eventTitle && (
-            <TouchableOpacity
-              style={[
-                styles.groupButton,
-                selectedInterests.includes(cleanEventTitle(eventTitle)) && {
-                  backgroundColor: themeBgColor,
-                  borderColor: themeColor,
-                },
-              ]}
-              onPress={toggleEventTitle}
-            >
-              <Text
-                style={[
-                  styles.groupButtonText,
-                  selectedInterests.includes(cleanEventTitle(eventTitle)) && {
-                    color: themeColor,
-                  },
-                ]}
-              >
-                {eventTitle}
-              </Text>
-            </TouchableOpacity>
-          )}
-
           {customGroups.map((group) => (
             <TouchableOpacity
               key={group.id}
@@ -191,8 +97,102 @@ const GroupFilterSection = ({
               </Text>
             </TouchableOpacity>
           ))}
+
+          <TouchableOpacity
+            style={styles.manageGroupsButton}
+            onPress={() => setShowGroupModal(true)}
+          >
+            <Text style={styles.manageGroupsText}>+ Manage</Text>
+          </TouchableOpacity>
         </View>
       )}
+
+      <Text style={[styles.filterLabel, { marginTop: 20 }]}>Filters:</Text>
+      <View style={styles.groupButtons}>
+        <TouchableOpacity
+          style={[
+            styles.groupButton,
+            showFavorites && {
+              backgroundColor: themeBgColor,
+              borderColor: themeColor,
+            },
+          ]}
+          onPress={() => setShowFavorites(!showFavorites)}
+        >
+          <Text
+            style={[
+              styles.groupButtonText,
+              showFavorites && { color: themeColor },
+            ]}
+          >
+            ⭐ Favorites
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.groupButton,
+            showFriends && {
+              backgroundColor: themeBgColor,
+              borderColor: themeColor,
+            },
+          ]}
+          onPress={() => setShowFriends(!showFriends)}
+        >
+          <Text
+            style={[
+              styles.groupButtonText,
+              showFriends && { color: themeColor },
+            ]}
+          >
+            👫 Friends
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.groupButton,
+            showLocalNode && {
+              backgroundColor: themeBgColor,
+              borderColor: themeColor,
+            },
+          ]}
+          onPress={() => setShowLocalNode(!showLocalNode)}
+        >
+          <Text
+            style={[
+              styles.groupButtonText,
+              showLocalNode && { color: themeColor },
+            ]}
+          >
+            🌐 Local
+          </Text>
+        </TouchableOpacity>
+
+        {eventTitle && (
+          <TouchableOpacity
+            style={[
+              styles.groupButton,
+              selectedInterests.includes(cleanEventTitle(eventTitle)) && {
+                backgroundColor: themeBgColor,
+                borderColor: themeColor,
+              },
+            ]}
+            onPress={toggleEventTitle}
+          >
+            <Text
+              style={[
+                styles.groupButtonText,
+                selectedInterests.includes(cleanEventTitle(eventTitle)) && {
+                  color: themeColor,
+                },
+              ]}
+            >
+              {eventTitle}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 };

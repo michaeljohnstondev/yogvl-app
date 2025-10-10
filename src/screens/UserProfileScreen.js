@@ -9,6 +9,7 @@ import {
   ActionSheetIOS,
   Platform,
   Pressable,
+  ActivityIndicator,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -855,9 +856,8 @@ function UserProfile({ navigation, route }) {
     return (
       <View style={styles.container}>
         <View style={styles.loadingContainer}>
-          <View style={styles.loadingContent}>
-            <Text style={styles.loadingText}>Loading profile...</Text>
-          </View>
+          <ActivityIndicator size="large" color={theme.colors.vibeBlue} />
+          <Text style={styles.loadingText}>Loading profile...</Text>
         </View>
       </View>
     );

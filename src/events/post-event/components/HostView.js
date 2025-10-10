@@ -9,7 +9,8 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useVibeAlert } from '../../../components/ui/base/VibeAlertContext';
-import { VibeButton } from '../../../components/ui';
+import { VibeButton, CloseButton } from '../../../components/ui';
+import ScreenHeader from '../../../components/ui/layout/ScreenHeader';
 import AttendanceTracker from './AttendanceTracker';
 import PostEventActions from './PostEventActions';
 import theme from '../../../theme/themes';
@@ -25,9 +26,16 @@ const HostView = ({
   deleteEvent,
   onNavigateBack,
   onNavigateHome,
+  navigation,
+  studioId,
+  eventId,
 }) => {
   const vibeAlert = useVibeAlert();
   const [showAttendanceTracker, setShowAttendanceTracker] = useState(false);
+
+  const handleManageAttendance = () => {
+    navigation.navigate('EventAttendance', { eventId, studioId });
+  };
 
   const handleCompleteEvent = async () => {
     const validation = attendanceTracking.validateAttendance();
@@ -63,60 +71,11 @@ const HostView = ({
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.content}>
-        {/* Event Header */}
-        <View style={styles.headerCard}>
-          <Text style={styles.eventTitle}>{eventData.title}</Text>
-          <Text style={styles.eventSubtitle}>
-            {participants.length} participant
-            {participants.length === 1 ? '' : 's'}
-          </Text>
+    <View style={styles.container}>
+      <ScreenHeader title="Event Recap" onClose={onNavigateBack} />
 
-          {eventData.status === 'completed' ? (
-            <View style={styles.completedBadge}>
-              <Text style={styles.completedIcon}>✅</Text>
-              <Text style={styles.completedText}>Event Completed</Text>
-            </View>
-          ) : eventData.trackAttendance ? (
-            <Text style={styles.attendanceNote}>
-              {eventData.attendanceType === 'casual'
-                ? '🌊 Casual event - optional attendance tracking'
-                : '🎯 Strict event - attendance affects reliability scores'}
-            </Text>
-          ) : (
-            <Text style={styles.noTrackingNote}>
-              📋 No attendance tracking for this event
-            </Text>
-          )}
-        </View>
-
-        {/* Attendance Management */}
-        {eventData.trackAttendance && eventData.status !== 'completed' && (
-          <View style={styles.attendanceSection}>
-            <TouchableOpacity
-              style={styles.trackAttendanceButton}
-              onPress={() => setShowAttendanceTracker(!showAttendanceTracker)}
-            >
-              <Text style={styles.trackAttendanceText}>
-                {showAttendanceTracker ? 'Hide' : 'Track'} Attendance
-              </Text>
-              <Text style={styles.trackAttendanceIcon}>
-                {showAttendanceTracker ? '⬆️' : '⬇️'}
-              </Text>
-            </TouchableOpacity>
-
-            {showAttendanceTracker && (
-              <AttendanceTracker
-                participants={participants}
-                attendanceTracking={attendanceTracking}
-                eventType={eventData.attendanceType}
-                onComplete={handleCompleteEvent}
-                submitting={submitting}
-              />
-            )}
-          </View>
-        )}
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <View style={styles.content}>
 
         {/* Completed Event Stats */}
         {eventData.status === 'completed' && attendance && (
@@ -152,10 +111,26 @@ const HostView = ({
           eventData={eventData}
           onDeleteEvent={deleteEvent}
           submitting={submitting}
+          navigation={navigation}
+          eventId={eventId}
+          studioId={studioId}
         />
+
+        {/* Separator */}
+        <View style={styles.separator} />
 
         {/* Navigation Buttons */}
         <View style={styles.navigationButtons}>
+          {/* Attendance Management Button - Only if tracking */}
+          {eventData.trackAttendance && (
+            <VibeButton
+              label="MANAGE ATTENDANCE"
+              onPress={handleManageAttendance}
+              variant="green"
+              style={styles.navButton}
+            />
+          )}
+
           <VibeButton
             label="BACK TO EVENT"
             onPress={onNavigateBack}
@@ -172,13 +147,17 @@ const HostView = ({
         </View>
       </View>
     </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: 'transparent',
+  },
+  scrollView: {
+    flex: 1,
   },
   content: {
     padding: 20,
@@ -242,6 +221,9 @@ const styles = StyleSheet.create({
   attendanceSection: {
     marginBottom: 24,
   },
+  manageAttendanceButton: {
+    marginVertical: 0,
+  },
   trackAttendanceButton: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -295,10 +277,17 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
+  // Separator
+  separator: {
+    height: 1,
+    backgroundColor: theme.colors.vibeBlue,
+    marginTop: 20,
+    marginBottom: 30,
+  },
+
   // Navigation
   navigationButtons: {
-    gap: 12,
-    marginTop: 20,
+    gap: 0,
   },
   navButton: {
     marginVertical: 0,

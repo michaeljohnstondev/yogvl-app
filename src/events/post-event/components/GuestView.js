@@ -9,6 +9,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { VibeButton } from '../../../components/ui';
+import ScreenHeader from '../../../components/ui/layout/ScreenHeader';
 import PostEventActions from './PostEventActions';
 import StarRating from '../../../components/ui/feedback/StarRating';
 import theme from '../../../theme/themes';
@@ -22,6 +23,9 @@ const GuestView = ({
   submitHostRating,
   onNavigateBack,
   onNavigateHome,
+  navigation,
+  studioId,
+  eventId,
 }) => {
   const getAttendanceTypeInfo = () => {
     switch (eventData.attendanceType) {
@@ -59,155 +63,80 @@ const GuestView = ({
   const attendanceInfo = getAttendanceTypeInfo();
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.content}>
-        {/* Event Header */}
-        <View
-          style={[styles.headerCard, { borderLeftColor: attendanceInfo.color }]}
-        >
-          <Text style={styles.eventTitle}>{eventData.title}</Text>
-          <Text style={styles.attendanceDescription}>
-            {attendanceInfo.icon} {attendanceInfo.description}
-          </Text>
-          {attendanceInfo.impactNote && (
-            <Text style={styles.impactNote}>{attendanceInfo.impactNote}</Text>
+    <View style={styles.container}>
+      <ScreenHeader title="Event Recap" onClose={onNavigateBack} />
+
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <View style={styles.content}>
+          {/* Host Rating */}
+          {userStatus.canRateHost && !userStatus.hasRatedHost && (
+            <View style={styles.ratingCard}>
+              <StarRating
+                title="Rate the host"
+                description="How was your experience with the host?"
+                onRating={submitHostRating}
+                disabled={submitting}
+              />
+            </View>
           )}
-        </View>
 
-        {/* Attendance Reporting */}
-        {eventData.trackAttendance && !userStatus.hasReportedAttendance && (
-          <View style={styles.attendanceReporting}>
-            <Text style={styles.reportingTitle}>
-              Did you attend this event?
-            </Text>
+          {/* Participants List */}
+          <PostEventActions
+            participants={participants}
+            userStatus={userStatus}
+            eventData={eventData}
+            submitting={submitting}
+            navigation={navigation}
+            eventId={eventId}
+            studioId={studioId}
+          />
 
-            <View style={styles.reportingButtons}>
-              <TouchableOpacity
-                style={[styles.reportingButton, styles.attendedButton]}
-                onPress={() => reportAttendance(true)}
-                disabled={submitting}
-              >
-                <Text style={styles.reportingIcon}>🎉</Text>
-                <Text style={styles.reportingButtonText}>I was there!</Text>
-                <Text style={styles.reportingSubtext}>Yes, I attended</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.reportingButton, styles.missedButton]}
-                onPress={() => reportAttendance(false)}
-                disabled={submitting}
-              >
-                <Text style={styles.reportingIcon}>😔</Text>
-                <Text style={styles.reportingButtonText}>Couldn't make it</Text>
-                <Text style={styles.reportingSubtext}>I had to miss it</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {/* Attendance Reported Status */}
-        {userStatus.hasReportedAttendance && (
-          <View style={styles.reportedStatus}>
-            <View
-              style={[
-                styles.reportedBadge,
-                userStatus.hasReportedAttendance === 'attended'
-                  ? styles.reportedAttended
-                  : styles.reportedMissed,
-              ]}
-            >
-              <Text style={styles.reportedIcon}>
-                {userStatus.hasReportedAttendance === 'attended' ? '✅' : '❌'}
-              </Text>
-              <Text style={styles.reportedText}>
-                {userStatus.hasReportedAttendance === 'attended'
-                  ? 'You marked that you attended'
-                  : 'You marked that you missed it'}
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* Host Rating */}
-        {userStatus.canRateHost &&
-          userStatus.hasReportedAttendance === 'attended' &&
-          !userStatus.hasRatedHost && (
-            <StarRating
-              title="Rate the host"
-              description="How was your experience with the host?"
-              onRating={submitHostRating}
-              disabled={submitting}
-              style={styles.ratingSection}
+          {/* Navigation Buttons */}
+          <View style={styles.navigationButtons}>
+            <VibeButton
+              label="BACK TO EVENT"
+              onPress={onNavigateBack}
+              variant="outline"
+              style={styles.navButton}
             />
-          )}
 
-        {/* Participants List */}
-        <PostEventActions
-          participants={participants}
-          userStatus={userStatus}
-          eventData={eventData}
-          submitting={submitting}
-        />
-
-        {/* Navigation Buttons */}
-        <View style={styles.navigationButtons}>
-          <VibeButton
-            label="BACK TO EVENT"
-            onPress={onNavigateBack}
-            variant="outline"
-            style={styles.navButton}
-          />
-
-          <VibeButton
-            label="BACK TO HOME"
-            onPress={onNavigateHome}
-            variant="outline"
-            style={styles.navButton}
-          />
+            <VibeButton
+              label="BACK TO HOME"
+              onPress={onNavigateHome}
+              variant="outline"
+              style={styles.navButton}
+            />
+          </View>
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: 'transparent',
+  },
+  scrollView: {
+    flex: 1,
   },
   content: {
     padding: 20,
     paddingBottom: 100,
   },
 
-  // Header Styles
-  headerCard: {
-    backgroundColor: theme.colors.vibeBackgroundBlue,
-    borderRadius: 16,
+  // Host Rating Card
+  ratingCard: {
+    backgroundColor: theme.colors.vibeBackgroundPurple,
+    borderRadius: 12,
     padding: 20,
     marginBottom: 24,
-    borderLeftWidth: 4,
-    borderRightWidth: 1,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: theme.colors.vibeBlue,
-  },
-  eventTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: theme.colors.white,
-    marginBottom: 8,
-  },
-  attendanceDescription: {
-    fontSize: 16,
-    color: theme.colors.white,
-    fontWeight: '500',
-  },
-  impactNote: {
-    fontSize: 12,
-    color: theme.colors.vibeOrange,
-    fontStyle: 'italic',
-    marginTop: 8,
+    borderLeftWidth: 3,
+    borderRightWidth: 3,
+    borderTopWidth: 3,
+    borderBottomWidth: 3,
+    borderColor: theme.colors.vibePurple,
   },
 
   // Attendance Reporting

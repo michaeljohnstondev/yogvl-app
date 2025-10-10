@@ -17,6 +17,7 @@ import {
   checkIfMutualFollows,
 } from '../../../services/followService';
 import { VibeButton } from '../../../components/ui';
+import { ProfileAvatar } from '../../../components/ui/profile';
 import theme from '../../../theme/themes';
 
 const PostEventActions = ({
@@ -25,6 +26,9 @@ const PostEventActions = ({
   eventData,
   onDeleteEvent,
   submitting,
+  navigation,
+  eventId,
+  studioId,
 }) => {
   const { currentUserId, userData } = useAuth();
   const vibeAlert = useVibeAlert();
@@ -129,6 +133,21 @@ const PostEventActions = ({
     );
   };
 
+  const handleNavigateToProfile = (userId, isHost, userData) => {
+    if (!navigation) return;
+
+    // Navigate to different screen based on if they're the host or not
+    if (isHost && userData) {
+      navigation.navigate('HostProfile', {
+        hostData: userData,
+        eventId,
+        studioId
+      });
+    } else if (userId !== currentUserId) {
+      navigation.navigate('UserProfile', { userId });
+    }
+  };
+
   const renderParticipant = ({ item }) => {
     if (!item.userdata?.contactInfo) return null;
 
@@ -142,23 +161,18 @@ const PostEventActions = ({
       item.userdata.contactInfo.firstName ||
       'Unknown User';
 
-    const avatarInitial = displayName.charAt(0).toUpperCase();
-
     return (
       <TouchableOpacity
         key={item.id}
-        style={styles.participantItem}
-        onPress={() => !isCurrentUser && handleToggleFollow(item.id)}
-        disabled={isCurrentUser || loadingFollows}
+        style={[
+          styles.participantItem,
+          isHost && styles.participantItemHost,
+        ]}
+        onPress={() => handleNavigateToProfile(item.id, isHost, item)}
+        disabled={loadingFollows}
       >
-        <View style={styles.participantAvatar}>
-          <Text style={styles.participantAvatarText}>{avatarInitial}</Text>
-          {isHost && (
-            <View style={styles.hostBadge}>
-              <Text style={styles.hostBadgeText}>H</Text>
-            </View>
-          )}
-        </View>
+        <ProfileAvatar userData={item} size={50} showBorder={false} />
+
         <View style={styles.participantInfo}>
           <Text style={styles.participantName}>
             {displayName}
@@ -166,18 +180,26 @@ const PostEventActions = ({
             {isHost && !isCurrentUser && ' (Host)'}
           </Text>
           {!isCurrentUser && (
-            <Text
-              style={[
-                styles.participantFollow,
-                isFollowing && styles.participantFollowing,
-              ]}
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                handleToggleFollow(item.id);
+              }}
+              style={styles.followButton}
             >
-              {isMutualFriend
-                ? 'Friend • Tap to unfollow'
-                : isFollowing
-                  ? 'Following • Tap to unfollow'
-                  : 'Tap to follow'}
-            </Text>
+              <Text
+                style={[
+                  styles.followButtonText,
+                  isFollowing && styles.followingText,
+                ]}
+              >
+                {isMutualFriend
+                  ? '👫 Friends'
+                  : isFollowing
+                    ? '✓ Following'
+                    : '+ Follow'}
+              </Text>
+            </TouchableOpacity>
           )}
         </View>
       </TouchableOpacity>
@@ -189,14 +211,7 @@ const PostEventActions = ({
       {/* Participants Section */}
       {participants.length > 0 && (
         <View style={styles.participantsSection}>
-          <Text style={styles.participantsTitle}>
-            Event Participants ({participants.length})
-          </Text>
-          <Text style={styles.participantsSubtitle}>
-            {userStatus.isHost
-              ? 'Connect with your guests'
-              : 'Connect with other attendees'}
-          </Text>
+          <Text style={styles.sectionHeader}>Connect</Text>
 
           <FlatList
             data={participants}
@@ -204,6 +219,7 @@ const PostEventActions = ({
             keyExtractor={(item) => item.id}
             style={styles.participantsList}
             showsVerticalScrollIndicator={false}
+            scrollEnabled={false}
           />
         </View>
       )}
@@ -227,125 +243,63 @@ const PostEventActions = ({
         </View>
       )}
 
-      {/* Future Features Preview */}
-      <View style={styles.futureSection}>
-        <Text style={styles.futureSectionTitle}>Coming Soon</Text>
-
-        <View style={styles.futureFeature}>
-          <Text style={styles.futureFeatureIcon}>⭐</Text>
-          <View style={styles.futureFeatureContent}>
-            <Text style={styles.futureFeatureTitle}>Rate This Event</Text>
-            <Text style={styles.futureFeatureDescription}>
-              Share your experience and help others discover great events
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.futureFeature}>
-          <Text style={styles.futureFeatureIcon}>📸</Text>
-          <View style={styles.futureFeatureContent}>
-            <Text style={styles.futureFeatureTitle}>Share Photos</Text>
-            <Text style={styles.futureFeatureDescription}>
-              Add photos from the event for everyone to see
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.futureFeature}>
-          <Text style={styles.futureFeatureIcon}>💬</Text>
-          <View style={styles.futureFeatureContent}>
-            <Text style={styles.futureFeatureTitle}>Event Comments</Text>
-            <Text style={styles.futureFeatureDescription}>
-              Leave feedback and memories from the event
-            </Text>
-          </View>
-        </View>
-      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 20,
+    marginBottom: 10,
   },
 
   // Participants Section
   participantsSection: {
-    backgroundColor: theme.colors.vibeBackgroundBlue,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: theme.colors.vibeBlue,
+    marginBottom: 10,
   },
-  participantsTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  sectionHeader: {
     color: theme.colors.white,
-    marginBottom: 4,
-  },
-  participantsSubtitle: {
-    fontSize: 14,
-    color: theme.colors.gray,
-    marginBottom: 16,
+    fontSize: 20,
+    fontFamily: theme.fonts.comicBold,
+    marginBottom: 10,
+    marginTop: 20,
+    marginLeft: 4,
   },
   participantsList: {
-    maxHeight: 300,
+    maxHeight: 400,
   },
   participantItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.darkGray,
+    backgroundColor: theme.colors.vibeBackgroundBlue,
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,
+    borderLeftWidth: 3,
+    borderColor: theme.colors.vibeBlue,
   },
-  participantAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.colors.vibeBlue,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-    position: 'relative',
-  },
-  participantAvatarText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: theme.colors.white,
-  },
-  hostBadge: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: theme.colors.vibeGreen,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  hostBadgeText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: theme.colors.white,
+  participantItemHost: {
+    backgroundColor: theme.colors.vibeBackgroundOrange,
+    borderColor: theme.colors.vibeOrange,
   },
   participantInfo: {
     flex: 1,
+    marginLeft: 12,
   },
   participantName: {
     fontSize: 16,
     fontWeight: '600',
     color: theme.colors.white,
-    marginBottom: 2,
+    marginBottom: 4,
   },
-  participantFollow: {
-    fontSize: 12,
+  followButton: {
+    alignSelf: 'flex-start',
+  },
+  followButtonText: {
+    fontSize: 13,
     color: theme.colors.vibeBlue,
+    fontWeight: '600',
   },
-  participantFollowing: {
+  followingText: {
     color: theme.colors.vibeGreen,
   },
 

@@ -56,9 +56,10 @@ export const useGroupManagement = () => {
     });
 
     setLocalSelectedUsers(newSelected);
+    const groupDisplay = group.emoji ? `${group.emoji} ${group.name}` : group.name;
     vibeAlert.success(
       'Group Added',
-      `Added ${group.name} (${groupMembers.length} people) to your selection!`
+      `Added ${groupDisplay} (${groupMembers.length} people) to your selection!`
     );
   };
 
@@ -97,9 +98,10 @@ export const useGroupManagement = () => {
 
       const user = appUsers.find((u) => u.id === userId);
       const group = customGroups.find((g) => g.id === groupId);
+      const groupDisplay = group?.emoji ? `${group.emoji} ${group.name}` : group?.name;
       vibeAlert.success(
         'Added',
-        `${user?.name} added to ${group?.name}! ${group?.emoji}`
+        `${user?.name} added to ${groupDisplay}!`
       );
     } catch (error) {
       console.error('Failed to add member:', error);
@@ -107,30 +109,48 @@ export const useGroupManagement = () => {
     }
   };
 
-  const showAddToGroupOptions = (group, appUsers) => {
-    const availableUsers = appUsers.filter(
+  const getAvailableUsers = (group, appUsers) => {
+    return appUsers.filter(
       (user) => !group.members.includes(user.id)
     );
+  };
 
-    if (availableUsers.length === 0) {
-      vibeAlert.info(
-        'No Available Users',
-        'All users are already in this group.'
-      );
-      return;
+  const addMultipleMembersToGroup = async (groupId, users) => {
+    if (!users || users.length === 0) {
+      vibeAlert.error('Error', 'Please select at least one person to add');
+      return false;
     }
 
-    // For now, just show info about available users since vibeAlert doesn't support action buttons
-    const userNames = availableUsers
-      .slice(0, 3)
-      .map((u) => u.name)
-      .join(', ');
-    const moreCount =
-      availableUsers.length > 3 ? ` and ${availableUsers.length - 3} more` : '';
-    vibeAlert.info(
-      `Add to ${group.name}`,
-      `Available users: ${userNames}${moreCount}. Use the group management modal to add members.`
-    );
+    try {
+      // Add all users in parallel
+      const addPromises = users.map((user) => addMemberToGroup(groupId, user.id));
+      await Promise.all(addPromises);
+
+      // Update local state with all new members
+      setCustomGroups((prev) =>
+        prev.map((group) =>
+          group.id === groupId
+            ? {
+                ...group,
+                members: [...group.members, ...users.map((u) => u.id)],
+              }
+            : group
+        )
+      );
+
+      const group = customGroups.find((g) => g.id === groupId);
+      const userCount = users.length;
+      const groupDisplay = group?.emoji ? `${group.emoji} ${group.name}` : group?.name;
+      vibeAlert.success(
+        'Added',
+        `${userCount} ${userCount === 1 ? 'person' : 'people'} added to ${groupDisplay}!`
+      );
+      return true;
+    } catch (error) {
+      console.error('Failed to add members:', error);
+      vibeAlert.error('Error', 'Failed to add members. Please try again.');
+      return false;
+    }
   };
 
   const handleCreateGroup = async (groupName) => {
@@ -140,9 +160,16 @@ export const useGroupManagement = () => {
     }
 
     try {
+      const trimmedName = groupName.trim();
+
+      // Check if the name already starts with an emoji
+      // Emojis are typically in the range U+1F300 to U+1F9FF and other ranges
+      const emojiRegex = /^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F000}-\u{1F02F}\u{1F0A0}-\u{1F0FF}\u{1F100}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}]/u;
+      const startsWithEmoji = emojiRegex.test(trimmedName);
+
       const groupData = {
-        name: groupName.trim(),
-        emoji: getEmojiForText(groupName),
+        name: trimmedName,
+        emoji: startsWithEmoji ? '' : getEmojiForText(trimmedName), // Don't add emoji if name already has one
         members: [],
         isPrivate: true,
       };
@@ -181,7 +208,8 @@ export const useGroupManagement = () => {
     selectGroup,
     removeFromGroup,
     addToGroup,
-    showAddToGroupOptions,
+    getAvailableUsers,
+    addMultipleMembersToGroup,
     handleCreateGroup,
     handleDeleteGroup,
   };

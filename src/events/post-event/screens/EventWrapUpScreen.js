@@ -1,7 +1,7 @@
 // FILE: EventWrapUpScreen.js - Main Event Wrap-Up Screen (Host + Guest)
 
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { VibeView } from '../../../components/ui/base';
 import { useAuth } from '../../../auth/AuthContext';
 import { useEventCompletion } from '../hooks/useEventCompletion';
@@ -42,19 +42,16 @@ const EventWrapUpScreen = ({ navigation, route }) => {
 
   if (loading) {
     return (
-      <VibeView
-              >
-        <View style={styles.container}>
-          <Text style={styles.loadingText}>Loading event data...</Text>
-        </View>
-      </VibeView>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={theme.colors.vibeBlue} />
+        <Text style={styles.loadingText}>Loading event data...</Text>
+      </View>
     );
   }
 
   if (!eventData) {
     return (
-      <VibeView
-              >
+      <VibeView>
         <View style={styles.container}>
           <Text style={styles.errorText}>Event not found</Text>
         </View>
@@ -77,40 +74,38 @@ const EventWrapUpScreen = ({ navigation, route }) => {
   // Render appropriate view based on user status
   if (userStatus.isHost) {
     return (
-      <VibeView
-              >
-        <HostView
-          eventData={eventData}
-          participants={participants}
-          attendance={attendance}
-          userStatus={userStatus}
-          submitting={submitting}
-          attendanceTracking={attendanceTracking}
-          completeEvent={completeEvent}
-          deleteEvent={deleteEvent}
-          onNavigateBack={handleNavigateBack}
-          onNavigateHome={handleNavigateHome}
-        />
-      </VibeView>
+      <HostView
+        eventData={eventData}
+        participants={participants}
+        attendance={attendance}
+        userStatus={userStatus}
+        submitting={submitting}
+        attendanceTracking={attendanceTracking}
+        completeEvent={completeEvent}
+        deleteEvent={deleteEvent}
+        onNavigateBack={handleNavigateBack}
+        onNavigateHome={handleNavigateHome}
+        navigation={navigation}
+        studioId={studioId}
+        eventId={eventId}
+      />
     );
   }
 
   return (
-    <VibeView
-      colors={theme.colors.backgroundGradient}
-      style={styles.background}
-    >
-      <GuestView
-        eventData={eventData}
-        participants={participants}
-        userStatus={userStatus}
-        submitting={submitting}
-        reportAttendance={reportAttendance}
-        submitHostRating={submitHostRating}
-        onNavigateBack={handleNavigateBack}
-        onNavigateHome={handleNavigateHome}
-      />
-    </VibeView>
+    <GuestView
+      eventData={eventData}
+      participants={participants}
+      userStatus={userStatus}
+      submitting={submitting}
+      reportAttendance={reportAttendance}
+      submitHostRating={submitHostRating}
+      onNavigateBack={handleNavigateBack}
+      onNavigateHome={handleNavigateHome}
+      navigation={navigation}
+      studioId={studioId}
+      eventId={eventId}
+    />
   );
 };
 
@@ -120,11 +115,17 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
     padding: 20,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: theme.colors.background,
+  },
   loadingText: {
     color: theme.colors.white,
-    fontSize: 18,
+    fontSize: 16,
+    marginTop: 12,
     textAlign: 'center',
-    marginTop: 50,
   },
   errorText: {
     color: theme.colors.vibeRed,

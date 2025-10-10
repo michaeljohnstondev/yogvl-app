@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Modal } from 'react-native';
 import { CloseButton } from '../../../../components/ui';
-import { useVibeAlert } from '../../../../components/ui/base/VibeAlertContext';
+import { VibeAlertProvider, useVibeAlert } from '../../../../components/ui/base/VibeAlertContext';
+import AddToGroupModal from './AddToGroupModal';
 import styles from '../../styles/inviteScreenStyles';
 
 const GroupManagementModal = ({
@@ -10,11 +11,14 @@ const GroupManagementModal = ({
   customGroups,
   appUsers,
   removeFromGroup,
-  showAddToGroupOptions,
+  getAvailableUsers,
+  addMultipleMembersToGroup,
   handleDeleteGroup,
   onCreateNewGroup,
 }) => {
   const vibeAlert = useVibeAlert();
+  const [showAddToGroupModal, setShowAddToGroupModal] = useState(false);
+  const [selectedGroupForAdding, setSelectedGroupForAdding] = useState(null);
 
   const confirmDeleteGroup = (groupId, groupName) => {
     vibeAlert.confirm(
@@ -25,13 +29,31 @@ const GroupManagementModal = ({
     );
   };
 
+  const handleOpenAddToGroup = (group) => {
+    setSelectedGroupForAdding(group);
+    setShowAddToGroupModal(true);
+  };
+
+  const handleCloseAddToGroup = () => {
+    setShowAddToGroupModal(false);
+    setSelectedGroupForAdding(null);
+  };
+
+  const handleAddMembers = async (groupId, users) => {
+    const success = await addMultipleMembersToGroup(groupId, users);
+    if (success) {
+      handleCloseAddToGroup();
+    }
+  };
+
   return (
     <Modal
       visible={visible}
       animationType="slide"
       presentationStyle="pageSheet"
     >
-      <View style={styles.groupModalContainer}>
+      <VibeAlertProvider>
+        <View style={styles.groupModalContainer}>
         <View style={styles.groupModalHeader}>
           <Text style={styles.groupModalTitle}>Manage Groups</Text>
           <CloseButton onPress={onClose} />
@@ -48,14 +70,12 @@ const GroupManagementModal = ({
                   <Text style={styles.groupMemberCount}>
                     {group.members.length} members
                   </Text>
-                  {group.isOwner && (
-                    <TouchableOpacity
-                      onPress={() => confirmDeleteGroup(group.id, group.name)}
-                      style={styles.deleteGroupButton}
-                    >
-                      <Text style={styles.deleteGroupText}>🗑️</Text>
-                    </TouchableOpacity>
-                  )}
+                  <TouchableOpacity
+                    onPress={() => confirmDeleteGroup(group.id, group.name)}
+                    style={styles.deleteGroupButton}
+                  >
+                    <Text style={styles.deleteGroupText}>🗑️</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
 
@@ -82,7 +102,7 @@ const GroupManagementModal = ({
 
               <TouchableOpacity
                 style={styles.addToGroupButton}
-                onPress={() => showAddToGroupOptions(group, appUsers)}
+                onPress={() => handleOpenAddToGroup(group)}
               >
                 <Text style={styles.addToGroupText}>+ Add People</Text>
               </TouchableOpacity>
@@ -97,6 +117,20 @@ const GroupManagementModal = ({
           </TouchableOpacity>
         </ScrollView>
       </View>
+
+      {/* Add To Group Modal */}
+      <AddToGroupModal
+        visible={showAddToGroupModal}
+        onClose={handleCloseAddToGroup}
+        group={selectedGroupForAdding}
+        availableUsers={
+          selectedGroupForAdding
+            ? getAvailableUsers(selectedGroupForAdding, appUsers)
+            : []
+        }
+        onAddMembers={handleAddMembers}
+      />
+      </VibeAlertProvider>
     </Modal>
   );
 };

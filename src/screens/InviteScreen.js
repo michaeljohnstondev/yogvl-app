@@ -500,7 +500,8 @@ export default function InviteScreen() {
         customGroups={groupManagement.customGroups}
         appUsers={contactManagement.appUsers}
         removeFromGroup={groupManagement.removeFromGroup}
-        showAddToGroupOptions={groupManagement.showAddToGroupOptions}
+        getAvailableUsers={groupManagement.getAvailableUsers}
+        addMultipleMembersToGroup={groupManagement.addMultipleMembersToGroup}
         handleDeleteGroup={groupManagement.handleDeleteGroup}
         onCreateNewGroup={createNewGroup}
       />

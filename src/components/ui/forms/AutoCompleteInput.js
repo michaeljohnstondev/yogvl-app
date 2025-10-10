@@ -1,7 +1,7 @@
 // FILE: src/components/ui/forms/AutoCompleteInput.js - Reusable autocomplete input component
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable, ScrollView } from 'react-native';
 import VibeInput from '../base/VibeInput';
 import { getContextualSuggestions } from '../../../lib/emojiUtils';
 import theme from '../../../theme/themes';
@@ -27,6 +27,7 @@ export default function AutoCompleteInput({
   placeholder = 'Type here...',
   maxSuggestions = 5,
   showEmojis = true,
+  usePortal = true,
   style,
   inputProps = {},
 }) {
@@ -80,6 +81,28 @@ export default function AutoCompleteInput({
     }
   };
 
+  const renderSuggestions = () => (
+    <>
+      {suggestions.map((suggestion, index) => (
+        <TouchableOpacity
+          key={index}
+          style={[
+            styles.dropdownItem,
+            index === suggestions.length - 1 && styles.dropdownItemLast,
+          ]}
+          onPress={() => handleSuggestionPress(suggestion)}
+        >
+          <Text style={styles.dropdownText}>
+            {showEmojis && suggestion.emoji ? `${suggestion.emoji} ` : ''}
+            {suggestion.text}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </>
+  );
+
+  const hasSuggestions = showSuggestions && suggestions.length > 0;
+
   return (
     <View style={[styles.container, style]}>
       <VibeInput
@@ -88,47 +111,45 @@ export default function AutoCompleteInput({
         onChangeText={handleTextChange}
         onFocus={handleFocus}
         placeholder={placeholder}
+        hasDropdownOpen={hasSuggestions}
         {...inputProps}
       />
 
-      <Modal
-        visible={showSuggestions && suggestions.length > 0}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowSuggestions(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setShowSuggestions(false)}
+      {/* Inline dropdown (no Modal) */}
+      {!usePortal && hasSuggestions && (
+        <View style={styles.inlineDropdown}>
+          {renderSuggestions()}
+        </View>
+      )}
+
+      {/* Portal dropdown (with Modal) */}
+      {usePortal && hasSuggestions && (
+        <Modal
+          visible={true}
+          transparent={true}
+          animationType="none"
+          onRequestClose={() => setShowSuggestions(false)}
         >
-          <View
-            style={[
-              styles.modalDropdown,
-              {
-                top: inputPosition.y + inputPosition.height,
-                left: inputPosition.x,
-                width: inputPosition.width,
-              }
-            ]}
+          <Pressable
+            style={styles.modalOverlay}
+            onPress={() => setShowSuggestions(false)}
+            activeOpacity={1}
           >
-            {suggestions.map((suggestion, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[
-                  styles.dropdownItem,
-                  index === suggestions.length - 1 && styles.dropdownItemLast,
-                ]}
-                onPress={() => handleSuggestionPress(suggestion)}
-              >
-                <Text style={styles.dropdownText}>
-                  {showEmojis && suggestion.emoji ? `${suggestion.emoji} ` : ''}
-                  {suggestion.text}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </Pressable>
-      </Modal>
+            <View
+              style={[
+                styles.modalDropdown,
+                {
+                  top: inputPosition.y + inputPosition.height,
+                  left: inputPosition.x,
+                  width: inputPosition.width,
+                }
+              ]}
+            >
+              {renderSuggestions()}
+            </View>
+          </Pressable>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -138,6 +159,30 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
 
+  // Inline dropdown (no modal)
+  inlineDropdown: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    zIndex: 999999,
+    elevation: 999999,
+    backgroundColor: theme.colors.background,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    borderLeftWidth: 3,
+    borderRightWidth: 3,
+    borderBottomWidth: 3,
+    borderColor: theme.colors.vibeBlue,
+    borderTopWidth: 0,
+    maxHeight: 200,
+    marginTop: 0,
+    shadowColor: theme.colors.vibeBlue,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+
   // Modal overlay and dropdown styling
   modalOverlay: {
     flex: 1,
@@ -145,7 +190,7 @@ const styles = StyleSheet.create({
   },
   modalDropdown: {
     position: 'absolute',
-    backgroundColor: theme.colors.inputBackground,
+    backgroundColor: theme.colors.background,
     borderWidth: 1,
     borderColor: theme.colors.vibeBlue,
     borderTopWidth: 0,
@@ -153,6 +198,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 12,
     maxHeight: 200,
     elevation: 1000,
+    zIndex: 9999,
     shadowColor: theme.colors.vibeBlue,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,

@@ -702,7 +702,7 @@ const EventDetailScreen = memo(function EventDetailScreen({
   if (!event) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={theme.colors.alertButton} />
+        <ActivityIndicator size="large" color={theme.colors.vibeBlue} />
         <Text style={styles.loadingText}>Loading event...</Text>
       </View>
     );
@@ -829,7 +829,7 @@ export default EventDetailScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: 'transparent',
   },
   content: {
     paddingBottom: 100, // Fixed bottom spacing issue
@@ -838,7 +838,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: theme.colors.background,
+    backgroundColor: 'transparent',
   },
   loadingText: {
     color: theme.colors.textPrimary,
