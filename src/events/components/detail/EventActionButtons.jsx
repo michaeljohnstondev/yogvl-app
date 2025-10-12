@@ -281,10 +281,11 @@ const EventActionButtons = memo(function EventActionButtons({
             />
           )}
 
-          {/* Event Recap for hosts/cohosts/admins */}
+          {/* Event Recap for hosts/cohosts/admins AND subscribed guests */}
           {(permissions.isCreator ||
             permissions.isCohost ||
-            permissions.isAdmin) && (
+            permissions.isAdmin ||
+            isSubscribed) && (
             <VibeButton
               label={
                 event.status === 'completed' ? 'VIEW RECAP' : 'EVENT RECAP'

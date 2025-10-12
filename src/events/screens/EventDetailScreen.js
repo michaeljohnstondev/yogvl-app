@@ -553,20 +553,10 @@ const EventDetailScreen = memo(function EventDetailScreen({
       );
 
       if (result.success) {
-        // Show success message with navigation options
-        vibeAlert.confirm(
+        // Show success message
+        vibeAlert.success(
           'You\'re Now a Co-Host! ⭐',
-          `Would you like to view the event details or return home?`,
-          () => {
-            // onConfirm - Stay on EventDetail (if already here) or navigate to it
-            if (navigation.getState().routes[navigation.getState().index]?.name !== 'EventDetail') {
-              navigation.navigate('EventDetail', { eventId, studioId });
-            }
-          },
-          () => {
-            // onCancel - Go home
-            navigation.navigate('Home');
-          }
+          'You can now manage this event alongside the host.'
         );
 
         // Clear the pending invitation and refresh event data

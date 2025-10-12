@@ -21,6 +21,7 @@ import {
   getVisibleContactInfo,
   canViewUserStats,
 } from '../services/privacyService';
+import { calculateHostRating } from '../lib/ratingUtils';
 import {
   followUser,
   unfollowUser,
@@ -619,6 +620,19 @@ const HostProfileScreen = ({ navigation, route }) => {
         {/* Host Highlights */}
         {(() => {
           const highlights = [];
+
+          // Host Rating - Add as first highlight if they have ratings
+          const rating = calculateHostRating(hostData);
+          if (rating.count > 0) {
+            highlights.push(
+              <View key="host-rating" style={styles.highlight}>
+                <Text style={styles.highlightIcon}>⭐</Text>
+                <Text style={styles.highlightText}>
+                  {rating.average} Rating ({rating.count} review{rating.count !== 1 ? 's' : ''})
+                </Text>
+              </View>
+            );
+          }
 
           // Conditional highlights based on stats
 

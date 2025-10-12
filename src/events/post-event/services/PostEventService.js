@@ -289,7 +289,7 @@ export class PostEventService {
 
       const hostRef = doc(db, 'users', hostId);
       const hostDoc = await getDoc(hostRef);
-      const currentRatings = hostDoc.data()?.ratings || {
+      const currentRatings = hostDoc.data()?.userdata?.metrics?.hostRating || {
         stars: [],
         timeRated: [],
       };
@@ -297,17 +297,17 @@ export class PostEventService {
       // Remove oldest rating if we have 50+ ratings (keep last 50)
       if (currentRatings.stars.length >= 50) {
         await updateDoc(hostRef, {
-          'ratings.stars': arrayRemove(currentRatings.stars[0]),
-          'ratings.timeRated': arrayRemove(currentRatings.timeRated[0]),
+          'userdata.metrics.hostRating.stars': arrayRemove(currentRatings.stars[0]),
+          'userdata.metrics.hostRating.timeRated': arrayRemove(currentRatings.timeRated[0]),
         });
       }
 
       // Add new rating and update metrics
       const updates = {
-        'ratings.stars': arrayUnion(rating),
-        'ratings.timeRated': arrayUnion(Timestamp.now()),
-        'userdata.metrics.engagement.totalRatings': increment(1),
-        'userdata.metrics.engagement.lastRated': Timestamp.now(),
+        'userdata.metrics.hostRating.stars': arrayUnion(rating),
+        'userdata.metrics.hostRating.timeRated': arrayUnion(Timestamp.now()),
+        'userdata.metrics.hostRating.totalRatings': increment(1),
+        'userdata.metrics.hostRating.lastRated': Timestamp.now(),
       };
 
       // Mark in event that this guest rated the host

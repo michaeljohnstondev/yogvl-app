@@ -20,60 +20,7 @@ const UserReliabilityCard = ({ userData, style }) => {
           <Text style={styles.statNumber}>{stats.eventsAttended}</Text>
           <Text style={styles.statLabel}>Attended</Text>
         </View>
-
-        <View style={styles.statItem}>
-          <Text
-            style={[
-              styles.statNumber,
-              // Use the same color logic as the reliability status
-              { color: stats.reliabilityStatus.color },
-            ]}
-          >
-            {stats.noShows}
-          </Text>
-          <Text style={styles.statLabel}>No Shows</Text>
-        </View>
       </View>
-
-      <View style={styles.reliabilityContainer}>
-        <View style={styles.reliabilityHeader}>
-          <Text style={styles.reliabilityBadge}>
-            {stats.reliabilityStatus.badge}
-          </Text>
-          <Text
-            style={[
-              styles.reliabilityText,
-              { color: stats.reliabilityStatus.color },
-            ]}
-          >
-            {stats.reliabilityStatus.status}
-          </Text>
-          <Text style={styles.reliabilityScore}>{stats.reliabilityScore}%</Text>
-        </View>
-
-        <View style={styles.progressBar}>
-          <View
-            style={[
-              styles.progressFill,
-              {
-                width: `${stats.reliabilityScore}%`,
-                backgroundColor: stats.reliabilityStatus.color,
-              },
-            ]}
-          />
-        </View>
-      </View>
-
-      {stats.showWarning && (
-        <View style={styles.warningContainer}>
-          <Text style={styles.warningText}>
-            ⚠️{' '}
-            {stats.noShows >= 5
-              ? 'High no-show rate may affect event access'
-              : 'Consider improving attendance reliability'}
-          </Text>
-        </View>
-      )}
     </View>
   );
 };
@@ -95,10 +42,11 @@ const UserReliabilityMini = ({ userData, style }) => {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: theme.colors.vibeBackgroundBlue,
-    borderRadius: 16,
-    padding: 20,
-    marginVertical: 8,
-    borderWidth: 1,
+    borderRadius: theme.sizes.borderRadius,
+    padding: 16,
+    marginHorizontal: 20,
+    marginVertical: 10,
+    borderWidth: 2,
     borderColor: theme.colors.vibeBlue,
   },
   title: {

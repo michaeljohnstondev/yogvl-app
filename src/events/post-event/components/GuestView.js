@@ -70,14 +70,12 @@ const GuestView = ({
         <View style={styles.content}>
           {/* Host Rating */}
           {userStatus.canRateHost && !userStatus.hasRatedHost && (
-            <View style={styles.ratingCard}>
-              <StarRating
-                title="Rate the host"
-                description="How was your experience with the host?"
-                onRating={submitHostRating}
-                disabled={submitting}
-              />
-            </View>
+            <StarRating
+              title="Rate the host"
+              description="How was your experience with the host?"
+              onRating={submitHostRating}
+              disabled={submitting}
+            />
           )}
 
           {/* Participants List */}

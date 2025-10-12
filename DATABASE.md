@@ -41,9 +41,20 @@ Based on actual user data from your system:
 
     // User metrics for reliability tracking
     metrics: {
-      engagement: object,     // User engagement metrics
       events: object,         // Event participation metrics
-      social: object          // Social interaction metrics
+      social: object,         // Social interaction metrics
+      hostRating: {           // Host rating data (guest ratings of this user as host)
+        stars: array,         // Array of rating values (1-5)
+        timeRated: array,     // Array of timestamps (Firestore Timestamp objects)
+        totalRatings: number, // Total count of ratings received
+        lastRated: timestamp, // When last rating was received
+        averageRating: number // Cached average (optional, for performance)
+      },
+      engagement: {           // User engagement metrics (non-rating related)
+        commentsPosted: number,
+        likesReceived: number,
+        sharesReceived: number
+      }
     },
 
     // User settings and preferences
@@ -435,6 +446,7 @@ Host rating data is aggregated in the user document for performance:
 - Ratings from 'strict' events have higher weight in aggregation
 - Host cannot rate themselves
 - Ratings are anonymous in the UI but tracked for spam prevention
+- **Display average uses 6-month rolling window**: Host profiles show average rating calculated from ratings submitted in the last 6 months only (industry standard)
 
 ## User Subcollections
 
