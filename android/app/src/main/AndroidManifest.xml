@@ -37,7 +37,7 @@
         <category android:name="android.intent.category.BROWSABLE"/>
         <data android:scheme="the-yo"/>
         <data android:scheme="com.bigvibestudios.bvs"/>
-        <data android:scheme="exp+the-yo"/>
+        <data android:scheme="exp+bvs-app"/>
       </intent-filter>
     </activity>
     <activity android:name="com.facebook.react.devsupport.DevSettingsActivity" android:exported="false"/>
