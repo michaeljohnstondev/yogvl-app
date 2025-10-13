@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "bvs-app",
-    "slug": "bvs-app",
+    "name": "The Yo",
+    "slug": "the-yo",
     "version": "1.0.0",
-    "scheme": "bvs-app",
+    "scheme": "the-yo",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "dark",
@@ -90,12 +90,8 @@
             "enableProguardInReleaseBuilds": true
           },
           "ios": {
-            "deploymentTarget": "16.0",
-            "useFrameworks": "dynamic",
-            "xcodeProps": {
-              "SWIFT_VERSION": "5.10",
-              "OTHER_SWIFT_FLAGS": "-enable-experimental-feature AccessLevelOnImport -enable-experimental-feature SendingArgsAndResults -enable-experimental-feature StrictConcurrency"
-            }
+            "deploymentTarget": "13.4",
+            "useFrameworks": "static"
           }
         }
       ],

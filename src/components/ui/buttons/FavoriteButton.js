@@ -39,7 +39,9 @@ const FavoriteButton = ({
         ]}>
           <View style={styles.buttonContent}>
             {isLoading ? (
-              <ActivityIndicator size="small" color={theme.colors.white} />
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={theme.colors.white} />
+              </View>
             ) : (
               <Text style={styles.buttonText}>
                 {isFavorite ? '⭐ FAVORITED' : '☆ ADD TO FAVORITES'}
@@ -81,6 +83,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     minHeight: 48,
     justifyContent: 'center',
+  },
+  loadingContainer: {
+    minHeight: 24, // Match text height to prevent button shrinking
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   buttonText: {
     color: theme.colors.textPrimary,

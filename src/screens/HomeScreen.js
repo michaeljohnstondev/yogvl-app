@@ -8,6 +8,7 @@ import {
   Pressable,
   BackHandler,
   RefreshControl,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -21,6 +22,7 @@ import {
   AccountSettingsDropdown,
   BannedUserModal,
   AdminNotificationModal,
+  VibeSearch,
 } from '../components/ui';
 import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
 import { useStatusBar } from '../components/ui/base/VibeAppWrapper';
@@ -54,6 +56,7 @@ export default function HomeScreen({ navigation, route }) {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showAccountSettings, setShowAccountSettings] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const [feedStats, setFeedStats] = useState(null);
 
   // Admin notifications state
@@ -84,7 +87,7 @@ export default function HomeScreen({ navigation, route }) {
 
   // Memoize ProfileAvatar to prevent unnecessary re-renders
   const profileAvatar = useMemo(
-    () => <ProfileAvatar userData={userData} size={40} showBorder={true} />,
+    () => <ProfileAvatar userData={userData} size={37} showBorder={true} />,
     [userData]
   );
 
@@ -435,14 +438,25 @@ export default function HomeScreen({ navigation, route }) {
 
   return (
     <View style={styles.screen}>
-      {/* Header - Always visible */}
+      {/* Header with Search Bar */}
       <LinearGradient
         colors={['#001020', '#001840']}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={styles.header}
       >
-        <Text style={styles.headerTitle}>Big Vibe Studios</Text>
+        <Image
+          source={require('../../assets/HeaderIcon.png')}
+          style={styles.headerLogo}
+          resizeMode="contain"
+        />
+        <Pressable
+          style={styles.searchBar}
+          onPress={() => setShowSearch(true)}
+        >
+          <Text style={styles.searchIcon}>🔍</Text>
+          <Text style={styles.searchPlaceholder}>Search...</Text>
+        </Pressable>
         <View style={styles.headerIcons}>
           <NotificationButton
             onPress={handleNotificationsPress}
@@ -738,6 +752,13 @@ export default function HomeScreen({ navigation, route }) {
         onClose={() => setShowNotificationModal(false)}
         onAcknowledge={handleNotificationAcknowledge}
       />
+
+      {/* Search Modal */}
+      <VibeSearch
+        visible={showSearch}
+        onClose={() => setShowSearch(false)}
+        navigation={navigation}
+      />
     </View>
   );
 }
@@ -752,16 +773,37 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 16,
+    paddingTop: 2,
+    paddingBottom: 5,
     borderBottomWidth: 3,
     borderBottomColor: theme.colors.vibeBlue,
   },
-  headerTitle: {
-    color: theme.colors.white,
-    fontSize: 24,
-    marginLeft: -8,
-    fontFamily: theme.fonts.comicBold,
+  headerLogo: {
+    width: 70,
+    height: 56,
+    marginRight: 8,
+  },
+  searchBar: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#444',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginRight: 12,
+  },
+  searchIcon: {
+    fontSize: 16,
+    marginRight: 8,
+    opacity: 0.5,
+  },
+  searchPlaceholder: {
+    color: theme.colors.textSecondary,
+    fontSize: 14,
+    fontFamily: theme.fonts.comicRegular,
   },
   headerIcons: {
     flexDirection: 'row',

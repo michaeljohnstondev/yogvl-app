@@ -856,8 +856,10 @@ function UserProfile({ navigation, route }) {
     return (
       <View style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.vibeBlue} />
-          <Text style={styles.loadingText}>Loading profile...</Text>
+          <View style={styles.loadingContent}>
+            <ActivityIndicator size="large" color={theme.colors.vibeBlue} />
+            <Text style={styles.loadingText}>Loading profile...</Text>
+          </View>
         </View>
       </View>
     );

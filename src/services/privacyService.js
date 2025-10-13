@@ -58,7 +58,7 @@ export const canViewUserInfo = async (
  * @returns {Promise<Object>} Filtered contact information
  */
 export const getVisibleContactInfo = async (viewerId, targetUserData) => {
-  const targetUserId = targetUserData?.uid;
+  const targetUserId = targetUserData?.uid || targetUserData?.id;
   const contactInfo = targetUserData?.userdata?.contactInfo || {};
   const privacySettings = targetUserData?.userdata?.settings?.privacy || {};
 
@@ -104,7 +104,7 @@ export const getVisibleContactInfo = async (viewerId, targetUserData) => {
  */
 export const canViewUserStats = async (viewerId, targetUserData) => {
   try {
-    const targetUserId = targetUserData?.uid;
+    const targetUserId = targetUserData?.uid || targetUserData?.id;
 
     // Parameter validation
     if (
@@ -163,7 +163,7 @@ export const canViewUserStats = async (viewerId, targetUserData) => {
  */
 export const canViewEventHistory = async (viewerId, targetUserData) => {
   try {
-    const targetUserId = targetUserData?.uid;
+    const targetUserId = targetUserData?.uid || targetUserData?.id;
 
     // Parameter validation
     if (
@@ -226,7 +226,7 @@ export const canViewEventHistory = async (viewerId, targetUserData) => {
  */
 export const canViewFollowerCounts = async (viewerId, targetUserData) => {
   try {
-    const targetUserId = targetUserData?.uid;
+    const targetUserId = targetUserData?.uid || targetUserData?.id;
 
     // Parameter validation
     if (
@@ -562,7 +562,7 @@ export const canUserAccessEvent = async (
  */
 export const canViewUserBio = async (viewerId, targetUserData) => {
   try {
-    const targetUserId = targetUserData?.uid;
+    const targetUserId = targetUserData?.uid || targetUserData?.id;
 
     // Parameter validation
     if (
@@ -612,7 +612,7 @@ export const canViewUserBio = async (viewerId, targetUserData) => {
  */
 export const canViewProfilePicture = async (viewerId, targetUserData) => {
   try {
-    const targetUserId = targetUserData?.uid;
+    const targetUserId = targetUserData?.uid || targetUserData?.id;
 
     // Parameter validation
     if (
@@ -682,7 +682,7 @@ export const canViewProfilePicture = async (viewerId, targetUserData) => {
  */
 export const canAccessUserProfile = async (viewerId, targetUserData) => {
   try {
-    const targetUserId = targetUserData?.uid;
+    const targetUserId = targetUserData?.uid || targetUserData?.id;
 
     // Parameter validation
     if (
