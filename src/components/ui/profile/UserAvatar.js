@@ -21,12 +21,9 @@ const UserAvatar = memo(
     useEffect(() => {
       const fetchUserData = async () => {
         if (!userId) {
-          console.log('[UserAvatar] No userId provided');
           setLoading(false);
           return;
         }
-
-        console.log('[UserAvatar] Fetching data for userId:', userId);
 
         try {
           // Check if user is blocked first - for efficiency
@@ -36,7 +33,6 @@ const UserAvatar = memo(
 
             // If blocked, don't fetch user data - show generic avatar
             if (blocked) {
-              console.log('[UserAvatar] User is blocked:', userId);
               setUserData(null);
               setLoading(false);
               return;
@@ -49,10 +45,7 @@ const UserAvatar = memo(
 
           if (userSnap.exists()) {
             const data = userSnap.data();
-            console.log('[UserAvatar] User data fetched:', userId, data?.userdata?.contactInfo);
             setUserData(data);
-          } else {
-            console.log('[UserAvatar] User document does not exist:', userId);
           }
         } catch (error) {
           console.error(

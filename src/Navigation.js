@@ -71,7 +71,6 @@ export default function Navigation({ onReady }) {
   const handleNavigationReady = () => {
     if (navigationRef.current) {
       fcmService.setNavigationRef(navigationRef.current);
-      console.log('[Navigation] Navigation ref set for FCM service (via onReady)');
     }
   };
 
@@ -157,11 +156,8 @@ export default function Navigation({ onReady }) {
   };
 
   useEffect(() => {
-    console.log('[Navigation] 🚀 App starting - Auth state listener mounted');
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      console.log('[Navigation] 👤 Auth state changed, user:', user ? user.uid : 'null');
       if (user) {
-        console.log('[Navigation] ✅ User authenticated, loading user data...');
         setUser(user);
         setUserDataLoading(true);
 
@@ -170,8 +166,6 @@ export default function Navigation({ onReady }) {
           const snap = await getDoc(userRef);
           if (snap.exists()) {
             const data = snap.data();
-            console.log('[Navigation] 📄 User data loaded successfully');
-            console.log('[Navigation] Admin flags:', { isAdmin: data.isAdmin, isGlobalAdmin: data.isGlobalAdmin });
             setUserData(data);
           } else {
             console.warn('[Navigation] ⚠️ User document does not exist');
@@ -181,23 +175,17 @@ export default function Navigation({ onReady }) {
           // Initialize FCM service and register token for authenticated user
           try {
             if (!fcmService.isReady()) {
-              console.log('[Navigation] 🔔 Initializing FCM service...');
               await fcmService.initialize();
-              console.log('[Navigation] ✅ FCM service initialized');
             }
-            console.log('[Navigation] 🧭 Setting navigation ref for FCM...');
-            fcmService.setNavigationRef(navigationRef.current);
+            // Note: Navigation ref is set via handleNavigationReady (onReady callback)
 
             // Register FCM token for authenticated user
             if (user?.uid) {
-              console.log('[Navigation] 📱 Registering FCM token for user...');
               const tokenRegistered = await fcmService.registerTokenForUser(
                 user.uid
               );
               if (!tokenRegistered) {
                 console.warn('[Navigation] ⚠️ Failed to register push token');
-              } else {
-                console.log('[Navigation] ✅ FCM token registered successfully');
               }
             }
           } catch (fcmError) {
@@ -205,9 +193,7 @@ export default function Navigation({ onReady }) {
           }
 
           // Signal to FCM that auth and user data are ready
-          console.log('[Navigation] 🔓 Signaling auth ready to FCM service...');
           fcmService.setAuthReady(user.uid);
-          console.log('[Navigation] ✅ Auth setup complete');
         } catch (error) {
           console.error('Error fetching user data:', error);
           setUserData(null);
@@ -230,11 +216,9 @@ export default function Navigation({ onReady }) {
 
   useEffect(() => {
     if (!user) {
-      if (__DEV__) console.log('[Navigation] No user, skipping listener setup');
       return;
     }
 
-    if (__DEV__) console.log('[Navigation] Setting up user data listener');
     const userDocRef = doc(db, 'users', user.uid);
 
     // Add debouncing to reduce excessive updates from rapid Firestore changes
@@ -250,7 +234,6 @@ export default function Navigation({ onReady }) {
 
         // Debounce the update by 50ms to batch rapid changes
         updateTimeout = setTimeout(() => {
-          if (__DEV__) console.log('[Navigation] User data updated');
           if (doc.exists()) {
             const newUserData = doc.data();
 
@@ -279,13 +262,10 @@ export default function Navigation({ onReady }) {
                 return newUserData;
               } else {
                 // Only interests changed - don't trigger re-render
-                if (__DEV__)
-                  console.log('[Navigation] Ignored interest-only update');
                 return prevUserData;
               }
             });
           } else {
-            if (__DEV__) console.log('[Navigation] User document missing');
             setUserData(null);
           }
         }, 50);
@@ -295,9 +275,7 @@ export default function Navigation({ onReady }) {
       }
     );
 
-    if (__DEV__) console.log('[Navigation] User data listener created');
     return () => {
-      if (__DEV__) console.log('[Navigation] Cleaning up user data listener');
       if (updateTimeout) {
         clearTimeout(updateTimeout);
       }
@@ -405,23 +383,6 @@ export default function Navigation({ onReady }) {
 
   // Get user completion status based on actual data
   const userStatus = UserDataCleanupService.getUserCompletionStatus(userData);
-
-  // Log navigation state for debugging
-  if (__DEV__) {
-    console.log(
-      '[Navigation] Auth state:',
-      user ? 'authenticated' : 'unauthenticated'
-    );
-    console.log(
-      '[Navigation] Contact info:',
-      userStatus.hasContactInfo ? 'complete' : 'missing'
-    );
-    console.log(
-      '[Navigation] Location:',
-      userStatus.hasLocation ? 'set' : 'missing'
-    );
-    console.log('[Navigation] User data updated');
-  }
 
   return (
     <AuthProvider user={user} userData={userData}>

@@ -83,12 +83,7 @@ const EventDetailScreen = memo(function EventDetailScreen({
     isSubscribed
   );
 
-  // Simple admin logging for clarity
-  useEffect(() => {
-    if (event && currentUserId && userData?.isAdmin && event.createdBy !== currentUserId) {
-      console.log('[EventDetailScreen] Admin viewing event:', event.title);
-    }
-  }, [event, currentUserId, userData?.isAdmin]);
+  // Track admin viewing events (no logging needed)
 
   const { eventStatus, statusColor, isEventPast, isFullEvent } =
     useEventStatus(event);
@@ -147,11 +142,6 @@ const EventDetailScreen = memo(function EventDetailScreen({
 
   // Handler functions
   const handleShowHostProfile = (hostData) => {
-    console.log(
-      '[EventDetailScreen] Navigating to HostProfile with hostData:',
-      hostData
-    );
-
     // Ensure hostData has the expected structure
     if (!hostData || !hostData.id) {
       console.error('[EventDetailScreen] Invalid hostData:', hostData);
@@ -235,27 +225,38 @@ const EventDetailScreen = memo(function EventDetailScreen({
   const handleReportEvent = useCallback(() => {
     if (!event) return;
 
-    Alert.alert('Report Event', 'Why are you reporting this event?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Inappropriate Content',
-        onPress: () => submitReport('inappropriate_content'),
-      },
-      { text: 'Spam', onPress: () => submitReport('spam') },
-      { text: 'Other', onPress: () => submitReport('other') },
-    ]);
-  }, [event]);
+    vibeAlert.redmenu(
+      'Report Event',
+      'Why are you reporting this event?',
+      [
+        {
+          text: 'Inappropriate Content',
+          onPress: () => submitReport('inappropriate_content'),
+        },
+        {
+          text: 'Spam',
+          onPress: () => submitReport('spam'),
+        },
+        {
+          text: 'Other',
+          onPress: () => submitReport('other'),
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+      ]
+    );
+  }, [event, vibeAlert]);
 
   const submitReport = async (reason) => {
     try {
-      await reportEvent({
-        eventId: event.id,
-        eventTitle: event.title,
-        hostId: event.createdBy,
-        reporterId: currentUserId,
-        reason,
-        studioId,
-      });
+      await reportEvent(
+        currentUserId,  // reporterId
+        event.id,       // eventId
+        studioId,       // eventStudioId
+        reason          // reason
+      );
       vibeAlert.success('Report Submitted', 'Thank you for your report.');
     } catch (error) {
       console.error('[EventDetailScreen] Error submitting report:', error);
@@ -638,15 +639,11 @@ const EventDetailScreen = memo(function EventDetailScreen({
           setEventInterests(eventInterestsData);
 
           // Check for pending cohost invitation
-          console.log('[EventDetailScreen] 🔍 Checking for cohost invitation...', { currentUserId, eventId });
           const cohostInvitation = await getCohostInvitationStatus(currentUserId, eventId);
-          console.log('[EventDetailScreen] 📩 Cohost invitation result:', cohostInvitation);
 
           if (cohostInvitation && cohostInvitation.status === 'pending') {
-            console.log('[EventDetailScreen] ✅ Setting pending cohost invitation:', cohostInvitation);
             setPendingCohostInvitation(cohostInvitation);
           } else {
-            console.log('[EventDetailScreen] ❌ No pending cohost invitation found');
             setPendingCohostInvitation(null);
           }
         } catch (error) {

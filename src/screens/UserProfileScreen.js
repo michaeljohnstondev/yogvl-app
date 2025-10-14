@@ -621,8 +621,6 @@ function UserProfile({ navigation, route }) {
         return; // Skip validation for own profile or invalid IDs
       }
 
-      console.log('[UserProfile] Validating privacy access for:', targetUserId);
-
       try {
         const validation = await validateProfileAccess(targetUserId, {
           showGenericMessage: true,
@@ -630,11 +628,6 @@ function UserProfile({ navigation, route }) {
         });
 
         if (!validation.canAccess) {
-          console.log(
-            '[UserProfile] Access denied:',
-            validation.reason,
-            validation.message
-          );
 
           // Provide specific error titles and messages based on denial reason
           let errorTitle = 'Profile Unavailable';
@@ -672,8 +665,6 @@ function UserProfile({ navigation, route }) {
           setTimeout(() => navigation.goBack(), 1500);
           return;
         }
-
-        console.log('[UserProfile] Access granted for:', targetUserId);
 
         // Update relationship status from validation result if available
         if (validation.relationshipStatus) {

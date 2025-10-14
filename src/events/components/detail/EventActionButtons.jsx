@@ -142,11 +142,6 @@ const EventActionButtons = memo(function EventActionButtons({
 
   if (!event) return null;
 
-  // Debug: Log pending cohost invitation
-  React.useEffect(() => {
-    console.log('[EventActionButtons] 🎯 pendingCohostInvitation:', pendingCohostInvitation);
-  }, [pendingCohostInvitation]);
-
   // Additional safeguard: Double-check permissions before rendering
   const isActualCreator = event.createdBy === currentUserId;
   const isActualCohost = event.cohosts?.includes(currentUserId) || false;

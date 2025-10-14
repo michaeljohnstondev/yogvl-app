@@ -27,9 +27,7 @@ function AppWithNotifications({ onReady }) {
   useEffect(() => {
     const initializePushNotifications = async () => {
       const success = await fcmService.initialize();
-      if (success) {
-        console.log('[App] ✅ Push notifications initialized successfully');
-      } else {
+      if (!success) {
         console.warn('[App] ❌ Push notifications initialization failed');
       }
     };

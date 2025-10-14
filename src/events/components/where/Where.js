@@ -6,6 +6,7 @@ import { VibeInput, VibeAutoComplete } from '../../../components/ui/base';
 import { GooglePlacesService } from '../../../services/GooglePlacesService';
 import { VenueService } from '../../../services/VenueService';
 import { isPersonalLocation } from '../../../lib/locationUtils';
+import { useAuth } from '../../../auth/AuthContext';
 
 export const Where = ({
   formData,
@@ -18,6 +19,8 @@ export const Where = ({
   setFieldRef,
   onLocationSelect, // Callback from useSmartAutoComplete for Google Places
 }) => {
+  const { userData } = useAuth();
+  const studioId = userData?.userdata?.studios?.default?.studioId;
   const locationInputRef = useRef(null);
   const [locationInputPosition, setLocationInputPosition] = useState(null);
 
@@ -54,14 +57,16 @@ export const Where = ({
 
       try {
         // Check our venue database for known addresses
-        const venueData = await VenueService.getVenueAddress(text);
+        if (studioId) {
+          const venueData = await VenueService.getVenueAddress(text, studioId);
 
-        if (venueData?.address) {
-          console.log(
-            '[Where] Auto-populating address for venue:',
-            venueData.name
-          );
-          updateField('address', venueData.address);
+          if (venueData?.address) {
+            console.log(
+              '[Where] Auto-populating address for venue:',
+              venueData.name
+            );
+            updateField('address', venueData.address);
+          }
         }
       } catch (error) {
         console.error('[Where] Error auto-populating address:', error);
@@ -119,6 +124,28 @@ export const Where = ({
               placeDetails.address
             );
             updateField('address', placeDetails.address);
+
+            // Save this Google Place to venue database for future free use
+            if (studioId) {
+              try {
+                await VenueService.addVenue(
+                  placeDetails.name,
+                  placeDetails.address,
+                  studioId,
+                  'google_place'
+                );
+                console.log(
+                  '[Where] ✅ Saved Google Place to venue database:',
+                  placeDetails.name
+                );
+              } catch (saveError) {
+                console.error(
+                  '[Where] Error saving venue to database:',
+                  saveError
+                );
+                // Don't block the flow if saving fails
+              }
+            }
           } else {
             console.log('[Where] No address found in place details');
           }
@@ -126,11 +153,56 @@ export const Where = ({
           console.error('[Where] Error getting place details:', error);
         }
       }
-      // Handle local database suggestion
+      // Handle local database suggestion (venue with known address)
       else if (fullSuggestion.type === 'location' && fullSuggestion.address) {
-        console.log('[Where] Local location selected:', fullSuggestion.text);
+        console.log('[Where] Local venue selected:', fullSuggestion.text);
         updateField('location', fullSuggestion.text);
         updateField('address', fullSuggestion.address);
+      }
+      // Handle past event - check venue database first, then fall back to Google Places
+      else if (fullSuggestion.type === 'past_event') {
+        console.log('[Where] Past event selected:', fullSuggestion.text);
+        updateField('location', fullSuggestion.text);
+
+        // Try to get address from venue database
+        if (studioId) {
+          try {
+            const venueData = await VenueService.getVenueAddress(fullSuggestion.text, studioId);
+
+            if (venueData?.address) {
+              console.log('[Where] Found address in venue database:', venueData.address);
+              updateField('address', venueData.address);
+            } else {
+              console.log('[Where] Venue not in database, searching Google Places...');
+              // Not in venue database, search Google Places for the exact location
+              const googleResults = await GooglePlacesService.getAutocompletePredictions(fullSuggestion.text);
+
+              if (googleResults && googleResults.length > 0) {
+                const firstResult = googleResults[0];
+                console.log('[Where] Found on Google Places, getting details...');
+
+                const placeDetails = await GooglePlacesService.getPlaceDetails(firstResult.placeId);
+                if (placeDetails?.address) {
+                  console.log('[Where] Auto-populating address from Google:', placeDetails.address);
+                  updateField('address', placeDetails.address);
+
+                  // Save to venue database for future use
+                  await VenueService.addVenue(
+                    placeDetails.name,
+                    placeDetails.address,
+                    studioId,
+                    'google_place'
+                  );
+                  console.log('[Where] ✅ Saved to venue database:', placeDetails.name);
+                }
+              } else {
+                console.log('[Where] No Google Places results found');
+              }
+            }
+          } catch (error) {
+            console.error('[Where] Error handling past event location:', error);
+          }
+        }
       }
       // Handle other suggestion types
       else {

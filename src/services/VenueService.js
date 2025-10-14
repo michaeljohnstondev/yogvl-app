@@ -49,23 +49,30 @@ export class VenueService {
   /**
    * Get venue address from Firebase if it exists
    * @param {string} locationName - The venue name to look up
+   * @param {string} studioId - Studio ID
    * @returns {Promise<Object|null>} Venue data or null
    */
-  static async getVenueAddress(locationName) {
+  static async getVenueAddress(locationName, studioId) {
     try {
       if (!locationName || typeof locationName !== 'string') return null;
+      if (!studioId) {
+        console.warn('[VenueService] No studioId provided for venue lookup');
+        return null;
+      }
 
       const normalizedName = locationName.toLowerCase().trim();
-      console.log('[VenueService] Looking up venue:', normalizedName);
+      console.log('[VenueService] Looking up venue:', normalizedName, 'in studio:', studioId);
 
-      const venueDoc = await getDoc(doc(db, 'venues', normalizedName));
+      const venueDoc = await getDoc(
+        doc(db, 'studios', studioId, 'venues', normalizedName)
+      );
 
       if (venueDoc.exists()) {
         const venueData = venueDoc.data();
         console.log('[VenueService] Found venue:', venueData);
 
         // Increment usage count
-        await this.incrementVenueUsage(normalizedName);
+        await this.incrementVenueUsage(normalizedName, studioId);
 
         return venueData;
       } else {
@@ -81,10 +88,13 @@ export class VenueService {
   /**
    * Increment usage count for a venue (for analytics)
    * @param {string} venueKey - The venue key
+   * @param {string} studioId - Studio ID
    */
-  static async incrementVenueUsage(venueKey) {
+  static async incrementVenueUsage(venueKey, studioId) {
     try {
-      const venueRef = doc(db, 'venues', venueKey);
+      if (!studioId) return;
+
+      const venueRef = doc(db, 'studios', studioId, 'venues', venueKey);
       const venueDoc = await getDoc(venueRef);
 
       if (venueDoc.exists()) {
@@ -103,18 +113,23 @@ export class VenueService {
   /**
    * Get venue suggestions for autocomplete
    * @param {string} searchText - The search text
+   * @param {string} studioId - Studio ID
    * @returns {Promise<Array>} Array of venue suggestions
    */
-  static async getVenueSuggestions(searchText) {
+  static async getVenueSuggestions(searchText, studioId) {
     try {
       if (!searchText || searchText.length < 2) return [];
+      if (!studioId) {
+        console.warn('[VenueService] No studioId provided for venue suggestions');
+        return [];
+      }
 
       const cleanSearch = searchText.toLowerCase().trim();
-      console.log('[VenueService] Getting suggestions for:', cleanSearch);
+      console.log('[VenueService] Getting suggestions for:', cleanSearch, 'in studio:', studioId);
 
       // For now, we'll do client-side filtering
       // In the future, could implement proper search indexing
-      const venuesRef = collection(db, 'venues');
+      const venuesRef = collection(db, 'studios', studioId, 'venues');
       const snapshot = await getDocs(query(venuesRef, limit(50)));
 
       const suggestions = [];
@@ -311,23 +326,54 @@ export class VenueService {
    * Add a new venue manually
    * @param {string} name - Venue name
    * @param {string} address - Venue address
+   * @param {string} studioId - Studio ID
    * @param {string} category - Venue category
    */
-  static async addVenue(name, address, category = 'other') {
+  /**
+   * Add a venue to the database
+   * SAFETY: Only Google Places results should be saved automatically
+   * @param {string} name - Venue name
+   * @param {string} address - Venue address
+   * @param {string} studioId - Studio ID
+   * @param {string} source - Source of venue ('google_place' only for auto-save)
+   * @returns {Promise<boolean>} True if saved, false if rejected
+   */
+  static async addVenue(name, address, studioId, source = 'manual') {
     try {
+      if (!studioId) {
+        console.warn('[VenueService] No studioId provided for addVenue');
+        return false;
+      }
+
+      // SAFETY: Only save venues from Google Places API automatically
+      if (source !== 'google_place') {
+        console.warn('[VenueService] ⚠️ Rejecting venue save - only Google Places results are saved automatically');
+        console.warn('[VenueService] Source:', source, 'Name:', name);
+        return false;
+      }
+
+      // Validate required fields
+      if (!name || !address) {
+        console.warn('[VenueService] Missing required fields:', { name, address });
+        return false;
+      }
+
       const key = name.toLowerCase().trim();
-      await setDoc(doc(db, 'venues', key), {
+      await setDoc(doc(db, 'studios', studioId, 'venues', key), {
         name,
         address,
+        source: 'google_place',  // Always mark as verified from Google
+        verified: true,           // Google Places results are verified
         isPublicVenue: true,
         usageCount: 0,
-        category,
         createdAt: serverTimestamp(),
       });
 
-      console.log('[VenueService] Added venue:', name);
+      console.log('[VenueService] ✅ Added verified venue from Google Places:', name, 'to studio:', studioId);
+      return true;
     } catch (error) {
       console.error('[VenueService] Error adding venue:', error);
+      return false;
     }
   }
 }

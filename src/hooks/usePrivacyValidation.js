@@ -98,51 +98,6 @@ export function usePrivacyValidation(currentUserId) {
       setIsValidating(true);
 
       try {
-        // First, fetch and log the target user's privacy settings
-        console.log(
-          `[usePrivacyValidation] 🔍 Checking privacy settings for user: ${targetUserId}`
-        );
-
-        try {
-          const userRef = doc(db, 'users', targetUserId);
-          const userSnap = await getDoc(userRef);
-
-          if (userSnap.exists()) {
-            const userData = userSnap.data();
-            const privacySettings = userData?.userdata?.settings?.privacy || {};
-
-            console.log(
-              `[usePrivacyValidation] 📋 Privacy Settings for ${targetUserId}:`,
-              {
-                emailVisibility: privacySettings.emailVisibility || 'not set',
-                phoneVisibility: privacySettings.phoneVisibility || 'not set',
-                locationVisibility:
-                  privacySettings.locationVisibility || 'not set',
-                profileVisibility:
-                  privacySettings.profileVisibility || 'not set',
-                bioVisibility: privacySettings.bioVisibility || 'not set',
-                profilePictureVisibility:
-                  privacySettings.profilePictureVisibility || 'not set',
-                requireFollowForEvents:
-                  privacySettings.requireFollowForEvents || 'not set',
-              }
-            );
-
-            console.log(
-              `[usePrivacyValidation] 👤 User Display Name: ${userData?.userdata?.contactInfo?.displayName || 'Unknown'}`
-            );
-          } else {
-            console.log(
-              `[usePrivacyValidation] ❌ User document not found for: ${targetUserId}`
-            );
-          }
-        } catch (privacyError) {
-          console.error(
-            '[usePrivacyValidation] Error fetching privacy settings:',
-            privacyError
-          );
-        }
-
         // Get comprehensive relationship status (includes blocking and following)
         const relationshipStatus = await getUserRelationshipStatus(
           currentUserId,
@@ -169,9 +124,6 @@ export function usePrivacyValidation(currentUserId) {
 
         // Check if blocked by target user (highest priority)
         if (relationshipStatus.isBlockedBy) {
-          console.log(
-            '[usePrivacyValidation] Access denied - user is blocked by target'
-          );
           validationResult = {
             canAccess: false,
             reason: PRIVACY_DENIAL_REASONS.BLOCKED_BY_USER,
@@ -184,9 +136,6 @@ export function usePrivacyValidation(currentUserId) {
           relationshipStatus.isBlocked &&
           relationshipStatus.blockedBy === 'current'
         ) {
-          console.log(
-            '[usePrivacyValidation] Access denied - current user has blocked target'
-          );
           validationResult = {
             canAccess: false,
             reason: PRIVACY_DENIAL_REASONS.USER_BLOCKED,
@@ -196,10 +145,6 @@ export function usePrivacyValidation(currentUserId) {
         }
         // If no blocking issues, allow access
         else {
-          console.log(
-            '[usePrivacyValidation] Access granted for:',
-            targetUserId
-          );
           validationResult = {
             canAccess: true,
             reason: 'access_granted',

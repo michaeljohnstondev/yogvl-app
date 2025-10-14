@@ -892,3 +892,89 @@ All operations modify the `userdata.inviteGroups` array in the user's document:
 2. **Contact Organization**: Organize app users into logical groups
 3. **Recurring Events**: Maintain consistent invite lists across multiple events
 4. **Personal Management**: Groups are private and belong only to the creating user
+
+---
+
+## Venue Database (Studio-Scoped)
+
+**Collection**: `studios/{studioId}/venues/{venueKey}`
+
+Studio-specific venue cache to reduce Google Places API costs. Each studio maintains its own venue database for city-specific locations.
+
+```javascript
+{
+  // Venue identification
+  name: string,              // Official venue name (e.g., "Unity Park")
+  address: string,           // Full formatted address from Google Places
+
+  // Verification and source tracking
+  source: 'google_place',    // MUST be 'google_place' - only Google Places results are saved
+  verified: boolean,         // Always true for Google Places results
+
+  // Usage tracking
+  isPublicVenue: boolean,    // Whether venue is public (always true)
+  usageCount: number,        // Number of times venue has been used in events
+
+  // Metadata
+  createdAt: timestamp       // When venue was first saved to database
+}
+```
+
+### Venue Safety Rules
+
+**CRITICAL**: Only venues from Google Places API are saved automatically to prevent bad data:
+
+- ✅ **Allowed**: Google Places API results with verified addresses
+- ❌ **Rejected**: Manual user input, past event locations without Google verification
+- ✅ **Benefit**: All venues in database have Google-verified addresses
+- ✅ **Cost Savings**: First event at a venue costs 1 Google API call, all future events are free
+
+### Venue Key Format
+
+Venue keys are normalized for consistent lookups:
+- Original: "Unity Park"
+- Key: "unity park" (lowercase, trimmed)
+
+### Query Patterns
+
+**Check if venue exists**:
+```javascript
+const venueDoc = await getDoc(doc(db, 'studios', studioId, 'venues', venueKey));
+if (venueDoc.exists()) {
+  const address = venueDoc.data().address;
+}
+```
+
+**Get venue suggestions** (autocomplete):
+```javascript
+const venuesRef = collection(db, 'studios', studioId, 'venues');
+const q = query(
+  venuesRef,
+  where('name', '>=', searchText),
+  where('name', '<=', searchText + '\uf8ff'),
+  orderBy('name'),
+  limit(5)
+);
+```
+
+**Increment usage count**:
+```javascript
+const venueRef = doc(db, 'studios', studioId, 'venues', venueKey);
+await updateDoc(venueRef, {
+  usageCount: increment(1)
+});
+```
+
+### Data Flow
+
+1. **User types location** → Check venue database first
+2. **Venue not in database** → Call Google Places API
+3. **Google Places returns result** → Save to `studios/{studioId}/venues/`
+4. **Future users at same location** → Free lookup from venue database
+
+### Performance Benefits
+
+- **O(1) venue lookup** by normalized name
+- **Zero API cost** for cached venues
+- **Studio-scoped** for city-relevant results
+- **Verified addresses only** prevents bad data

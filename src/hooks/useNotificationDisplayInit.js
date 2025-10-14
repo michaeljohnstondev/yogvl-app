@@ -14,18 +14,13 @@ export const useNotificationDisplayInit = () => {
 
   useEffect(() => {
     if (vibeAlert && !notificationDisplayService.isReady()) {
-      console.log('[NotificationDisplayInit] Initializing notification display service...');
-
       // Initialize the service with VibeAlert reference
       notificationDisplayService.initialize(vibeAlert);
-
-      console.log('[NotificationDisplayInit] Notification display service initialized ✅');
     }
 
     // Cleanup on unmount
     return () => {
       if (notificationDisplayService.isReady()) {
-        console.log('[NotificationDisplayInit] Cleaning up notification display service');
         notificationDisplayService.cleanup();
       }
     };

@@ -41,15 +41,6 @@ export const sendCohostInvitation = async (
   studioId = null
 ) => {
   try {
-    console.log('[CohostInvitations] 🎯 sendCohostInvitation called with:', {
-      inviterId,
-      recipientId,
-      eventId,
-      studioId,
-      hasInviterData: !!inviterData,
-      hasEventData: !!eventData
-    });
-
     // Validate critical parameters
     if (!studioId) {
       console.error('[CohostInvitations] ❌ CRITICAL: studioId is missing!', {
@@ -71,14 +62,6 @@ export const sendCohostInvitation = async (
       throw new Error('inviterId, recipientId, eventId, and studioId are all required');
     }
 
-    console.log('[CohostInvitations] 📞 Calling unifiedInvitationsService.sendInvitation with:', {
-      inviterId,
-      recipientId,
-      eventId,
-      studioId,
-      type: 'cohost',
-    });
-
     // Use unified invitation service
     const result = await sendInvitation({
       inviterId,
@@ -86,12 +69,6 @@ export const sendCohostInvitation = async (
       eventId,
       studioId,
       type: 'cohost'
-    });
-
-    console.log('[CohostInvitations] ✅ Cohost invitation created successfully:', {
-      result,
-      recipientId,
-      eventId,
     });
 
     return result;
@@ -159,13 +136,10 @@ export const acceptCohostInvitation = async (
         eventId,
         'User became cohost - notification preferences may change'
       );
-      console.log('[CohostInvitations] Cancelled existing scheduled notifications for new cohost');
     } catch (error) {
       console.warn('[CohostInvitations] Failed to cancel scheduled notifications:', error);
       // Don't fail the whole operation for this
     }
-
-    console.log('[CohostInvitations] ✅ Cohost invitation accepted successfully');
 
     return {
       success: true,
@@ -215,8 +189,6 @@ export const declineCohostInvitation = async (invitationId, recipientId, eventId
 
     // Use unified invitation service
     await declineInvitation(recipientId, actualEventId, studioId);
-
-    console.log('[CohostInvitations] ✅ Cohost invitation declined successfully');
 
     return { success: true };
   } catch (error) {
@@ -351,19 +323,14 @@ export const removeCohostFromEvent = async (
  */
 export const getCohostInvitationStatus = async (userId, eventId) => {
   try {
-    console.log('[CohostInvitations] 🔍 Checking cohost invitation status:', { userId, eventId });
-
     // Get user document to check pendingInvitations
     const userDoc = await getDoc(doc(db, 'users', userId));
     if (!userDoc.exists()) {
-      console.log('[CohostInvitations] ❌ User document not found:', userId);
       return null;
     }
 
     const userData = userDoc.data();
     const pendingInvitations = userData?.userdata?.pendingInvitations || [];
-
-    console.log('[CohostInvitations] 📋 User has pending invitations:', pendingInvitations.length);
 
     // Find cohost invitation for this event
     const cohostInvitation = pendingInvitations.find(
@@ -371,7 +338,6 @@ export const getCohostInvitationStatus = async (userId, eventId) => {
     );
 
     if (cohostInvitation) {
-      console.log('[CohostInvitations] ✅ Found cohost invitation:', cohostInvitation);
       return {
         id: `${userId}_${eventId}_cohost`, // Generate consistent ID
         eventId: cohostInvitation.eventId,
@@ -381,7 +347,6 @@ export const getCohostInvitationStatus = async (userId, eventId) => {
       };
     }
 
-    console.log('[CohostInvitations] ❌ No cohost invitation found for event:', eventId);
     return null;
   } catch (error) {
     console.error(

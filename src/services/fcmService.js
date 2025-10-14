@@ -100,11 +100,8 @@ class FCMService {
    * Set up Firebase message listeners for foreground and tap handling
    */
   setupFirebaseListeners() {
-    console.log('[FCMService] Setting up Firebase listeners...');
-
     // Listener for messages received while app is in foreground
     this.foregroundListener = messaging().onMessage(async (remoteMessage) => {
-      console.log('[FCMService] *** Foreground listener fired ***');
       // Store notification data for potential app restart (within 5 minutes)
       if (remoteMessage?.data) {
         try {
@@ -115,7 +112,6 @@ class FCMService {
               timestamp: Date.now()
             })
           );
-          console.log('[FCMService] ✅ Stored foreground notification for potential restart');
         } catch (error) {
           console.error('[FCMService] Failed to store notification:', error);
         }
@@ -123,13 +119,9 @@ class FCMService {
       this.handleForegroundMessage(remoteMessage);
     });
 
-    console.log('[FCMService] Foreground listener registered');
-
     // Listener for when user taps on notification (app was in background)
     this.notificationOpenedListener = messaging().onNotificationOpenedApp(
       async (remoteMessage) => {
-        console.log('[FCMService] *** onNotificationOpenedApp fired ***');
-        console.log('[FCMService] App opened from background via notification tap');
         if (remoteMessage?.data) {
           // Store notification with timestamp for potential app restart
           try {
@@ -140,7 +132,6 @@ class FCMService {
                 timestamp: Date.now()
               })
             );
-            console.log('[FCMService] Stored background notification for potential restart');
           } catch (error) {
             console.error('[FCMService] Failed to store notification:', error);
           }
@@ -152,37 +143,18 @@ class FCMService {
     // Check if app was opened from a notification (app was quit)
     messaging().getInitialNotification()
       .then(async (remoteMessage) => {
-        if (remoteMessage) {
-          console.log(
-            '[FCMService] *** App opened from notification (quit state) ***'
-          );
-          console.log('[FCMService] Notification data:', JSON.stringify(remoteMessage.data, null, 2));
-          if (remoteMessage?.data) {
-            // Store initial notification to process after navigation is ready
-            this.initialNotification = remoteMessage.data;
-            console.log('[FCMService] 🔔 Stored initial notification - waiting for navigation and auth to be ready');
-            console.log('[FCMService] Current state:', {
-              hasNavigation: !!this.navigationRef,
-              hasAuth: this.isAuthReady
-            });
-          }
+        if (remoteMessage?.data) {
+          // Store initial notification to process after navigation is ready
+          this.initialNotification = remoteMessage.data;
         } else {
-          console.log('[FCMService] getInitialNotification returned null, checking storage...');
           // Fallback: Check if we stored a notification
           try {
             const storedItem = await SecureStore.getItemAsync(STORAGE_KEYS.PENDING_NOTIFICATION);
             if (storedItem) {
               const notificationData = JSON.parse(storedItem);
-
-              console.log('[FCMService] *** Found stored notification from background handler ***');
-              console.log('[FCMService] Notification data:', JSON.stringify(notificationData, null, 2));
-
               this.initialNotification = notificationData;
-
               // Always clear the stored notification
               await SecureStore.deleteItemAsync(STORAGE_KEYS.PENDING_NOTIFICATION);
-            } else {
-              console.log('[FCMService] No pending notification in storage (app opened normally)');
             }
           } catch (error) {
             console.error('[FCMService] Error checking stored notification:', error);
@@ -846,13 +818,6 @@ class FCMService {
    * This signals that we can safely navigate
    */
   setAuthReady(userId) {
-    console.log('[FCMService] 🔓 Auth ready for user:', userId);
-    console.log('[FCMService] Current state before setAuthReady:', {
-      hasNavigation: !!this.navigationRef,
-      hasAuth: this.isAuthReady,
-      hasPendingNotification: !!this.initialNotification
-    });
-
     this.isAuthReady = true;
     this.currentUserId = userId;
 
@@ -869,16 +834,9 @@ class FCMService {
    */
   setNavigationRef(navigationRef) {
     this.navigationRef = navigationRef;
-    console.log('[FCMService] 🧭 Navigation ref set');
-    console.log('[FCMService] Current state after setNavigationRef:', {
-      hasNavigation: !!this.navigationRef,
-      hasAuth: this.isAuthReady,
-      hasPendingNotification: !!this.initialNotification
-    });
 
     // Execute any pending navigation from background tap
     if (this.pendingNavigation) {
-      console.log('[FCMService] Executing pending navigation (background tap)');
       const { data } = this.pendingNavigation;
       this.pendingNavigation = null;
       this.navigateFromNotification(data);
@@ -892,30 +850,13 @@ class FCMService {
    * Execute initial notification only when both navigation and auth are ready
    */
   tryExecuteInitialNotification() {
-    console.log('[FCMService] tryExecuteInitialNotification called');
-    console.log('[FCMService] Prerequisites check:', {
-      hasInitialNotification: !!this.initialNotification,
-      hasNavigation: !!this.navigationRef,
-      hasAuth: this.isAuthReady,
-      allReady: !!(this.initialNotification && this.navigationRef && this.isAuthReady)
-    });
-
     if (this.initialNotification && this.navigationRef && this.isAuthReady) {
-      console.log('[FCMService] ✅ Both navigation and auth ready - executing initial notification');
-      console.log('[FCMService] Notification type:', this.initialNotification.type);
-      console.log('[FCMService] Notification eventId:', this.initialNotification.eventId);
       const data = this.initialNotification;
       this.initialNotification = null;
       // Small delay to ensure everything is settled
       setTimeout(() => {
-        console.log('[FCMService] 🚀 Navigating now...');
         this.navigateFromNotification(data);
       }, 500);
-    } else if (this.initialNotification) {
-      console.log('[FCMService] ⏳ Still waiting - missing:', {
-        needsNavigation: !this.navigationRef,
-        needsAuth: !this.isAuthReady
-      });
     }
   }
 

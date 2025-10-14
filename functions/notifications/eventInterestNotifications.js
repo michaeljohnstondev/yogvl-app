@@ -76,8 +76,21 @@ exports.onEventCreated = functions.firestore
 
       // Remove duplicates and filter out excluded users
       const excludeUserIds = new Set([hostId, ...cohosts, ...invitedUserIds]);
+
+      // Debug: Log the exclusion set
+      console.log(`[Event Interest Notification] 🚫 Excluded user IDs:`, {
+        excludeUserIds: Array.from(excludeUserIds),
+        interestedUserIds: interestedUserIds
+      });
+
       const uniqueInterestedUsers = [...new Set(interestedUserIds)]
-        .filter(userId => !excludeUserIds.has(userId));
+        .filter(userId => {
+          const isExcluded = excludeUserIds.has(userId);
+          if (isExcluded) {
+            console.log(`[Event Interest Notification] 🚫 Excluding user ${userId} (host/cohost/invited)`);
+          }
+          return !isExcluded;
+        });
 
       console.log(`[Event Interest Notification] 📊 Filtering results:`, {
         totalInterestedUsers: interestedUserIds.length,

@@ -4,6 +4,7 @@ import { getEmojiForText } from '../../lib/emojiUtils';
 import { GooglePlacesService } from '../../services/GooglePlacesService';
 import { VenueService } from '../../services/VenueService';
 import { isPersonalLocation } from '../../lib/locationUtils';
+import { useAuth } from '../../auth/AuthContext';
 
 /**
  * Check if text already contains an emoji
@@ -83,6 +84,9 @@ const DEFAULT_DETAIL_PHRASES = [
  * @returns {Object} Hook interface with suggestions and handlers
  */
 const useSmartAutoComplete = (config = {}, onLocationSelect = () => {}) => {
+  const { userData } = useAuth();
+  const studioId = userData?.userdata?.studios?.default?.studioId;
+
   // Suggestion visibility state
   const [suggestionVisibility, setSuggestionVisibility] = useState({});
 
@@ -131,7 +135,14 @@ const useSmartAutoComplete = (config = {}, onLocationSelect = () => {}) => {
         '[useSmartAutoComplete] Searching venue database for:',
         query
       );
-      const venueSuggestions = await VenueService.getVenueSuggestions(query);
+
+      if (!studioId) {
+        console.warn('[useSmartAutoComplete] No studioId available for venue search');
+        setVenueDatabaseSuggestions((prev) => ({ ...prev, [fieldId]: [] }));
+        return;
+      }
+
+      const venueSuggestions = await VenueService.getVenueSuggestions(query, studioId);
 
       // Format venue suggestions for autocomplete
       const formattedVenues = venueSuggestions.map((venue) => ({
@@ -159,7 +170,7 @@ const useSmartAutoComplete = (config = {}, onLocationSelect = () => {}) => {
       );
       setVenueDatabaseSuggestions((prev) => ({ ...prev, [fieldId]: [] }));
     }
-  }, []);
+  }, [studioId]);
 
   // Google Places search function - COSTS MONEY (fallback only)
   const searchGooglePlaces = useCallback(async (fieldId, query) => {
@@ -421,6 +432,29 @@ const useSmartAutoComplete = (config = {}, onLocationSelect = () => {}) => {
                 coordinates: placeDetails.location,
               }
             );
+
+            // Save this Google Place to venue database for future free use
+            if (studioId) {
+              try {
+                await VenueService.addVenue(
+                  placeDetails.name,
+                  placeDetails.address,
+                  studioId,
+                  'google_place'
+                );
+                console.log(
+                  '[useSmartAutoComplete] ✅ Saved Google Place to venue database:',
+                  placeDetails.name
+                );
+              } catch (error) {
+                console.error(
+                  '[useSmartAutoComplete] Error saving venue to database:',
+                  error
+                );
+                // Don't block the flow if saving fails
+              }
+            }
+
             onLocationSelect({
               fieldId,
               location: placeDetails.name,

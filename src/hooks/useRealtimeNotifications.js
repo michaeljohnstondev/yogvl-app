@@ -60,16 +60,7 @@ export const useRealtimeNotifications = (userId, options = {}) => {
         entries.slice(0, 5).forEach(([key]) => cacheRef.current.delete(key));
       }
 
-      // Debug logging (reduced frequency)
-      if (notificationsList.length > 0) {
-        const now = Date.now();
-        if (!lastUpdateRef.current || now - lastUpdateRef.current > 10000) {
-          console.log(
-            `[useRealtimeNotifications] ${notificationsList.length} notifications (${actualUnreadCount} unread)`
-          );
-          lastUpdateRef.current = now;
-        }
-      }
+      // Debug logging removed for production
     }, 300); // 300ms debounce
   }, [userId]);
 
