@@ -51,7 +51,8 @@ export const fetchEventDetails = async (studioId, eventId) => {
  */
 export const deleteEvent = async (studioId, eventId, currentUserId, isAdmin = false) => {
   try {
-    return await runTransaction(db, async (transaction) => {
+    // Run transaction to delete event
+    const result = await runTransaction(db, async (transaction) => {
       const eventRef = doc(db, 'studios', studioId, 'events', eventId);
       const eventSnap = await transaction.get(eventRef);
 
@@ -73,66 +74,77 @@ export const deleteEvent = async (studioId, eventId, currentUserId, isAdmin = fa
       console.log('[EventCore] Deleting event:', eventId);
       console.log('[EventCore] Event subscribers:', eventData.subscribers);
 
-      // Note: Cancellation notifications are now handled by Firebase Cloud Function (onEventDeleted trigger)
-      // This prevents duplicate notifications to subscribers
-
-      // Clean up user subscriptions and invitations
-      const userCleanupPromises = [];
-
-      // Clean up subscriber references
-      if (eventData.subscribers && Array.isArray(eventData.subscribers)) {
-        eventData.subscribers.forEach((userId) => {
-          userCleanupPromises.push(
-            updateDoc(doc(db, 'users', userId), {
-              'userdata.subscribedEvents': arrayRemove(eventId),
-              'userdata.metrics.events.subscribedEvents': arrayRemove(eventId),
-            }).catch((err) =>
-              console.warn(`Failed to clean up user ${userId}:`, err)
-            )
-          );
-        });
-      } else {
-        console.log('[EventCore] No subscribers to clean up (subscribers is not an array)');
-      }
-
-      // Clean up invitation references
-      if (eventData.invitations && Array.isArray(eventData.invitations)) {
-        eventData.invitations.forEach((userId) => {
-          userCleanupPromises.push(
-            updateDoc(doc(db, 'users', userId), {
-              'userdata.invitedEvents': arrayRemove(eventId),
-              'userdata.metrics.events.invitedEvents': arrayRemove(eventId),
-            }).catch((err) =>
-              console.warn(`Failed to clean up invited user ${userId}:`, err)
-            )
-          );
-        });
-      } else {
-        console.log('[EventCore] No invitations to clean up (invitations is not an array)');
-      }
-
-      // Execute cleanup (fire and forget)
-      setTimeout(() => {
-        Promise.allSettled(userCleanupPromises).then((results) => {
-          const failed = results.filter((r) => r.status === 'rejected').length;
-          if (failed > 0) {
-            console.warn(
-              `[EventCore] ${failed} user cleanup operations failed`
-            );
-          } else {
-            console.log('[EventCore] User cleanup completed successfully');
-          }
-        });
-      }, 0);
-
       // Delete the event document
       transaction.delete(eventRef);
 
       return {
         success: true,
         notifiedUsers: eventData.subscribers?.length || 0,
+        eventData, // Return event data for cleanup
       };
     });
+
+    // Clean up user subscriptions and invitations AFTER transaction completes
+    // Note: Cancellation notifications are now handled by Firebase Cloud Function (onEventDeleted trigger)
+    const eventData = result.eventData;
+    const userCleanupPromises = [];
+
+    // Clean up subscriber references
+    if (eventData.subscribers && Array.isArray(eventData.subscribers) && eventData.subscribers.length > 0) {
+      for (const userId of eventData.subscribers) {
+        if (userId && typeof userId === 'string') {
+          userCleanupPromises.push(
+            (async () => {
+              try {
+                await updateDoc(doc(db, 'users', userId), {
+                  'userdata.subscribedEvents': arrayRemove(eventId),
+                  'userdata.metrics.events.subscribedEvents': arrayRemove(eventId),
+                });
+              } catch (err) {
+                console.warn(`[EventCore] Failed to clean up subscriber ${userId}:`, err.message);
+              }
+            })()
+          );
+        }
+      }
+    }
+
+    // Clean up invitation references
+    if (eventData.invitations && Array.isArray(eventData.invitations) && eventData.invitations.length > 0) {
+      for (const userId of eventData.invitations) {
+        if (userId && typeof userId === 'string') {
+          userCleanupPromises.push(
+            (async () => {
+              try {
+                await updateDoc(doc(db, 'users', userId), {
+                  'userdata.invitedEvents': arrayRemove(eventId),
+                  'userdata.metrics.events.invitedEvents': arrayRemove(eventId),
+                });
+              } catch (err) {
+                console.warn(`[EventCore] Failed to clean up invited user ${userId}:`, err.message);
+              }
+            })()
+          );
+        }
+      }
+    }
+
+    // Execute cleanup (fire and forget)
+    if (userCleanupPromises.length > 0) {
+      Promise.allSettled(userCleanupPromises).then((results) => {
+        const failed = results.filter((r) => r.status === 'rejected').length;
+        if (failed > 0) {
+          console.warn(`[EventCore] ${failed} user cleanup operations failed`);
+        } else {
+          console.log('[EventCore] User cleanup completed successfully');
+        }
+      });
+    }
+
+    return {
+      success: result.success,
+      notifiedUsers: result.notifiedUsers,
+    };
   } catch (error) {
     console.error('[EventCore] Error deleting event:', error);
     throw error;
