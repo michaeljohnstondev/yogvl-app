@@ -67,7 +67,7 @@ export default function HostNotificationSettingsForm({
     }
 
     // Handle custom templates with new format (e.g., "5m", "2h", "3d")
-    const match = templateId.match(/^(\d+)([mhdwy])$/);
+    const match = templateId.match(/^(\d+)([mhdwx])$/);
     if (match) {
       const [, amount, unitChar] = match;
       const unitMap = {
@@ -75,7 +75,7 @@ export default function HostNotificationSettingsForm({
         h: 'hours',
         d: 'days',
         w: 'weeks',
-        y: 'months'
+        x: 'months'
       };
       const unit = unitMap[unitChar] || 'minutes';
       const unitLabels = {
@@ -283,7 +283,15 @@ export default function HostNotificationSettingsForm({
       }
 
       // Create template ID based on amount and unit
-      const templateId = `${amount}${customUnit.charAt(0)}`;
+      // Use proper unit abbreviations: m=minutes, h=hours, d=days, w=weeks, x=months (y reserved for years)
+      const unitAbbreviation = {
+        minutes: 'm',
+        hours: 'h',
+        days: 'd',
+        weeks: 'w',
+        months: 'x',
+      };
+      const templateId = `${amount}${unitAbbreviation[customUnit]}`;
       const currentSettings = settings?.reminderTemplates || {};
 
       // Check for duplicates - see if this template ID already exists
@@ -458,13 +466,12 @@ export default function HostNotificationSettingsForm({
 
                 {/* Add Custom Reminder */}
                 {!showAddCustomForm ? (
-                  <VibeButton
-                    label="+ Add Custom Reminder"
+                  <TouchableOpacity
                     onPress={handleShowAddForm}
-                    variant="toggle"
-                    color="blue"
                     style={styles.addCustomButton}
-                  />
+                  >
+                    <Text style={styles.addCustomButtonText}>+ Add Custom Reminder</Text>
+                  </TouchableOpacity>
                 ) : (
                   <View style={styles.addCustomForm}>
                     <Text style={styles.addCustomFormTitle}>
@@ -678,7 +685,15 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   addCustomButton: {
-    marginTop: 8,
+    marginTop: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  addCustomButtonText: {
+    color: theme.colors.vibeBlue,
+    fontSize: 16,
+    fontWeight: '600',
   },
   addCustomForm: {
     backgroundColor: theme.colors.inputBackground,

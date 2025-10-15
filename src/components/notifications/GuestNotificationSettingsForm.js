@@ -66,7 +66,7 @@ const GuestNotificationSettingsForm = memo(function GuestNotificationSettingsFor
     }
 
     // Handle custom templates with new format (e.g., "5m", "2h", "3d")
-    const match = templateId.match(/^(\d+)([mhdwy])$/);
+    const match = templateId.match(/^(\d+)([mhdwx])$/);
     if (match) {
       const [, amount, unitChar] = match;
       const unitMap = {
@@ -74,7 +74,7 @@ const GuestNotificationSettingsForm = memo(function GuestNotificationSettingsFor
         h: 'hours',
         d: 'days',
         w: 'weeks',
-        y: 'months'
+        x: 'months'
       };
       const unit = unitMap[unitChar] || 'minutes';
       const unitLabels = {
@@ -256,7 +256,15 @@ const GuestNotificationSettingsForm = memo(function GuestNotificationSettingsFor
       }
 
       // Create template ID based on amount and unit
-      const templateId = `${amount}${customUnit.charAt(0)}`;
+      // Use proper unit abbreviations: m=minutes, h=hours, d=days, w=weeks, x=months (y reserved for years)
+      const unitAbbreviation = {
+        minutes: 'm',
+        hours: 'h',
+        days: 'd',
+        weeks: 'w',
+        months: 'x',
+      };
+      const templateId = `${amount}${unitAbbreviation[customUnit]}`;
       const currentSettings = settings?.reminderTemplates || {};
 
       // Check for duplicates - see if this template ID already exists

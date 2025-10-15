@@ -89,17 +89,32 @@ export const deleteEvent = async (studioId, eventId, currentUserId, isAdmin = fa
     const eventData = result.eventData;
     const userCleanupPromises = [];
 
-    // Clean up subscriber references
+    // Clean up subscriber references and scheduled notifications
     if (eventData.subscribers && Array.isArray(eventData.subscribers) && eventData.subscribers.length > 0) {
       for (const userId of eventData.subscribers) {
         if (userId && typeof userId === 'string') {
           userCleanupPromises.push(
             (async () => {
               try {
+                // Remove from subscribed events
                 await updateDoc(doc(db, 'users', userId), {
                   'userdata.subscribedEvents': arrayRemove(eventId),
                   'userdata.metrics.events.subscribedEvents': arrayRemove(eventId),
                 });
+
+                // Delete all scheduled notifications for this event
+                const notificationsRef = collection(db, 'users', userId, 'scheduledNotifications');
+                const notificationsQuery = query(notificationsRef, where('eventId', '==', eventId));
+                const notificationsSnap = await getDocs(notificationsQuery);
+
+                const deletePromises = notificationsSnap.docs.map(docSnap =>
+                  deleteDoc(doc(db, 'users', userId, 'scheduledNotifications', docSnap.id))
+                );
+
+                if (deletePromises.length > 0) {
+                  await Promise.all(deletePromises);
+                  console.log(`[EventCore] Deleted ${deletePromises.length} scheduled notifications for user ${userId}`);
+                }
               } catch (err) {
                 console.warn(`[EventCore] Failed to clean up subscriber ${userId}:`, err.message);
               }
@@ -109,17 +124,53 @@ export const deleteEvent = async (studioId, eventId, currentUserId, isAdmin = fa
       }
     }
 
-    // Clean up invitation references
+    // Clean up invitation references and scheduled notifications
     if (eventData.invitations && Array.isArray(eventData.invitations) && eventData.invitations.length > 0) {
-      for (const userId of eventData.invitations) {
+      for (const invitation of eventData.invitations) {
+        // Handle both old format (string) and new format (object with userId)
+        const userId = typeof invitation === 'string' ? invitation : invitation?.userId;
+        const invitationType = typeof invitation === 'object' ? invitation?.type : 'guest';
+
         if (userId && typeof userId === 'string') {
           userCleanupPromises.push(
             (async () => {
               try {
-                await updateDoc(doc(db, 'users', userId), {
-                  'userdata.invitedEvents': arrayRemove(eventId),
-                  'userdata.metrics.events.invitedEvents': arrayRemove(eventId),
-                });
+                // Get user document to find and remove the specific pending invitation
+                const userRef = doc(db, 'users', userId);
+                const userSnap = await getDoc(userRef);
+
+                if (userSnap.exists()) {
+                  const userData = userSnap.data();
+                  const pendingInvitations = userData?.userdata?.pendingInvitations || [];
+
+                  // Remove the invitation object that matches this eventId
+                  const updatedInvitations = pendingInvitations.filter(
+                    inv => inv.eventId !== eventId
+                  );
+
+                  // Update user document
+                  await updateDoc(userRef, {
+                    'userdata.pendingInvitations': updatedInvitations,
+                    'userdata.invitedEvents': arrayRemove(eventId),
+                    'userdata.metrics.events.invitedEvents': arrayRemove(eventId),
+                  });
+
+                  console.log(`[EventCore] Removed pending ${invitationType} invitation for user ${userId}`);
+                }
+
+                // Delete all scheduled notifications for this event (invited users may have reminders too)
+                const notificationsRef = collection(db, 'users', userId, 'scheduledNotifications');
+                const notificationsQuery = query(notificationsRef, where('eventId', '==', eventId));
+                const notificationsSnap = await getDocs(notificationsQuery);
+
+                const deletePromises = notificationsSnap.docs.map(docSnap =>
+                  deleteDoc(doc(db, 'users', userId, 'scheduledNotifications', docSnap.id))
+                );
+
+                if (deletePromises.length > 0) {
+                  await Promise.all(deletePromises);
+                  console.log(`[EventCore] Deleted ${deletePromises.length} scheduled notifications for invited user ${userId}`);
+                }
               } catch (err) {
                 console.warn(`[EventCore] Failed to clean up invited user ${userId}:`, err.message);
               }
@@ -127,6 +178,30 @@ export const deleteEvent = async (studioId, eventId, currentUserId, isAdmin = fa
           );
         }
       }
+    }
+
+    // Clean up host's scheduled notifications (host may have reminders for their own event)
+    if (eventData.createdBy) {
+      userCleanupPromises.push(
+        (async () => {
+          try {
+            const notificationsRef = collection(db, 'users', eventData.createdBy, 'scheduledNotifications');
+            const notificationsQuery = query(notificationsRef, where('eventId', '==', eventId));
+            const notificationsSnap = await getDocs(notificationsQuery);
+
+            const deletePromises = notificationsSnap.docs.map(docSnap =>
+              deleteDoc(doc(db, 'users', eventData.createdBy, 'scheduledNotifications', docSnap.id))
+            );
+
+            if (deletePromises.length > 0) {
+              await Promise.all(deletePromises);
+              console.log(`[EventCore] Deleted ${deletePromises.length} scheduled notifications for host ${eventData.createdBy}`);
+            }
+          } catch (err) {
+            console.warn(`[EventCore] Failed to clean up host notifications:`, err.message);
+          }
+        })()
+      );
     }
 
     // Execute cleanup (fire and forget)

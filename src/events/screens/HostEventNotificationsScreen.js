@@ -50,6 +50,49 @@ export default function HostEventNotificationsScreen() {
   const isFirstRender = useRef(true);
   const saveTimeoutRef = useRef(null);
 
+  // Save settings to parent form
+  const saveSettings = useCallback(() => {
+    // Only save if settings have actually changed from initial values
+    if (JSON.stringify(localSettings) !== JSON.stringify(initialSettings)) {
+      console.log('[HostEventNotificationsScreen] Saving settings with reminderTemplates:', Object.keys(localSettings.reminderTemplates || {}));
+      navigation.navigate('CreateEvent', {
+        updatedNotificationSettings: localSettings,
+        timestamp: Date.now() // Force re-render on CreateEventForm
+      });
+    }
+  }, [localSettings, initialSettings, navigation]);
+
+  // Handle close button - save before going back
+  const handleClose = useCallback(() => {
+    // Clear any pending debounced save
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    // Save immediately
+    saveSettings();
+    // Then go back
+    navigation.goBack();
+  }, [saveSettings, navigation]);
+
+  // Handle Update Settings button - save and show confirmation
+  const handleUpdateSettings = useCallback(() => {
+    // Clear any pending debounced save
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    // Save immediately
+    saveSettings();
+    // Show success alert
+    vibeAlert.success(
+      'Settings Updated',
+      'Your notification settings have been saved'
+    );
+    // Close after brief delay
+    setTimeout(() => {
+      navigation.goBack();
+    }, 800);
+  }, [saveSettings, navigation, vibeAlert]);
+
   useEffect(() => {
     // Skip saving on first render
     if (isFirstRender.current) {
@@ -64,15 +107,7 @@ export default function HostEventNotificationsScreen() {
 
     // Debounced save after 500ms
     saveTimeoutRef.current = setTimeout(() => {
-      // Only save if settings have actually changed from initial values
-      if (JSON.stringify(localSettings) !== JSON.stringify(initialSettings)) {
-        // Navigate back to CreateEvent with updated settings
-        // Note: navigation.emit() is not supported in React Navigation v7
-        navigation.navigate('CreateEvent', {
-          updatedNotificationSettings: localSettings,
-          timestamp: Date.now() // Force re-render on CreateEventForm
-        });
-      }
+      saveSettings();
     }, 500);
 
     // Cleanup timeout on unmount
@@ -81,11 +116,12 @@ export default function HostEventNotificationsScreen() {
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [localSettings, navigation, initialSettings]);
+  }, [localSettings, saveSettings]);
 
   // Initialize settings from route params
   useEffect(() => {
     if (notificationSettings) {
+      console.log('[HostEventNotificationsScreen] Initializing with reminderTemplates:', Object.keys(notificationSettings.reminderTemplates || {}));
       setLocalSettings(notificationSettings);
     } else {
       setLocalSettings(defaultSettings);
@@ -144,7 +180,7 @@ export default function HostEventNotificationsScreen() {
     }
 
     // Handle custom templates with new format (e.g., "5m", "2h", "3d")
-    const match = templateId.match(/^(\d+)([mhdwy])$/);
+    const match = templateId.match(/^(\d+)([mhdwx])$/);
     if (match) {
       const [, amount, unitChar] = match;
       const unitMap = {
@@ -152,7 +188,7 @@ export default function HostEventNotificationsScreen() {
         h: 'hours',
         d: 'days',
         w: 'weeks',
-        y: 'months'
+        x: 'months'
       };
       const unit = unitMap[unitChar] || 'minutes';
       const unitLabels = {
@@ -313,7 +349,14 @@ export default function HostEventNotificationsScreen() {
       }
 
       // Create template ID based on amount and unit
-      const templateId = `${amount}${customUnit.charAt(0)}`;
+      const unitAbbreviation = {
+        minutes: 'm',
+        hours: 'h',
+        days: 'd',
+        weeks: 'w',
+        months: 'x',
+      };
+      const templateId = `${amount}${unitAbbreviation[customUnit]}`;
       const currentSettings = localSettings?.reminderTemplates || {};
 
       // Check for duplicates - see if this template ID already exists
@@ -402,7 +445,7 @@ export default function HostEventNotificationsScreen() {
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScreenHeader
         title="Event Notifications"
-        onClose={() => navigation.goBack()}
+        onClose={handleClose}
         showBorder={true}
         showCloseButton={true}
       />
@@ -410,6 +453,7 @@ export default function HostEventNotificationsScreen() {
       <ScrollView
         ref={scrollViewRef}
         style={styles.content}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* Main Enable/Disable Toggle */}
@@ -615,6 +659,16 @@ export default function HostEventNotificationsScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* Sticky Update Settings Button */}
+      <View style={styles.stickyButtonContainer}>
+        <VibeButton
+          label="UPDATE SETTINGS"
+          onPress={handleUpdateSettings}
+          variant="filled"
+          style={styles.stickyButton}
+        />
+      </View>
     </SafeAreaView>
   );
 }
@@ -627,6 +681,9 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 16,
+  },
+  scrollContent: {
+    paddingBottom: 100, // Space for sticky button
   },
   section: {
     marginTop: 20,
@@ -783,5 +840,20 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     padding: 20,
     fontStyle: 'italic',
+  },
+  stickyButtonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingBottom: 20,
+    backgroundColor: theme.colors.background,
+    borderTopWidth: 2,
+    borderTopColor: theme.colors.vibeBlue,
+  },
+  stickyButton: {
+    width: '100%',
   },
 });
