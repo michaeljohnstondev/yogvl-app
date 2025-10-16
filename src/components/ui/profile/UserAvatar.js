@@ -10,6 +10,10 @@ import { usePrivacyValidation } from '../../../hooks/usePrivacyValidation';
 import { getProfilePictureUrl } from '../../../services/profilePictureService';
 import theme from '../../../theme/themes';
 
+// In-memory cache for user data to prevent unnecessary re-fetches
+const userDataCache = new Map();
+const CACHE_DURATION = 60000; // 1 minute
+
 const UserAvatar = memo(
   function UserAvatar({ userId, size = 32, style, onPress }) {
     const { currentUserId } = useAuth();
@@ -25,6 +29,15 @@ const UserAvatar = memo(
           return;
         }
 
+        // Check cache first
+        const cached = userDataCache.get(userId);
+        if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+          setUserData(cached.data);
+          setIsBlocked(cached.isBlocked || false);
+          setLoading(false);
+          return;
+        }
+
         try {
           // Check if user is blocked first - for efficiency
           if (currentUserId && userId !== currentUserId) {
@@ -35,6 +48,12 @@ const UserAvatar = memo(
             if (blocked) {
               setUserData(null);
               setLoading(false);
+              // Cache blocked status
+              userDataCache.set(userId, {
+                data: null,
+                isBlocked: true,
+                timestamp: Date.now()
+              });
               return;
             }
           }
@@ -46,6 +65,12 @@ const UserAvatar = memo(
           if (userSnap.exists()) {
             const data = userSnap.data();
             setUserData(data);
+            // Cache the fetched data
+            userDataCache.set(userId, {
+              data,
+              isBlocked: false,
+              timestamp: Date.now()
+            });
           }
         } catch (error) {
           console.error(

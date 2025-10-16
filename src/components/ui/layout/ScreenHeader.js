@@ -10,18 +10,20 @@ const ScreenHeader = ({
   showBorder = true,
   showCloseButton = true,
   rightButton = null, // Custom right-side button/component
+  style = {}, // Custom style for the header container or title
+  titleStyle = {}, // Custom style specifically for title text
 }) => {
   const displayTitle = count !== undefined ? `${title} (${count})` : title;
 
   return (
-    <View style={[styles.header, showBorder && styles.headerBorder]}>
+    <View style={[styles.header, showBorder && styles.headerBorder, style]}>
       {showCloseButton ? (
         <CloseButton onPress={onClose} style={styles.closeButton} />
       ) : (
         <View style={styles.headerSpacer} />
       )}
 
-      <Text style={styles.title}>{displayTitle}</Text>
+      <Text style={[styles.title, titleStyle]}>{displayTitle}</Text>
 
       {rightButton ? (
         rightButton

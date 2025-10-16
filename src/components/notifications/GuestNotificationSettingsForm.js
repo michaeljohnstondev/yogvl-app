@@ -440,13 +440,12 @@ const GuestNotificationSettingsForm = memo(function GuestNotificationSettingsFor
 
             {/* Add Custom Reminder */}
             {!showAddCustomForm ? (
-              <VibeButton
-                label="+ Add Custom Reminder"
+              <TouchableOpacity
                 onPress={handleShowAddForm}
-                variant="toggle"
-                color="blue"
                 style={styles.addCustomButton}
-              />
+              >
+                <Text style={styles.addCustomButtonText}>+ Add Custom Reminder</Text>
+              </TouchableOpacity>
             ) : (
               <View style={styles.addCustomForm}>
                 <Text style={styles.addCustomFormTitle}>
@@ -564,11 +563,11 @@ const styles = StyleSheet.create({
     elevation: 99,
   },
   sectionTitle: {
-    color: theme.colors.vibeBlue,
+    color: theme.colors.vibeCyan,
     fontSize: 12,
     fontFamily: theme.fonts.comicBold,
-    marginBottom: 10,
     letterSpacing: 1,
+    marginBottom: 10,
   },
   settingsGroup: {
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
@@ -647,6 +646,13 @@ const styles = StyleSheet.create({
   },
   addCustomButton: {
     marginTop: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  addCustomButtonText: {
+    color: theme.colors.vibeBlue,
+    fontSize: 14,
+    fontWeight: '600',
   },
   addCustomForm: {
     backgroundColor: theme.colors.inputBackground,

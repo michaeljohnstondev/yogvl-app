@@ -603,11 +603,11 @@ const styles = StyleSheet.create({
     marginBottom: 25, // Extra margin at bottom for last section
   },
   sectionTitle: {
-    color: theme.colors.vibeBlue,
+    color: theme.colors.vibeCyan,
     fontSize: 12,
     fontFamily: theme.fonts.comicBold,
-    marginBottom: 10,
     letterSpacing: 1,
+    marginBottom: 10,
   },
   settingsGroup: {
     backgroundColor: 'rgba(0, 0, 0, 0.3)',

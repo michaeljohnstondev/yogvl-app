@@ -1,6 +1,6 @@
 // HostEventNotificationsScreen.js
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Switch, TouchableOpacity, Keyboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -17,8 +17,13 @@ export default function HostEventNotificationsScreen() {
   const navigation = useNavigation();
   const vibeAlert = useVibeAlert();
 
-  const { notificationSettings, currentUserId, userContext = 'hosting' } =
-    route.params;
+  const {
+    notificationSettings,
+    currentUserId,
+    userContext = 'hosting',
+    eventId = null,
+    studioId = null,
+  } = route.params;
 
   // Memoize default settings to ensure stable reference
   const defaultSettings = useMemo(() => ({
@@ -37,6 +42,7 @@ export default function HostEventNotificationsScreen() {
     [notificationSettings, defaultSettings]
   );
   const [localSettings, setLocalSettings] = useState(initialSettings);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
   const scrollViewRef = useRef(null);
 
@@ -75,23 +81,44 @@ export default function HostEventNotificationsScreen() {
   }, [saveSettings, navigation]);
 
   // Handle Update Settings button - save and show confirmation
-  const handleUpdateSettings = useCallback(() => {
+  const handleUpdateSettings = useCallback(async () => {
+    setIsUpdating(true);
+
     // Clear any pending debounced save
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
-    // Save immediately
-    saveSettings();
-    // Show success alert
-    vibeAlert.success(
-      'Settings Updated',
-      'Your notification settings have been saved'
-    );
-    // Close after brief delay
-    setTimeout(() => {
+
+    // If we have eventId and studioId, save to Firebase (editing existing event)
+    if (eventId && studioId) {
+      try {
+        const { updateDoc, doc } = await import('firebase/firestore');
+        const { db } = await import('../../auth/services/firebase');
+
+        const eventRef = doc(db, 'studios', studioId, 'events', eventId);
+        await updateDoc(eventRef, {
+          notificationSettings: localSettings
+        });
+
+        console.log('[HostEventNotificationsScreen] Saved notification settings to Firebase for event:', eventId);
+
+        setIsUpdating(false);
+        navigation.goBack();
+      } catch (error) {
+        console.error('[HostEventNotificationsScreen] Failed to save settings to Firebase:', error);
+        vibeAlert.error(
+          'Save Failed',
+          'Failed to save notification settings. Please try again.'
+        );
+        setIsUpdating(false);
+      }
+    } else {
+      // No eventId - we're in create mode, just pass back via navigation
+      saveSettings();
+      setIsUpdating(false);
       navigation.goBack();
-    }, 800);
-  }, [saveSettings, navigation, vibeAlert]);
+    }
+  }, [saveSettings, navigation, vibeAlert, eventId, studioId, localSettings]);
 
   useEffect(() => {
     // Skip saving on first render
@@ -139,13 +166,6 @@ export default function HostEventNotificationsScreen() {
     }));
   };
 
-  // Handle attendance reminder selection
-  const handleAttendanceReminderChange = (value) => {
-    setLocalSettings((prev) => ({
-      ...prev,
-      attendanceReminders: value,
-    }));
-  };
 
   // Custom reminder functionality
   const handleShowAddForm = () => {
@@ -256,12 +276,6 @@ export default function HostEventNotificationsScreen() {
     { label: 'Months', value: 'months' },
   ];
 
-  // Attendance reminder options (removed 'casual', made 'none' default)
-  const attendanceReminderOptions = [
-    { label: 'None', value: 'none' },
-    { label: 'Strict Events Only', value: 'strict' },
-    { label: 'Both Event Types', value: 'both' },
-  ];
 
   const toggleReminder = (reminder) => {
     const currentSettings = localSettings?.reminderTemplates || {};
@@ -442,20 +456,23 @@ export default function HostEventNotificationsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <View style={styles.outerContainer}>
       <ScreenHeader
         title="Event Notifications"
         onClose={handleClose}
         showBorder={true}
         showCloseButton={true}
+        style={styles.screenHeader}
+        titleStyle={styles.screenHeaderTitle}
       />
 
-      <ScrollView
-        ref={scrollViewRef}
-        style={styles.content}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.container}>
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.content}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
         {/* Main Enable/Disable Toggle */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>EVENT NOTIFICATIONS</Text>
@@ -522,13 +539,12 @@ export default function HostEventNotificationsScreen() {
 
                 {/* Add Custom Reminder */}
                 {!showAddCustomForm ? (
-                  <VibeButton
-                    label="+ Add Custom Reminder"
+                  <TouchableOpacity
                     onPress={handleShowAddForm}
-                    variant="toggle"
-                    color="blue"
                     style={styles.addCustomButton}
-                  />
+                  >
+                    <Text style={styles.addCustomButtonText}>+ Add Custom Reminder</Text>
+                  </TouchableOpacity>
                 ) : (
                   <View style={styles.addCustomForm}>
                     <Text style={styles.addCustomFormTitle}>
@@ -629,24 +645,6 @@ export default function HostEventNotificationsScreen() {
             <View style={[styles.section, styles.lastSection]}>
               <Text style={styles.sectionTitle}>POST-EVENT</Text>
               <View style={styles.settingsGroup}>
-                <View style={[styles.settingItem, styles.settingBorder]}>
-                  <View style={styles.settingContent}>
-                    <Text style={styles.settingTitle}>Attendance Reminders</Text>
-                    <Text style={styles.settingDescription}>
-                      When to send attendance reminder notifications after events
-                    </Text>
-                  </View>
-                  <View style={styles.dropdownContainer}>
-                    <VibeDropdown
-                      options={attendanceReminderOptions}
-                      selectedValue={localSettings?.attendanceReminders ?? 'none'}
-                      onSelect={handleAttendanceReminderChange}
-                      placeholder="Select option"
-                      style={styles.attendanceDropdown}
-                      hideSelectedFromList={true}
-                    />
-                  </View>
-                </View>
                 <SettingItem
                   title="Event Recap"
                   description="Send a summary notification after this event ends"
@@ -659,24 +657,34 @@ export default function HostEventNotificationsScreen() {
           </>
         )}
       </ScrollView>
+      </View>
 
       {/* Sticky Update Settings Button */}
-      <View style={styles.stickyButtonContainer}>
+      <SafeAreaView style={styles.stickyButtonContainer} edges={['bottom']}>
         <VibeButton
-          label="UPDATE SETTINGS"
+          label={isUpdating ? "UPDATING..." : "UPDATE SETTINGS"}
           onPress={handleUpdateSettings}
           variant="filled"
           style={styles.stickyButton}
+          disabled={isUpdating}
         />
-      </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  outerContainer: {
+    flex: 1,
+  },
+  screenHeader: {
+    paddingVertical: 0,
+  },
+  screenHeaderTitle: {
+    fontSize: 22,
+  },
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   content: {
     flex: 1,
@@ -696,17 +704,17 @@ const styles = StyleSheet.create({
     marginBottom: 25, // Extra margin at bottom for last section
   },
   sectionTitle: {
-    color: theme.colors.vibeGreen,
+    color: theme.colors.vibeCyan,
     fontSize: 12,
-    fontWeight: 'bold',
+    fontFamily: theme.fonts.comicBold,
     letterSpacing: 1,
-    marginBottom: 10,
+    marginBottom: 6,
   },
   settingsGroup: {
-    backgroundColor: theme.colors.inputBackground,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     borderRadius: theme.sizes.borderRadius,
-    borderWidth: 1,
-    borderColor: theme.colors.inputBorder,
+    borderWidth: 3,
+    borderColor: theme.colors.vibeBlue,
     overflow: 'visible',
     zIndex: 1,
     elevation: 1,
@@ -787,6 +795,13 @@ const styles = StyleSheet.create({
   },
   addCustomButton: {
     marginTop: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  addCustomButtonText: {
+    color: theme.colors.vibeBlue,
+    fontSize: 16,
+    fontWeight: '600',
   },
   addCustomForm: {
     backgroundColor: theme.colors.inputBackground,
@@ -842,13 +857,8 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   stickyButtonContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingBottom: 20,
+    paddingTop: 12,
     backgroundColor: theme.colors.background,
     borderTopWidth: 2,
     borderTopColor: theme.colors.vibeBlue,

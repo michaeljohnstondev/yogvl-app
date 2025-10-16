@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
     marginBottom: 20, // Bottom margin for last section
   },
   sectionTitle: {
-    color: theme.colors.vibeBlue,
+    color: theme.colors.vibeCyan,
     fontSize: 12,
     fontFamily: theme.fonts.comicBold,
     letterSpacing: 1,

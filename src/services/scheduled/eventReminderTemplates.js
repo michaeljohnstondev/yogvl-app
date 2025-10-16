@@ -25,8 +25,8 @@ export class EventReminderTemplates {
     for (const [templateId, isEnabled] of Object.entries(reminderTemplates)) {
       if (!isEnabled) continue; // Skip disabled templates
 
-      // Parse template ID format: "15m", "2h", "1d", "1w", "3months" -> amount + unit
-      const match = templateId.match(/^(\d+)([mhdwy])$/);
+      // Parse template ID format: "15m", "2h", "1d", "1w", "1x" -> amount + unit
+      const match = templateId.match(/^(\d+)([mhdwx])$/);
 
       if (!match) {
         console.warn(`[EventReminderTemplates] Invalid template ID format: ${templateId}, skipping`);
@@ -63,7 +63,7 @@ export class EventReminderTemplates {
             ? 'Event Next Week!'
             : `Event in ${numAmount} Weeks`;
           break;
-        case 'y': // months (y = "year-like" but actually months based on GuestNotificationSettingsForm)
+        case 'x': // months (x = months, y reserved for years)
           minutes = numAmount * 30 * 24 * 60; // Approximate 30 days per month
           title = numAmount === 1
             ? 'Event Next Month!'

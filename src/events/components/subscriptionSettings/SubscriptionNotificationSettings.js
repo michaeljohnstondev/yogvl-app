@@ -1,6 +1,7 @@
 // Subscription Notification Settings Modal for Event Attendees
 import React, { useState, useRef, memo, useCallback } from 'react';
 import { View, Text, StyleSheet, Modal, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { doc, updateDoc } from '../../../lib/firebase/firestore';
 import { db } from '../../../auth/services/firebase';
 import { useAuth } from '../../../auth/AuthContext';
@@ -18,6 +19,8 @@ const SubscriptionNotificationSettings = memo(function SubscriptionNotificationS
 }) {
   const { currentUserId } = useAuth();
   const scrollViewRef = useRef(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+
   // Get user's attending defaults from the consistent path
   const attendingDefaults = userDefaults.attending || userDefaults; // Support both old and new structure for now
 
@@ -38,8 +41,10 @@ const SubscriptionNotificationSettings = memo(function SubscriptionNotificationS
     reminderTemplates: attendingDefaults.reminderTemplates || {}, // Object format, not array
   });
 
-  const handleSubscribe = useCallback(() => {
-    onSubscribe(subscriptionSettings);
+  const handleSubscribe = useCallback(async () => {
+    setIsUpdating(true);
+    await onSubscribe(subscriptionSettings);
+    setIsUpdating(false);
     onClose();
   }, [onSubscribe, subscriptionSettings, onClose]);
 
@@ -90,37 +95,42 @@ const SubscriptionNotificationSettings = memo(function SubscriptionNotificationS
           <View style={styles.headerRight} />
         </View>
 
-        <ScrollView
-          ref={scrollViewRef}
-          style={styles.content}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Use the new reusable guest notification settings form */}
-          <GuestNotificationSettingsForm
-            settings={subscriptionSettings}
-            onUpdateSettings={setSubscriptionSettings}
-            showCriticalUpdates={true}
-            showEventUpdates={true}
-            showReminders={true}
-            showSocialActivity={true}
-            showSaveAsDefaults={true}
-            onSaveAsDefaults={saveAsDefaults}
-            sectionStyle={styles.section}
-            scrollViewRef={scrollViewRef}
-            userContext="attending"
-          />
+        <View style={styles.contentContainer}>
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.content}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Use the new reusable guest notification settings form */}
+            <GuestNotificationSettingsForm
+              settings={subscriptionSettings}
+              onUpdateSettings={setSubscriptionSettings}
+              showCriticalUpdates={true}
+              showEventUpdates={true}
+              showReminders={true}
+              showSocialActivity={true}
+              showSaveAsDefaults={true}
+              onSaveAsDefaults={saveAsDefaults}
+              sectionStyle={styles.section}
+              scrollViewRef={scrollViewRef}
+              userContext="attending"
+            />
+          </ScrollView>
 
-          {/* Update Settings Button - Only show for subscribed users */}
+          {/* Update Settings Button - Sticky at bottom */}
           {isSubscribed && (
-            <View style={styles.footer}>
+            <SafeAreaView style={styles.stickyButtonContainer} edges={['bottom']}>
               <VibeButton
-                label="UPDATE SETTINGS"
+                label={isUpdating ? "UPDATING..." : "UPDATE SETTINGS"}
                 onPress={handleSubscribe}
-                style={styles.subscribeButton}
+                variant="filled"
+                style={styles.stickyButton}
+                disabled={isUpdating}
               />
-            </View>
+            </SafeAreaView>
           )}
-        </ScrollView>
+        </View>
       </View>
     </Modal>
   );
@@ -155,20 +165,28 @@ const styles = StyleSheet.create({
   headerRight: {
     width: 50,
   },
+  contentContainer: {
+    flex: 1,
+  },
   content: {
-    flexGrow: 1,
+    flex: 1,
     paddingHorizontal: 16,
+  },
+  scrollContent: {
+    paddingBottom: 100, // Space for sticky button
   },
   section: {
     marginBottom: 20,
     paddingHorizontal: 0, // Remove padding since it's handled by the form component
   },
-  footer: {
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.darkGray,
+  stickyButtonContainer: {
+    backgroundColor: theme.colors.background,
+    borderTopWidth: 3,
+    borderTopColor: theme.colors.vibeBlue,
+    paddingHorizontal: 16,
+    paddingTop: 12,
   },
-  subscribeButton: {
+  stickyButton: {
     width: '100%',
   },
 });

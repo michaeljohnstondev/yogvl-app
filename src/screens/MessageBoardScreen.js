@@ -229,6 +229,23 @@ export default function MessageBoardScreen({ route, navigation }) {
     [handleProfileNavigation]
   );
 
+  // Memoized render item to prevent unnecessary re-renders
+  const renderMessage = useCallback(
+    ({ item }) => (
+      <MessageItem
+        message={item}
+        isCurrentUser={item.userId === currentUserId}
+        borderColor={getBorderColor(item)}
+        backgroundColor={getBackgroundTint(item)}
+        canDelete={canDeleteMessage(item)}
+        onDelete={createDeleteHandler(item.id, item.userId)}
+        onAvatarPress={createAvatarPressHandler(item.userId)}
+        formattedTime={formatMessageTime(item.timestamp)}
+      />
+    ),
+    [currentUserId, getBorderColor, getBackgroundTint, canDeleteMessage, createDeleteHandler, createAvatarPressHandler]
+  );
+
   // Message item component with pre-computed values
   const MessageItem = memo(
     ({
@@ -239,6 +256,7 @@ export default function MessageBoardScreen({ route, navigation }) {
       canDelete,
       onDelete,
       onAvatarPress,
+      formattedTime,
     }) => {
       return (
         <View style={styles.messageContainer}>
@@ -275,7 +293,7 @@ export default function MessageBoardScreen({ route, navigation }) {
               {/* Message footer */}
               <View style={styles.messageFooter}>
                 <Text style={styles.messageTime}>
-                  {formatMessageTime(message.timestamp)}
+                  {formattedTime}
                 </Text>
               </View>
             </View>
@@ -288,7 +306,7 @@ export default function MessageBoardScreen({ route, navigation }) {
       return (
         prevProps.message.id === nextProps.message.id &&
         prevProps.message.content === nextProps.message.content &&
-        prevProps.message.timestamp === nextProps.message.timestamp &&
+        prevProps.formattedTime === nextProps.formattedTime &&
         prevProps.isCurrentUser === nextProps.isCurrentUser &&
         prevProps.borderColor === nextProps.borderColor &&
         prevProps.canDelete === nextProps.canDelete &&
@@ -329,17 +347,11 @@ export default function MessageBoardScreen({ route, navigation }) {
           ref={flatListRef}
           data={messages}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <MessageItem
-              message={item}
-              isCurrentUser={item.userId === currentUserId}
-              borderColor={getBorderColor(item)}
-              backgroundColor={getBackgroundTint(item)}
-              canDelete={canDeleteMessage(item)}
-              onDelete={createDeleteHandler(item.id, item.userId)}
-              onAvatarPress={createAvatarPressHandler(item.userId)}
-            />
-          )}
+          renderItem={renderMessage}
+          windowSize={10}
+          maxToRenderPerBatch={5}
+          updateCellsBatchingPeriod={50}
+          removeClippedSubviews={true}
           ListEmptyComponent={!loading ? <EmptyState /> : null}
           refreshControl={
             <RefreshControl

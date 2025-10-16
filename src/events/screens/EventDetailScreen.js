@@ -216,11 +216,62 @@ const EventDetailScreen = memo(function EventDetailScreen({
     }
   }, [event, eventId, vibeAlert]);
 
-  const handleNotificationSettings = useCallback(() => {
-    startTransition(() => {
-      setShowSubscriptionModal(true);
-    });
-  }, []);
+  const handleNotificationSettings = useCallback(async () => {
+    if (!event) return;
+
+    const isHost = event.createdBy === currentUserId;
+
+    if (isHost) {
+      // Host: Load notification settings (from event or user defaults)
+      let notificationSettings = event.notificationSettings;
+
+      // If event doesn't have notification settings, load from user defaults
+      if (!notificationSettings || !notificationSettings.reminderTemplates) {
+        try {
+          const CustomTemplateService = (await import('../../services/CustomTemplateService')).default;
+          const reminderTemplates = await CustomTemplateService.getTemplates(currentUserId, 'hosting');
+
+          notificationSettings = {
+            enabled: true,
+            notifyOnJoin: true,
+            notifyOnLeave: true,
+            newComments: true,
+            hostChanges: true,
+            eventReminders: true,
+            hostComments: true,
+            reminderTemplates: reminderTemplates,
+          };
+
+          console.log('[EventDetailScreen] Loaded default host templates:', Object.keys(reminderTemplates));
+        } catch (error) {
+          console.warn('[EventDetailScreen] Failed to load templates, using empty settings:', error);
+          notificationSettings = {
+            enabled: true,
+            notifyOnJoin: true,
+            notifyOnLeave: true,
+            newComments: true,
+            hostChanges: true,
+            eventReminders: true,
+            hostComments: true,
+            reminderTemplates: {},
+          };
+        }
+      }
+
+      navigation.navigate('HostEventNotifications', {
+        notificationSettings,
+        currentUserId,
+        userContext: 'hosting',
+        eventId,
+        studioId,
+      });
+    } else {
+      // Guest: Open subscription modal
+      startTransition(() => {
+        setShowSubscriptionModal(true);
+      });
+    }
+  }, [event, currentUserId, navigation, eventId, studioId]);
 
   const handleReportEvent = useCallback(() => {
     if (!event) return;
@@ -342,11 +393,6 @@ const EventDetailScreen = memo(function EventDetailScreen({
         startTransition(() => {
           setShowSubscriptionModal(false);
         });
-
-        vibeAlert.success(
-          'Settings Updated',
-          'Your notification settings have been updated!'
-        );
       } else {
         // User is not subscribed, subscribe them with settings
         const result = await eventService.subscribeToEvent(

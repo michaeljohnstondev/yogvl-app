@@ -15,8 +15,13 @@ export default function EventCard({
 }) {
   // Choose gradient colors based on hosting status
   const gradientColors = isHostedByUser
-    ? ['#FFD700', '#FF8C00'] // Yellow to orange gradient for hosted events
+    ? ['#FFD700', '#FF8C00'] // Yellow to orange gradient border for hosted events
     : ['#00f2fe', '#4facfe']; // Cyan/blue gradient for regular events
+
+  // Choose background color that works well with border
+  const cardBackgroundColor = isHostedByUser
+    ? 'rgba(0, 16, 32, 0.8)' // Background for hosted events (closer to app background)
+    : 'rgba(0, 8, 20, 0.8)'; // Standard background for regular events
 
   return (
     <TouchableOpacity
@@ -31,7 +36,7 @@ export default function EventCard({
         end={{ x: 1, y: 1 }}
         style={styles.gradient}
       >
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: cardBackgroundColor }]}>
           {(eventTimestamp || utcDateTime) && (
             <Text style={styles.meta}>
               {eventTimestamp
