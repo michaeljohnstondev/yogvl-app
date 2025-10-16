@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import ScreenHeader from '../components/ui/layout/ScreenHeader';
 import { useAuth } from '../auth/AuthContext';
 import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
 import { blockingService } from '../services/blockingService';
+import { useFocusEffect } from '@react-navigation/native';
 import theme from '../theme/themes';
 
 const VISIBILITY_OPTIONS = {
@@ -48,43 +49,87 @@ function PrivacySettings({ navigation }) {
     // Event Privacy
     requireFollowForEvents:
       userData?.userdata?.settings?.privacy?.requireFollowForEvents ?? false,
-
-    // Data & Analytics
-    dataCollectionConsent:
-      userData?.userdata?.settings?.privacy?.dataCollectionConsent ?? true,
-    shareLocation:
-      userData?.userdata?.settings?.privacy?.shareLocation ?? false,
-    personalizedAds:
-      userData?.userdata?.settings?.privacy?.personalizedAds ?? true,
   });
 
-  const [hasChanges, setHasChanges] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [blockedUsers, setBlockedUsers] = useState([]);
   const [blockedUsersData, setBlockedUsersData] = useState([]);
   const [loadingBlocked, setLoadingBlocked] = useState(true);
+  const [isFirstRender, setIsFirstRender] = useState(true);
+  const saveTimeoutRef = useRef(null);
+  const settingsRef = useRef(settings);
+
+  // Keep settingsRef in sync
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+
+  // Save immediately when screen unmounts
+  useEffect(() => {
+    return () => {
+      // Clear any pending debounced save
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+
+      // Save immediately on unmount
+      if (!isFirstRender && currentUserId) {
+        const userRef = doc(db, 'users', currentUserId);
+        updateDoc(userRef, {
+          'userdata.settings.privacy': settingsRef.current,
+          'userdata.settings.lastUpdated': new Date(),
+        }).then(() => {
+          console.log('[PrivacySettings] Settings saved on unmount');
+        }).catch((error) => {
+          console.error('[PrivacySettings] Error saving on unmount:', error);
+        });
+      }
+    };
+  }, [currentUserId, isFirstRender]);
 
   const toggleSetting = (key) => {
-    setSettings((prev) => {
-      const newSettings = {
-        ...prev,
-        [key]: !prev[key],
-      };
-      setHasChanges(true);
-      return newSettings;
-    });
+    setSettings((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
   };
 
   const updateVisibilitySetting = (key, value) => {
-    setSettings((prev) => {
-      const newSettings = {
-        ...prev,
-        [key]: value,
-      };
-      setHasChanges(true);
-      return newSettings;
-    });
+    setSettings((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
   };
+
+  // Auto-save settings when they change (with debounce)
+  useEffect(() => {
+    if (isFirstRender) {
+      setIsFirstRender(false);
+      return;
+    }
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    saveTimeoutRef.current = setTimeout(async () => {
+      if (!currentUserId) return;
+
+      try {
+        const userRef = doc(db, 'users', currentUserId);
+        await updateDoc(userRef, {
+          'userdata.settings.privacy': settings,
+          'userdata.settings.lastUpdated': new Date(),
+        });
+        console.log('[PrivacySettings] Privacy settings auto-saved');
+      } catch (error) {
+        console.error('[PrivacySettings] Error auto-saving privacy settings:', error);
+        vibeAlert.error(
+          'Error',
+          'Failed to save privacy settings. Please try again.'
+        );
+      }
+    }, 500); // 500ms debounce
+  }, [settings, currentUserId, isFirstRender, vibeAlert]);
 
   // Load blocked users
   useEffect(() => {
@@ -160,34 +205,6 @@ function PrivacySettings({ navigation }) {
         }
       }
     );
-  };
-
-  const saveSettings = async () => {
-    if (!currentUserId) return;
-
-    setSaving(true);
-    try {
-      const userRef = doc(db, 'users', currentUserId);
-      await updateDoc(userRef, {
-        'userdata.settings.privacy': settings,
-        'userdata.settings.lastUpdated': new Date(),
-      });
-
-      setHasChanges(false);
-      vibeAlert.success(
-        'Settings Saved',
-        'Your privacy preferences have been updated successfully.'
-      );
-      console.log('[PrivacySettings] Privacy settings saved successfully');
-    } catch (error) {
-      console.error('[PrivacySettings] Error saving privacy settings:', error);
-      vibeAlert.error(
-        'Error',
-        'Failed to save privacy settings. Please try again.'
-      );
-    } finally {
-      setSaving(false);
-    }
   };
 
   // Simple toggle setting component
@@ -309,32 +326,6 @@ function PrivacySettings({ navigation }) {
         </View>
       </View>
 
-      {/* Data & Analytics Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>DATA & ANALYTICS</Text>
-        <View style={styles.settingsGroup}>
-          <SettingItem
-            title="Location Sharing"
-            description="Share your location for better event recommendations"
-            value={settings.shareLocation}
-            onToggle={() => toggleSetting('shareLocation')}
-          />
-          <SettingItem
-            title="Data Collection"
-            description="Allow analytics to improve your experience"
-            value={settings.dataCollectionConsent}
-            onToggle={() => toggleSetting('dataCollectionConsent')}
-          />
-          <SettingItem
-            title="Personalized Content"
-            description="Use your activity to personalize content and ads"
-            value={settings.personalizedAds}
-            onToggle={() => toggleSetting('personalizedAds')}
-            isLast
-          />
-        </View>
-      </View>
-
       {/* Blocked Users Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>BLOCKED USERS</Text>
@@ -374,18 +365,6 @@ function PrivacySettings({ navigation }) {
         </View>
       </View>
 
-      {/* Action Buttons */}
-      <View style={styles.buttonContainer}>
-        <VibeButton
-          label={saving ? 'SAVING...' : 'SAVE SETTINGS'}
-          onPress={saveSettings}
-          disabled={!hasChanges || saving}
-          style={[
-            styles.saveButton,
-            (!hasChanges || saving) && styles.disabledButton,
-          ]}
-        />
-      </View>
       </ScrollView>
     </View>
   );
