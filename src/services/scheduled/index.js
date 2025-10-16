@@ -40,6 +40,17 @@ export class ScheduledNotificationService {
         notificationSettings
       );
 
+      // IMPORTANT: Cancel any existing scheduled notifications for this user/event first
+      // to prevent duplicates when user updates their notification settings
+      console.log(
+        `[ScheduledNotificationService] Cancelling existing notifications for user ${userId}, event ${eventId} before rescheduling`
+      );
+      await NotificationProcessor.cancelUserEventNotifications(
+        userId,
+        eventId,
+        'User updated notification settings - rescheduling'
+      );
+
       // Schedule reminders based on user's settings
       if (notificationSettings.eventReminders) {
         // Fetch the full event data needed for scheduling
