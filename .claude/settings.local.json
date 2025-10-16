@@ -61,7 +61,8 @@
       "WebFetch(domain:rnfirebase.io)",
       "WebFetch(domain:firebase.google.com)",
       "Bash(del:*)",
-      "Bash(firebase functions:delete:*)"
+      "Bash(firebase functions:delete:*)",
+      "Bash(eas build:list:*)"
     ],
     "deny": [],
     "ask": [],
