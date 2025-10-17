@@ -199,12 +199,19 @@ export default function HomeScreen({ navigation, route }) {
         }
       });
 
+      // Sort past events by date descending (most recent first)
+      const sortedPast = myPast.sort((a, b) => {
+        const dateA = a.eventTimestamp?.toDate() || new Date(a.utcDateTime);
+        const dateB = b.eventTimestamp?.toDate() || new Date(b.utcDateTime);
+        return dateB.getTime() - dateA.getTime(); // Most recent first
+      });
+
       setMyEvents(myUpcoming);
       setInvitedEvents(invited);
       setFollowedEvents(followed);
       setInterestBasedEvents(interestBased);
       setOtherEvents(other);
-      setPastEvents(myPast.reverse()); // Most recent first
+      setPastEvents(sortedPast);
       setFeedStats(feedData.stats);
       setStudioCity(studioCity);
     } catch (error) {

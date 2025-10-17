@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import EventCard from '../events/components/EventCard';
@@ -8,6 +8,21 @@ import theme from '../theme/themes';
 export default function EventListScreen({ navigation, route }) {
   const { title, events } = route.params;
 
+  // Sort events based on section type
+  const sortedEvents = useMemo(() => {
+    // For "Your Past Events", sort by most recent first (descending)
+    if (title === 'Your Past Events') {
+      return [...events].sort((a, b) => {
+        const dateA = a.eventTimestamp?.toDate() || new Date(a.utcDateTime);
+        const dateB = b.eventTimestamp?.toDate() || new Date(b.utcDateTime);
+        return dateB.getTime() - dateA.getTime(); // Most recent first
+      });
+    }
+
+    // For upcoming events, keep chronological order (soonest first)
+    return events;
+  }, [events, title]);
+
   return (
     <SafeAreaView style={styles.screen} edges={['left', 'right']}>
       <ScreenHeader title={title} onClose={() => navigation.goBack()} />
@@ -15,7 +30,7 @@ export default function EventListScreen({ navigation, route }) {
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
       >
-        {events.map((event, index) => (
+        {sortedEvents.map((event, index) => (
           <View key={event.id || index} style={styles.eventItem}>
             <EventCard
               {...event}
