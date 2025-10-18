@@ -134,6 +134,7 @@ export default function LandingScreen() {
       contentContainerStyle={styles.scrollContainer}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
+      bounces={false}
     >
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
         <Text style={styles.title}>Big Vibe Studios</Text>

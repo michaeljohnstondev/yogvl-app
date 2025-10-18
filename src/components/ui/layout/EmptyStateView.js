@@ -1,11 +1,14 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import VibeButton from '../base/VibeButton';
+import { View, Text, StyleSheet, Dimensions } from 'react-native';
 
-const EmptyStateView = ({ navigation }) => {
+const EmptyStateView = () => {
+  const screenHeight = Dimensions.get('window').height;
+  // Use percentage-based offset for better iPad/tablet support
+  const contentOffset = screenHeight * -0.15; // Shift up by 15% of screen height
+
   return (
     <View style={styles.container}>
-      <View style={styles.content}>
+      <View style={[styles.content, { marginTop: contentOffset }]}>
         <Text style={styles.emoji}>🌟</Text>
         <Text style={styles.title}>No Events Yet</Text>
         <Text style={styles.subtitle}>Your social calendar awaits</Text>
@@ -13,15 +16,6 @@ const EmptyStateView = ({ navigation }) => {
           Discover amazing events happening around you or create your own
           unforgettable experiences.
         </Text>
-
-        <View style={styles.buttonContainer}>
-          <VibeButton
-            label="CREATE EVENT"
-            onPress={() => navigation.navigate('CreateEvent')}
-            variant="filled"
-            style={styles.primaryButton}
-          />
-        </View>
       </View>
     </View>
   );
@@ -33,7 +27,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 32,
-    paddingVertical: 60,
   },
   content: {
     alignItems: 'center',
@@ -63,15 +56,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     lineHeight: 22,
-    marginBottom: 40,
     opacity: 0.8,
-  },
-  buttonContainer: {
-    width: '100%',
-    gap: 12,
-  },
-  primaryButton: {
-    width: '100%',
   },
 });
 

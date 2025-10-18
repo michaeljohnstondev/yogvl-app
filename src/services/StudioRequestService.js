@@ -13,6 +13,7 @@ import {
   serverTimestamp,
   updateDoc,
   increment,
+  deleteDoc,
 } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 // Location import moved to function level to avoid module loading issues
@@ -36,7 +37,7 @@ export class StudioRequestService {
   ) {
     try {
       const normalizedCity = cityName.trim().toLowerCase();
-      const normalizedState = stateName.trim().toUpperCase();
+      const normalizedState = stateName.trim().toLowerCase();
 
       console.log('[StudioRequestService] Requesting studio for:', {
         cityName,
@@ -182,7 +183,7 @@ export class StudioRequestService {
   static async checkExistingRequest(cityName, stateName) {
     try {
       const normalizedCity = cityName.trim().toLowerCase();
-      const normalizedState = stateName.trim().toUpperCase();
+      const normalizedState = stateName.trim().toLowerCase();
 
       const requestsRef = collection(db, 'admin/studioRequests/requests');
       const q = query(
@@ -428,17 +429,13 @@ export class StudioRequestService {
 
       await setDoc(doc(db, 'studios', studioId), newStudio);
 
-      // Update the request status to approved
-      await updateDoc(doc(db, 'admin/studioRequests/requests', requestId), {
-        status: 'approved',
-        processedBy: adminId,
-        processedAt: serverTimestamp(),
-        createdStudioId: studioId,
-      });
+      // Delete the request from the database (cleanup after approval)
+      await deleteDoc(doc(db, 'admin/studioRequests/requests', requestId));
 
       console.log(
         '[StudioRequestService] Studio approved and created:',
-        studioId
+        studioId,
+        '- Request deleted from database'
       );
 
       return {
@@ -474,12 +471,13 @@ export class StudioRequestService {
         requestId
       );
 
-      await updateDoc(doc(db, 'admin/studioRequests/requests', requestId), {
-        status: 'rejected',
-        processedBy: adminId,
-        processedAt: serverTimestamp(),
-        adminNotes: reason,
-      });
+      // Delete the request from the database (cleanup after rejection)
+      await deleteDoc(doc(db, 'admin/studioRequests/requests', requestId));
+
+      console.log(
+        '[StudioRequestService] Studio request rejected and deleted:',
+        requestId
+      );
 
       return {
         success: true,

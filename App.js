@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { View, Image, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Image, ActivityIndicator, StyleSheet, LogBox } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import Navigation from './src/Navigation';
 import { VibeAlertProvider, VibeAppWrapper } from './src/components/ui/base';
@@ -11,6 +11,14 @@ import fcmService from './src/services/fcmServiceWrapper';
 import { initializeNotificationServices } from './src/services/notificationInit';
 import { useFonts, ComicNeue_400Regular, ComicNeue_700Bold } from '@expo-google-fonts/comic-neue';
 import theme from './src/theme/themes';
+
+// Suppress annoying Firebase Firestore warning about WebChannelConnection transport errors
+// These are transient network issues that Firebase handles automatically
+LogBox.ignoreLogs([
+  '@firebase/firestore: Firestore',
+  'WebChannelConnection RPC',
+  'transport errored',
+]);
 
 // Keep the native splash screen visible until we tell it to hide
 SplashScreen.preventAutoHideAsync().catch(() => {

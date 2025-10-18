@@ -7,12 +7,15 @@ import {
   setDoc,
   arrayUnion,
   arrayRemove,
+  collection,
+  getDocs,
 } from '../lib/firebase';
 import { db } from '../auth/services/firebase';
 import { blockingService } from './blockingService';
 
 /**
  * Get all app users from the same studio as current user
+ * PLUS favorites and following from ANY studio (for cross-studio invitations)
  */
 export const getStudioUsers = async (currentUserId, userStudio) => {
   try {
@@ -128,11 +131,100 @@ export const getStudioUsers = async (currentUserId, userStudio) => {
       filteredUsers.push(user);
     }
 
+    // Now add favorites and following from OTHER studios (cross-studio users)
+    try {
+      // Helper: Get favorite user IDs from subcollection
+      const getFavoriteIds = async (userId) => {
+        const favoritesRef = collection(db, 'users', userId, 'favorites');
+        const snapshot = await getDocs(favoritesRef);
+        return snapshot.docs.map(doc => doc.id);
+      };
+
+      // Helper: Get following user IDs from subcollection
+      const getFollowingIds = async (userId) => {
+        const followingRef = collection(db, 'users', userId, 'following');
+        const snapshot = await getDocs(followingRef);
+        return snapshot.docs.map(doc => doc.id);
+      };
+
+      // Get user IDs of favorites and following
+      const favoriteIds = await getFavoriteIds(currentUserId);
+      const followingIds = await getFollowingIds(currentUserId);
+
+      // Combine and deduplicate
+      const crossStudioUserIds = [...new Set([...favoriteIds, ...followingIds])];
+
+      // Filter out users already in studio list and current user
+      const studioUserIdsSet = new Set(filteredUsers.map(u => u.id));
+      const newUserIds = crossStudioUserIds.filter(
+        uid => uid !== currentUserId && !studioUserIdsSet.has(uid)
+      );
+
+      if (newUserIds.length > 0) {
+        console.log(`[userService] Loading ${newUserIds.length} cross-studio favorites/following`);
+
+        // Fetch these users (in batches of 10)
+        const crossStudioUsers = [];
+        for (let i = 0; i < newUserIds.length; i += batchSize) {
+          const batch = newUserIds.slice(i, i + batchSize);
+          const userPromises = batch.map((uid) => getDoc(doc(db, 'users', uid)));
+          const userSnaps = await Promise.all(userPromises);
+
+          for (const userSnap of userSnaps) {
+            if (userSnap.exists()) {
+              const userData = userSnap.data();
+              const contactInfo = userData?.userdata?.contactInfo;
+
+              if (contactInfo?.firstName) {
+                const userId = userSnap.id;
+
+                // Skip blocked users
+                if (blockedUsersSet.has(userId)) continue;
+                const isBlockedByUser = await blockingService.isBlockedBy(currentUserId, userId);
+                if (isBlockedByUser) continue;
+
+                // Check relationships
+                const { checkIfFollowing } = await import('./followService');
+                const { checkIfFavorite } = await import('./shared/userRelationshipsService');
+
+                const isUserFollowingMe = await checkIfFollowing(userId, currentUserId);
+                const amIFollowingUser = await checkIfFollowing(currentUserId, userId);
+                const isUserInFavorites = await checkIfFavorite(currentUserId, userId);
+
+                crossStudioUsers.push({
+                  id: userId,
+                  name: `${contactInfo.firstName} ${contactInfo.lastName || ''}`.trim(),
+                  firstName: contactInfo.firstName,
+                  lastName: contactInfo.lastName,
+                  email: contactInfo.email,
+                  phone: contactInfo.phone,
+                  avatar: getAvatarForUser(contactInfo.firstName),
+                  isFavorite: isUserInFavorites,
+                  isFollowing: amIFollowingUser,
+                  isMutualFollow: isUserFollowingMe && amIFollowingUser,
+                  isFriend: isUserFollowingMe && amIFollowingUser,
+                  isLocalNode: false, // From different studio = NOT local node
+                  category: 'cross_studio',
+                });
+              }
+            }
+          }
+        }
+
+        // Merge cross-studio users with studio users
+        filteredUsers.push(...crossStudioUsers);
+        console.log(`[userService] Added ${crossStudioUsers.length} cross-studio users`);
+      }
+    } catch (error) {
+      console.warn('[userService] Error loading cross-studio favorites/following:', error);
+      // Continue with just studio users if this fails
+    }
+
     // Sort by first name
     filteredUsers.sort((a, b) => a.firstName.localeCompare(b.firstName));
 
     console.log(
-      `[userService] Found ${filteredUsers.length} studio users (${users.length - filteredUsers.length} blocked)`
+      `[userService] Found ${filteredUsers.length} total users (studio + cross-studio)`
     );
     return filteredUsers;
   } catch (error) {
@@ -338,6 +430,40 @@ export const switchUserStudio = async (userId, oldStudioId, newStudioId) => {
       return {
         success: false,
         error: `Failed to register with new studio: ${addResult.error}`,
+      };
+    }
+
+    // CRITICAL: Update user's default studio in their profile
+    // This ensures events are created in the correct studio
+    try {
+      // Fetch the new studio's data to get name, city, and state
+      const newStudioRef = doc(db, 'studios', newStudioId);
+      const newStudioSnap = await getDoc(newStudioRef);
+
+      if (!newStudioSnap.exists()) {
+        console.error(`[userService] Studio ${newStudioId} not found`);
+        return {
+          success: false,
+          error: 'New studio not found',
+        };
+      }
+
+      const studioData = newStudioSnap.data();
+      const userRef = doc(db, 'users', userId);
+
+      await updateDoc(userRef, {
+        'userdata.studios.default.studioId': newStudioId,
+        'userdata.studios.default.studioName': studioData.name,
+        'userdata.studios.default.studioCity': studioData.city,
+        'userdata.studios.default.studioState': studioData.state,
+        'userdata.lastUpdated': new Date(),
+      });
+      console.log(`[userService] Updated user ${userId} default studio to ${newStudioId} (${studioData.city}, ${studioData.state})`);
+    } catch (updateError) {
+      console.error('[userService] Failed to update user default studio:', updateError);
+      return {
+        success: false,
+        error: 'Failed to update user default studio',
       };
     }
 

@@ -450,6 +450,39 @@ Host rating data is aggregated in the user document for performance:
 
 ## User Subcollections
 
+### Favorites
+
+**Collection**: `users/{userId}/favorites/{targetUserId}`
+
+User's favorited users (cross-studio favorites allowed).
+
+```javascript
+{
+  userId: string,          // ID of favorited user
+  favoritedAt: timestamp,  // When user was favorited
+  userData: {              // Cached user data for quick display
+    firstName: string,
+    lastName: string,
+    displayName: string,
+    email: string
+  }
+}
+```
+
+### Following
+
+**Collection**: `users/{userId}/following/{followedUserId}`
+
+Users that this user follows (cross-studio following allowed).
+
+```javascript
+{
+  userId: string,          // ID of followed user
+  createdAt: timestamp,    // When user started following
+  // Additional user data cached here
+}
+```
+
 ### Scheduled Notifications
 
 **Collection**: `users/{userId}/scheduledNotifications/{notificationId}`

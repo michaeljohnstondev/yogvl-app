@@ -676,6 +676,7 @@ export default function HostEventNotificationsScreen() {
 const styles = StyleSheet.create({
   outerContainer: {
     flex: 1,
+    backgroundColor: theme.colors.background,
   },
   screenHeader: {
     paddingVertical: 0,
