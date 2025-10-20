@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Performance
+- **Critical**: Optimized InviteScreen loading from 6-8 seconds to <1 second
+  - Changed from per-user follow/favorite checks (27 sequential reads for 9 users) to bulk loading (2 reads total)
+  - InviteScreen now loads follows/favorites once, then does instant Set lookups
+  - Scales perfectly: 20,000 users would take <1 second instead of timing out
+- Fixed iOS lockup when creating groups by memoizing expensive emoji calculations
+
+### Fixed
+- Fixed random InviteScreen causing Home screen to reload
+  - Changed userData dependencies to only track specific fields (studioId, interests)
+  - Prevents unnecessary reloads when unrelated userData fields change (timestamps, notifications, etc.)
+- Fixed MessageBoard keyboard covering input on iOS
+  - Added iOS-specific KeyboardAvoidingView to MessageBoard screen
+  - Android continues to use root-level keyboard handling
+- Fixed CreateGroupModal not opening on iOS
+  - Changed Modal presentationStyle from "pageSheet" to "formSheet"
+
+### Changed
+- MessageBoard cards now have matching border and background tints based on user role:
+  - Your messages: Green
+  - Admins: Orange (swapped from purple)
+  - Hosts: Purple (swapped from orange)
+  - Other users: Blue
+- Event cards for hosted events now use vibeBlue to vibePurple gradient (changed from yellow/orange)
+- CreateEventScreen now has back button (X) in header that navigates to Home
+  - Uses navigation.reset() to clear stack (prevents Android back button confusion)
+
+### Added
+- Admin banner on EventDetailScreen is now dismissible (tap X to hide)
+- Private event banner on EventDetailScreen (purple with pink border, dismissible)
+
 ## [1.0.0] - Build 4
 
 ### Fixed
