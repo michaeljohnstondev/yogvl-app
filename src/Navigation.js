@@ -394,6 +394,9 @@ export default function Navigation({ onReady }) {
               screenOptions={{
                 headerShown: false,
                 contentStyle: { backgroundColor: 'transparent' },
+                presentation: 'card',
+                animation: 'default',
+                animationDuration: 150,
               }}
             >
               <Stack.Screen name="Landing" component={LandingScreen} />
@@ -404,6 +407,9 @@ export default function Navigation({ onReady }) {
               screenOptions={{
                 headerShown: false,
                 contentStyle: { backgroundColor: 'transparent' },
+                presentation: 'card',
+                animation: 'default',
+                animationDuration: 150,
               }}
             >
               <Stack.Screen name="ContactInfo" component={ContactInfoScreen} />
@@ -414,6 +420,9 @@ export default function Navigation({ onReady }) {
               screenOptions={{
                 headerShown: false,
                 contentStyle: { backgroundColor: 'transparent' },
+                presentation: 'card',
+                animation: 'default',
+                animationDuration: 150,
               }}
             >
               <Stack.Screen name="Location" component={LocationScreen} />
@@ -424,6 +433,9 @@ export default function Navigation({ onReady }) {
               screenOptions={{
                 headerShown: false,
                 contentStyle: { backgroundColor: 'transparent' },
+                presentation: 'card',
+                animation: 'default',
+                animationDuration: 150,
               }}
             >
               <Stack.Screen name="Home" component={HomeScreen} />

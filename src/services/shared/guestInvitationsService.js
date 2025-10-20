@@ -3,10 +3,12 @@
 import {
   doc,
   getDoc,
+  setDoc,
   updateDoc,
   writeBatch,
   arrayUnion,
   arrayRemove,
+  Timestamp,
 } from 'firebase/firestore';
 import { db } from '../../auth/services/firebase';
 import {
@@ -144,7 +146,7 @@ export const acceptGuestInvitation = async (recipientId, eventId, studioId) => {
 
     await batch.commit();
 
-    // Get user data for notification
+    // Get user data for notification and settings
     const recipientDoc = await getDoc(doc(db, 'users', recipientId));
     if (recipientDoc.exists()) {
       const recipientData = recipientDoc.data();
@@ -152,6 +154,31 @@ export const acceptGuestInvitation = async (recipientId, eventId, studioId) => {
         recipientData?.userdata?.contactInfo?.firstName ||
         recipientData?.userdata?.contactInfo?.displayName ||
         'Someone';
+
+      // Create per-event notification settings using user's defaults
+      const attendingDefaults = recipientData?.userdata?.settings?.notifications?.attending || {};
+      const notificationSettings = {
+        eventCancellation: true, // Always true - critical info
+        hostChanges: attendingDefaults.hostChanges ?? true,
+        eventReminders: attendingDefaults.eventReminders ?? true,
+        hostComments: attendingDefaults.hostComments ?? true,
+        newComments: attendingDefaults.newComments ?? false,
+        reminderTemplates: attendingDefaults.reminderTemplates || {},
+      };
+
+      try {
+        const userEventSettingsRef = doc(db, 'users', recipientId, 'eventSubscriptions', eventId);
+        await setDoc(userEventSettingsRef, {
+          notificationSettings,
+          subscribedAt: Timestamp.now(),
+          eventId,
+          studioId,
+        });
+        console.log(`[GuestInvitations] Created per-event notification settings for user ${recipientId}, event ${eventId}`);
+      } catch (settingsError) {
+        console.error('[GuestInvitations] Failed to create per-event notification settings:', settingsError);
+        // Don't fail invitation acceptance if settings creation fails
+      }
 
       // Send notification to event host
       await notifyInvitationAccepted({

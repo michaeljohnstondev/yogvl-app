@@ -32,31 +32,99 @@ exports.onCommentNotificationTrigger = functions.firestore.onDocumentCreated(
         commenter,
         eventTitle,
         isFirstComment,
+        studioId,
       } = triggerData;
 
-      // Get host's notification preferences
-      const hostDoc = await admin.firestore().doc(`users/${hostId}`).get();
-      if (!hostDoc.exists) {
-        console.log('Host document not found');
+      // Get event document to find all subscribers
+      const eventDoc = await admin
+        .firestore()
+        .doc(`studios/${studioId}/events/${eventId}`)
+        .get();
+
+      if (!eventDoc.exists) {
+        console.log('Event document not found');
         return;
       }
 
-      const hostData = hostDoc.data();
-      const hostingPrefs =
-        hostData?.userdata?.settings?.notifications?.hosting || {};
+      const eventData = eventDoc.data();
+      const subscribers = eventData.subscribers || [];
+      const commenterId = commenter.userId || commenter.id;
 
-      // Check if host wants comment notifications
-      if (hostingPrefs.comments === false) {
-        console.log('Host has disabled comment notifications');
+      // Build list of recipients: host + all subscribers (excluding commenter)
+      const recipientIds = new Set();
+      recipientIds.add(hostId);
+      subscribers.forEach((userId) => {
+        if (userId !== commenterId && userId !== hostId) {
+          recipientIds.add(userId);
+        }
+      });
+
+      console.log(
+        `Found ${recipientIds.size} potential recipients (host + ${subscribers.length} subscribers)`
+      );
+
+      // Fetch all recipient documents in parallel
+      const recipientPromises = Array.from(recipientIds).map((userId) =>
+        admin
+          .firestore()
+          .doc(`users/${userId}`)
+          .get()
+          .then((doc) => ({ userId, doc }))
+      );
+      const recipientResults = await Promise.all(recipientPromises);
+
+      // Filter recipients based on notification preferences
+      const recipientsToNotify = [];
+      for (const { userId, doc } of recipientResults) {
+        if (!doc.exists) {
+          console.log(`User ${userId} document not found`);
+          continue;
+        }
+
+        const userData = doc.data();
+        const isHost = userId === hostId;
+
+        // Check notification preferences
+        let shouldNotify = false;
+        if (isHost) {
+          // Check host's hosting preferences
+          const hostingPrefs =
+            userData?.userdata?.settings?.notifications?.hosting || {};
+          shouldNotify = hostingPrefs.comments !== false;
+        } else {
+          // Check attendee's attending preferences
+          const attendingPrefs =
+            userData?.userdata?.settings?.notifications?.attending || {};
+          shouldNotify = attendingPrefs.newComments === true;
+        }
+
+        if (!shouldNotify) {
+          console.log(
+            `User ${userId} (${isHost ? 'host' : 'attendee'}) has disabled comment notifications`
+          );
+          continue;
+        }
+
+        // Get FCM token
+        const fcmToken = userData?.deviceInfo?.fcmToken;
+        if (!fcmToken) {
+          console.log(`User ${userId} has no FCM token`);
+          continue;
+        }
+
+        recipientsToNotify.push({
+          userId,
+          fcmToken,
+          isHost,
+        });
+      }
+
+      if (recipientsToNotify.length === 0) {
+        console.log('No recipients to notify');
         return;
       }
 
-      // Get host's FCM token
-      const fcmToken = hostData?.deviceInfo?.fcmToken;
-      if (!fcmToken) {
-        console.log('Host has no FCM token');
-        return;
-      }
+      console.log(`Sending notifications to ${recipientsToNotify.length} users`);
 
       let title, body;
 

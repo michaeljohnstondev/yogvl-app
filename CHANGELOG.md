@@ -12,6 +12,11 @@ All notable changes to this project will be documented in this file.
 - Fixed iOS lockup when creating groups by memoizing expensive emoji calculations
 
 ### Fixed
+- **Critical**: Fixed guest comment notifications not working
+  - Cloud Functions now check per-event notification settings (`users/{userId}/eventSubscriptions/{eventId}`) instead of only default templates
+  - Users who accept invitations now get per-event notification settings created automatically
+  - Added fallback to default templates for backward compatibility
+  - Both `onGuestComment` and `onHostComment` functions updated to use per-event settings
 - Fixed random InviteScreen causing Home screen to reload
   - Changed userData dependencies to only track specific fields (studioId, interests)
   - Prevents unnecessary reloads when unrelated userData fields change (timestamps, notifications, etc.)

@@ -56,29 +56,32 @@ export default function HostEventNotificationsScreen() {
   const isFirstRender = useRef(true);
   const saveTimeoutRef = useRef(null);
 
-  // Save settings to parent form
-  const saveSettings = useCallback(() => {
-    // Only save if settings have actually changed from initial values
-    if (JSON.stringify(localSettings) !== JSON.stringify(initialSettings)) {
-      console.log('[HostEventNotificationsScreen] Saving settings with reminderTemplates:', Object.keys(localSettings.reminderTemplates || {}));
+  // Pass settings back to CreateEvent (only when in create mode)
+  const passSettingsToCreateEvent = useCallback(() => {
+    if (!eventId && JSON.stringify(localSettings) !== JSON.stringify(initialSettings)) {
+      console.log('[HostEventNotificationsScreen] Passing settings back to CreateEvent. Reminder templates:', Object.keys(localSettings.reminderTemplates || {}));
       navigation.navigate('CreateEvent', {
         updatedNotificationSettings: localSettings,
         timestamp: Date.now() // Force re-render on CreateEventForm
       });
     }
-  }, [localSettings, initialSettings, navigation]);
+  }, [localSettings, initialSettings, navigation, eventId]);
 
-  // Handle close button - save before going back
+  // Handle close button - pass settings if needed, then go back
   const handleClose = useCallback(() => {
     // Clear any pending debounced save
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
-    // Save immediately
-    saveSettings();
-    // Then go back
-    navigation.goBack();
-  }, [saveSettings, navigation]);
+
+    // If we're in create mode, pass settings back to CreateEvent before going back
+    if (!eventId && JSON.stringify(localSettings) !== JSON.stringify(initialSettings)) {
+      passSettingsToCreateEvent();
+    } else {
+      // Otherwise just go back
+      navigation.goBack();
+    }
+  }, [passSettingsToCreateEvent, navigation, eventId, localSettings, initialSettings]);
 
   // Handle Update Settings button - save and show confirmation
   const handleUpdateSettings = useCallback(async () => {
@@ -113,37 +116,11 @@ export default function HostEventNotificationsScreen() {
         setIsUpdating(false);
       }
     } else {
-      // No eventId - we're in create mode, just pass back via navigation
-      saveSettings();
+      // No eventId - we're in create mode, pass settings back to CreateEvent
+      passSettingsToCreateEvent();
       setIsUpdating(false);
-      navigation.goBack();
     }
-  }, [saveSettings, navigation, vibeAlert, eventId, studioId, localSettings]);
-
-  useEffect(() => {
-    // Skip saving on first render
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
-
-    // Clear any existing timeout
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-
-    // Debounced save after 500ms
-    saveTimeoutRef.current = setTimeout(() => {
-      saveSettings();
-    }, 500);
-
-    // Cleanup timeout on unmount
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, [localSettings, saveSettings]);
+  }, [passSettingsToCreateEvent, navigation, vibeAlert, eventId, studioId, localSettings]);
 
   // Initialize settings from route params
   useEffect(() => {
