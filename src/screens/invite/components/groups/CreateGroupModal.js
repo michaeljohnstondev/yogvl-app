@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, Modal } from 'react-native';
 import AutoCompleteInput from '../../../../components/ui/forms/AutoCompleteInput';
 import { getEmojiForText } from '../../../../lib/emojiUtils';
@@ -21,6 +21,16 @@ const CreateGroupModal = ({
   setNewGroupName,
   onCreateGroup,
 }) => {
+  // Memoize expensive emoji calculations to prevent iOS lockup
+  const previewText = useMemo(() => {
+    const startsWithEmoji = hasEmojiAtStart(newGroupName);
+    if (startsWithEmoji) {
+      return newGroupName || 'Group Name';
+    }
+    const emoji = getEmojiForText(newGroupName || 'Group');
+    return `${emoji} ${newGroupName || 'Group Name'}`;
+  }, [newGroupName]);
+
   const handleCreate = async () => {
     const success = await onCreateGroup(newGroupName);
     if (success) {
@@ -32,7 +42,8 @@ const CreateGroupModal = ({
     <Modal
       visible={visible}
       animationType="slide"
-      presentationStyle="pageSheet"
+      presentationStyle="formSheet"
+      transparent={false}
     >
       <VibeAlertProvider>
         <View style={styles.createGroupModalContainer}>
@@ -85,12 +96,7 @@ const CreateGroupModal = ({
 
           <View style={styles.emojiPreview}>
             <Text style={styles.emojiPreviewLabel}>Preview:</Text>
-            <Text style={styles.emojiPreviewText}>
-              {hasEmojiAtStart(newGroupName)
-                ? newGroupName || 'Group Name'
-                : `${getEmojiForText(newGroupName || 'Group')} ${newGroupName || 'Group Name'}`
-              }
-            </Text>
+            <Text style={styles.emojiPreviewText}>{previewText}</Text>
           </View>
         </View>
       </View>

@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.0] - Build 4
+
+### Fixed
+- **Critical**: Fixed scheduled notifications not being deleted when events are deleted
+  - Added Cloud Function cleanup to delete all scheduled notifications for deleted events
+  - Notifications now properly cleaned up from global `scheduledNotifications` collection
+  - Added host user data cleanup (decrement `metrics.events.created` counter)
+- Fixed event deletion to clean up all user references (subscribers, invitations, cohosts, host)
+
+### Changed
+- Event deletion cleanup now handled by Firebase Cloud Function (`onEventDeleted`) for guaranteed server-side execution
+- Scheduled notifications cleanup moved from app-side to Cloud Function for reliability
+
 ## [1.0.0] - Build 3
 
 ### Fixed

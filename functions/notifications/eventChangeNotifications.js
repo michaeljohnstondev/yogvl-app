@@ -194,6 +194,34 @@ exports.onEventDeleted = functions.firestore
       // Wait for all notifications to complete
       await Promise.all(notificationPromises);
 
+      // CLEANUP: Delete all scheduled notifications for this deleted event
+      // Query global scheduledNotifications collection for any notifications related to this event
+      console.log(`[Event Deletion] Cleaning up scheduled notifications for event ${eventId}`);
+
+      try {
+        const scheduledNotificationsQuery = admin.firestore()
+          .collection('scheduledNotifications')
+          .where('eventId', '==', eventId);
+
+        const scheduledNotificationsSnapshot = await scheduledNotificationsQuery.get();
+
+        if (scheduledNotificationsSnapshot.empty) {
+          console.log(`[Event Deletion] No scheduled notifications found for event ${eventId}`);
+        } else {
+          // Delete all scheduled notifications in batch
+          const batch = admin.firestore().batch();
+          scheduledNotificationsSnapshot.docs.forEach(doc => {
+            batch.delete(doc.ref);
+          });
+
+          await batch.commit();
+          console.log(`[Event Deletion] Deleted ${scheduledNotificationsSnapshot.size} scheduled notifications for event ${eventId}`);
+        }
+      } catch (cleanupError) {
+        console.error(`[Event Deletion] Error cleaning up scheduled notifications for event ${eventId}:`, cleanupError);
+        // Don't throw - notification cleanup failure shouldn't break the function
+      }
+
     } catch (error) {
       console.error(`[Event Deletion] Error processing event deletion:`, error);
       // Don't throw - we don't want to retry failed notifications

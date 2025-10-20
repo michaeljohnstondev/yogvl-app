@@ -220,7 +220,7 @@ export default function HomeScreen({ navigation, route }) {
     } finally {
       if (!isRefresh) setIsLoading(false);
     }
-  }, [currentUserId, userData]);
+  }, [currentUserId, userData?.userdata?.studios?.default?.studioId]);
 
   useEffect(() => {
     const defaultStudio = userData?.userdata?.studios?.default;
@@ -302,7 +302,7 @@ export default function HomeScreen({ navigation, route }) {
     // Real-time updates will be handled by useFocusEffect instead
     // to avoid unnecessary reloads from notification-related changes
     return () => {}; // No-op cleanup
-  }, [currentUserId, userData, loadEventFeed]); // Re-run when user data changes (removed vibeAlert to prevent dialog-triggered reloads)
+  }, [currentUserId, userData?.userdata?.studios?.default?.studioId, userData?.preferences?.interests, loadEventFeed]); // Re-run when studio or interests change
 
   // Handle hardware back button to confirm app exit
   useFocusEffect(
@@ -331,7 +331,7 @@ export default function HomeScreen({ navigation, route }) {
       if (currentUserId && userData && !banStatus?.isBanned && !isLoading) {
         loadEventFeed(true); // Pass true to indicate this is a refresh
       }
-    }, [currentUserId, userData, banStatus, isLoading, loadEventFeed])
+    }, [currentUserId, userData?.userdata?.studios?.default?.studioId, banStatus, isLoading, loadEventFeed])
   );
 
   // Listen for refresh parameter (e.g., after joining an event)
@@ -339,7 +339,7 @@ export default function HomeScreen({ navigation, route }) {
     if (route?.params?.refresh && currentUserId && userData && !isLoading) {
       loadEventFeed(true);
     }
-  }, [route?.params?.refresh, currentUserId, userData, isLoading, loadEventFeed]);
+  }, [route?.params?.refresh, currentUserId, userData?.userdata?.studios?.default?.studioId, isLoading, loadEventFeed]);
 
   // Check if user has no events at all
   const hasNoEvents =

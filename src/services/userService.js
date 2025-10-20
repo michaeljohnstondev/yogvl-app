@@ -77,7 +77,6 @@ export const getStudioUsers = async (currentUserId, userStudio) => {
               isFavorite: false, // TODO: Check favorites system
               isFollowing: false, // Will be checked against follow relationships
               isMutualFollow: false, // Will be checked for mutual follows
-              isFriend: false, // DEPRECATED - kept for backward compatibility
               isLocalNode: true, // Same studio = local node
               category: 'studio_members',
             });
@@ -87,27 +86,30 @@ export const getStudioUsers = async (currentUserId, userStudio) => {
     }
 
     // Get blocked users list
-    const { blockedUsers } = await blockingService.getBlockedUsers(currentUserId);
+    const { blockedUsers } =
+      await blockingService.getBlockedUsers(currentUserId);
     const blockedUsersSet = new Set(blockedUsers);
 
-    // Check follow relationships and favorites for each user
+    // Load current user's follows/favorites once, then do fast Set lookups
     try {
-      const { checkIfFollowing } = await import('./followService');
-      const { checkIfFavorite } = await import('./shared/userRelationshipsService');
+      // Load all favorites and following at once (much faster than per-user checks)
+      const favoritesRef = collection(db, 'users', currentUserId, 'favorites');
+      const followingRef = collection(db, 'users', currentUserId, 'following');
 
-      // Check follow status and favorites for each user
+      const [favSnapshot, followSnapshot] = await Promise.all([
+        getDocs(favoritesRef),
+        getDocs(followingRef)
+      ]);
+
+      const myFavoritesSet = new Set(favSnapshot.docs.map(doc => doc.id));
+      const myFollowingSet = new Set(followSnapshot.docs.map(doc => doc.id));
+
+      // Fast O(1) lookups for each user
       for (const user of users) {
-        const isUserFollowingMe = await checkIfFollowing(
-          user.id,
-          currentUserId
-        );
-        const amIFollowingUser = await checkIfFollowing(currentUserId, user.id);
-        const isUserInFavorites = await checkIfFavorite(currentUserId, user.id);
-
-        user.isFollowing = amIFollowingUser;
-        user.isMutualFollow = isUserFollowingMe && amIFollowingUser;
-        user.isFriend = user.isMutualFollow; // Friends = mutual followers
-        user.isFavorite = isUserInFavorites; // Favorites status
+        user.isFavorite = myFavoritesSet.has(user.id);
+        user.isFollowing = myFollowingSet.has(user.id);
+        user.isMutualFollow = false; // Would need followers subcollection to check this efficiently
+        user.isFriend = false; // Friends = mutual followers
       }
     } catch (error) {
       console.warn('[userService] Error checking follow relationships:', error);
@@ -123,7 +125,10 @@ export const getStudioUsers = async (currentUserId, userStudio) => {
       }
 
       // Skip if this user blocked you
-      const isBlockedByUser = await blockingService.isBlockedBy(currentUserId, user.id);
+      const isBlockedByUser = await blockingService.isBlockedBy(
+        currentUserId,
+        user.id
+      );
       if (isBlockedByUser) {
         continue;
       }
@@ -137,14 +142,14 @@ export const getStudioUsers = async (currentUserId, userStudio) => {
       const getFavoriteIds = async (userId) => {
         const favoritesRef = collection(db, 'users', userId, 'favorites');
         const snapshot = await getDocs(favoritesRef);
-        return snapshot.docs.map(doc => doc.id);
+        return snapshot.docs.map((doc) => doc.id);
       };
 
       // Helper: Get following user IDs from subcollection
       const getFollowingIds = async (userId) => {
         const followingRef = collection(db, 'users', userId, 'following');
         const snapshot = await getDocs(followingRef);
-        return snapshot.docs.map(doc => doc.id);
+        return snapshot.docs.map((doc) => doc.id);
       };
 
       // Get user IDs of favorites and following
@@ -152,22 +157,28 @@ export const getStudioUsers = async (currentUserId, userStudio) => {
       const followingIds = await getFollowingIds(currentUserId);
 
       // Combine and deduplicate
-      const crossStudioUserIds = [...new Set([...favoriteIds, ...followingIds])];
+      const crossStudioUserIds = [
+        ...new Set([...favoriteIds, ...followingIds]),
+      ];
 
       // Filter out users already in studio list and current user
-      const studioUserIdsSet = new Set(filteredUsers.map(u => u.id));
+      const studioUserIdsSet = new Set(filteredUsers.map((u) => u.id));
       const newUserIds = crossStudioUserIds.filter(
-        uid => uid !== currentUserId && !studioUserIdsSet.has(uid)
+        (uid) => uid !== currentUserId && !studioUserIdsSet.has(uid)
       );
 
       if (newUserIds.length > 0) {
-        console.log(`[userService] Loading ${newUserIds.length} cross-studio favorites/following`);
+        console.log(
+          `[userService] Loading ${newUserIds.length} cross-studio favorites/following`
+        );
 
         // Fetch these users (in batches of 10)
         const crossStudioUsers = [];
         for (let i = 0; i < newUserIds.length; i += batchSize) {
           const batch = newUserIds.slice(i, i + batchSize);
-          const userPromises = batch.map((uid) => getDoc(doc(db, 'users', uid)));
+          const userPromises = batch.map((uid) =>
+            getDoc(doc(db, 'users', uid))
+          );
           const userSnaps = await Promise.all(userPromises);
 
           for (const userSnap of userSnaps) {
@@ -180,17 +191,13 @@ export const getStudioUsers = async (currentUserId, userStudio) => {
 
                 // Skip blocked users
                 if (blockedUsersSet.has(userId)) continue;
-                const isBlockedByUser = await blockingService.isBlockedBy(currentUserId, userId);
+                const isBlockedByUser = await blockingService.isBlockedBy(
+                  currentUserId,
+                  userId
+                );
                 if (isBlockedByUser) continue;
 
-                // Check relationships
-                const { checkIfFollowing } = await import('./followService');
-                const { checkIfFavorite } = await import('./shared/userRelationshipsService');
-
-                const isUserFollowingMe = await checkIfFollowing(userId, currentUserId);
-                const amIFollowingUser = await checkIfFollowing(currentUserId, userId);
-                const isUserInFavorites = await checkIfFavorite(currentUserId, userId);
-
+                // Use the Sets we already loaded above for fast lookups
                 crossStudioUsers.push({
                   id: userId,
                   name: `${contactInfo.firstName} ${contactInfo.lastName || ''}`.trim(),
@@ -199,10 +206,10 @@ export const getStudioUsers = async (currentUserId, userStudio) => {
                   email: contactInfo.email,
                   phone: contactInfo.phone,
                   avatar: getAvatarForUser(contactInfo.firstName),
-                  isFavorite: isUserInFavorites,
-                  isFollowing: amIFollowingUser,
-                  isMutualFollow: isUserFollowingMe && amIFollowingUser,
-                  isFriend: isUserFollowingMe && amIFollowingUser,
+                  isFavorite: myFavoritesSet.has(userId),
+                  isFollowing: myFollowingSet.has(userId),
+                  isMutualFollow: false,
+                  isFriend: false,
                   isLocalNode: false, // From different studio = NOT local node
                   category: 'cross_studio',
                 });
@@ -213,10 +220,15 @@ export const getStudioUsers = async (currentUserId, userStudio) => {
 
         // Merge cross-studio users with studio users
         filteredUsers.push(...crossStudioUsers);
-        console.log(`[userService] Added ${crossStudioUsers.length} cross-studio users`);
+        console.log(
+          `[userService] Added ${crossStudioUsers.length} cross-studio users`
+        );
       }
     } catch (error) {
-      console.warn('[userService] Error loading cross-studio favorites/following:', error);
+      console.warn(
+        '[userService] Error loading cross-studio favorites/following:',
+        error
+      );
       // Continue with just studio users if this fails
     }
 
@@ -458,9 +470,14 @@ export const switchUserStudio = async (userId, oldStudioId, newStudioId) => {
         'userdata.studios.default.studioState': studioData.state,
         'userdata.lastUpdated': new Date(),
       });
-      console.log(`[userService] Updated user ${userId} default studio to ${newStudioId} (${studioData.city}, ${studioData.state})`);
+      console.log(
+        `[userService] Updated user ${userId} default studio to ${newStudioId} (${studioData.city}, ${studioData.state})`
+      );
     } catch (updateError) {
-      console.error('[userService] Failed to update user default studio:', updateError);
+      console.error(
+        '[userService] Failed to update user default studio:',
+        updateError
+      );
       return {
         success: false,
         error: 'Failed to update user default studio',

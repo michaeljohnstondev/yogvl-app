@@ -783,7 +783,11 @@ export default function CreateEventForm({
       {/* Header */}
       <ScreenHeader
         title={isEditMode ? 'Edit Event' : 'Create Event'}
-        showCloseButton={false}
+        showCloseButton={true}
+        onClose={() => navigation.reset({
+          index: 0,
+          routes: [{ name: 'Home' }],
+        })}
         rightButton={
           <Pressable
             style={styles.useTemplateButton}

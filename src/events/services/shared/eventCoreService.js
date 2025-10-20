@@ -85,11 +85,11 @@ export const deleteEvent = async (studioId, eventId, currentUserId, isAdmin = fa
     });
 
     // Clean up user subscriptions and invitations AFTER transaction completes
-    // Note: Cancellation notifications are now handled by Firebase Cloud Function (onEventDeleted trigger)
+    // Note: Cancellation notifications AND scheduled notification cleanup handled by Firebase Cloud Function (onEventDeleted trigger)
     const eventData = result.eventData;
     const userCleanupPromises = [];
 
-    // Clean up subscriber references and scheduled notifications
+    // Clean up subscriber references
     if (eventData.subscribers && Array.isArray(eventData.subscribers) && eventData.subscribers.length > 0) {
       for (const userId of eventData.subscribers) {
         if (userId && typeof userId === 'string') {
@@ -101,20 +101,6 @@ export const deleteEvent = async (studioId, eventId, currentUserId, isAdmin = fa
                   'userdata.subscribedEvents': arrayRemove(eventId),
                   'userdata.metrics.events.subscribedEvents': arrayRemove(eventId),
                 });
-
-                // Delete all scheduled notifications for this event
-                const notificationsRef = collection(db, 'users', userId, 'scheduledNotifications');
-                const notificationsQuery = query(notificationsRef, where('eventId', '==', eventId));
-                const notificationsSnap = await getDocs(notificationsQuery);
-
-                const deletePromises = notificationsSnap.docs.map(docSnap =>
-                  deleteDoc(doc(db, 'users', userId, 'scheduledNotifications', docSnap.id))
-                );
-
-                if (deletePromises.length > 0) {
-                  await Promise.all(deletePromises);
-                  console.log(`[EventCore] Deleted ${deletePromises.length} scheduled notifications for user ${userId}`);
-                }
               } catch (err) {
                 console.warn(`[EventCore] Failed to clean up subscriber ${userId}:`, err.message);
               }
@@ -124,7 +110,7 @@ export const deleteEvent = async (studioId, eventId, currentUserId, isAdmin = fa
       }
     }
 
-    // Clean up invitation references and scheduled notifications
+    // Clean up invitation references
     if (eventData.invitations && Array.isArray(eventData.invitations) && eventData.invitations.length > 0) {
       for (const invitation of eventData.invitations) {
         // Handle both old format (string) and new format (object with userId)
@@ -157,20 +143,6 @@ export const deleteEvent = async (studioId, eventId, currentUserId, isAdmin = fa
 
                   console.log(`[EventCore] Removed pending ${invitationType} invitation for user ${userId}`);
                 }
-
-                // Delete all scheduled notifications for this event (invited users may have reminders too)
-                const notificationsRef = collection(db, 'users', userId, 'scheduledNotifications');
-                const notificationsQuery = query(notificationsRef, where('eventId', '==', eventId));
-                const notificationsSnap = await getDocs(notificationsQuery);
-
-                const deletePromises = notificationsSnap.docs.map(docSnap =>
-                  deleteDoc(doc(db, 'users', userId, 'scheduledNotifications', docSnap.id))
-                );
-
-                if (deletePromises.length > 0) {
-                  await Promise.all(deletePromises);
-                  console.log(`[EventCore] Deleted ${deletePromises.length} scheduled notifications for invited user ${userId}`);
-                }
               } catch (err) {
                 console.warn(`[EventCore] Failed to clean up invited user ${userId}:`, err.message);
               }
@@ -180,25 +152,38 @@ export const deleteEvent = async (studioId, eventId, currentUserId, isAdmin = fa
       }
     }
 
-    // Clean up host's scheduled notifications (host may have reminders for their own event)
+    // Clean up cohost references
+    if (eventData.cohosts && Array.isArray(eventData.cohosts) && eventData.cohosts.length > 0) {
+      for (const cohostId of eventData.cohosts) {
+        if (cohostId && typeof cohostId === 'string') {
+          userCleanupPromises.push(
+            (async () => {
+              try {
+                // Remove from cohost events
+                await updateDoc(doc(db, 'users', cohostId), {
+                  'userdata.cohostEvents': arrayRemove(eventId),
+                });
+              } catch (err) {
+                console.warn(`[EventCore] Failed to clean up cohost ${cohostId}:`, err.message);
+              }
+            })()
+          );
+        }
+      }
+    }
+
+    // Clean up host (event creator) references
     if (eventData.createdBy) {
       userCleanupPromises.push(
         (async () => {
           try {
-            const notificationsRef = collection(db, 'users', eventData.createdBy, 'scheduledNotifications');
-            const notificationsQuery = query(notificationsRef, where('eventId', '==', eventId));
-            const notificationsSnap = await getDocs(notificationsQuery);
-
-            const deletePromises = notificationsSnap.docs.map(docSnap =>
-              deleteDoc(doc(db, 'users', eventData.createdBy, 'scheduledNotifications', docSnap.id))
-            );
-
-            if (deletePromises.length > 0) {
-              await Promise.all(deletePromises);
-              console.log(`[EventCore] Deleted ${deletePromises.length} scheduled notifications for host ${eventData.createdBy}`);
-            }
+            // Decrement created events counter for host
+            await updateDoc(doc(db, 'users', eventData.createdBy), {
+              'userdata.metrics.events.created': increment(-1),
+            });
+            console.log(`[EventCore] Decremented created events counter for host ${eventData.createdBy}`);
           } catch (err) {
-            console.warn(`[EventCore] Failed to clean up host notifications:`, err.message);
+            console.warn(`[EventCore] Failed to clean up host ${eventData.createdBy}:`, err.message);
           }
         })()
       );

@@ -9,6 +9,8 @@ import {
   Alert,
   RefreshControl,
   Pressable,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useComments } from '../components/ui/comments/hooks/useComments';
@@ -187,15 +189,15 @@ export default function MessageBoardScreen({ route, navigation }) {
         return theme.colors.vibeGreen;
       }
 
-      // Admin gets purple border
+      // Admin gets orange border
       const userRole = message.userRole || 'attendee';
       if (userRole === 'admin') {
-        return theme.colors.vibePurple;
+        return theme.colors.vibeOrange;
       }
 
-      // Host or cohost gets orange border
+      // Host or cohost gets purple border
       if (userRole === 'host') {
-        return theme.colors.vibeOrange;
+        return theme.colors.vibePurple;
       }
 
       // Everyone else gets blue border
@@ -204,13 +206,29 @@ export default function MessageBoardScreen({ route, navigation }) {
     [currentUserId]
   );
 
-  // Get background tint based on border color
+  // Get background tint based on border color (slightly transparent version)
   const getBackgroundTint = useCallback(
     (message) => {
-      // All messages use the same dark purple background as the input
-      return '#1A0A35';
+      // Current user gets green tint
+      if (message.userId === currentUserId) {
+        return 'rgba(0, 255, 136, 0.08)'; // vibeGreen with low opacity
+      }
+
+      // Admin gets orange tint
+      const userRole = message.userRole || 'attendee';
+      if (userRole === 'admin') {
+        return 'rgba(255, 119, 0, 0.08)'; // vibeOrange with low opacity
+      }
+
+      // Host or cohost gets purple tint
+      if (userRole === 'host') {
+        return 'rgba(170, 0, 255, 0.08)'; // vibePurple with low opacity
+      }
+
+      // Everyone else gets blue tint
+      return 'rgba(0, 194, 255, 0.08)'; // vibeBlue with low opacity
     },
-    []
+    [currentUserId]
   );
 
   // Create stable delete handlers for each message
@@ -330,7 +348,11 @@ export default function MessageBoardScreen({ route, navigation }) {
 
   return (
     <View style={styles.background}>
-      <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      >
         {/* Header */}
         <View style={styles.header}>
           <CloseButton onPress={() => navigation.goBack()} />
@@ -371,7 +393,7 @@ export default function MessageBoardScreen({ route, navigation }) {
           submitting={submitting}
           disabled={false}
         />
-      </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }

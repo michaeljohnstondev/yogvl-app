@@ -15,7 +15,7 @@ export default function EventCard({
 }) {
   // Choose gradient colors based on hosting status
   const gradientColors = isHostedByUser
-    ? ['#FFD700', '#FF8C00'] // Yellow to orange gradient border for hosted events
+    ? [theme.colors.vibeBlue, theme.colors.vibePurple] // Vibe blue to purple gradient for hosted events
     : ['#00f2fe', '#4facfe']; // Cyan/blue gradient for regular events
 
   // Choose background color that works well with border

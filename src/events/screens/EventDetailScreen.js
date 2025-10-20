@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, memo, useMemo, useTransition } from 'react';
+import React, { useEffect, useState, useCallback, memo, useMemo, useTransition, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   Alert,
   BackHandler,
   Share,
+  Animated,
+  TouchableOpacity,
 } from 'react-native';
 import { VibeButton } from '../../components/ui';
 import { MessageBoardButton } from '../../components/ui/buttons';
@@ -65,6 +67,8 @@ const EventDetailScreen = memo(function EventDetailScreen({
   const [userNotificationSettings, setUserNotificationSettings] =
     useState(null);
   const [pendingCohostInvitation, setPendingCohostInvitation] = useState(null);
+  const [adminBannerDismissed, setAdminBannerDismissed] = useState(false);
+  const [privateBannerDismissed, setPrivateBannerDismissed] = useState(false);
 
   // Use transition for non-urgent state updates
   const [isPending, startTransition] = useTransition();
@@ -747,12 +751,35 @@ const EventDetailScreen = memo(function EventDetailScreen({
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      {/* Admin Banner */}
-      {userData?.isAdmin && !permissions.isCreator && !permissions.isCohost && (
+      {/* Admin Banner - Dismissible */}
+      {userData?.isAdmin && !permissions.isCreator && !permissions.isCohost && !adminBannerDismissed && (
         <View style={styles.adminBanner}>
           <Text style={styles.adminBannerText}>
-            👑 ADMIN VIEW - You're viewing this event with admin privileges
+            👑 ADMIN VIEW
           </Text>
+          <TouchableOpacity
+            onPress={() => setAdminBannerDismissed(true)}
+            style={styles.dismissButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Text style={styles.dismissButtonText}>✕</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Private Event Banner - Dismissible */}
+      {event?.privacy === 'private' && !privateBannerDismissed && (
+        <View style={styles.privateBanner}>
+          <Text style={styles.privateBannerText}>
+            🔒 PRIVATE EVENT
+          </Text>
+          <TouchableOpacity
+            onPress={() => setPrivateBannerDismissed(true)}
+            style={styles.dismissButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Text style={styles.dismissButtonText}>✕</Text>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -887,12 +914,46 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginTop: 10,
     borderRadius: theme.sizes.buttonRadius,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   adminBannerText: {
     color: theme.colors.background,
     fontSize: 14,
     fontWeight: 'bold',
     textAlign: 'center',
+    flex: 1,
+  },
+  dismissButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dismissButtonText: {
+    color: theme.colors.background,
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  privateBanner: {
+    backgroundColor: theme.colors.vibePurple,
+    borderWidth: 2,
+    borderColor: theme.colors.vibePink,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginHorizontal: 20,
+    marginTop: 10,
+    borderRadius: theme.sizes.buttonRadius,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  privateBannerText: {
+    color: theme.colors.white,
+    fontSize: 14,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    flex: 1,
   },
 });

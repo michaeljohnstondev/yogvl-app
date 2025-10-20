@@ -44,7 +44,7 @@ export const useContactManagement = (
     };
 
     initializeData();
-  }, [currentUserId, userData, eventId, studioId]);
+  }, [currentUserId, userData?.userdata?.studios?.default?.studioId, eventId, studioId]);
 
   const loadAppUsers = async () => {
     if (!currentUserId || !userData?.userdata?.studios?.default?.studioId) {

@@ -56,14 +56,14 @@ const GuestListViewer = forwardRef(
       },
     }));
 
-    // Debug logging
-    console.log('[GuestListViewer] Props received:', {
-      hostsCount: hosts?.length || 0,
-      invitedGuestsCount: invitedGuests?.length || 0,
-      selectedGuestCount,
-      selectedCohostCount,
-      currentUser: currentUser?.id || 'none'
-    });
+    // Debug logging (disabled - too verbose)
+    // console.log('[GuestListViewer] Props received:', {
+    //   hostsCount: hosts?.length || 0,
+    //   invitedGuestsCount: invitedGuests?.length || 0,
+    //   selectedGuestCount,
+    //   selectedCohostCount,
+    //   currentUser: currentUser?.id || 'none'
+    // });
 
     // Combine all hosts including the creator
     const allHosts = [
