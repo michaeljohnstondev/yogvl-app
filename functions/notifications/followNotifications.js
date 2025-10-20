@@ -38,16 +38,6 @@ exports.onUserFollowed = functions.firestore
         return;
       }
 
-      // Get user's FCM token
-      const fcmToken = userData?.deviceInfo?.fcmToken;
-
-      console.log(`[Follow Notification] 🔑 FCM Token ${fcmToken ? 'EXISTS' : 'MISSING'} for user ${userId}`);
-
-      if (!fcmToken) {
-        console.log(`[Follow Notification] ❌ User ${userId} has no FCM token`);
-        return;
-      }
-
       // Get follower details for the notification
       const followerDoc = await admin.firestore().doc(`users/${followerId}`).get();
 
@@ -61,7 +51,44 @@ exports.onUserFollowed = functions.firestore
 
       console.log(`[Follow Notification] 👤 Follower name: ${followerName}`);
 
-      // Send FCM notification with profile navigation data
+      // STEP 1: ALWAYS create in-app notification (Firestore document)
+      try {
+        await admin.firestore()
+          .collection('users')
+          .doc(userId)
+          .collection('notifications')
+          .add({
+            type: 'follow_notification',
+            title: 'New Follower!',
+            message: `${followerName} started following you`,
+            read: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            data: {
+              resetStack: true,
+              navigationStack: 'Home,UserProfile',
+              followerId: followerId,
+              followerName: followerName,
+              profileUserId: followerId
+            }
+          });
+
+        console.log(`[Follow Notification] ✅ Created in-app notification for user ${userId}`);
+      } catch (inAppError) {
+        console.error(`[Follow Notification] ❌ Failed to create in-app notification for ${userId}:`, inAppError);
+        // Continue to try push notification even if in-app fails
+      }
+
+      // STEP 2: Optionally send push notification (if FCM token exists)
+      const fcmToken = userData?.deviceInfo?.fcmToken;
+
+      console.log(`[Follow Notification] 🔑 FCM Token ${fcmToken ? 'EXISTS' : 'MISSING'} for user ${userId}`);
+
+      if (!fcmToken) {
+        console.log(`[Follow Notification] ⚠️ User ${userId} has no FCM token - in-app notification created, push skipped`);
+        return; // Exit but in-app notification was already created
+      }
+
+      // Send FCM push notification with profile navigation data
       const message = {
         token: fcmToken,
         notification: {
@@ -78,9 +105,16 @@ exports.onUserFollowed = functions.firestore
         }
       };
 
-      console.log(`[Follow Notification] 📤 Sending FCM message to ${userId}`);
+      console.log(`[Follow Notification] 📤 Sending FCM push notification to ${userId}`);
 
-      await admin.messaging().send(message);
+      try {
+        await admin.messaging().send(message);
+        console.log(`[Follow Notification] ✅ Successfully sent push notification to ${userId}`);
+      } catch (pushError) {
+        console.error(`[Follow Notification] ❌ Failed to send push notification to ${userId}:`, pushError);
+        console.log(`[Follow Notification] ℹ️ In-app notification was still created successfully`);
+        // Don't throw - in-app notification was already created
+      }
 
       console.log(`[Follow Notification] ✅ Successfully sent notification to user ${userId} about follower ${followerId}`);
 

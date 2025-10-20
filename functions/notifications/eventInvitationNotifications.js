@@ -130,17 +130,7 @@ exports.onEventInvitation = functions.firestore
             return;
           }
 
-          // Get invitee's FCM token
-          const fcmToken = inviteeData?.deviceInfo?.fcmToken;
-
-          console.log(`[Event Invitation] FCM token exists: ${!!fcmToken}`);
-
-          if (!fcmToken) {
-            console.log(`[Event Invitation] Invitee ${inviteeId} has no FCM token`);
-            return;
-          }
-
-          // Prepare notification based on invitation type
+          // Prepare notification content based on invitation type
           const notificationTitle = invitationType === 'cohost' ? 'Cohost Invitation' : 'Event Invitation';
           const notificationBody = invitationType === 'cohost'
             ? `${inviterName} invited you to co-host "${eventTitle}"`
@@ -153,7 +143,48 @@ exports.onEventInvitation = functions.firestore
             recipientId: inviteeId
           });
 
-          // Send FCM notification with navigation stack
+          // STEP 1: ALWAYS create in-app notification (Firestore document)
+          try {
+            await admin.firestore()
+              .collection('users')
+              .doc(inviteeId)
+              .collection('notifications')
+              .add({
+                type: invitationType === 'cohost' ? 'cohost_invitation' : 'event_invitation',
+                title: notificationTitle,
+                message: notificationBody,
+                read: false,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                data: {
+                  resetStack: true,
+                  navigationStack: 'Home,EventDetail',
+                  eventId: eventId,
+                  studioId: studioId,
+                  eventTitle: eventTitle,
+                  inviterId: inviterId,
+                  inviterName: inviterName,
+                  actionType: invitationType === 'cohost' ? 'cohost_invitation' : 'invitation_received',
+                  invitationType: invitationType
+                }
+              });
+
+            console.log(`[Event Invitation] ✅ Created in-app notification for ${inviteeId}`);
+          } catch (inAppError) {
+            console.error(`[Event Invitation] ❌ Failed to create in-app notification for ${inviteeId}:`, inAppError);
+            // Continue to try push notification even if in-app fails
+          }
+
+          // STEP 2: Optionally send push notification (if FCM token exists)
+          const fcmToken = inviteeData?.deviceInfo?.fcmToken;
+
+          console.log(`[Event Invitation] FCM token exists: ${!!fcmToken}`);
+
+          if (!fcmToken) {
+            console.log(`[Event Invitation] ⚠️ Invitee ${inviteeId} has no FCM token - in-app notification created, push skipped`);
+            return; // Exit but in-app notification was already created
+          }
+
+          // Send FCM push notification with navigation stack
           // IMPORTANT: All FCM data fields MUST be strings
           const message = {
             token: fcmToken,
@@ -175,12 +206,17 @@ exports.onEventInvitation = functions.firestore
             }
           };
 
-          console.log(`[Event Invitation] Sending FCM notification to ${inviteeId}`);
+          console.log(`[Event Invitation] Sending FCM push notification to ${inviteeId}`);
           console.log(`[Event Invitation] Message data:`, JSON.stringify(message.data, null, 2));
 
-          await admin.messaging().send(message);
-
-          console.log(`[Event Invitation] ✅ Successfully sent ${invitationType} invitation notification to ${inviteeId} for event ${eventId}`);
+          try {
+            await admin.messaging().send(message);
+            console.log(`[Event Invitation] ✅ Successfully sent push notification to ${inviteeId} for event ${eventId}`);
+          } catch (pushError) {
+            console.error(`[Event Invitation] ❌ Failed to send push notification to ${inviteeId}:`, pushError);
+            console.log(`[Event Invitation] ℹ️ In-app notification was still created successfully`);
+            // Don't throw - in-app notification was already created
+          }
 
         } catch (error) {
           console.error(`[Event Invitation] ❌ Error sending notification to invitee ${inviteeId}:`, error);

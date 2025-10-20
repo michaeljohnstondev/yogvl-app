@@ -75,8 +75,16 @@ export class ScheduledNotificationCore {
 
       await setDoc(scheduledNotificationRef, scheduledNotification);
 
+      // Enhanced logging for scheduledNotifications creation
       console.log(
-        `[ScheduledCore] Scheduled notification ${scheduleId} for ${scheduledFor.toISOString()}${reminderType ? ` (reminderType: ${reminderType})` : ''}`
+        `[ScheduledCore] ✅ CREATED scheduledNotification:`,
+        `\n  ID: ${scheduleId}`,
+        `\n  Type: ${type}`,
+        `\n  UserId: ${userId}`,
+        `\n  EventId: ${eventId || 'N/A'}`,
+        `\n  ScheduledFor: ${scheduledFor.toISOString()}`,
+        `\n  ReminderType: ${reminderType || 'N/A'}`,
+        `\n  Title: ${title}`
       );
       return scheduleId;
     } catch (error) {

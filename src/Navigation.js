@@ -438,27 +438,95 @@ export default function Navigation({ onReady }) {
                 animationDuration: 150,
               }}
             >
-              <Stack.Screen name="Home" component={HomeScreen} />
-              <Stack.Screen name="EventList" component={EventListScreen} />
-              <Stack.Screen name="CreateEvent" component={CreateEventScreen} />
+              <Stack.Screen
+                name="Home"
+                component={HomeScreen}
+                options={{
+                  presentation: 'card',
+                  animation: 'default',
+                  animationDuration: 150,
+                }}
+              />
+              <Stack.Screen
+                name="EventList"
+                component={EventListScreen}
+                options={{
+                  presentation: 'card',
+                  animation: 'default',
+                  animationDuration: 150,
+                }}
+              />
+              <Stack.Screen
+                name="CreateEvent"
+                component={CreateEventScreen}
+                options={{
+                  presentation: 'card',
+                  animation: 'default',
+                  animationDuration: 150,
+                }}
+              />
               <Stack.Screen
                 name="HostEventNotifications"
                 component={HostEventNotificationsScreen}
+                options={{
+                  presentation: 'card',
+                  animation: 'default',
+                  animationDuration: 150,
+                }}
               />
-              <Stack.Screen name="EventDetail" component={EventDetailScreen} />
-              <Stack.Screen name="EditEvent" component={EditEventScreen} />
+              <Stack.Screen
+                name="EventDetail"
+                component={EventDetailScreen}
+                options={{
+                  presentation: 'card',
+                  animation: 'default',
+                  animationDuration: 150,
+                }}
+              />
+              <Stack.Screen
+                name="EditEvent"
+                component={EditEventScreen}
+                options={{
+                  presentation: 'card',
+                  animation: 'default',
+                  animationDuration: 150,
+                }}
+              />
               <Stack.Screen
                 name="InviteGuests"
                 component={InviteGuestsScreen}
+                options={{
+                  presentation: 'card',
+                  animation: 'default',
+                  animationDuration: 150,
+                }}
               />
-              <Stack.Screen name="Invitations" component={InvitationsScreen} />
+              <Stack.Screen
+                name="Invitations"
+                component={InvitationsScreen}
+                options={{
+                  presentation: 'card',
+                  animation: 'default',
+                  animationDuration: 150,
+                }}
+              />
               <Stack.Screen
                 name="EventAttendance"
                 component={AttendanceScreen}
+                options={{
+                  presentation: 'card',
+                  animation: 'default',
+                  animationDuration: 150,
+                }}
               />
               <Stack.Screen
                 name="Notifications"
                 component={NotificationsScreen}
+                options={{
+                  presentation: 'card',
+                  animation: 'default',
+                  animationDuration: 150,
+                }}
               />
               <Stack.Screen
                 name="Invite"
@@ -466,30 +534,102 @@ export default function Navigation({ onReady }) {
                 options={{
                   headerShown: false,
                   gestureEnabled: true,
+                  presentation: 'card',
+                  animation: 'default',
+                  animationDuration: 150,
                 }}
               />
-              <Stack.Screen name="Location" component={LocationScreen} />
-              <Stack.Screen name="UserProfile" component={UserProfileScreen} />
+              <Stack.Screen
+                name="Location"
+                component={LocationScreen}
+                options={{
+                  presentation: 'card',
+                  animation: 'default',
+                  animationDuration: 150,
+                }}
+              />
+              <Stack.Screen
+                name="UserProfile"
+                component={UserProfileScreen}
+                options={{
+                  presentation: 'card',
+                  animation: 'default',
+                  animationDuration: 150,
+                }}
+              />
               <Stack.Screen
                 name="SocialList"
                 component={SocialListScreen}
                 options={{
                   title: 'Social List',
+                  presentation: 'card',
+                  animation: 'default',
+                  animationDuration: 150,
                 }}
               />
-              <Stack.Screen name="Privacy" component={PrivacySettingsScreen} />
+              <Stack.Screen
+                name="Privacy"
+                component={PrivacySettingsScreen}
+                options={{
+                  presentation: 'card',
+                  animation: 'default',
+                  animationDuration: 150,
+                }}
+              />
               <Stack.Screen
                 name="NotificationSettings"
                 component={NotificationSettingsScreen}
+                options={{
+                  presentation: 'card',
+                  animation: 'default',
+                  animationDuration: 150,
+                }}
               />
-              <Stack.Screen name="Interests" component={InterestsScreen} />
-              <Stack.Screen name="Admin" component={AdminScreen} />
-              <Stack.Screen name="HostProfile" component={HostProfileScreen} />
+              <Stack.Screen
+                name="Interests"
+                component={InterestsScreen}
+                options={{
+                  presentation: 'card',
+                  animation: 'default',
+                  animationDuration: 150,
+                }}
+              />
+              <Stack.Screen
+                name="Admin"
+                component={AdminScreen}
+                options={{
+                  presentation: 'card',
+                  animation: 'default',
+                  animationDuration: 150,
+                }}
+              />
+              <Stack.Screen
+                name="HostProfile"
+                component={HostProfileScreen}
+                options={{
+                  presentation: 'card',
+                  animation: 'default',
+                  animationDuration: 150,
+                }}
+              />
               <Stack.Screen
                 name="MessageBoard"
                 component={MessageBoardScreen}
+                options={{
+                  presentation: 'card',
+                  animation: 'default',
+                  animationDuration: 150,
+                }}
               />
-              <Stack.Screen name="EventWrapUp" component={EventWrapUpScreen} />
+              <Stack.Screen
+                name="EventWrapUp"
+                component={EventWrapUpScreen}
+                options={{
+                  presentation: 'card',
+                  animation: 'default',
+                  animationDuration: 150,
+                }}
+              />
             </Stack.Navigator>
           )}
         </NavigationContainer>

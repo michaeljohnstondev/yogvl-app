@@ -139,16 +139,40 @@ exports.onEventCreated = functions.firestore
               continue;
             }
 
-            // Send immediate FCM notification using device token (like other notifications)
+            // STEP 1: ALWAYS create in-app notification
             try {
-              // Get user's FCM token (check both deviceInfo.fcmToken and legacy fcmToken)
+              await admin.firestore()
+                .collection('users')
+                .doc(userId)
+                .collection('notifications')
+                .add({
+                  type: 'interest_based_suggestion',
+                  title: 'New Event Matches Your Interests!',
+                  message: `"${eventTitle}" - Check it out!`,
+                  read: false,
+                  createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                  data: {
+                    eventId: eventId,
+                    studioId: studioId,
+                    eventTitle: eventTitle,
+                    matchedInterests: eventInterests.join(', '),
+                    screen: 'EventDetail'
+                  }
+                });
+
+              console.log(`[Event Interest Notification] ✅ Created in-app notification for user ${userId}`);
+            } catch (inAppError) {
+              console.error(`[Event Interest Notification] ❌ Failed to create in-app notification for ${userId}:`, inAppError);
+            }
+
+            // STEP 2: Optionally send push notification
+            try {
               const fcmToken = userData?.deviceInfo?.fcmToken || userData?.fcmToken;
               if (!fcmToken) {
-                console.log(`[Event Interest Notification] User ${userId} has no FCM token`);
+                console.log(`[Event Interest Notification] ⚠️ User ${userId} has no FCM token - in-app notification created, push skipped`);
                 continue;
               }
 
-              // Send FCM notification with event detail navigation
               const message = {
                 token: fcmToken,
                 notification: {
@@ -168,9 +192,10 @@ exports.onEventCreated = functions.firestore
               await admin.messaging().send(message);
               notificationsSent++;
 
-              console.log(`[Event Interest Notification] Sent FCM notification to user ${userId} about event "${eventTitle}"`);
-            } catch (error) {
-              console.error(`[Event Interest Notification] Failed to send FCM to user ${userId}:`, error);
+              console.log(`[Event Interest Notification] ✅ Sent push notification to user ${userId} about event "${eventTitle}"`);
+            } catch (pushError) {
+              console.error(`[Event Interest Notification] ❌ Failed to send push to user ${userId}:`, pushError);
+              console.log(`[Event Interest Notification] ℹ️ In-app notification was still created`);
             }
           }
         } catch (error) {

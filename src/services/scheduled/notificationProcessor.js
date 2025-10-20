@@ -499,16 +499,27 @@ export const cancelGlobalEventNotifications = async (eventId, reason = 'Event up
     // Batch update all to cancelled
     const batch = writeBatch(db);
     snapshot.docs.forEach(doc => {
+      const data = doc.data();
       batch.update(doc.ref, {
         status: 'cancelled',
         cancelledAt: Timestamp.now(),
         cancelReason: reason,
       });
+      // Enhanced logging for each cancellation
+      console.log(
+        `[NotificationProcessor] ❌ CANCELLED scheduledNotification:`,
+        `\n  ID: ${doc.id}`,
+        `\n  Type: ${data.type}`,
+        `\n  UserId: ${data.userId}`,
+        `\n  EventId: ${data.eventId || 'N/A'}`,
+        `\n  ScheduledFor: ${data.scheduledFor?.toDate()?.toISOString() || 'N/A'}`,
+        `\n  Reason: ${reason}`
+      );
     });
 
     await batch.commit();
 
-    console.log(`[NotificationProcessor] Cancelled ${snapshot.size} notifications for event ${eventId}`);
+    console.log(`[NotificationProcessor] Total cancelled: ${snapshot.size} notifications for event ${eventId}`);
     return { cancelledCount: snapshot.size };
   } catch (error) {
     console.error('[NotificationProcessor] Error cancelling global notifications:', error);
@@ -540,16 +551,27 @@ export const cancelGlobalUserEventNotifications = async (userId, eventId, reason
 
     const batch = writeBatch(db);
     snapshot.docs.forEach(doc => {
+      const data = doc.data();
       batch.update(doc.ref, {
         status: 'cancelled',
         cancelledAt: Timestamp.now(),
         cancelReason: reason,
       });
+      // Enhanced logging for each cancellation
+      console.log(
+        `[NotificationProcessor] ❌ CANCELLED scheduledNotification:`,
+        `\n  ID: ${doc.id}`,
+        `\n  Type: ${data.type}`,
+        `\n  UserId: ${data.userId}`,
+        `\n  EventId: ${data.eventId || 'N/A'}`,
+        `\n  ScheduledFor: ${data.scheduledFor?.toDate()?.toISOString() || 'N/A'}`,
+        `\n  Reason: ${reason}`
+      );
     });
 
     await batch.commit();
 
-    console.log(`[NotificationProcessor] Cancelled ${snapshot.size} global notifications for user ${userId}, event ${eventId}`);
+    console.log(`[NotificationProcessor] Total cancelled: ${snapshot.size} global notifications for user ${userId}, event ${eventId}`);
     return { cancelledCount: snapshot.size };
   } catch (error) {
     console.error('[NotificationProcessor] Error cancelling global user notifications:', error);

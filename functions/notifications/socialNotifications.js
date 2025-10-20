@@ -57,20 +57,43 @@ exports.onMutualFollowTrigger = functions.firestore.onDocumentCreated(
           // Check if user wants mutual follow notifications
           if (socialPrefs.mutualFollows === false) continue;
 
+          // STEP 1: ALWAYS create in-app notification
+          try {
+            await admin.firestore()
+              .collection('users')
+              .doc(notification.userId)
+              .collection('notifications')
+              .add({
+                type: 'mutual_follow',
+                title: 'Mutual Follow!',
+                message: `You and ${notification.userName} are now following each other`,
+                read: false,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                data: {
+                  userId: notification.otherUserId,
+                  screen: 'UserProfile',
+                }
+              });
+          } catch (inAppError) {
+            console.error(`Failed to create in-app notification:`, inAppError);
+          }
+
+          // STEP 2: Optionally send push
           const fcmToken = userData?.deviceInfo?.fcmToken;
           if (!fcmToken) continue;
 
-          await admin.messaging().send({
-            token: fcmToken,
-            notification: {
-              title: 'Mutual Follow!',
-              body: `You and ${notification.userName} are now following each other`,
-            },
-            data: {
-              type: 'mutual_follow',
-              userId: notification.otherUserId,
-              screen: 'UserProfile',
-            },
+          try {
+            await admin.messaging().send({
+              token: fcmToken,
+              notification: {
+                title: 'Mutual Follow!',
+                body: `You and ${notification.userName} are now following each other`,
+              },
+              data: {
+                type: 'mutual_follow',
+                userId: notification.otherUserId,
+                screen: 'UserProfile',
+              },
             android: {
               priority: 'normal',
               notification: {
@@ -78,10 +101,13 @@ exports.onMutualFollowTrigger = functions.firestore.onDocumentCreated(
                 priority: 'default',
               },
             },
-          });
+            });
+          } catch (pushError) {
+            console.error(`Failed to send push notification:`, pushError);
+          }
 
           console.log(
-            `Sent mutual follow notification to ${notification.userId}`
+            `Sent notification to ${notification.userId}`
           );
         } catch (error) {
           console.error(

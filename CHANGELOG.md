@@ -12,11 +12,25 @@ All notable changes to this project will be documented in this file.
 - Fixed iOS lockup when creating groups by memoizing expensive emoji calculations
 
 ### Fixed
-- **Critical**: Fixed guest comment notifications not working
-  - Cloud Functions now check per-event notification settings (`users/{userId}/eventSubscriptions/{eventId}`) instead of only default templates
-  - Users who accept invitations now get per-event notification settings created automatically
-  - Added fallback to default templates for backward compatibility
-  - Both `onGuestComment` and `onHostComment` functions updated to use per-event settings
+- **CRITICAL**: Fixed ALL notification types completely broken for users without push notifications
+  - **Root cause**: All Cloud Functions were checking for FCM token BEFORE creating any notifications
+  - **Impact**: Users with push disabled, no APNs configured, or failed token registration got ZERO notifications (not even in-app)
+  - **Solution**: Rewrote all 8 active Cloud Functions (13 notification types) to:
+    1. ALWAYS create in-app notification in Firestore (`users/{userId}/notifications`)
+    2. THEN check for FCM token
+    3. If token exists, ALSO send push notification
+    4. If no token, log warning but in-app notification was already created
+  - **Fixed notification types**:
+    - Event invitations (guest + cohost)
+    - Host comments & guest comments on events
+    - Event updates & deletions/cancellations
+    - Cohost acceptance
+    - New followers & mutual follows
+    - Interest-based event suggestions
+    - Someone joins/leaves your event
+  - **App-side fix**: `acceptGuestInvitation()` now creates per-event notification settings automatically
+  - **Backward compatibility**: Cloud Functions fall back to default notification templates if per-event settings don't exist
+  - **Code cleanup**: Deleted legacy `commentNotifications.js` and `adminPushNotifications.js` (replaced by direct triggers)
 - Fixed random InviteScreen causing Home screen to reload
   - Changed userData dependencies to only track specific fields (studioId, interests)
   - Prevents unnecessary reloads when unrelated userData fields change (timestamps, notifications, etc.)
@@ -25,8 +39,17 @@ All notable changes to this project will be documented in this file.
   - Android continues to use root-level keyboard handling
 - Fixed CreateGroupModal not opening on iOS
   - Changed Modal presentationStyle from "pageSheet" to "formSheet"
+- Fixed HostEventNotificationsScreen causing unwanted navigation to CreateEvent
+  - Removed debounced auto-save that was navigating on every settings change
+  - Settings now only pass back to CreateEvent when explicitly clicking "UPDATE SETTINGS" or close button
+  - Users can now edit notification settings without being kicked to CreateEvent screen
 
 ### Changed
+- **iOS navigation**: Made all screen transitions faster and more opaque
+  - Changed `presentation` to 'card' (solid screens, no transparency during transitions)
+  - Reduced `animationDuration` from 350ms to 150ms (2.3x faster)
+  - Applied to all navigation stacks for consistent feel
+  - Maintains swipe-back gesture on iOS
 - MessageBoard cards now have matching border and background tints based on user role:
   - Your messages: Green
   - Admins: Orange (swapped from purple)

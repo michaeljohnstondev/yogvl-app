@@ -9,7 +9,6 @@ if (!admin.apps.length) {
 }
 
 // Import modular notification functions
-const commentNotifications = require('./notifications/commentNotifications');
 const socialNotifications = require('./notifications/socialNotifications');
 const followNotifications = require('./notifications/followNotifications');
 const eventSubscriptionNotifications = require('./notifications/eventSubscriptionNotifications');
@@ -19,7 +18,6 @@ const eventInvitationNotifications = require('./notifications/eventInvitationNot
 const eventInterestNotifications = require('./notifications/eventInterestNotifications');
 const cohostJoinedNotifications = require('./notifications/cohostJoinedNotifications');
 const adminNotifications = require('./notifications/adminNotifications');
-const adminPushNotifications = require('./notifications/adminPushNotifications');
 const adminDirectNotifications = require('./notifications/adminDirectNotifications');
 const banDetectionNotifications = require('./notifications/banDetectionNotifications');
 const adminAnnouncementNotifications = require('./notifications/adminAnnouncementNotifications');
@@ -30,45 +28,35 @@ const eventCleanup = require('./utils/eventCleanup');
 
 // Export all notification functions
 module.exports = {
-  // DISABLED: onAdminNotificationTrigger - notificationTriggers collection eliminated
-  // onAdminNotificationTrigger: adminPushNotifications.onAdminNotificationTrigger,
-  // DISABLED: onCommentNotificationTrigger - notificationTriggers collection eliminated
-  // onCommentNotificationTrigger: commentNotifications.onCommentNotificationTrigger,
-
-
-  // Direct follow notifications (new architecture)
+  // Follow notifications
   onUserFollowed: followNotifications.onUserFollowed,
 
-  // Event subscription notifications (new architecture)
+  // Event subscription notifications (join/leave)
   onEventSubscribed: eventSubscriptionNotifications.onEventSubscribed,
   onEventUnsubscribed: eventSubscriptionNotifications.onEventUnsubscribed,
 
-  // Event comment notifications (new architecture)
+  // Event comment notifications
   onHostComment: eventCommentNotifications.onHostComment,
   onGuestComment: eventCommentNotifications.onGuestComment,
 
-  // Event change notifications (new architecture)
+  // Event change notifications (updates/deletions)
   onEventUpdated: eventChangeNotifications.onEventUpdated,
   onEventDeleted: eventChangeNotifications.onEventDeleted,
+  onGuestNotificationSettingsUpdated: eventChangeNotifications.onGuestNotificationSettingsUpdated,
 
-  // Unified invitation notifications (guest + cohost) - event-triggered
+  // Event invitation notifications (guest + cohost)
   onEventInvitation: eventInvitationNotifications.onEventInvitation,
 
-  // Event interest-based notifications (new architecture)
+  // Event interest-based notifications
   onEventCreated: eventInterestNotifications.onEventCreated,
 
-  // Cohost joined notifications (new architecture)
+  // Cohost joined notifications
   onCohostJoined: cohostJoinedNotifications.onCohostJoined,
 
-  // DISABLED: onMutualFollowTrigger - notificationTriggers collection eliminated
-  // onMutualFollowTrigger: socialNotifications.onMutualFollowTrigger,
-
-  // Admin and system notifications (legacy)
+  // Admin and system notifications
   onAdminAnnouncement: adminNotifications.onAdminAnnouncement,
   onMaintenanceNotification: adminNotifications.onMaintenanceNotification,
   onAppUpdateNotification: adminNotifications.onAppUpdateNotification,
-
-  // Modern admin notification system (direct triggers)
   onAdminNotificationCreated: adminDirectNotifications.onAdminNotificationCreated,
   onModerationRecordUpdated: banDetectionNotifications.onModerationRecordUpdated,
   onAdminAnnouncementCreated: adminAnnouncementNotifications.onAdminAnnouncementCreated,

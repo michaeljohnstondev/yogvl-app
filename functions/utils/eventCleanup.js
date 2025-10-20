@@ -46,12 +46,23 @@ async function cleanupEventReminders(eventId) {
       const batchDocs = reminderDocs.docs.slice(i, i + batchSize);
 
       batchDocs.forEach(doc => {
+        const data = doc.data();
         // Instead of deleting, mark as cancelled for audit trail
         batch.update(doc.ref, {
           status: 'cancelled_event_deleted',
           cancelledAt: admin.firestore.FieldValue.serverTimestamp(),
           originalEventId: eventId
         });
+        // Enhanced logging for each cleanup
+        console.log(
+          `[EventCleanup] 🧹 CLEANED scheduledNotification:`,
+          `\n  ID: ${doc.id}`,
+          `\n  Type: ${data.type}`,
+          `\n  UserId: ${data.userId}`,
+          `\n  EventId: ${data.eventId || 'N/A'}`,
+          `\n  ScheduledFor: ${data.scheduledFor?.toDate()?.toISOString() || 'N/A'}`,
+          `\n  Reason: Event cleanup - marked as cancelled_event_deleted`
+        );
       });
 
       await batch.commit();
@@ -160,15 +171,26 @@ async function cleanupOldEventReminders(daysOld = 30, limit = 1000) {
 
     const batch = db.batch();
     oldReminderDocs.docs.forEach(doc => {
+      const data = doc.data();
       batch.update(doc.ref, {
         status: 'cancelled_old_event',
         cancelledAt: admin.firestore.FieldValue.serverTimestamp()
       });
+      // Enhanced logging for each old event cleanup
+      console.log(
+        `[EventCleanup] 🧹 CLEANED OLD scheduledNotification:`,
+        `\n  ID: ${doc.id}`,
+        `\n  Type: ${data.type}`,
+        `\n  UserId: ${data.userId}`,
+        `\n  EventId: ${data.eventId || 'N/A'}`,
+        `\n  ScheduledFor: ${data.scheduledFor?.toDate()?.toISOString() || 'N/A'}`,
+        `\n  Reason: Old event cleanup - marked as cancelled_old_event`
+      );
     });
 
     await batch.commit();
 
-    console.log(`[EventCleanup] ✅ Cleaned up ${oldReminderDocs.size} old event reminders`);
+    console.log(`[EventCleanup] Total cleaned: ${oldReminderDocs.size} old event reminders`);
 
     return {
       success: true,

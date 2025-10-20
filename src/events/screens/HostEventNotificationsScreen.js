@@ -45,6 +45,7 @@ export default function HostEventNotificationsScreen() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
   const scrollViewRef = useRef(null);
+  const previousSettingsRef = useRef(null);
 
   // Custom reminder form state
   const [showAddCustomForm, setShowAddCustomForm] = useState(false);
@@ -99,9 +100,37 @@ export default function HostEventNotificationsScreen() {
         const { db } = await import('../../auth/services/firebase');
 
         const eventRef = doc(db, 'studios', studioId, 'events', eventId);
+
+        // Log when templates are added/enabled or removed
+        const previousTemplates = previousSettingsRef.current?.reminderTemplates || {};
+        const currentTemplates = localSettings?.reminderTemplates || {};
+
+        // Log additions/enables
+        Object.keys(currentTemplates).forEach(templateId => {
+          const wasDisabledOrMissing = !previousTemplates[templateId];
+          const isNowEnabled = currentTemplates[templateId] === true;
+
+          if (isNowEnabled && wasDisabledOrMissing) {
+            console.log(`[HostEventNotificationsScreen] adding ${templateId} to studios/${studioId}/events/${eventId}/notificationSettings`);
+          }
+        });
+
+        // Log removals (templates that existed before but are now gone)
+        Object.keys(previousTemplates).forEach(templateId => {
+          const existedBefore = previousTemplates.hasOwnProperty(templateId);
+          const existsNow = currentTemplates.hasOwnProperty(templateId);
+
+          if (existedBefore && !existsNow) {
+            console.log(`[HostEventNotificationsScreen] removing ${templateId} from studios/${studioId}/events/${eventId}/notificationSettings`);
+          }
+        });
+
         await updateDoc(eventRef, {
           notificationSettings: localSettings
         });
+
+        // Store current settings for next comparison
+        previousSettingsRef.current = { ...localSettings };
 
         console.log('[HostEventNotificationsScreen] Saved notification settings to Firebase for event:', eventId);
 
@@ -127,8 +156,10 @@ export default function HostEventNotificationsScreen() {
     if (notificationSettings) {
       console.log('[HostEventNotificationsScreen] Initializing with reminderTemplates:', Object.keys(notificationSettings.reminderTemplates || {}));
       setLocalSettings(notificationSettings);
+      previousSettingsRef.current = { ...notificationSettings };
     } else {
       setLocalSettings(defaultSettings);
+      previousSettingsRef.current = { ...defaultSettings };
     }
 
     // Set loading to false after initialization

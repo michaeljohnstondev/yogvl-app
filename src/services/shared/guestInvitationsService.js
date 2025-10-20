@@ -167,16 +167,80 @@ export const acceptGuestInvitation = async (recipientId, eventId, studioId) => {
       };
 
       try {
-        const userEventSettingsRef = doc(db, 'users', recipientId, 'eventSubscriptions', eventId);
-        await setDoc(userEventSettingsRef, {
+        // NEW ARCHITECTURE: Store guest notification settings on the event (not user subcollection)
+        const guestSettingsRef = doc(db, 'studios', studioId, 'events', eventId, 'guestNotificationSettings', recipientId);
+        await setDoc(guestSettingsRef, {
           notificationSettings,
           subscribedAt: Timestamp.now(),
-          eventId,
-          studioId,
+          userId: recipientId,
         });
-        console.log(`[GuestInvitations] Created per-event notification settings for user ${recipientId}, event ${eventId}`);
+        console.log(`[GuestInvitations] ✅ Created per-event notification settings at studios/${studioId}/events/${eventId}/guestNotificationSettings/${recipientId}`);
+        console.log(`[GuestInvitations] 📋 Settings: newComments=${notificationSettings.newComments}, hostComments=${notificationSettings.hostComments}, reminderTemplates=${JSON.stringify(notificationSettings.reminderTemplates)}`);
+
+        // Create scheduledNotifications for guest based on their reminderTemplates
+        const enabledTemplates = Object.keys(notificationSettings.reminderTemplates || {})
+          .filter(templateId => notificationSettings.reminderTemplates[templateId] === true);
+
+        if (enabledTemplates.length > 0 && eventData.eventTimestamp) {
+          console.log(`[GuestInvitations] Creating ${enabledTemplates.length} scheduledNotifications for guest ${recipientId}`);
+
+          const { ScheduledNotificationService } = await import('../scheduledNotifications');
+          const eventTime = eventData.eventTimestamp.toDate();
+          const eventTitle = eventData.title || eventData.what || 'Event';
+
+          for (const templateId of enabledTemplates) {
+            try {
+              // Parse template ID (e.g., "15m", "1h", "2d")
+              const match = templateId.match(/^(\d+)([mhdwx])$/);
+              if (!match) {
+                console.warn(`[GuestInvitations] Invalid template format: ${templateId}`);
+                continue;
+              }
+
+              const [, amount, unitChar] = match;
+              const unitMap = { m: 'minutes', h: 'hours', d: 'days', w: 'weeks', x: 'months' };
+              const unit = unitMap[unitChar];
+              const amountNum = parseInt(amount);
+
+              // Calculate reminder time
+              const reminderTime = new Date(eventTime);
+              switch (unit) {
+                case 'minutes': reminderTime.setMinutes(reminderTime.getMinutes() - amountNum); break;
+                case 'hours': reminderTime.setHours(reminderTime.getHours() - amountNum); break;
+                case 'days': reminderTime.setDate(reminderTime.getDate() - amountNum); break;
+                case 'weeks': reminderTime.setDate(reminderTime.getDate() - (amountNum * 7)); break;
+                case 'months': reminderTime.setMonth(reminderTime.getMonth() - amountNum); break;
+              }
+
+              // Only schedule if reminder time is in the future
+              if (reminderTime > new Date()) {
+                await ScheduledNotificationService.scheduleNotification({
+                  userId: recipientId,
+                  eventId,
+                  type: 'event_reminder',
+                  title: eventTitle,
+                  message: `Event starts in ${amount} ${unit}`,
+                  reminderType: templateId,
+                  data: {
+                    resetStack: true,
+                    navigationStack: 'Home,EventDetail',
+                    eventId,
+                    studioId,
+                    eventTitle,
+                  },
+                  scheduledFor: reminderTime,
+                });
+                console.log(`[GuestInvitations] ✅ Created scheduledNotification for guest ${recipientId}, template ${templateId}, scheduled for ${reminderTime.toISOString()}`);
+              } else {
+                console.log(`[GuestInvitations] ⏭️ Skipping ${templateId} - reminder time is in the past`);
+              }
+            } catch (schedError) {
+              console.error(`[GuestInvitations] ❌ Failed to create scheduledNotification for template ${templateId}:`, schedError);
+            }
+          }
+        }
       } catch (settingsError) {
-        console.error('[GuestInvitations] Failed to create per-event notification settings:', settingsError);
+        console.error('[GuestInvitations] ❌ Failed to create per-event notification settings:', settingsError);
         // Don't fail invitation acceptance if settings creation fails
       }
 

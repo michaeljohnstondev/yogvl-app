@@ -63,14 +63,6 @@ exports.onCohostJoined = functions.firestore
         return;
       }
 
-      // Get inviter's FCM token
-      const fcmToken = inviterUserData?.deviceInfo?.fcmToken;
-
-      if (!fcmToken) {
-        console.log(`[Cohost Joined] Inviter ${inviterId} has no FCM token`);
-        return;
-      }
-
       // Get cohost (accepter) information
       const cohostDoc = await admin.firestore().doc(`users/${recipientId}`).get();
       let cohostName = 'Someone';
@@ -86,7 +78,46 @@ exports.onCohostJoined = functions.firestore
       // Extract event information
       const eventTitle = eventData?.title || 'Untitled Event';
 
-      // Send FCM notification with navigation stack
+      // STEP 1: ALWAYS create in-app notification (Firestore document)
+      try {
+        await admin.firestore()
+          .collection('users')
+          .doc(inviterId)
+          .collection('notifications')
+          .add({
+            type: 'cohost_accepted',
+            title: 'Cohost Accepted!',
+            message: `${cohostName} accepted your cohost invitation for "${eventTitle}"`,
+            read: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            data: {
+              resetStack: true,
+              navigationStack: 'Home,EventDetail',
+              eventId: eventId,
+              studioId: studioId || '',
+              eventTitle: eventTitle,
+              cohostId: recipientId,
+              cohostName: cohostName,
+              invitationId: invitationId,
+              actionType: 'cohost_accepted'
+            }
+          });
+
+        console.log(`[Cohost Joined] ✅ Created in-app notification for inviter ${inviterId}`);
+      } catch (inAppError) {
+        console.error(`[Cohost Joined] ❌ Failed to create in-app notification for ${inviterId}:`, inAppError);
+        // Continue to try push notification even if in-app fails
+      }
+
+      // STEP 2: Optionally send push notification (if FCM token exists)
+      const fcmToken = inviterUserData?.deviceInfo?.fcmToken;
+
+      if (!fcmToken) {
+        console.log(`[Cohost Joined] ⚠️ Inviter ${inviterId} has no FCM token - in-app notification created, push skipped`);
+        return; // Exit but in-app notification was already created
+      }
+
+      // Send FCM push notification with navigation stack
       const message = {
         token: fcmToken,
         notification: {
@@ -107,9 +138,14 @@ exports.onCohostJoined = functions.firestore
         }
       };
 
-      await admin.messaging().send(message);
-
-      console.log(`[Cohost Joined] Successfully sent cohost accepted notification to ${inviterId} for event ${eventId}`);
+      try {
+        await admin.messaging().send(message);
+        console.log(`[Cohost Joined] ✅ Successfully sent push notification to ${inviterId} for event ${eventId}`);
+      } catch (pushError) {
+        console.error(`[Cohost Joined] ❌ Failed to send push notification to ${inviterId}:`, pushError);
+        console.log(`[Cohost Joined] ℹ️ In-app notification was still created successfully`);
+        // Don't throw - in-app notification was already created
+      }
 
     } catch (error) {
       console.error(`[Cohost Joined] Error processing cohost acceptance:`, error);
