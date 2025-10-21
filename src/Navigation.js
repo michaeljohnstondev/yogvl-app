@@ -244,24 +244,34 @@ export default function Navigation({ onReady }) {
                 return newUserData;
               }
 
-              // Check if only interests changed (ignore preferences.interests updates)
-              const { preferences: prevPrefs, ...prevRest } = prevUserData;
-              const { preferences: newPrefs, ...newRest } = newUserData;
+              // Exclude non-navigation-relevant fields from comparison
+              // These fields change frequently but don't affect routing/navigation
+              const { preferences: prevPrefs, userdata: prevUserdata, ...prevRest } = prevUserData;
+              const { preferences: newPrefs, userdata: newUserdata, ...newRest } = newUserData;
 
-              const { interests: prevInterests, ...prevPrefsRest } =
-                prevPrefs || {};
-              const { interests: newInterests, ...newPrefsRest } =
-                newPrefs || {};
+              // Exclude interests from preferences comparison
+              const { interests: prevInterests, ...prevPrefsRest } = prevPrefs || {};
+              const { interests: newInterests, ...newPrefsRest } = newPrefs || {};
 
-              // Deep comparison of non-interest data
+              // Exclude social metrics from userdata comparison (follow/unfollow shouldn't reset navigation)
+              const { metrics: prevMetrics, ...prevUserdataRest } = prevUserdata || {};
+              const { metrics: newMetrics, ...newUserdataRest } = newUserdata || {};
+
+              const { social: prevSocial, ...prevMetricsRest } = prevMetrics || {};
+              const { social: newSocial, ...newMetricsRest } = newMetrics || {};
+
+              // Deep comparison of navigation-relevant data only
               const navigationDataChanged =
                 JSON.stringify(prevRest) !== JSON.stringify(newRest) ||
-                JSON.stringify(prevPrefsRest) !== JSON.stringify(newPrefsRest);
+                JSON.stringify(prevPrefsRest) !== JSON.stringify(newPrefsRest) ||
+                JSON.stringify(prevUserdataRest) !== JSON.stringify(newUserdataRest) ||
+                JSON.stringify(prevMetricsRest) !== JSON.stringify(newMetricsRest);
 
               if (navigationDataChanged) {
+                // Navigation-relevant data changed - update state
                 return newUserData;
               } else {
-                // Only interests changed - don't trigger re-render
+                // Only non-navigation fields changed (interests, social metrics) - don't trigger re-render
                 return prevUserData;
               }
             });
@@ -395,8 +405,8 @@ export default function Navigation({ onReady }) {
                 headerShown: false,
                 contentStyle: { backgroundColor: 'transparent' },
                 presentation: 'card',
-                animation: 'default',
-                animationDuration: 150,
+                animation: 'none',
+                animationEnabled: false,
               }}
             >
               <Stack.Screen name="Landing" component={LandingScreen} />
@@ -408,8 +418,8 @@ export default function Navigation({ onReady }) {
                 headerShown: false,
                 contentStyle: { backgroundColor: 'transparent' },
                 presentation: 'card',
-                animation: 'default',
-                animationDuration: 150,
+                animation: 'none',
+                animationEnabled: false,
               }}
             >
               <Stack.Screen name="ContactInfo" component={ContactInfoScreen} />
@@ -421,8 +431,8 @@ export default function Navigation({ onReady }) {
                 headerShown: false,
                 contentStyle: { backgroundColor: 'transparent' },
                 presentation: 'card',
-                animation: 'default',
-                animationDuration: 150,
+                animation: 'none',
+                animationEnabled: false,
               }}
             >
               <Stack.Screen name="Location" component={LocationScreen} />
@@ -434,99 +444,46 @@ export default function Navigation({ onReady }) {
                 headerShown: false,
                 contentStyle: { backgroundColor: 'transparent' },
                 presentation: 'card',
-                animation: 'default',
-                animationDuration: 150,
+                animation: 'none',
+                animationEnabled: false,
               }}
             >
-              <Stack.Screen
-                name="Home"
-                component={HomeScreen}
-                options={{
-                  presentation: 'card',
-                  animation: 'default',
-                  animationDuration: 150,
-                }}
-              />
+              <Stack.Screen name="Home" component={HomeScreen} />
               <Stack.Screen
                 name="EventList"
                 component={EventListScreen}
-                options={{
-                  presentation: 'card',
-                  animation: 'default',
-                  animationDuration: 150,
-                }}
               />
               <Stack.Screen
                 name="CreateEvent"
                 component={CreateEventScreen}
-                options={{
-                  presentation: 'card',
-                  animation: 'default',
-                  animationDuration: 150,
-                }}
               />
               <Stack.Screen
                 name="HostEventNotifications"
                 component={HostEventNotificationsScreen}
-                options={{
-                  presentation: 'card',
-                  animation: 'default',
-                  animationDuration: 150,
-                }}
               />
               <Stack.Screen
                 name="EventDetail"
                 component={EventDetailScreen}
-                options={{
-                  presentation: 'card',
-                  animation: 'default',
-                  animationDuration: 150,
-                }}
               />
               <Stack.Screen
                 name="EditEvent"
                 component={EditEventScreen}
-                options={{
-                  presentation: 'card',
-                  animation: 'default',
-                  animationDuration: 150,
-                }}
               />
               <Stack.Screen
                 name="InviteGuests"
                 component={InviteGuestsScreen}
-                options={{
-                  presentation: 'card',
-                  animation: 'default',
-                  animationDuration: 150,
-                }}
               />
               <Stack.Screen
                 name="Invitations"
                 component={InvitationsScreen}
-                options={{
-                  presentation: 'card',
-                  animation: 'default',
-                  animationDuration: 150,
-                }}
               />
               <Stack.Screen
                 name="EventAttendance"
                 component={AttendanceScreen}
-                options={{
-                  presentation: 'card',
-                  animation: 'default',
-                  animationDuration: 150,
-                }}
               />
               <Stack.Screen
                 name="Notifications"
                 component={NotificationsScreen}
-                options={{
-                  presentation: 'card',
-                  animation: 'default',
-                  animationDuration: 150,
-                }}
               />
               <Stack.Screen
                 name="Invite"
@@ -542,20 +499,10 @@ export default function Navigation({ onReady }) {
               <Stack.Screen
                 name="Location"
                 component={LocationScreen}
-                options={{
-                  presentation: 'card',
-                  animation: 'default',
-                  animationDuration: 150,
-                }}
               />
               <Stack.Screen
                 name="UserProfile"
                 component={UserProfileScreen}
-                options={{
-                  presentation: 'card',
-                  animation: 'default',
-                  animationDuration: 150,
-                }}
               />
               <Stack.Screen
                 name="SocialList"
@@ -570,65 +517,30 @@ export default function Navigation({ onReady }) {
               <Stack.Screen
                 name="Privacy"
                 component={PrivacySettingsScreen}
-                options={{
-                  presentation: 'card',
-                  animation: 'default',
-                  animationDuration: 150,
-                }}
               />
               <Stack.Screen
                 name="NotificationSettings"
                 component={NotificationSettingsScreen}
-                options={{
-                  presentation: 'card',
-                  animation: 'default',
-                  animationDuration: 150,
-                }}
               />
               <Stack.Screen
                 name="Interests"
                 component={InterestsScreen}
-                options={{
-                  presentation: 'card',
-                  animation: 'default',
-                  animationDuration: 150,
-                }}
               />
               <Stack.Screen
                 name="Admin"
                 component={AdminScreen}
-                options={{
-                  presentation: 'card',
-                  animation: 'default',
-                  animationDuration: 150,
-                }}
               />
               <Stack.Screen
                 name="HostProfile"
                 component={HostProfileScreen}
-                options={{
-                  presentation: 'card',
-                  animation: 'default',
-                  animationDuration: 150,
-                }}
               />
               <Stack.Screen
                 name="MessageBoard"
                 component={MessageBoardScreen}
-                options={{
-                  presentation: 'card',
-                  animation: 'default',
-                  animationDuration: 150,
-                }}
               />
               <Stack.Screen
                 name="EventWrapUp"
                 component={EventWrapUpScreen}
-                options={{
-                  presentation: 'card',
-                  animation: 'default',
-                  animationDuration: 150,
-                }}
               />
             </Stack.Navigator>
           )}

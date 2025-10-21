@@ -251,6 +251,7 @@ class FCMService {
         console.warn(
           '[FCMService] Must use physical device for push notifications'
         );
+        await this.logErrorToFirestore('not_device', 'Simulator/Emulator detected - FCM requires physical device');
         return null;
       }
 
@@ -264,6 +265,9 @@ class FCMService {
       if (token) {
         console.log('[FCMService] ✅ FCM token successfully received, length:', token.length);
 
+        // Log success to Firestore
+        await this.logErrorToFirestore('success', `FCM token received successfully (length: ${token.length})`);
+
         // Store token securely with encryption
         await SecureStore.setItemAsync(STORAGE_KEYS.FCM_TOKEN, token);
         this.currentToken = token;
@@ -272,6 +276,7 @@ class FCMService {
       } else {
         console.warn('[FCMService] ⚠️ No FCM token received from messaging().getToken()');
         console.warn('[FCMService] This usually means APNs is not configured or permission was denied');
+        await this.logErrorToFirestore('token_null', 'messaging().getToken() returned null - APNs may not be configured or permission denied');
         return null;
       }
     } catch (error) {
@@ -279,7 +284,48 @@ class FCMService {
       console.error('[FCMService] Error code:', error.code);
       console.error('[FCMService] Error message:', error.message);
       console.error('[FCMService] Error stack:', error.stack);
+
+      // Log error to Firestore for remote debugging
+      await this.logErrorToFirestore(
+        error.code || 'unknown_error',
+        error.message || 'Unknown error getting FCM token',
+        error.stack
+      );
+
       return null;
+    }
+  }
+
+  /**
+   * Log FCM errors to Firestore for remote debugging
+   */
+  async logErrorToFirestore(errorCode, errorMessage, errorStack = null) {
+    try {
+      if (!this.currentUserId) {
+        // Can't log without user ID
+        return;
+      }
+
+      const { collection, addDoc, Timestamp } = await import('firebase/firestore');
+
+      const logsRef = collection(db, 'users', this.currentUserId, 'fcmDebugLogs');
+      await addDoc(logsRef, {
+        errorCode,
+        errorMessage,
+        errorStack,
+        platform: Platform.OS,
+        timestamp: Timestamp.now(),
+        deviceInfo: {
+          isDevice: Device.isDevice,
+          modelName: Device.modelName,
+          osVersion: Device.osVersion,
+        }
+      });
+
+      console.log('[FCMService] 📝 Logged error to Firestore:', errorCode);
+    } catch (logError) {
+      // Don't fail if logging fails
+      console.warn('[FCMService] Failed to log to Firestore:', logError);
     }
   }
 

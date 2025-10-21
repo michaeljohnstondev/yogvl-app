@@ -9,7 +9,6 @@ import {
   Alert,
   RefreshControl,
   Pressable,
-  KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -348,11 +347,7 @@ export default function MessageBoardScreen({ route, navigation }) {
 
   return (
     <View style={styles.background}>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-      >
+      <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
           <CloseButton onPress={() => navigation.goBack()} />
@@ -393,7 +388,7 @@ export default function MessageBoardScreen({ route, navigation }) {
           submitting={submitting}
           disabled={false}
         />
-      </KeyboardAvoidingView>
+      </View>
     </View>
   );
 }

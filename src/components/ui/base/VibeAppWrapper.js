@@ -38,23 +38,11 @@ export default function VibeAppWrapper({
         <View style={{ flex: 1, backgroundColor: statusBarBg }}>
           <StatusBar style="light" />
           <SafeAreaView style={styles.safeArea} edges={edges}>
-            {/* Only use KeyboardAvoidingView on Android - iOS handles it per-screen to avoid layout bugs */}
-            {Platform.OS === 'android' ? (
-              <KeyboardAvoidingView
-                style={styles.keyboardView}
-                behavior="height"
-                keyboardVerticalOffset={0}
-              >
-                <LinearGradient
-                  colors={theme.colors.backgroundGradient}
-                  style={styles.contentWrapper}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0, y: 1 }}
-                >
-                  {children}
-                </LinearGradient>
-              </KeyboardAvoidingView>
-            ) : (
+            <KeyboardAvoidingView
+              style={styles.keyboardView}
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              keyboardVerticalOffset={0}
+            >
               <LinearGradient
                 colors={theme.colors.backgroundGradient}
                 style={styles.contentWrapper}
@@ -63,7 +51,7 @@ export default function VibeAppWrapper({
               >
                 {children}
               </LinearGradient>
-            )}
+            </KeyboardAvoidingView>
           </SafeAreaView>
         </View>
       </StatusBarContext.Provider>
