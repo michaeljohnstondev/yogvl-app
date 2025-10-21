@@ -243,6 +243,9 @@ class FCMService {
    */
   async getFCMToken() {
     try {
+      console.log('[FCMService] 🔍 getFCMToken called');
+      console.log('[FCMService] Device.isDevice:', Device.isDevice);
+      console.log('[FCMService] Platform.OS:', Platform.OS);
 
       if (!Device.isDevice) {
         console.warn(
@@ -251,10 +254,15 @@ class FCMService {
         return null;
       }
 
+      console.log('[FCMService] 📱 Requesting FCM token from Firebase...');
+
       // Get the FCM registration token
       const token = await messaging().getToken();
 
+      console.log('[FCMService] Token received:', token ? `${token.substring(0, 20)}...` : 'NULL');
+
       if (token) {
+        console.log('[FCMService] ✅ FCM token successfully received, length:', token.length);
 
         // Store token securely with encryption
         await SecureStore.setItemAsync(STORAGE_KEYS.FCM_TOKEN, token);
@@ -262,11 +270,15 @@ class FCMService {
 
         return token;
       } else {
-        console.warn('[FCMService] No FCM token received');
+        console.warn('[FCMService] ⚠️ No FCM token received from messaging().getToken()');
+        console.warn('[FCMService] This usually means APNs is not configured or permission was denied');
         return null;
       }
     } catch (error) {
-      console.error('[FCMService] Failed to get FCM token:', error);
+      console.error('[FCMService] ❌ Failed to get FCM token:', error);
+      console.error('[FCMService] Error code:', error.code);
+      console.error('[FCMService] Error message:', error.message);
+      console.error('[FCMService] Error stack:', error.stack);
       return null;
     }
   }
