@@ -255,6 +255,13 @@ class FCMService {
         return null;
       }
 
+      // iOS requires registering device for remote messages before getting token
+      if (Platform.OS === 'ios') {
+        console.log('[FCMService] 📱 Registering iOS device for remote messages...');
+        await messaging().registerDeviceForRemoteMessages();
+        console.log('[FCMService] ✅ iOS device registered for remote messages');
+      }
+
       console.log('[FCMService] 📱 Requesting FCM token from Firebase...');
 
       // Get the FCM registration token
