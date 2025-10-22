@@ -5,6 +5,7 @@ import {
   Animated,
   StyleSheet,
   ScrollView,
+  Image,
 } from 'react-native';
 import {
   VibeInput,
@@ -13,7 +14,7 @@ import {
 } from '../components/ui/base';
 import { useNavigation } from '@react-navigation/native';
 import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
-import { login, signup } from '../auth/services/FirebaseAuthService';
+import { login, signup, resetPassword } from '../auth/services/FirebaseAuthService';
 import { db } from '../auth/services/firebase';
 import { doc, setDoc } from '../lib/firebase';
 import {
@@ -60,6 +61,7 @@ export default function LandingScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const vibeAlert = useVibeAlert();
 
   useEffect(() => {
@@ -129,6 +131,29 @@ export default function LandingScreen() {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!email) {
+      vibeAlert.warning('Email Required', 'Please enter your email address to reset your password.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await resetPassword(email);
+      vibeAlert.success('Email Sent!', `Password reset instructions have been sent to ${email}`);
+      setShowForgotPassword(false);
+    } catch (err) {
+      console.error('Password reset error:', err);
+      if (err.code === 'auth/user-not-found') {
+        vibeAlert.error('Email Not Found', 'No account exists with this email address.');
+      } else {
+        vibeAlert.error('Reset Failed', getHumanFriendlyError(err));
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <ScrollView
       contentContainerStyle={styles.scrollContainer}
@@ -137,7 +162,11 @@ export default function LandingScreen() {
       bounces={false}
     >
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
-        <Text style={styles.title}>Big Vibe Studios</Text>
+        <Image
+          source={require('../../assets/TheYoBanner.png')}
+          style={styles.banner}
+          resizeMode="contain"
+        />
 
         {/* Auth Mode Toggle */}
         <VibeSegmentedControl
@@ -185,6 +214,39 @@ export default function LandingScreen() {
           disabled={loading}
           style={styles.authButton}
         />
+
+        {/* Forgot Password - Only show in login mode */}
+        {authMode === 'login' && !showForgotPassword && (
+          <Text
+            style={styles.forgotPasswordLink}
+            onPress={() => setShowForgotPassword(true)}
+          >
+            Forgot Password?
+          </Text>
+        )}
+
+        {/* Forgot Password Form */}
+        {showForgotPassword && (
+          <View style={styles.forgotPasswordSection}>
+            <Text style={styles.forgotPasswordTitle}>Reset Password</Text>
+            <Text style={styles.forgotPasswordDescription}>
+              Enter your email and we'll send you a link to reset your password.
+            </Text>
+            <VibeButton
+              label={loading ? 'Sending...' : 'Send Reset Link'}
+              onPress={handleForgotPassword}
+              disabled={loading}
+              variant="outline"
+              style={styles.resetButton}
+            />
+            <Text
+              style={styles.cancelLink}
+              onPress={() => setShowForgotPassword(false)}
+            >
+              Cancel
+            </Text>
+          </View>
+        )}
       </Animated.View>
     </ScrollView>
   );
@@ -202,11 +264,9 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
     minHeight: '100%',
   },
-  title: {
-    fontSize: 48,
-    fontFamily: theme.fonts.comicBold,
-    color: theme.colors.textPrimary,
-    textAlign: 'center',
+  banner: {
+    width: '90%',
+    height: 150,
     marginBottom: 40,
   },
   authToggle: {
@@ -220,5 +280,46 @@ const styles = StyleSheet.create({
   authButton: {
     marginTop: 10,
     width: '100%',
+  },
+  forgotPasswordLink: {
+    marginTop: 20,
+    color: theme.colors.vibeBlue,
+    fontSize: 14,
+    textAlign: 'center',
+    textDecorationLine: 'underline',
+  },
+  forgotPasswordSection: {
+    marginTop: 30,
+    width: '100%',
+    padding: 20,
+    backgroundColor: theme.colors.vibeBackgroundBlue,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: theme.colors.vibeBlue,
+  },
+  forgotPasswordTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: theme.colors.white,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  forgotPasswordDescription: {
+    fontSize: 14,
+    color: theme.colors.gray,
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  resetButton: {
+    marginVertical: 0,
+    marginBottom: 12,
+  },
+  cancelLink: {
+    color: theme.colors.gray,
+    fontSize: 14,
+    textAlign: 'center',
+    textDecorationLine: 'underline',
+    paddingVertical: 8,
   },
 });

@@ -3,6 +3,7 @@ import {
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
+  sendPasswordResetEmail,
 } from 'firebase/auth';
 import { auth } from './firebase';
 import { useState, useEffect } from 'react';
@@ -51,6 +52,15 @@ export async function logout() {
     }
 
     await signOut(auth);
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function resetPassword(email) {
+  try {
+    await sendPasswordResetEmail(auth, email);
+    return { success: true };
   } catch (error) {
     throw error;
   }

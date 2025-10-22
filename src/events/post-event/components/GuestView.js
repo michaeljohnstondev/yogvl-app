@@ -1,6 +1,6 @@
 // FILE: GuestView.js - Guest-specific Event Completion View
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,10 @@ import { VibeButton } from '../../../components/ui';
 import ScreenHeader from '../../../components/ui/layout/ScreenHeader';
 import PostEventActions from './PostEventActions';
 import StarRating from '../../../components/ui/feedback/StarRating';
+import { useAuth } from '../../../auth/AuthContext';
+import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { db } from '../../../auth/services/firebase';
+import { useVibeAlert } from '../../../components/ui/base/VibeAlertContext';
 import theme from '../../../theme/themes';
 
 const GuestView = ({
@@ -27,6 +31,34 @@ const GuestView = ({
   studioId,
   eventId,
 }) => {
+  const { currentUserId, userData } = useAuth();
+  const vibeAlert = useVibeAlert();
+  const [addingToInterests, setAddingToInterests] = useState(false);
+
+  // Check if event name is already in user's interests
+  const eventName = eventData?.eventName || '';
+  const userInterests = userData?.userdata?.preferences?.interests || [];
+  const isAlreadyInInterests = userInterests.includes(eventName);
+
+  const handleAddToInterests = async () => {
+    if (!currentUserId || !eventName) return;
+
+    setAddingToInterests(true);
+    try {
+      const userRef = doc(db, 'users', currentUserId);
+      await updateDoc(userRef, {
+        'userdata.preferences.interests': arrayUnion(eventName),
+      });
+
+      vibeAlert.success('Added to Interests', `"${eventName}" has been added to your interests!`);
+    } catch (error) {
+      console.error('[GuestView] Error adding to interests:', error);
+      vibeAlert.error('Error', 'Failed to add to interests. Please try again.');
+    } finally {
+      setAddingToInterests(false);
+    }
+  };
+
   const getAttendanceTypeInfo = () => {
     switch (eventData.attendanceType) {
       case 'casual':
@@ -88,6 +120,33 @@ const GuestView = ({
             eventId={eventId}
             studioId={studioId}
           />
+
+          {/* Add to Interests Button */}
+          {!isAlreadyInInterests && eventName && (
+            <View style={styles.interestsSection}>
+              <Text style={styles.interestsPrompt}>
+                Enjoyed this event? Add it to your interests!
+              </Text>
+              <VibeButton
+                label={`ADD "${eventName.toUpperCase()}" TO MY INTERESTS`}
+                onPress={handleAddToInterests}
+                variant="outline"
+                loading={addingToInterests}
+                disabled={addingToInterests}
+                style={styles.interestsButton}
+              />
+            </View>
+          )}
+
+          {/* Already Added Message */}
+          {isAlreadyInInterests && (
+            <View style={styles.interestsAdded}>
+              <Text style={styles.interestsAddedIcon}>✓</Text>
+              <Text style={styles.interestsAddedText}>
+                "{eventName}" is already in your interests
+              </Text>
+            </View>
+          )}
 
           {/* Navigation Buttons */}
           <View style={styles.navigationButtons}>
@@ -213,6 +272,49 @@ const styles = StyleSheet.create({
   // Host Rating
   ratingSection: {
     marginBottom: 24,
+  },
+
+  // Add to Interests
+  interestsSection: {
+    marginTop: 24,
+    marginBottom: 24,
+    backgroundColor: theme.colors.vibeBackgroundBlue,
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 2,
+    borderColor: theme.colors.vibeBlue,
+  },
+  interestsPrompt: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.white,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  interestsButton: {
+    marginVertical: 0,
+  },
+  interestsAdded: {
+    marginTop: 24,
+    marginBottom: 24,
+    backgroundColor: theme.colors.vibeBackgroundGreen,
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 2,
+    borderColor: theme.colors.vibeGreen,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  interestsAddedIcon: {
+    fontSize: 24,
+    color: theme.colors.vibeGreen,
+    marginRight: 12,
+  },
+  interestsAddedText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.white,
   },
 
   // Navigation
