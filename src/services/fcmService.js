@@ -347,6 +347,9 @@ class FCMService {
         return false;
       }
 
+      // Set current user ID IMMEDIATELY so remote logging works even if token fails
+      this.currentUserId = userId;
+
       // First request permission
       const permissionResult = await this.requestPermission();
       if (!permissionResult.granted) {
@@ -384,9 +387,6 @@ class FCMService {
         // Remove legacy expoPushToken field - no longer needed
       });
 
-
-      // Store current user ID for foreground notification storage
-      this.currentUserId = userId;
 
       // Process any pending notifications that arrived before user login
       if (this.pendingNotifications.length > 0) {
