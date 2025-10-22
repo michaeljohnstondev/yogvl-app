@@ -110,22 +110,12 @@ const GuestView = ({
             />
           )}
 
-          {/* Participants List */}
-          <PostEventActions
-            participants={participants}
-            userStatus={userStatus}
-            eventData={eventData}
-            submitting={submitting}
-            navigation={navigation}
-            eventId={eventId}
-            studioId={studioId}
-          />
-
           {/* Add to Interests Button */}
           {!isAlreadyInInterests && eventName && (
             <View style={styles.interestsSection}>
-              <Text style={styles.interestsPrompt}>
-                Enjoyed this event? Add it to your interests!
+              <Text style={styles.interestsTitle}>Enjoyed this event?</Text>
+              <Text style={styles.interestsSubtitle}>
+                Save it to your interests to see similar events
               </Text>
               <VibeButton
                 label={`ADD "${eventName.toUpperCase()}" TO MY INTERESTS`}
@@ -147,6 +137,17 @@ const GuestView = ({
               </Text>
             </View>
           )}
+
+          {/* Participants List */}
+          <PostEventActions
+            participants={participants}
+            userStatus={userStatus}
+            eventData={eventData}
+            submitting={submitting}
+            navigation={navigation}
+            eventId={eventId}
+            studioId={studioId}
+          />
 
           {/* Navigation Buttons */}
           <View style={styles.navigationButtons}>
@@ -284,10 +285,16 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: theme.colors.vibeBlue,
   },
-  interestsPrompt: {
-    fontSize: 16,
-    fontWeight: '600',
+  interestsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
     color: theme.colors.white,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  interestsSubtitle: {
+    fontSize: 14,
+    color: theme.colors.gray,
     textAlign: 'center',
     marginBottom: 16,
   },
