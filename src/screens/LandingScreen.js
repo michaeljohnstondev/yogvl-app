@@ -265,8 +265,8 @@ const styles = StyleSheet.create({
     minHeight: '100%',
   },
   banner: {
-    width: '90%',
-    height: 150,
+    width: '100%',
+    height: 200,
     marginBottom: 40,
   },
   authToggle: {
