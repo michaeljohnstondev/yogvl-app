@@ -215,15 +215,17 @@ export default function LandingScreen() {
           style={styles.authButton}
         />
 
-        {/* Forgot Password - Only show in login mode */}
-        {authMode === 'login' && !showForgotPassword && (
-          <Text
-            style={styles.forgotPasswordLink}
-            onPress={() => setShowForgotPassword(true)}
-          >
-            Forgot Password?
-          </Text>
-        )}
+        {/* Forgot Password - Always reserve space to prevent layout shift */}
+        <View style={styles.forgotPasswordContainer}>
+          {authMode === 'login' && !showForgotPassword && (
+            <Text
+              style={styles.forgotPasswordLink}
+              onPress={() => setShowForgotPassword(true)}
+            >
+              Forgot Password?
+            </Text>
+          )}
+        </View>
 
         {/* Forgot Password Form */}
         {showForgotPassword && (
@@ -266,7 +268,7 @@ const styles = StyleSheet.create({
   },
   banner: {
     width: '100%',
-    height: 200,
+    height: 400,
     marginBottom: 40,
   },
   authToggle: {
@@ -281,8 +283,12 @@ const styles = StyleSheet.create({
     marginTop: 10,
     width: '100%',
   },
+  forgotPasswordContainer: {
+    height: 54, // Reserve space: 20px top margin + 14px font + 20px line height
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   forgotPasswordLink: {
-    marginTop: 20,
     color: theme.colors.vibeBlue,
     fontSize: 14,
     textAlign: 'center',
