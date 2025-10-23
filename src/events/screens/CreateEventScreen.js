@@ -581,19 +581,16 @@ export default function CreateEventScreen({ navigation, route }) {
     // Set flag to allow navigation
     setEventCreatedSuccessfully(true);
 
+    // Show tap-to-dismiss alert (no buttons)
     vibeAlert.aqua(
       'Event Created!',
-      'Your event is live! You are automatically subscribed. 🌊',
-      [
-        {
-          text: 'OK',
-          onPress: () => {
-            // Navigation should now work because eventCreatedSuccessfully is true
-            navigation.goBack();
-          },
-        },
-      ]
+      'Your event is live! You are automatically subscribed. 🌊'
     );
+
+    // Navigate back after a short delay to let user see the success message
+    setTimeout(() => {
+      navigation.goBack();
+    }, 1500);
   }, [loadSuggestions, resetForm, resetDateTime, navigation]);
 
   const handleSubmit = useCallback(async () => {

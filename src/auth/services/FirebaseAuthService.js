@@ -59,6 +59,8 @@ export async function logout() {
 
 export async function resetPassword(email) {
   try {
+    // Send password reset email using Firebase's default settings
+    // This will use the default Firebase-hosted password reset page
     await sendPasswordResetEmail(auth, email);
     return { success: true };
   } catch (error) {
