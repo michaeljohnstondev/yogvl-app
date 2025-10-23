@@ -131,8 +131,68 @@ exports.onHostComment = functions.firestore
             return;
           }
 
-          // STEP 1: ALWAYS create in-app notification (Firestore document)
-          try {
+          const fcmToken = subscriberData?.deviceInfo?.fcmToken;
+
+          console.log(`[Host Comment] 🔑 FCM Token ${fcmToken ? 'EXISTS' : 'MISSING'} for subscriber ${subscriberId}`);
+
+          // If user has FCM token: send ONLY push notification (FCM handler creates in-app)
+          // If NO token: create in-app notification directly (they won't get push)
+          if (fcmToken) {
+            // Send push notification - FCM handler will create in-app notification
+            const message = {
+              token: fcmToken,
+              notification: {
+                title: eventTitle,
+                body: `New message`
+              },
+              data: {
+                type: 'host_comment',
+                resetStack: 'true',
+                navigationStack: 'Home,EventDetail',
+                eventId: eventId,
+                studioId: studioId,
+                eventTitle: eventTitle,
+                commentId: commentId,
+                hostName: hostName
+              },
+              android: {
+                priority: 'high'
+              }
+            };
+
+            console.log(`[Host Comment] 📤 Sending FCM push notification to ${subscriberId} with navigation: Home,EventDetail`);
+
+            try {
+              await admin.messaging().send(message);
+              console.log(`[Host Comment] ✅ Sent push notification to ${subscriberId} (FCM handler will create in-app)`);
+            } catch (pushError) {
+              console.error(`[Host Comment] ❌ Failed to send push to ${subscriberId}:`, pushError);
+              // Fallback: create in-app notification if push fails
+              await admin.firestore()
+                .collection('users')
+                .doc(subscriberId)
+                .collection('notifications')
+                .add({
+                  type: 'host_comment',
+                  title: eventTitle,
+                  message: 'New message',
+                  read: false,
+                  createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                  data: {
+                    resetStack: true,
+                    navigationStack: 'Home,EventDetail',
+                    eventId: eventId,
+                    studioId: studioId,
+                    eventTitle: eventTitle,
+                    commentId: commentId,
+                    hostName: hostName
+                  }
+                });
+              console.log(`[Host Comment] ✅ Created fallback in-app notification for ${subscriberId}`);
+            }
+          } else {
+            // No FCM token - create in-app notification directly
+            console.log(`[Host Comment] ⚠️ Subscriber ${subscriberId} has no FCM token - creating in-app notification`);
             await admin.firestore()
               .collection('users')
               .doc(subscriberId)
@@ -153,55 +213,7 @@ exports.onHostComment = functions.firestore
                   hostName: hostName
                 }
               });
-
-            console.log(`[Host Comment] ✅ Created in-app notification for subscriber ${subscriberId}`);
-          } catch (inAppError) {
-            console.error(`[Host Comment] ❌ Failed to create in-app notification for ${subscriberId}:`, inAppError);
-            // Continue to try push notification even if in-app fails
-          }
-
-          // STEP 2: Optionally send push notification (if FCM token exists)
-          const fcmToken = subscriberData?.deviceInfo?.fcmToken;
-
-          console.log(`[Host Comment] 🔑 FCM Token ${fcmToken ? 'EXISTS' : 'MISSING'} for subscriber ${subscriberId}`);
-
-          if (!fcmToken) {
-            console.log(`[Host Comment] ⚠️ Subscriber ${subscriberId} has no FCM token - in-app notification created, push skipped`);
-            return; // Exit but in-app notification was already created
-          }
-
-          // Send FCM push notification with navigation stack
-          const message = {
-            token: fcmToken,
-            notification: {
-              title: eventTitle,
-              body: `New message`
-            },
-            data: {
-              type: 'host_comment',
-              resetStack: 'true',
-              navigationStack: 'Home,EventDetail',
-              eventId: eventId,
-              studioId: studioId,
-              eventTitle: eventTitle,
-              commentId: commentId,
-              hostName: hostName
-            },
-            android: {
-              priority: 'high'
-            }
-          };
-
-          console.log(`[Host Comment] 📤 Sending FCM push notification to ${subscriberId} with navigation: Home,EventDetail`);
-          console.log(`[Host Comment] 📦 Message data:`, JSON.stringify(message.data, null, 2));
-
-          try {
-            await admin.messaging().send(message);
-            console.log(`[Host Comment] ✅ Successfully sent push notification to subscriber ${subscriberId} about host comment on event ${eventId}`);
-          } catch (pushError) {
-            console.error(`[Host Comment] ❌ Failed to send push notification to ${subscriberId}:`, pushError);
-            console.log(`[Host Comment] ℹ️ In-app notification was still created successfully`);
-            // Don't throw - in-app notification was already created
+            console.log(`[Host Comment] ✅ Created in-app notification for ${subscriberId} (no token)`);
           }
 
         } catch (error) {
@@ -340,8 +352,68 @@ exports.onGuestComment = functions.firestore
             return;
           }
 
-          // STEP 1: ALWAYS create in-app notification (Firestore document)
-          try {
+          const fcmToken = recipientData?.deviceInfo?.fcmToken;
+
+          console.log(`[Guest Comment] 🔑 FCM Token ${fcmToken ? 'EXISTS' : 'MISSING'} for host/cohost ${recipientId}`);
+
+          // If user has FCM token: send ONLY push notification (FCM handler creates in-app)
+          // If NO token: create in-app notification directly (they won't get push)
+          if (fcmToken) {
+            // Send push notification - FCM handler will create in-app notification
+            const message = {
+              token: fcmToken,
+              notification: {
+                title: eventTitle,
+                body: `New message`
+              },
+              data: {
+                type: 'guest_comment',
+                resetStack: 'true',
+                navigationStack: 'Home,EventDetail',
+                eventId: eventId,
+                studioId: studioId,
+                eventTitle: eventTitle,
+                commentId: commentId,
+                guestName: guestName
+              },
+              android: {
+                priority: 'high'
+              }
+            };
+
+            console.log(`[Guest Comment] 📤 Sending FCM push notification to host/cohost ${recipientId} with navigation: Home,EventDetail`);
+
+            try {
+              await admin.messaging().send(message);
+              console.log(`[Guest Comment] ✅ Sent push notification to ${recipientId} (FCM handler will create in-app)`);
+            } catch (pushError) {
+              console.error(`[Guest Comment] ❌ Failed to send push to ${recipientId}:`, pushError);
+              // Fallback: create in-app notification if push fails
+              await admin.firestore()
+                .collection('users')
+                .doc(recipientId)
+                .collection('notifications')
+                .add({
+                  type: 'guest_comment',
+                  title: eventTitle,
+                  message: 'New message',
+                  read: false,
+                  createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                  data: {
+                    resetStack: true,
+                    navigationStack: 'Home,EventDetail',
+                    eventId: eventId,
+                    studioId: studioId,
+                    eventTitle: eventTitle,
+                    commentId: commentId,
+                    guestName: guestName
+                  }
+                });
+              console.log(`[Guest Comment] ✅ Created fallback in-app notification for ${recipientId}`);
+            }
+          } else {
+            // No FCM token - create in-app notification directly
+            console.log(`[Guest Comment] ⚠️ Host/cohost ${recipientId} has no FCM token - creating in-app notification`);
             await admin.firestore()
               .collection('users')
               .doc(recipientId)
@@ -362,54 +434,7 @@ exports.onGuestComment = functions.firestore
                   guestName: guestName
                 }
               });
-
-            console.log(`[Guest Comment] ✅ Created in-app notification for host/cohost ${recipientId}`);
-          } catch (inAppError) {
-            console.error(`[Guest Comment] ❌ Failed to create in-app notification for ${recipientId}:`, inAppError);
-            // Continue to try push notification even if in-app fails
-          }
-
-          // STEP 2: Optionally send push notification (if FCM token exists)
-          const fcmToken = recipientData?.deviceInfo?.fcmToken;
-
-          console.log(`[Guest Comment] 🔑 FCM Token ${fcmToken ? 'EXISTS' : 'MISSING'} for host/cohost ${recipientId}`);
-
-          if (!fcmToken) {
-            console.log(`[Guest Comment] ⚠️ Host/cohost ${recipientId} has no FCM token - in-app notification created, push skipped`);
-            return; // Exit but in-app notification was already created
-          }
-
-          const message = {
-            token: fcmToken,
-            notification: {
-              title: eventTitle,
-              body: `New message`
-            },
-            data: {
-              type: 'guest_comment',
-              resetStack: 'true',
-              navigationStack: 'Home,EventDetail',
-              eventId: eventId,
-              studioId: studioId,
-              eventTitle: eventTitle,
-              commentId: commentId,
-              guestName: guestName
-            },
-            android: {
-              priority: 'high'
-            }
-          };
-
-          console.log(`[Guest Comment] 📤 Sending FCM push notification to host/cohost ${recipientId} with navigation: Home,EventDetail`);
-          console.log(`[Guest Comment] 📦 Message data:`, JSON.stringify(message.data, null, 2));
-
-          try {
-            await admin.messaging().send(message);
-            console.log(`[Guest Comment] ✅ Successfully sent push notification to host/cohost ${recipientId} about guest comment on event ${eventId}`);
-          } catch (pushError) {
-            console.error(`[Guest Comment] ❌ Failed to send push notification to ${recipientId}:`, pushError);
-            console.log(`[Guest Comment] ℹ️ In-app notification was still created successfully`);
-            // Don't throw - in-app notification was already created
+            console.log(`[Guest Comment] ✅ Created in-app notification for ${recipientId} (no token)`);
           }
 
         } catch (error) {

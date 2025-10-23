@@ -34,6 +34,7 @@ exports.onEventUpdated = functions.firestore
       }
 
       const eventTitle = afterData.title || 'Untitled Event';
+      const eventCreatorId = afterData.createdBy;
 
       // Get all event subscribers
       const subscribersSnapshot = await admin.firestore()
@@ -48,9 +49,15 @@ exports.onEventUpdated = functions.firestore
       // Create change summary for notification
       const changesSummary = createChangesSummary(significantChanges, beforeData, afterData);
 
-      // Send notifications to each subscriber
+      // Send notifications to each subscriber (excluding event creator)
       const notificationPromises = subscribersSnapshot.docs.map(async (subscriberDoc) => {
         const subscriberId = subscriberDoc.id;
+
+        // Skip event creator - they made the changes
+        if (subscriberId === eventCreatorId) {
+          console.log(`[Event Update] Skipping notification for event creator ${subscriberId}`);
+          return;
+        }
 
         try {
           // Get subscriber details and notification settings
@@ -71,8 +78,59 @@ exports.onEventUpdated = functions.firestore
             return;
           }
 
-          // STEP 1: ALWAYS create in-app notification (Firestore document)
-          try {
+          const fcmToken = subscriberData?.deviceInfo?.fcmToken;
+
+          // If user has FCM token: send ONLY push notification (FCM handler creates in-app)
+          // If NO token: create in-app notification directly (they won't get push)
+          if (fcmToken) {
+            // Send push notification - FCM handler will create in-app notification
+            const message = {
+              token: fcmToken,
+              notification: {
+                title: 'Event Updated',
+                body: `"${eventTitle}" has been updated: ${changesSummary}`
+              },
+              data: {
+                type: 'event_updated',
+                resetStack: 'true',
+                navigationStack: 'Home,EventDetail',
+                eventId: eventId,
+                studioId: studioId,
+                eventTitle: eventTitle,
+                changes: JSON.stringify(significantChanges)
+              }
+            };
+
+            try {
+              await admin.messaging().send(message);
+              console.log(`[Event Update] ✅ Sent push notification to ${subscriberId} (FCM handler will create in-app)`);
+            } catch (pushError) {
+              console.error(`[Event Update] ❌ Failed to send push to ${subscriberId}:`, pushError);
+              // Fallback: create in-app notification if push fails
+              await admin.firestore()
+                .collection('users')
+                .doc(subscriberId)
+                .collection('notifications')
+                .add({
+                  type: 'event_updated',
+                  title: 'Event Updated',
+                  message: `"${eventTitle}" has been updated: ${changesSummary}`,
+                  read: false,
+                  createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                  data: {
+                    resetStack: true,
+                    navigationStack: 'Home,EventDetail',
+                    eventId: eventId,
+                    studioId: studioId,
+                    eventTitle: eventTitle,
+                    changes: significantChanges
+                  }
+                });
+              console.log(`[Event Update] ✅ Created fallback in-app notification for ${subscriberId}`);
+            }
+          } else {
+            // No FCM token - create in-app notification directly
+            console.log(`[Event Update] ⚠️ Subscriber ${subscriberId} has no FCM token - creating in-app notification`);
             await admin.firestore()
               .collection('users')
               .doc(subscriberId)
@@ -92,46 +150,7 @@ exports.onEventUpdated = functions.firestore
                   changes: significantChanges
                 }
               });
-
-            console.log(`[Event Update] ✅ Created in-app notification for subscriber ${subscriberId}`);
-          } catch (inAppError) {
-            console.error(`[Event Update] ❌ Failed to create in-app notification for ${subscriberId}:`, inAppError);
-            // Continue to try push notification even if in-app fails
-          }
-
-          // STEP 2: Optionally send push notification (if FCM token exists)
-          const fcmToken = subscriberData?.deviceInfo?.fcmToken;
-
-          if (!fcmToken) {
-            console.log(`[Event Update] ⚠️ Subscriber ${subscriberId} has no FCM token - in-app notification created, push skipped`);
-            return; // Exit but in-app notification was already created
-          }
-
-          // Send FCM push notification with navigation stack
-          const message = {
-            token: fcmToken,
-            notification: {
-              title: 'Event Updated',
-              body: `"${eventTitle}" has been updated: ${changesSummary}`
-            },
-            data: {
-              type: 'event_updated',
-              resetStack: 'true',
-              navigationStack: 'Home,EventDetail',
-              eventId: eventId,
-              studioId: studioId,
-              eventTitle: eventTitle,
-              changes: JSON.stringify(significantChanges)
-            }
-          };
-
-          try {
-            await admin.messaging().send(message);
-            console.log(`[Event Update] ✅ Successfully sent push notification to subscriber ${subscriberId} about event ${eventId} changes`);
-          } catch (pushError) {
-            console.error(`[Event Update] ❌ Failed to send push notification to ${subscriberId}:`, pushError);
-            console.log(`[Event Update] ℹ️ In-app notification was still created successfully`);
-            // Don't throw - in-app notification was already created
+            console.log(`[Event Update] ✅ Created in-app notification for ${subscriberId} (no token)`);
           }
 
         } catch (error) {
@@ -164,18 +183,24 @@ exports.onEventDeleted = functions.firestore
 
     try {
       const eventTitle = eventData.title || 'Untitled Event';
+      const eventCreatorId = eventData.createdBy;
 
       // Get all event subscribers before deletion (from the deleted document data)
       // Note: We can't query the subcollection after deletion, so we use the subscribers array
       const subscriberIds = eventData.subscribers || [];
 
-      if (subscriberIds.length === 0) {
-        console.log(`[Event Deletion] No subscribers found for deleted event ${eventId}`);
+      // Filter out the event creator - they don't need a notification about their own deletion
+      const subscribersToNotify = subscriberIds.filter(id => id !== eventCreatorId);
+
+      if (subscribersToNotify.length === 0) {
+        console.log(`[Event Deletion] No subscribers to notify for deleted event ${eventId} (creator excluded)`);
         return;
       }
 
-      // Send notifications to each subscriber
-      const notificationPromises = subscriberIds.map(async (subscriberId) => {
+      console.log(`[Event Deletion] Notifying ${subscribersToNotify.length} subscribers (excluding creator ${eventCreatorId})`);
+
+      // Send notifications to each subscriber (ONLY push notifications - FCM handler creates in-app)
+      const notificationPromises = subscribersToNotify.map(async (subscriberId) => {
         try {
           // Get subscriber details and notification settings
           const subscriberUserDoc = await admin.firestore().doc(`users/${subscriberId}`).get();
@@ -195,8 +220,57 @@ exports.onEventDeleted = functions.firestore
             return;
           }
 
-          // STEP 1: ALWAYS create in-app notification (Firestore document)
-          try {
+          const fcmToken = subscriberData?.deviceInfo?.fcmToken;
+
+          // If user has FCM token: send ONLY push notification (FCM handler creates in-app)
+          // If NO token: create in-app notification directly (they won't get push)
+          if (fcmToken) {
+            // Send push notification - FCM handler will create in-app notification
+            const message = {
+              token: fcmToken,
+              notification: {
+                title: '🚫 Event Cancelled',
+                body: `"${eventTitle}" has been cancelled`
+              },
+              data: {
+                type: 'event_deleted',
+                resetStack: 'true',
+                navigationStack: 'Home',
+                eventId: eventId,
+                studioId: studioId,
+                eventTitle: eventTitle
+              }
+            };
+
+            try {
+              await admin.messaging().send(message);
+              console.log(`[Event Deletion] ✅ Sent push notification to ${subscriberId} (FCM handler will create in-app)`);
+            } catch (pushError) {
+              console.error(`[Event Deletion] ❌ Failed to send push to ${subscriberId}:`, pushError);
+              // Fallback: create in-app notification if push fails
+              await admin.firestore()
+                .collection('users')
+                .doc(subscriberId)
+                .collection('notifications')
+                .add({
+                  type: 'event_deleted',
+                  title: '🚫 Event Cancelled',
+                  message: `"${eventTitle}" has been cancelled`,
+                  read: false,
+                  createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                  data: {
+                    resetStack: true,
+                    navigationStack: 'Home',
+                    eventId: eventId,
+                    studioId: studioId,
+                    eventTitle: eventTitle
+                  }
+                });
+              console.log(`[Event Deletion] ✅ Created fallback in-app notification for ${subscriberId}`);
+            }
+          } else {
+            // No FCM token - create in-app notification directly
+            console.log(`[Event Deletion] ⚠️ Subscriber ${subscriberId} has no FCM token - creating in-app notification`);
             await admin.firestore()
               .collection('users')
               .doc(subscriberId)
@@ -215,45 +289,7 @@ exports.onEventDeleted = functions.firestore
                   eventTitle: eventTitle
                 }
               });
-
-            console.log(`[Event Deletion] ✅ Created in-app notification for subscriber ${subscriberId}`);
-          } catch (inAppError) {
-            console.error(`[Event Deletion] ❌ Failed to create in-app notification for ${subscriberId}:`, inAppError);
-            // Continue to try push notification even if in-app fails
-          }
-
-          // STEP 2: Optionally send push notification (if FCM token exists)
-          const fcmToken = subscriberData?.deviceInfo?.fcmToken;
-
-          if (!fcmToken) {
-            console.log(`[Event Deletion] ⚠️ Subscriber ${subscriberId} has no FCM token - in-app notification created, push skipped`);
-            return; // Exit but in-app notification was already created
-          }
-
-          // Send FCM push notification with navigation stack
-          const message = {
-            token: fcmToken,
-            notification: {
-              title: '🚫 Event Cancelled',
-              body: `"${eventTitle}" has been cancelled`
-            },
-            data: {
-              type: 'event_deleted',
-              resetStack: 'true',
-              navigationStack: 'Home',
-              eventId: eventId,
-              studioId: studioId,
-              eventTitle: eventTitle
-            }
-          };
-
-          try {
-            await admin.messaging().send(message);
-            console.log(`[Event Deletion] ✅ Successfully sent push notification to subscriber ${subscriberId} for event ${eventId}`);
-          } catch (pushError) {
-            console.error(`[Event Deletion] ❌ Failed to send push notification to ${subscriberId}:`, pushError);
-            console.log(`[Event Deletion] ℹ️ In-app notification was still created successfully`);
-            // Don't throw - in-app notification was already created
+            console.log(`[Event Deletion] ✅ Created in-app notification for ${subscriberId} (no token)`);
           }
 
         } catch (error) {

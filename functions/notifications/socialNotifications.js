@@ -57,8 +57,56 @@ exports.onMutualFollowTrigger = functions.firestore.onDocumentCreated(
           // Check if user wants mutual follow notifications
           if (socialPrefs.mutualFollows === false) continue;
 
-          // STEP 1: ALWAYS create in-app notification
-          try {
+          const fcmToken = userData?.deviceInfo?.fcmToken;
+
+          // If user has FCM token: send ONLY push notification (FCM handler creates in-app)
+          // If NO token: create in-app notification directly (they won't get push)
+          if (fcmToken) {
+            // Send push notification - FCM handler will create in-app notification
+            try {
+              await admin.messaging().send({
+                token: fcmToken,
+                notification: {
+                  title: 'Mutual Follow!',
+                  body: `You and ${notification.userName} are now following each other`,
+                },
+                data: {
+                  type: 'mutual_follow',
+                  userId: notification.otherUserId,
+                  screen: 'UserProfile',
+                },
+                android: {
+                  priority: 'normal',
+                  notification: {
+                    channelId: 'social',
+                    priority: 'default',
+                  },
+                },
+              });
+              console.log(`Sent push notification to ${notification.userId} (FCM handler will create in-app)`);
+            } catch (pushError) {
+              console.error(`Failed to send push notification:`, pushError);
+              // Fallback: create in-app notification if push fails
+              await admin.firestore()
+                .collection('users')
+                .doc(notification.userId)
+                .collection('notifications')
+                .add({
+                  type: 'mutual_follow',
+                  title: 'Mutual Follow!',
+                  message: `You and ${notification.userName} are now following each other`,
+                  read: false,
+                  createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                  data: {
+                    userId: notification.otherUserId,
+                    screen: 'UserProfile',
+                  }
+                });
+              console.log(`Created fallback in-app notification for ${notification.userId}`);
+            }
+          } else {
+            // No FCM token - create in-app notification directly
+            console.log(`User ${notification.userId} has no FCM token - creating in-app notification`);
             await admin.firestore()
               .collection('users')
               .doc(notification.userId)
@@ -74,36 +122,7 @@ exports.onMutualFollowTrigger = functions.firestore.onDocumentCreated(
                   screen: 'UserProfile',
                 }
               });
-          } catch (inAppError) {
-            console.error(`Failed to create in-app notification:`, inAppError);
-          }
-
-          // STEP 2: Optionally send push
-          const fcmToken = userData?.deviceInfo?.fcmToken;
-          if (!fcmToken) continue;
-
-          try {
-            await admin.messaging().send({
-              token: fcmToken,
-              notification: {
-                title: 'Mutual Follow!',
-                body: `You and ${notification.userName} are now following each other`,
-              },
-              data: {
-                type: 'mutual_follow',
-                userId: notification.otherUserId,
-                screen: 'UserProfile',
-              },
-            android: {
-              priority: 'normal',
-              notification: {
-                channelId: 'social',
-                priority: 'default',
-              },
-            },
-            });
-          } catch (pushError) {
-            console.error(`Failed to send push notification:`, pushError);
+            console.log(`Created in-app notification for ${notification.userId} (no token)`);
           }
 
           console.log(

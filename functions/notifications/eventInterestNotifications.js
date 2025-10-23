@@ -139,8 +139,58 @@ exports.onEventCreated = functions.firestore
               continue;
             }
 
-            // STEP 1: ALWAYS create in-app notification
-            try {
+            const fcmToken = userData?.deviceInfo?.fcmToken || userData?.fcmToken;
+
+            // If user has FCM token: send ONLY push notification (FCM handler creates in-app)
+            // If NO token: create in-app notification directly (they won't get push)
+            if (fcmToken) {
+              // Send push notification - FCM handler will create in-app notification
+              try {
+                const message = {
+                  token: fcmToken,
+                  notification: {
+                    title: 'New Event Matches Your Interests!',
+                    body: `"${eventTitle}" - Check it out!`,
+                  },
+                  data: {
+                    type: 'interest_based_suggestion',
+                    eventId: eventId,
+                    studioId: studioId,
+                    eventTitle: eventTitle,
+                    matchedInterests: eventInterests.join(', '),
+                    screen: 'EventDetail'
+                  }
+                };
+
+                await admin.messaging().send(message);
+                notificationsSent++;
+                console.log(`[Event Interest Notification] ✅ Sent push notification to ${userId} (FCM handler will create in-app)`);
+              } catch (pushError) {
+                console.error(`[Event Interest Notification] ❌ Failed to send push to ${userId}:`, pushError);
+                // Fallback: create in-app notification if push fails
+                await admin.firestore()
+                  .collection('users')
+                  .doc(userId)
+                  .collection('notifications')
+                  .add({
+                    type: 'interest_based_suggestion',
+                    title: 'New Event Matches Your Interests!',
+                    message: `"${eventTitle}" - Check it out!`,
+                    read: false,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    data: {
+                      eventId: eventId,
+                      studioId: studioId,
+                      eventTitle: eventTitle,
+                      matchedInterests: eventInterests.join(', '),
+                      screen: 'EventDetail'
+                    }
+                  });
+                console.log(`[Event Interest Notification] ✅ Created fallback in-app notification for ${userId}`);
+              }
+            } else {
+              // No FCM token - create in-app notification directly
+              console.log(`[Event Interest Notification] ⚠️ User ${userId} has no FCM token - creating in-app notification`);
               await admin.firestore()
                 .collection('users')
                 .doc(userId)
@@ -159,43 +209,7 @@ exports.onEventCreated = functions.firestore
                     screen: 'EventDetail'
                   }
                 });
-
-              console.log(`[Event Interest Notification] ✅ Created in-app notification for user ${userId}`);
-            } catch (inAppError) {
-              console.error(`[Event Interest Notification] ❌ Failed to create in-app notification for ${userId}:`, inAppError);
-            }
-
-            // STEP 2: Optionally send push notification
-            try {
-              const fcmToken = userData?.deviceInfo?.fcmToken || userData?.fcmToken;
-              if (!fcmToken) {
-                console.log(`[Event Interest Notification] ⚠️ User ${userId} has no FCM token - in-app notification created, push skipped`);
-                continue;
-              }
-
-              const message = {
-                token: fcmToken,
-                notification: {
-                  title: 'New Event Matches Your Interests!',
-                  body: `"${eventTitle}" - Check it out!`,
-                },
-                data: {
-                  type: 'interest_based_suggestion',
-                  eventId: eventId,
-                  studioId: studioId,
-                  eventTitle: eventTitle,
-                  matchedInterests: eventInterests.join(', '),
-                  screen: 'EventDetail'
-                }
-              };
-
-              await admin.messaging().send(message);
-              notificationsSent++;
-
-              console.log(`[Event Interest Notification] ✅ Sent push notification to user ${userId} about event "${eventTitle}"`);
-            } catch (pushError) {
-              console.error(`[Event Interest Notification] ❌ Failed to send push to user ${userId}:`, pushError);
-              console.log(`[Event Interest Notification] ℹ️ In-app notification was still created`);
+              console.log(`[Event Interest Notification] ✅ Created in-app notification for ${userId} (no token)`);
             }
           }
         } catch (error) {

@@ -1,6 +1,6 @@
 // FILE: GuestView.js - Guest-specific Event Completion View
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -34,27 +34,48 @@ const GuestView = ({
   const { currentUserId, userData } = useAuth();
   const vibeAlert = useVibeAlert();
   const [addingToInterests, setAddingToInterests] = useState(false);
+  const [locallyAdded, setLocallyAdded] = useState(false);
 
   // Check if event name is already in user's interests
-  const eventName = eventData?.eventName || '';
-  const userInterests = userData?.userdata?.preferences?.interests || [];
-  const isAlreadyInInterests = userInterests.includes(eventName);
+  const eventName = eventData?.title || '';
+
+  // Clean event name by removing emojis and trimming spaces for saving to interests
+  const cleanEventName = eventName.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim();
+
+  // Check both userData and local state (in case userData hasn't updated yet)
+  const isAlreadyInInterests = useMemo(() => {
+    if (locallyAdded) return true; // Optimistic update
+    const userInterests = userData?.preferences?.interests || [];
+    const result = userInterests.includes(cleanEventName);
+
+    console.log('[GuestView] Interest check:', {
+      eventName,
+      cleanEventName,
+      eventNameLength: eventName.length,
+      cleanEventNameLength: cleanEventName.length,
+      userInterests,
+      isAlreadyInInterests: result,
+      locallyAdded,
+    });
+
+    return result;
+  }, [userData?.preferences?.interests, cleanEventName, locallyAdded]);
 
   const handleAddToInterests = async () => {
-    if (!currentUserId || !eventName) return;
+    if (!currentUserId || !cleanEventName) return;
 
     setAddingToInterests(true);
     try {
       const userRef = doc(db, 'users', currentUserId);
       await updateDoc(userRef, {
-        'userdata.preferences.interests': arrayUnion(eventName),
+        'preferences.interests': arrayUnion(cleanEventName),
       });
-
-      vibeAlert.success('Added to Interests', `"${eventName}" has been added to your interests!`);
+      // Optimistically update local state immediately
+      setLocallyAdded(true);
+      setAddingToInterests(false);
     } catch (error) {
       console.error('[GuestView] Error adding to interests:', error);
       vibeAlert.error('Error', 'Failed to add to interests. Please try again.');
-    } finally {
       setAddingToInterests(false);
     }
   };
@@ -110,21 +131,28 @@ const GuestView = ({
             />
           )}
 
-          {/* Add to Interests Button */}
+          {/* Add to Interests Card */}
           {!isAlreadyInInterests && eventName && (
-            <View style={styles.interestsSection}>
-              <Text style={styles.interestsTitle}>Enjoyed this event?</Text>
-              <Text style={styles.interestsSubtitle}>
-                Save it to your interests to see similar events
+            <View style={styles.interestsCard}>
+              <Text style={styles.interestsCardTitle}>
+                Get notified about {eventName.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim()} events?
               </Text>
-              <VibeButton
-                label={`ADD "${eventName.toUpperCase()}" TO MY INTERESTS`}
-                onPress={handleAddToInterests}
-                variant="outline"
-                loading={addingToInterests}
-                disabled={addingToInterests}
-                style={styles.interestsButton}
-              />
+              <View style={styles.interestsButtons}>
+                <VibeButton
+                  label="YES"
+                  onPress={handleAddToInterests}
+                  loading={addingToInterests}
+                  disabled={addingToInterests}
+                  style={styles.interestsYesButton}
+                />
+                <VibeButton
+                  label="NOT NOW"
+                  onPress={() => setLocallyAdded(true)}
+                  variant="outline"
+                  disabled={addingToInterests}
+                  style={styles.interestsNoButton}
+                />
+              </View>
             </View>
           )}
 
@@ -133,7 +161,7 @@ const GuestView = ({
             <View style={styles.interestsAdded}>
               <Text style={styles.interestsAddedIcon}>✓</Text>
               <Text style={styles.interestsAddedText}>
-                "{eventName}" is already in your interests
+                You'll be notified about {eventName.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim()} events
               </Text>
             </View>
           )}
@@ -276,7 +304,7 @@ const styles = StyleSheet.create({
   },
 
   // Add to Interests
-  interestsSection: {
+  interestsCard: {
     marginTop: 24,
     marginBottom: 24,
     backgroundColor: theme.colors.vibeBackgroundBlue,
@@ -285,20 +313,24 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: theme.colors.vibeBlue,
   },
-  interestsTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  interestsCardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
     color: theme.colors.white,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 20,
+    lineHeight: 22,
   },
-  interestsSubtitle: {
-    fontSize: 14,
-    color: theme.colors.gray,
-    textAlign: 'center',
-    marginBottom: 16,
+  interestsButtons: {
+    flexDirection: 'row',
+    gap: 12,
   },
-  interestsButton: {
+  interestsYesButton: {
+    flex: 1,
+    marginVertical: 0,
+  },
+  interestsNoButton: {
+    flex: 1,
     marginVertical: 0,
   },
   interestsAdded: {

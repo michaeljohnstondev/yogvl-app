@@ -168,86 +168,96 @@ export default function LandingScreen() {
           resizeMode="contain"
         />
 
-        {/* Auth Mode Toggle */}
-        <VibeSegmentedControl
-          options={[
-            { label: 'Sign Up', value: 'signup' },
-            { label: 'Log In', value: 'login' },
-          ]}
-          selectedValue={authMode}
-          onSelect={setAuthMode}
-          style={styles.authToggle}
-        />
-
-        {/* Email/Password Form */}
-        <VibeInput
-          placeholder="Email"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          onChangeText={setEmail}
-          value={email}
-          maxLength={254}
-          style={styles.authInput}
-        />
-
-        <VibeInput
-          placeholder="Password"
-          secureTextEntry
-          autoCapitalize="none"
-          onChangeText={setPassword}
-          value={password}
-          maxLength={128}
-          style={styles.authInput}
-        />
-
-        <VibeButton
-          label={
-            loading
-              ? authMode === 'login'
-                ? 'Signing In...'
-                : 'Creating Account...'
-              : authMode === 'login'
-                ? 'Sign In'
-                : 'Sign Up'
-          }
-          onPress={authMode === 'login' ? handleLogin : handleSignUp}
-          disabled={loading}
-          style={styles.authButton}
-        />
-
-        {/* Forgot Password - Always reserve space to prevent layout shift */}
-        <View style={styles.forgotPasswordContainer}>
-          {authMode === 'login' && !showForgotPassword && (
-            <Text
-              style={styles.forgotPasswordLink}
-              onPress={() => setShowForgotPassword(true)}
-            >
-              Forgot Password?
-            </Text>
-          )}
-        </View>
-
-        {/* Forgot Password Form */}
-        {showForgotPassword && (
+        {/* Forgot Password Mode */}
+        {showForgotPassword ? (
           <View style={styles.forgotPasswordSection}>
             <Text style={styles.forgotPasswordTitle}>Reset Password</Text>
             <Text style={styles.forgotPasswordDescription}>
               Enter your email and we'll send you a link to reset your password.
             </Text>
+            <VibeInput
+              placeholder="Email"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              onChangeText={setEmail}
+              value={email}
+              maxLength={254}
+              style={styles.authInput}
+            />
             <VibeButton
               label={loading ? 'Sending...' : 'Send Reset Link'}
               onPress={handleForgotPassword}
               disabled={loading}
-              variant="outline"
               style={styles.resetButton}
             />
             <Text
               style={styles.cancelLink}
               onPress={() => setShowForgotPassword(false)}
             >
-              Cancel
+              Back to Login
             </Text>
           </View>
+        ) : (
+          <>
+            {/* Auth Mode Toggle */}
+            <VibeSegmentedControl
+              options={[
+                { label: 'Sign Up', value: 'signup' },
+                { label: 'Log In', value: 'login' },
+              ]}
+              selectedValue={authMode}
+              onSelect={setAuthMode}
+              style={styles.authToggle}
+            />
+
+            {/* Email/Password Form */}
+            <VibeInput
+              placeholder="Email"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              onChangeText={setEmail}
+              value={email}
+              maxLength={254}
+              style={styles.authInput}
+            />
+
+            <VibeInput
+              placeholder="Password"
+              secureTextEntry
+              autoCapitalize="none"
+              onChangeText={setPassword}
+              value={password}
+              maxLength={128}
+              style={styles.authInput}
+            />
+
+            <VibeButton
+              label={
+                loading
+                  ? authMode === 'login'
+                    ? 'Signing In...'
+                    : 'Creating Account...'
+                  : authMode === 'login'
+                    ? 'Sign In'
+                    : 'Sign Up'
+              }
+              onPress={authMode === 'login' ? handleLogin : handleSignUp}
+              disabled={loading}
+              style={styles.authButton}
+            />
+
+            {/* Forgot Password Link - Always reserve space to prevent layout shift */}
+            <View style={styles.forgotPasswordContainer}>
+              {authMode === 'login' && (
+                <Text
+                  style={styles.forgotPasswordLink}
+                  onPress={() => setShowForgotPassword(true)}
+                >
+                  Forgot Password?
+                </Text>
+              )}
+            </View>
+          </>
         )}
       </Animated.View>
     </ScrollView>
@@ -263,12 +273,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingVertical: 40,
+    paddingTop: 0,
+    paddingBottom: 40,
     minHeight: '100%',
   },
   banner: {
     width: '100%',
-    height: 250,
+    height: 120,
     marginBottom: 40,
   },
   authToggle: {
@@ -295,16 +306,10 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   forgotPasswordSection: {
-    marginTop: 30,
     width: '100%',
-    padding: 20,
-    backgroundColor: theme.colors.vibeBackgroundBlue,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: theme.colors.vibeBlue,
   },
   forgotPasswordTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
     color: theme.colors.white,
     textAlign: 'center',
@@ -314,18 +319,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.colors.gray,
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 30,
     lineHeight: 20,
   },
   resetButton: {
-    marginVertical: 0,
-    marginBottom: 12,
+    marginTop: 10,
+    width: '100%',
   },
   cancelLink: {
-    color: theme.colors.gray,
+    color: theme.colors.vibeBlue,
     fontSize: 14,
     textAlign: 'center',
     textDecorationLine: 'underline',
     paddingVertical: 8,
+    marginTop: 12,
   },
 });

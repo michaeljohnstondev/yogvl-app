@@ -78,8 +78,65 @@ exports.onCohostJoined = functions.firestore
       // Extract event information
       const eventTitle = eventData?.title || 'Untitled Event';
 
-      // STEP 1: ALWAYS create in-app notification (Firestore document)
-      try {
+      const fcmToken = inviterUserData?.deviceInfo?.fcmToken;
+
+      // If user has FCM token: send ONLY push notification (FCM handler creates in-app)
+      // If NO token: create in-app notification directly (they won't get push)
+      if (fcmToken) {
+        // Send push notification - FCM handler will create in-app notification
+        const message = {
+          token: fcmToken,
+          notification: {
+            title: 'Cohost Accepted!',
+            body: `${cohostName} accepted your cohost invitation for "${eventTitle}"`
+          },
+          data: {
+            type: 'cohost_accepted',
+            resetStack: 'true',
+            navigationStack: 'Home,EventDetail',
+            eventId: eventId,
+            studioId: studioId || '',
+            eventTitle: eventTitle,
+            cohostId: recipientId,
+            cohostName: cohostName,
+            invitationId: invitationId,
+            actionType: 'cohost_accepted'
+          }
+        };
+
+        try {
+          await admin.messaging().send(message);
+          console.log(`[Cohost Joined] ✅ Sent push notification to ${inviterId} (FCM handler will create in-app)`);
+        } catch (pushError) {
+          console.error(`[Cohost Joined] ❌ Failed to send push to ${inviterId}:`, pushError);
+          // Fallback: create in-app notification if push fails
+          await admin.firestore()
+            .collection('users')
+            .doc(inviterId)
+            .collection('notifications')
+            .add({
+              type: 'cohost_accepted',
+              title: 'Cohost Accepted!',
+              message: `${cohostName} accepted your cohost invitation for "${eventTitle}"`,
+              read: false,
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              data: {
+                resetStack: true,
+                navigationStack: 'Home,EventDetail',
+                eventId: eventId,
+                studioId: studioId || '',
+                eventTitle: eventTitle,
+                cohostId: recipientId,
+                cohostName: cohostName,
+                invitationId: invitationId,
+                actionType: 'cohost_accepted'
+              }
+            });
+          console.log(`[Cohost Joined] ✅ Created fallback in-app notification for ${inviterId}`);
+        }
+      } else {
+        // No FCM token - create in-app notification directly
+        console.log(`[Cohost Joined] ⚠️ Inviter ${inviterId} has no FCM token - creating in-app notification`);
         await admin.firestore()
           .collection('users')
           .doc(inviterId)
@@ -102,49 +159,7 @@ exports.onCohostJoined = functions.firestore
               actionType: 'cohost_accepted'
             }
           });
-
-        console.log(`[Cohost Joined] ✅ Created in-app notification for inviter ${inviterId}`);
-      } catch (inAppError) {
-        console.error(`[Cohost Joined] ❌ Failed to create in-app notification for ${inviterId}:`, inAppError);
-        // Continue to try push notification even if in-app fails
-      }
-
-      // STEP 2: Optionally send push notification (if FCM token exists)
-      const fcmToken = inviterUserData?.deviceInfo?.fcmToken;
-
-      if (!fcmToken) {
-        console.log(`[Cohost Joined] ⚠️ Inviter ${inviterId} has no FCM token - in-app notification created, push skipped`);
-        return; // Exit but in-app notification was already created
-      }
-
-      // Send FCM push notification with navigation stack
-      const message = {
-        token: fcmToken,
-        notification: {
-          title: 'Cohost Accepted!',
-          body: `${cohostName} accepted your cohost invitation for "${eventTitle}"`
-        },
-        data: {
-          type: 'cohost_accepted',
-          resetStack: 'true',
-          navigationStack: 'Home,EventDetail',
-          eventId: eventId,
-          studioId: studioId || '',
-          eventTitle: eventTitle,
-          cohostId: recipientId,
-          cohostName: cohostName,
-          invitationId: invitationId,
-          actionType: 'cohost_accepted'
-        }
-      };
-
-      try {
-        await admin.messaging().send(message);
-        console.log(`[Cohost Joined] ✅ Successfully sent push notification to ${inviterId} for event ${eventId}`);
-      } catch (pushError) {
-        console.error(`[Cohost Joined] ❌ Failed to send push notification to ${inviterId}:`, pushError);
-        console.log(`[Cohost Joined] ℹ️ In-app notification was still created successfully`);
-        // Don't throw - in-app notification was already created
+        console.log(`[Cohost Joined] ✅ Created in-app notification for ${inviterId} (no token)`);
       }
 
     } catch (error) {
