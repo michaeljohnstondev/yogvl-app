@@ -20,10 +20,7 @@
         "buildType": "apk"
       },
       "ios": {
-        "image": "macos-sequoia-15.3-xcode-16.2",
-        "entitlements": {
-          "aps-environment": "production"
-        }
+        "image": "macos-sequoia-15.3-xcode-16.2"
       },
       "channel": "production"
     }
