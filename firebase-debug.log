@@ -1,0 +1,547 @@
+[debug] [2025-10-24T11:57:35.160Z] ----------------------------------------------------------------------
+[debug] [2025-10-24T11:57:35.161Z] Command:       C:\nvm4w\nodejs\node.exe C:\nvm4w\nodejs\node_modules\firebase-tools\lib\bin\firebase.js projects:list
+[debug] [2025-10-24T11:57:35.162Z] CLI Version:   13.35.1
+[debug] [2025-10-24T11:57:35.162Z] Platform:      win32
+[debug] [2025-10-24T11:57:35.162Z] Node Version:  v18.20.8
+[debug] [2025-10-24T11:57:35.163Z] Time:          Fri Oct 24 2025 07:57:35 GMT-0400 (Eastern Daylight Time)
+[debug] [2025-10-24T11:57:35.163Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-10-24T11:57:35.180Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[debug] [2025-10-24T11:57:35.415Z] Object "" in "firebase.json" has unknown property: {"additionalProperty":"react-native"}
+[debug] [2025-10-24T11:57:35.427Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-10-24T11:57:35.427Z] > authorizing via signed-in user (tigersgorawr87@gmail.com)
+[debug] [2025-10-24T11:57:35.430Z] Checked if tokens are valid: false, expires at: 1761192172710
+[debug] [2025-10-24T11:57:35.430Z] Checked if tokens are valid: false, expires at: 1761192172710
+[debug] [2025-10-24T11:57:35.430Z] > refreshing access token with scopes: []
+[debug] [2025-10-24T11:57:35.431Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-10-24T11:57:35.431Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-24T11:57:35.527Z] <<< [apiv2][status] GET https://firebase-public.firebaseio.com/cli.json 200
+[debug] [2025-10-24T11:57:35.527Z] <<< [apiv2][body] GET https://firebase-public.firebaseio.com/cli.json {"cloudBuildErrorAfter":1594252800000,"cloudBuildWarnAfter":1590019200000,"defaultNode10After":1594252800000,"minVersion":"3.0.5","node8DeploysDisabledAfter":1613390400000,"node8RuntimeDisabledAfter":1615809600000,"node8WarnAfter":1600128000000}
+[debug] [2025-10-24T11:57:35.549Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2025-10-24T11:57:35.549Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-24T11:57:35.574Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects pageSize=1000
+[debug] [2025-10-24T11:57:36.013Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects 200
+[debug] [2025-10-24T11:57:36.013Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects [omitted]
+[info] ┌──────────────────────┬────────────────────────────────┬────────────────┬──────────────────────┐
+│ Project Display Name │ Project ID                     │ Project Number │ Resource Location ID │
+├──────────────────────┼────────────────────────────────┼────────────────┼──────────────────────┤
+│ BigVibeStudios       │ bigvibestudios-b9839 (current) │ 824215388091   │ [Not specified]      │
+├──────────────────────┼────────────────────────────────┼────────────────┼──────────────────────┤
+│ SnapplePark          │ snapplepark                    │ 107855342657   │ [Not specified]      │
+├──────────────────────┼────────────────────────────────┼────────────────┼──────────────────────┤
+│ Snapples             │ snapples-1a244                 │ 300148989232   │ us-central           │
+└──────────────────────┴────────────────────────────────┴────────────────┴──────────────────────┘
+[info] 
+[info] 3 project(s) total.
+[debug] [2025-10-24T11:57:49.483Z] ----------------------------------------------------------------------
+[debug] [2025-10-24T11:57:49.485Z] Command:       C:\nvm4w\nodejs\node.exe C:\nvm4w\nodejs\node_modules\firebase-tools\lib\bin\firebase.js init hosting
+[debug] [2025-10-24T11:57:49.485Z] CLI Version:   13.35.1
+[debug] [2025-10-24T11:57:49.486Z] Platform:      win32
+[debug] [2025-10-24T11:57:49.486Z] Node Version:  v18.20.8
+[debug] [2025-10-24T11:57:49.486Z] Time:          Fri Oct 24 2025 07:57:49 GMT-0400 (Eastern Daylight Time)
+[debug] [2025-10-24T11:57:49.486Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-10-24T11:57:49.658Z] Object "" in "firebase.json" has unknown property: {"additionalProperty":"react-native"}
+[debug] [2025-10-24T11:57:49.662Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-10-24T11:57:49.663Z] > authorizing via signed-in user (tigersgorawr87@gmail.com)
+[debug] [2025-10-24T11:57:49.663Z] Object "" in "firebase.json" has unknown property: {"additionalProperty":"react-native"}
+[info] 
+     ######## #### ########  ######## ########     ###     ######  ########
+     ##        ##  ##     ## ##       ##     ##  ##   ##  ##       ##
+     ######    ##  ########  ######   ########  #########  ######  ######
+     ##        ##  ##    ##  ##       ##     ## ##     ##       ## ##
+     ##       #### ##     ## ######## ########  ##     ##  ######  ########
+
+You're about to initialize a Firebase project in this directory:
+
+  c:\dev\bvs-app
+
+Before we get started, keep in mind:
+
+  * You are currently outside your home directory
+  * You are initializing within an existing Firebase project directory
+
+[debug] [2025-10-24T11:58:40.949Z] ----------------------------------------------------------------------
+[debug] [2025-10-24T11:58:40.950Z] Command:       C:\nvm4w\nodejs\node.exe C:\nvm4w\nodejs\node_modules\firebase-tools\lib\bin\firebase.js deploy --only hosting
+[debug] [2025-10-24T11:58:40.951Z] CLI Version:   13.35.1
+[debug] [2025-10-24T11:58:40.951Z] Platform:      win32
+[debug] [2025-10-24T11:58:40.951Z] Node Version:  v18.20.8
+[debug] [2025-10-24T11:58:40.952Z] Time:          Fri Oct 24 2025 07:58:40 GMT-0400 (Eastern Daylight Time)
+[debug] [2025-10-24T11:58:40.952Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-10-24T11:58:41.140Z] Object "" in "firebase.json" has unknown property: {"additionalProperty":"react-native"}
+[debug] [2025-10-24T11:58:41.145Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-10-24T11:58:41.146Z] > authorizing via signed-in user (tigersgorawr87@gmail.com)
+[debug] [2025-10-24T11:58:41.146Z] [iam] checking project bigvibestudios-b9839 for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2025-10-24T11:58:41.147Z] Checked if tokens are valid: true, expires at: 1761310654549
+[debug] [2025-10-24T11:58:41.148Z] Checked if tokens are valid: true, expires at: 1761310654549
+[debug] [2025-10-24T11:58:41.149Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/bigvibestudios-b9839:testIamPermissions [none]
+[debug] [2025-10-24T11:58:41.149Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/bigvibestudios-b9839:testIamPermissions x-goog-quota-user=projects/bigvibestudios-b9839
+[debug] [2025-10-24T11:58:41.149Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/bigvibestudios-b9839:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-10-24T11:58:41.347Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/bigvibestudios-b9839:testIamPermissions 200
+[debug] [2025-10-24T11:58:41.348Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/bigvibestudios-b9839:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-10-24T11:58:41.348Z] Checked if tokens are valid: true, expires at: 1761310654549
+[debug] [2025-10-24T11:58:41.349Z] Checked if tokens are valid: true, expires at: 1761310654549
+[debug] [2025-10-24T11:58:41.349Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/bigvibestudios-b9839 [none]
+[debug] [2025-10-24T11:58:41.585Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/bigvibestudios-b9839 200
+[debug] [2025-10-24T11:58:41.585Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/bigvibestudios-b9839 {"projectId":"bigvibestudios-b9839","projectNumber":"824215388091","displayName":"BigVibeStudios","name":"projects/bigvibestudios-b9839","resources":{"hostingSite":"bigvibestudios-b9839"},"state":"ACTIVE","etag":"1_2b72cfad-b3bf-4bc6-8e8c-5b7bc0155578"}
+[info] 
+[info] === Deploying to 'bigvibestudios-b9839'...
+[info] 
+[info] i  deploying hosting 
+[debug] [2025-10-24T11:58:41.593Z] Checked if tokens are valid: true, expires at: 1761310654549
+[debug] [2025-10-24T11:58:41.593Z] Checked if tokens are valid: true, expires at: 1761310654549
+[debug] [2025-10-24T11:58:41.594Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions [none]
+[debug] [2025-10-24T11:58:41.594Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions {"status":"CREATED","labels":{"deployment-tool":"cli-firebase"}}
+[debug] [2025-10-24T11:58:42.604Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions 200
+[debug] [2025-10-24T11:58:42.605Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions {"name":"projects/824215388091/sites/bigvibestudios-b9839/versions/6968781e542c20cf","status":"CREATED","config":{},"labels":{"deployment-tool":"cli-firebase"}}
+[info] i  hosting[bigvibestudios-b9839]: beginning deploy... 
+[info] i  hosting[bigvibestudios-b9839]: found 1 files in public 
+[debug] [2025-10-24T11:58:42.616Z] [hosting] uploading with 200 concurrency
+[debug] [2025-10-24T11:58:42.617Z] [hosting] hash cache [cHVibGlj] not populated
+[debug] [2025-10-24T11:58:42.620Z] Checked if tokens are valid: true, expires at: 1761310654549
+[debug] [2025-10-24T11:58:42.620Z] Checked if tokens are valid: true, expires at: 1761310654549
+[debug] [2025-10-24T11:58:42.621Z] [hosting] hash cache [cHVibGlj] stored for 1 files
+[debug] [2025-10-24T11:58:42.621Z] [hosting][hash queue][FINAL] {"max":3,"min":3,"avg":3,"active":0,"complete":1,"success":1,"errored":0,"retried":0,"total":1,"elapsed":4}
+[debug] [2025-10-24T11:58:42.622Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/824215388091/sites/bigvibestudios-b9839/versions/6968781e542c20cf:populateFiles [none]
+[debug] [2025-10-24T11:58:42.622Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/824215388091/sites/bigvibestudios-b9839/versions/6968781e542c20cf:populateFiles {"files":{"/privacy.html":"00df682f7300c79b59181dd55a43cb05bea647000a03b45325ac489949a86180"}}
+[debug] [2025-10-24T11:58:42.903Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/824215388091/sites/bigvibestudios-b9839/versions/6968781e542c20cf:populateFiles 200
+[debug] [2025-10-24T11:58:42.903Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/824215388091/sites/bigvibestudios-b9839/versions/6968781e542c20cf:populateFiles {"uploadRequiredHashes":["00df682f7300c79b59181dd55a43cb05bea647000a03b45325ac489949a86180"],"uploadUrl":"https://upload-firebasehosting.googleapis.com/upload/sites/bigvibestudios-b9839/versions/6968781e542c20cf/files"}
+[debug] [2025-10-24T11:58:42.903Z] Checked if tokens are valid: true, expires at: 1761310654549
+[debug] [2025-10-24T11:58:42.903Z] Checked if tokens are valid: true, expires at: 1761310654549
+[debug] [2025-10-24T11:58:42.904Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/bigvibestudios-b9839/versions/6968781e542c20cf/files/00df682f7300c79b59181dd55a43cb05bea647000a03b45325ac489949a86180 [none]
+[debug] [2025-10-24T11:58:42.904Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/bigvibestudios-b9839/versions/6968781e542c20cf/files/00df682f7300c79b59181dd55a43cb05bea647000a03b45325ac489949a86180 [stream]
+[debug] [2025-10-24T11:58:42.905Z] [hosting][populate queue][FINAL] {"max":284,"min":284,"avg":284,"active":0,"complete":1,"success":1,"errored":0,"retried":0,"total":1,"elapsed":285}
+[debug] [2025-10-24T11:58:42.905Z] [hosting] uploads queued: 1
+[debug] [2025-10-24T11:58:44.221Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/bigvibestudios-b9839/versions/6968781e542c20cf/files/00df682f7300c79b59181dd55a43cb05bea647000a03b45325ac489949a86180 200
+[debug] [2025-10-24T11:58:44.221Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/bigvibestudios-b9839/versions/6968781e542c20cf/files/00df682f7300c79b59181dd55a43cb05bea647000a03b45325ac489949a86180 [stream]
+[debug] [2025-10-24T11:58:44.221Z] [hosting][upload queue][FINAL] {"max":1318,"min":1318,"avg":1318,"active":0,"complete":1,"success":1,"errored":0,"retried":0,"total":1,"elapsed":1318}
+[info] i  hosting: upload complete 
+[info] +  hosting[bigvibestudios-b9839]: file upload complete 
+[debug] [2025-10-24T11:58:44.221Z] [hosting] deploy completed after 1614ms
+[debug] [2025-10-24T11:58:44.222Z] [
+  {
+    "config": {
+      "public": "public",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "site": "bigvibestudios-b9839"
+    },
+    "version": "projects/824215388091/sites/bigvibestudios-b9839/versions/6968781e542c20cf"
+  }
+]
+[info] i  hosting[bigvibestudios-b9839]: finalizing version... 
+[debug] [2025-10-24T11:58:44.223Z] Checked if tokens are valid: true, expires at: 1761310654549
+[debug] [2025-10-24T11:58:44.223Z] Checked if tokens are valid: true, expires at: 1761310654549
+[debug] [2025-10-24T11:58:44.224Z] >>> [apiv2][query] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions/6968781e542c20cf updateMask=status%2Cconfig
+[debug] [2025-10-24T11:58:44.224Z] >>> [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions/6968781e542c20cf {"status":"FINALIZED","config":{}}
+[debug] [2025-10-24T11:58:44.555Z] <<< [apiv2][status] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions/6968781e542c20cf 200
+[debug] [2025-10-24T11:58:44.555Z] <<< [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions/6968781e542c20cf {"name":"projects/824215388091/sites/bigvibestudios-b9839/versions/6968781e542c20cf","status":"FINALIZED","config":{},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2025-10-24T11:58:43.734454Z","createUser":{"email":"TigersGoRawr87@gmail.com"},"finalizeTime":"2025-10-24T11:58:46.363642Z","finalizeUser":{"email":"TigersGoRawr87@gmail.com"}}
+[debug] [2025-10-24T11:58:44.555Z] [hosting] finalized version for bigvibestudios-b9839:[object Object]
+[info] +  hosting[bigvibestudios-b9839]: version finalized 
+[info] i  hosting[bigvibestudios-b9839]: releasing new version... 
+[debug] [2025-10-24T11:58:44.555Z] Checked if tokens are valid: true, expires at: 1761310654549
+[debug] [2025-10-24T11:58:44.555Z] Checked if tokens are valid: true, expires at: 1761310654549
+[debug] [2025-10-24T11:58:44.555Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/channels/live/releases versionName=projects%2F824215388091%2Fsites%2Fbigvibestudios-b9839%2Fversions%2F6968781e542c20cf
+[debug] [2025-10-24T11:58:44.555Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/channels/live/releases {}
+[debug] [2025-10-24T11:58:44.890Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/channels/live/releases 200
+[debug] [2025-10-24T11:58:44.890Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/channels/live/releases {"name":"projects/824215388091/sites/bigvibestudios-b9839/channels/live/releases/1761307126147000","version":{"name":"projects/824215388091/sites/bigvibestudios-b9839/versions/6968781e542c20cf","status":"FINALIZED","config":{},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2025-10-24T11:58:43.734454Z","createUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"},"finalizeTime":"2025-10-24T11:58:46.363642Z","finalizeUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"}},"type":"DEPLOY","releaseTime":"2025-10-24T11:58:46.147Z","releaseUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"}}
+[debug] [2025-10-24T11:58:44.890Z] [hosting] release: {"name":"projects/824215388091/sites/bigvibestudios-b9839/channels/live/releases/1761307126147000","version":{"name":"projects/824215388091/sites/bigvibestudios-b9839/versions/6968781e542c20cf","status":"FINALIZED","config":{},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2025-10-24T11:58:43.734454Z","createUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"},"finalizeTime":"2025-10-24T11:58:46.363642Z","finalizeUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"}},"type":"DEPLOY","releaseTime":"2025-10-24T11:58:46.147Z","releaseUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"}}
+[info] +  hosting[bigvibestudios-b9839]: release complete 
+[info] 
+[info] +  Deploy complete! 
+[info] 
+[info] Project Console: https://console.firebase.google.com/project/bigvibestudios-b9839/overview
+[info] Hosting URL: https://bigvibestudios-b9839.web.app
+[debug] [2025-10-24T14:14:32.914Z] ----------------------------------------------------------------------
+[debug] [2025-10-24T14:14:32.916Z] Command:       C:\nvm4w\nodejs\node.exe C:\nvm4w\nodejs\node_modules\firebase-tools\lib\bin\firebase.js deploy --only hosting
+[debug] [2025-10-24T14:14:32.917Z] CLI Version:   13.35.1
+[debug] [2025-10-24T14:14:32.917Z] Platform:      win32
+[debug] [2025-10-24T14:14:32.917Z] Node Version:  v18.20.8
+[debug] [2025-10-24T14:14:32.919Z] Time:          Fri Oct 24 2025 10:14:32 GMT-0400 (Eastern Daylight Time)
+[debug] [2025-10-24T14:14:32.919Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-10-24T14:14:33.149Z] Object "" in "firebase.json" has unknown property: {"additionalProperty":"react-native"}
+[debug] [2025-10-24T14:14:33.156Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-10-24T14:14:33.157Z] > authorizing via signed-in user (tigersgorawr87@gmail.com)
+[debug] [2025-10-24T14:14:33.157Z] [iam] checking project bigvibestudios-b9839 for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2025-10-24T14:14:33.158Z] Checked if tokens are valid: false, expires at: 1761310654549
+[debug] [2025-10-24T14:14:33.159Z] Checked if tokens are valid: false, expires at: 1761310654549
+[debug] [2025-10-24T14:14:33.159Z] > refreshing access token with scopes: []
+[debug] [2025-10-24T14:14:33.161Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-10-24T14:14:33.161Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-24T14:14:33.301Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2025-10-24T14:14:33.302Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-24T14:14:33.324Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/bigvibestudios-b9839:testIamPermissions [none]
+[debug] [2025-10-24T14:14:33.324Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/bigvibestudios-b9839:testIamPermissions x-goog-quota-user=projects/bigvibestudios-b9839
+[debug] [2025-10-24T14:14:33.324Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/bigvibestudios-b9839:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-10-24T14:14:33.440Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/bigvibestudios-b9839:testIamPermissions 200
+[debug] [2025-10-24T14:14:33.440Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/bigvibestudios-b9839:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-10-24T14:14:33.440Z] Checked if tokens are valid: true, expires at: 1761318872302
+[debug] [2025-10-24T14:14:33.441Z] Checked if tokens are valid: true, expires at: 1761318872302
+[debug] [2025-10-24T14:14:33.441Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/bigvibestudios-b9839 [none]
+[debug] [2025-10-24T14:14:33.655Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/bigvibestudios-b9839 200
+[debug] [2025-10-24T14:14:33.655Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/bigvibestudios-b9839 {"projectId":"bigvibestudios-b9839","projectNumber":"824215388091","displayName":"BigVibeStudios","name":"projects/bigvibestudios-b9839","resources":{"hostingSite":"bigvibestudios-b9839"},"state":"ACTIVE","etag":"1_2b72cfad-b3bf-4bc6-8e8c-5b7bc0155578"}
+[info] 
+[info] === Deploying to 'bigvibestudios-b9839'...
+[info] 
+[info] i  deploying hosting 
+[debug] [2025-10-24T14:14:33.660Z] Checked if tokens are valid: true, expires at: 1761318872302
+[debug] [2025-10-24T14:14:33.660Z] Checked if tokens are valid: true, expires at: 1761318872302
+[debug] [2025-10-24T14:14:33.661Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions [none]
+[debug] [2025-10-24T14:14:33.661Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions {"status":"CREATED","labels":{"deployment-tool":"cli-firebase"}}
+[debug] [2025-10-24T14:14:34.369Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions 200
+[debug] [2025-10-24T14:14:34.369Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions {"name":"projects/824215388091/sites/bigvibestudios-b9839/versions/6cf3f33fb748c4da","status":"CREATED","config":{},"labels":{"deployment-tool":"cli-firebase"}}
+[info] i  hosting[bigvibestudios-b9839]: beginning deploy... 
+[info] i  hosting[bigvibestudios-b9839]: found 1 files in public 
+[debug] [2025-10-24T14:14:34.381Z] [hosting] uploading with 200 concurrency
+[debug] [2025-10-24T14:14:34.387Z] Checked if tokens are valid: true, expires at: 1761318872302
+[debug] [2025-10-24T14:14:34.387Z] Checked if tokens are valid: true, expires at: 1761318872302
+[debug] [2025-10-24T14:14:34.389Z] [hosting] hash cache [cHVibGlj] stored for 1 files
+[debug] [2025-10-24T14:14:34.389Z] [hosting][hash queue][FINAL] {"max":5,"min":5,"avg":5,"active":0,"complete":1,"success":1,"errored":0,"retried":0,"total":1,"elapsed":7}
+[debug] [2025-10-24T14:14:34.390Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/824215388091/sites/bigvibestudios-b9839/versions/6cf3f33fb748c4da:populateFiles [none]
+[debug] [2025-10-24T14:14:34.390Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/824215388091/sites/bigvibestudios-b9839/versions/6cf3f33fb748c4da:populateFiles {"files":{"/privacy.html":"882b7e4c9670aff37b591775cfde0847c8b88b8720ab62fc059303b423826d03"}}
+[debug] [2025-10-24T14:14:34.677Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/824215388091/sites/bigvibestudios-b9839/versions/6cf3f33fb748c4da:populateFiles 200
+[debug] [2025-10-24T14:14:34.677Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/824215388091/sites/bigvibestudios-b9839/versions/6cf3f33fb748c4da:populateFiles {"uploadRequiredHashes":["882b7e4c9670aff37b591775cfde0847c8b88b8720ab62fc059303b423826d03"],"uploadUrl":"https://upload-firebasehosting.googleapis.com/upload/sites/bigvibestudios-b9839/versions/6cf3f33fb748c4da/files"}
+[debug] [2025-10-24T14:14:34.677Z] Checked if tokens are valid: true, expires at: 1761318872302
+[debug] [2025-10-24T14:14:34.678Z] Checked if tokens are valid: true, expires at: 1761318872302
+[debug] [2025-10-24T14:14:34.678Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/bigvibestudios-b9839/versions/6cf3f33fb748c4da/files/882b7e4c9670aff37b591775cfde0847c8b88b8720ab62fc059303b423826d03 [none]
+[debug] [2025-10-24T14:14:34.678Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/bigvibestudios-b9839/versions/6cf3f33fb748c4da/files/882b7e4c9670aff37b591775cfde0847c8b88b8720ab62fc059303b423826d03 [stream]
+[debug] [2025-10-24T14:14:34.679Z] [hosting][populate queue][FINAL] {"max":291,"min":291,"avg":291,"active":0,"complete":1,"success":1,"errored":0,"retried":0,"total":1,"elapsed":292}
+[debug] [2025-10-24T14:14:34.679Z] [hosting] uploads queued: 1
+[info] i  hosting: uploading new files [0/1] (0%) 
+[debug] [2025-10-24T14:14:38.059Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/bigvibestudios-b9839/versions/6cf3f33fb748c4da/files/882b7e4c9670aff37b591775cfde0847c8b88b8720ab62fc059303b423826d03 200
+[debug] [2025-10-24T14:14:38.059Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/bigvibestudios-b9839/versions/6cf3f33fb748c4da/files/882b7e4c9670aff37b591775cfde0847c8b88b8720ab62fc059303b423826d03 [stream]
+[debug] [2025-10-24T14:14:38.059Z] [hosting][upload queue][FINAL] {"max":3382,"min":3382,"avg":3382,"active":0,"complete":1,"success":1,"errored":0,"retried":0,"total":1,"elapsed":3382}
+[info] i  hosting: upload complete 
+[info] +  hosting[bigvibestudios-b9839]: file upload complete 
+[debug] [2025-10-24T14:14:38.060Z] [hosting] deploy completed after 3689ms
+[debug] [2025-10-24T14:14:38.060Z] [
+  {
+    "config": {
+      "public": "public",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "site": "bigvibestudios-b9839"
+    },
+    "version": "projects/824215388091/sites/bigvibestudios-b9839/versions/6cf3f33fb748c4da"
+  }
+]
+[info] i  hosting[bigvibestudios-b9839]: finalizing version... 
+[debug] [2025-10-24T14:14:38.061Z] Checked if tokens are valid: true, expires at: 1761318872302
+[debug] [2025-10-24T14:14:38.061Z] Checked if tokens are valid: true, expires at: 1761318872302
+[debug] [2025-10-24T14:14:38.062Z] >>> [apiv2][query] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions/6cf3f33fb748c4da updateMask=status%2Cconfig
+[debug] [2025-10-24T14:14:38.062Z] >>> [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions/6cf3f33fb748c4da {"status":"FINALIZED","config":{}}
+[debug] [2025-10-24T14:14:38.563Z] <<< [apiv2][status] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions/6cf3f33fb748c4da 200
+[debug] [2025-10-24T14:14:38.563Z] <<< [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions/6cf3f33fb748c4da {"name":"projects/824215388091/sites/bigvibestudios-b9839/versions/6cf3f33fb748c4da","status":"FINALIZED","config":{},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2025-10-24T14:14:35.831688Z","createUser":{"email":"TigersGoRawr87@gmail.com"},"finalizeTime":"2025-10-24T14:14:40.398794Z","finalizeUser":{"email":"TigersGoRawr87@gmail.com"}}
+[debug] [2025-10-24T14:14:38.563Z] [hosting] finalized version for bigvibestudios-b9839:[object Object]
+[info] +  hosting[bigvibestudios-b9839]: version finalized 
+[info] i  hosting[bigvibestudios-b9839]: releasing new version... 
+[debug] [2025-10-24T14:14:38.563Z] Checked if tokens are valid: true, expires at: 1761318872302
+[debug] [2025-10-24T14:14:38.563Z] Checked if tokens are valid: true, expires at: 1761318872302
+[debug] [2025-10-24T14:14:38.564Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/channels/live/releases versionName=projects%2F824215388091%2Fsites%2Fbigvibestudios-b9839%2Fversions%2F6cf3f33fb748c4da
+[debug] [2025-10-24T14:14:38.564Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/channels/live/releases {}
+[debug] [2025-10-24T14:14:39.171Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/channels/live/releases 200
+[debug] [2025-10-24T14:14:39.171Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/channels/live/releases {"name":"projects/824215388091/sites/bigvibestudios-b9839/channels/live/releases/1761315280449000","version":{"name":"projects/824215388091/sites/bigvibestudios-b9839/versions/6cf3f33fb748c4da","status":"FINALIZED","config":{},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2025-10-24T14:14:35.831688Z","createUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"},"finalizeTime":"2025-10-24T14:14:40.398794Z","finalizeUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"}},"type":"DEPLOY","releaseTime":"2025-10-24T14:14:40.449Z","releaseUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"}}
+[debug] [2025-10-24T14:14:39.171Z] [hosting] release: {"name":"projects/824215388091/sites/bigvibestudios-b9839/channels/live/releases/1761315280449000","version":{"name":"projects/824215388091/sites/bigvibestudios-b9839/versions/6cf3f33fb748c4da","status":"FINALIZED","config":{},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2025-10-24T14:14:35.831688Z","createUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"},"finalizeTime":"2025-10-24T14:14:40.398794Z","finalizeUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"}},"type":"DEPLOY","releaseTime":"2025-10-24T14:14:40.449Z","releaseUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"}}
+[info] +  hosting[bigvibestudios-b9839]: release complete 
+[info] 
+[info] +  Deploy complete! 
+[info] 
+[info] Project Console: https://console.firebase.google.com/project/bigvibestudios-b9839/overview
+[info] Hosting URL: https://bigvibestudios-b9839.web.app
+[debug] [2025-10-24T15:57:31.441Z] ----------------------------------------------------------------------
+[debug] [2025-10-24T15:57:31.443Z] Command:       C:\nvm4w\nodejs\node.exe C:\nvm4w\nodejs\node_modules\firebase-tools\lib\bin\firebase.js deploy --only hosting
+[debug] [2025-10-24T15:57:31.443Z] CLI Version:   13.35.1
+[debug] [2025-10-24T15:57:31.443Z] Platform:      win32
+[debug] [2025-10-24T15:57:31.443Z] Node Version:  v18.20.8
+[debug] [2025-10-24T15:57:31.444Z] Time:          Fri Oct 24 2025 11:57:31 GMT-0400 (Eastern Daylight Time)
+[debug] [2025-10-24T15:57:31.444Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-10-24T15:57:31.632Z] Object "" in "firebase.json" has unknown property: {"additionalProperty":"react-native"}
+[debug] [2025-10-24T15:57:31.637Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-10-24T15:57:31.638Z] > authorizing via signed-in user (tigersgorawr87@gmail.com)
+[debug] [2025-10-24T15:57:31.638Z] [iam] checking project bigvibestudios-b9839 for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2025-10-24T15:57:31.639Z] Checked if tokens are valid: false, expires at: 1761318872302
+[debug] [2025-10-24T15:57:31.639Z] Checked if tokens are valid: false, expires at: 1761318872302
+[debug] [2025-10-24T15:57:31.639Z] > refreshing access token with scopes: []
+[debug] [2025-10-24T15:57:31.642Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-10-24T15:57:31.642Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-24T15:57:31.781Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2025-10-24T15:57:31.781Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-24T15:57:31.808Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/bigvibestudios-b9839:testIamPermissions [none]
+[debug] [2025-10-24T15:57:31.808Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/bigvibestudios-b9839:testIamPermissions x-goog-quota-user=projects/bigvibestudios-b9839
+[debug] [2025-10-24T15:57:31.809Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/bigvibestudios-b9839:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-10-24T15:57:31.915Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/bigvibestudios-b9839:testIamPermissions 200
+[debug] [2025-10-24T15:57:31.915Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/bigvibestudios-b9839:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-10-24T15:57:31.916Z] Checked if tokens are valid: true, expires at: 1761325050781
+[debug] [2025-10-24T15:57:31.916Z] Checked if tokens are valid: true, expires at: 1761325050781
+[debug] [2025-10-24T15:57:31.916Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/bigvibestudios-b9839 [none]
+[debug] [2025-10-24T15:57:32.128Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/bigvibestudios-b9839 200
+[debug] [2025-10-24T15:57:32.128Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/bigvibestudios-b9839 {"projectId":"bigvibestudios-b9839","projectNumber":"824215388091","displayName":"BigVibeStudios","name":"projects/bigvibestudios-b9839","resources":{"hostingSite":"bigvibestudios-b9839"},"state":"ACTIVE","etag":"1_2b72cfad-b3bf-4bc6-8e8c-5b7bc0155578"}
+[info] 
+[info] === Deploying to 'bigvibestudios-b9839'...
+[info] 
+[info] i  deploying hosting 
+[debug] [2025-10-24T15:57:32.132Z] Checked if tokens are valid: true, expires at: 1761325050781
+[debug] [2025-10-24T15:57:32.132Z] Checked if tokens are valid: true, expires at: 1761325050781
+[debug] [2025-10-24T15:57:32.132Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions [none]
+[debug] [2025-10-24T15:57:32.132Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions {"status":"CREATED","labels":{"deployment-tool":"cli-firebase"}}
+[debug] [2025-10-24T15:57:32.653Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions 200
+[debug] [2025-10-24T15:57:32.653Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions {"name":"projects/824215388091/sites/bigvibestudios-b9839/versions/929efe6afdd931a6","status":"CREATED","config":{},"labels":{"deployment-tool":"cli-firebase"}}
+[info] i  hosting[bigvibestudios-b9839]: beginning deploy... 
+[info] i  hosting[bigvibestudios-b9839]: found 2 files in public 
+[debug] [2025-10-24T15:57:32.664Z] [hosting] uploading with 200 concurrency
+[debug] [2025-10-24T15:57:32.669Z] Checked if tokens are valid: true, expires at: 1761325050781
+[debug] [2025-10-24T15:57:32.669Z] Checked if tokens are valid: true, expires at: 1761325050781
+[debug] [2025-10-24T15:57:32.670Z] [hosting] hash cache [cHVibGlj] stored for 2 files
+[debug] [2025-10-24T15:57:32.670Z] [hosting][hash queue][FINAL] {"max":3,"min":1,"avg":2,"active":0,"complete":2,"success":2,"errored":0,"retried":0,"total":2,"elapsed":5}
+[debug] [2025-10-24T15:57:32.671Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/824215388091/sites/bigvibestudios-b9839/versions/929efe6afdd931a6:populateFiles [none]
+[debug] [2025-10-24T15:57:32.671Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/824215388091/sites/bigvibestudios-b9839/versions/929efe6afdd931a6:populateFiles {"files":{"/privacy.html":"882b7e4c9670aff37b591775cfde0847c8b88b8720ab62fc059303b423826d03","/index.html":"39f14b6d8cc9d4be20a19c4ab786083efd68c7327171cd7d2c1cb4f21b7cea40"}}
+[debug] [2025-10-24T15:57:32.970Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/824215388091/sites/bigvibestudios-b9839/versions/929efe6afdd931a6:populateFiles 200
+[debug] [2025-10-24T15:57:32.970Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/824215388091/sites/bigvibestudios-b9839/versions/929efe6afdd931a6:populateFiles {"uploadRequiredHashes":["39f14b6d8cc9d4be20a19c4ab786083efd68c7327171cd7d2c1cb4f21b7cea40"],"uploadUrl":"https://upload-firebasehosting.googleapis.com/upload/sites/bigvibestudios-b9839/versions/929efe6afdd931a6/files"}
+[debug] [2025-10-24T15:57:32.971Z] Checked if tokens are valid: true, expires at: 1761325050781
+[debug] [2025-10-24T15:57:32.971Z] Checked if tokens are valid: true, expires at: 1761325050781
+[debug] [2025-10-24T15:57:32.971Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/bigvibestudios-b9839/versions/929efe6afdd931a6/files/39f14b6d8cc9d4be20a19c4ab786083efd68c7327171cd7d2c1cb4f21b7cea40 [none]
+[debug] [2025-10-24T15:57:32.971Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/bigvibestudios-b9839/versions/929efe6afdd931a6/files/39f14b6d8cc9d4be20a19c4ab786083efd68c7327171cd7d2c1cb4f21b7cea40 [stream]
+[debug] [2025-10-24T15:57:32.972Z] [hosting][populate queue][FINAL] {"max":302,"min":302,"avg":302,"active":0,"complete":1,"success":1,"errored":0,"retried":0,"total":1,"elapsed":303}
+[debug] [2025-10-24T15:57:32.972Z] [hosting] uploads queued: 1
+[debug] [2025-10-24T15:57:33.889Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/bigvibestudios-b9839/versions/929efe6afdd931a6/files/39f14b6d8cc9d4be20a19c4ab786083efd68c7327171cd7d2c1cb4f21b7cea40 200
+[debug] [2025-10-24T15:57:33.889Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/bigvibestudios-b9839/versions/929efe6afdd931a6/files/39f14b6d8cc9d4be20a19c4ab786083efd68c7327171cd7d2c1cb4f21b7cea40 [stream]
+[debug] [2025-10-24T15:57:33.890Z] [hosting][upload queue][FINAL] {"max":920,"min":920,"avg":920,"active":0,"complete":1,"success":1,"errored":0,"retried":0,"total":1,"elapsed":920}
+[info] i  hosting: upload complete 
+[info] +  hosting[bigvibestudios-b9839]: file upload complete 
+[debug] [2025-10-24T15:57:33.890Z] [hosting] deploy completed after 1235ms
+[debug] [2025-10-24T15:57:33.890Z] [
+  {
+    "config": {
+      "public": "public",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "site": "bigvibestudios-b9839"
+    },
+    "version": "projects/824215388091/sites/bigvibestudios-b9839/versions/929efe6afdd931a6"
+  }
+]
+[info] i  hosting[bigvibestudios-b9839]: finalizing version... 
+[debug] [2025-10-24T15:57:33.891Z] Checked if tokens are valid: true, expires at: 1761325050781
+[debug] [2025-10-24T15:57:33.891Z] Checked if tokens are valid: true, expires at: 1761325050781
+[debug] [2025-10-24T15:57:33.892Z] >>> [apiv2][query] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions/929efe6afdd931a6 updateMask=status%2Cconfig
+[debug] [2025-10-24T15:57:33.892Z] >>> [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions/929efe6afdd931a6 {"status":"FINALIZED","config":{}}
+[debug] [2025-10-24T15:57:34.134Z] <<< [apiv2][status] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions/929efe6afdd931a6 200
+[debug] [2025-10-24T15:57:34.134Z] <<< [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions/929efe6afdd931a6 {"name":"projects/824215388091/sites/bigvibestudios-b9839/versions/929efe6afdd931a6","status":"FINALIZED","config":{},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2025-10-24T15:57:34.259036Z","createUser":{"email":"TigersGoRawr87@gmail.com"},"finalizeTime":"2025-10-24T15:57:35.992829Z","finalizeUser":{"email":"TigersGoRawr87@gmail.com"}}
+[debug] [2025-10-24T15:57:34.134Z] [hosting] finalized version for bigvibestudios-b9839:[object Object]
+[info] +  hosting[bigvibestudios-b9839]: version finalized 
+[info] i  hosting[bigvibestudios-b9839]: releasing new version... 
+[debug] [2025-10-24T15:57:34.134Z] Checked if tokens are valid: true, expires at: 1761325050781
+[debug] [2025-10-24T15:57:34.134Z] Checked if tokens are valid: true, expires at: 1761325050781
+[debug] [2025-10-24T15:57:34.135Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/channels/live/releases versionName=projects%2F824215388091%2Fsites%2Fbigvibestudios-b9839%2Fversions%2F929efe6afdd931a6
+[debug] [2025-10-24T15:57:34.135Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/channels/live/releases {}
+[debug] [2025-10-24T15:57:34.529Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/channels/live/releases 200
+[debug] [2025-10-24T15:57:34.529Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/channels/live/releases {"name":"projects/824215388091/sites/bigvibestudios-b9839/channels/live/releases/1761321455833000","version":{"name":"projects/824215388091/sites/bigvibestudios-b9839/versions/929efe6afdd931a6","status":"FINALIZED","config":{},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2025-10-24T15:57:34.259036Z","createUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"},"finalizeTime":"2025-10-24T15:57:35.992829Z","finalizeUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"}},"type":"DEPLOY","releaseTime":"2025-10-24T15:57:35.833Z","releaseUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"}}
+[debug] [2025-10-24T15:57:34.529Z] [hosting] release: {"name":"projects/824215388091/sites/bigvibestudios-b9839/channels/live/releases/1761321455833000","version":{"name":"projects/824215388091/sites/bigvibestudios-b9839/versions/929efe6afdd931a6","status":"FINALIZED","config":{},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2025-10-24T15:57:34.259036Z","createUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"},"finalizeTime":"2025-10-24T15:57:35.992829Z","finalizeUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"}},"type":"DEPLOY","releaseTime":"2025-10-24T15:57:35.833Z","releaseUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"}}
+[info] +  hosting[bigvibestudios-b9839]: release complete 
+[info] 
+[info] +  Deploy complete! 
+[info] 
+[info] Project Console: https://console.firebase.google.com/project/bigvibestudios-b9839/overview
+[info] Hosting URL: https://bigvibestudios-b9839.web.app
+[debug] [2025-10-24T16:27:59.189Z] ----------------------------------------------------------------------
+[debug] [2025-10-24T16:27:59.191Z] Command:       C:\nvm4w\nodejs\node.exe C:\nvm4w\nodejs\node_modules\firebase-tools\lib\bin\firebase.js deploy --only hosting
+[debug] [2025-10-24T16:27:59.191Z] CLI Version:   13.35.1
+[debug] [2025-10-24T16:27:59.191Z] Platform:      win32
+[debug] [2025-10-24T16:27:59.192Z] Node Version:  v18.20.8
+[debug] [2025-10-24T16:27:59.192Z] Time:          Fri Oct 24 2025 12:27:59 GMT-0400 (Eastern Daylight Time)
+[debug] [2025-10-24T16:27:59.192Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-10-24T16:27:59.430Z] Object "" in "firebase.json" has unknown property: {"additionalProperty":"react-native"}
+[debug] [2025-10-24T16:27:59.436Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-10-24T16:27:59.436Z] > authorizing via signed-in user (tigersgorawr87@gmail.com)
+[debug] [2025-10-24T16:27:59.436Z] [iam] checking project bigvibestudios-b9839 for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2025-10-24T16:27:59.438Z] Checked if tokens are valid: true, expires at: 1761325050781
+[debug] [2025-10-24T16:27:59.438Z] Checked if tokens are valid: true, expires at: 1761325050781
+[debug] [2025-10-24T16:27:59.439Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/bigvibestudios-b9839:testIamPermissions [none]
+[debug] [2025-10-24T16:27:59.439Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/bigvibestudios-b9839:testIamPermissions x-goog-quota-user=projects/bigvibestudios-b9839
+[debug] [2025-10-24T16:27:59.439Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/bigvibestudios-b9839:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-10-24T16:27:59.601Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/bigvibestudios-b9839:testIamPermissions 200
+[debug] [2025-10-24T16:27:59.601Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/bigvibestudios-b9839:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-10-24T16:27:59.602Z] Checked if tokens are valid: true, expires at: 1761325050781
+[debug] [2025-10-24T16:27:59.602Z] Checked if tokens are valid: true, expires at: 1761325050781
+[debug] [2025-10-24T16:27:59.602Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/bigvibestudios-b9839 [none]
+[debug] [2025-10-24T16:27:59.866Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/bigvibestudios-b9839 200
+[debug] [2025-10-24T16:27:59.866Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/bigvibestudios-b9839 {"projectId":"bigvibestudios-b9839","projectNumber":"824215388091","displayName":"BigVibeStudios","name":"projects/bigvibestudios-b9839","resources":{"hostingSite":"bigvibestudios-b9839"},"state":"ACTIVE","etag":"1_2b72cfad-b3bf-4bc6-8e8c-5b7bc0155578"}
+[info] 
+[info] === Deploying to 'bigvibestudios-b9839'...
+[info] 
+[info] i  deploying hosting 
+[debug] [2025-10-24T16:27:59.873Z] Checked if tokens are valid: true, expires at: 1761325050781
+[debug] [2025-10-24T16:27:59.874Z] Checked if tokens are valid: true, expires at: 1761325050781
+[debug] [2025-10-24T16:27:59.874Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions [none]
+[debug] [2025-10-24T16:27:59.874Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions {"status":"CREATED","labels":{"deployment-tool":"cli-firebase"}}
+[debug] [2025-10-24T16:28:00.402Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions 200
+[debug] [2025-10-24T16:28:00.403Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions {"name":"projects/824215388091/sites/bigvibestudios-b9839/versions/def58e6e0aaf4b0a","status":"CREATED","config":{},"labels":{"deployment-tool":"cli-firebase"}}
+[info] i  hosting[bigvibestudios-b9839]: beginning deploy... 
+[info] i  hosting[bigvibestudios-b9839]: found 2 files in public 
+[debug] [2025-10-24T16:28:00.417Z] [hosting] uploading with 200 concurrency
+[debug] [2025-10-24T16:28:00.419Z] Checked if tokens are valid: true, expires at: 1761325050781
+[debug] [2025-10-24T16:28:00.419Z] Checked if tokens are valid: true, expires at: 1761325050781
+[debug] [2025-10-24T16:28:00.421Z] [hosting] hash cache [cHVibGlj] stored for 2 files
+[debug] [2025-10-24T16:28:00.422Z] [hosting][hash queue][FINAL] {"max":1,"min":0,"avg":0,"active":0,"complete":2,"success":2,"errored":0,"retried":0,"total":2,"elapsed":3}
+[debug] [2025-10-24T16:28:00.422Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/824215388091/sites/bigvibestudios-b9839/versions/def58e6e0aaf4b0a:populateFiles [none]
+[debug] [2025-10-24T16:28:00.422Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/824215388091/sites/bigvibestudios-b9839/versions/def58e6e0aaf4b0a:populateFiles {"files":{"/privacy.html":"882b7e4c9670aff37b591775cfde0847c8b88b8720ab62fc059303b423826d03","/index.html":"39f14b6d8cc9d4be20a19c4ab786083efd68c7327171cd7d2c1cb4f21b7cea40"}}
+[debug] [2025-10-24T16:28:00.689Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/824215388091/sites/bigvibestudios-b9839/versions/def58e6e0aaf4b0a:populateFiles 200
+[debug] [2025-10-24T16:28:00.690Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/824215388091/sites/bigvibestudios-b9839/versions/def58e6e0aaf4b0a:populateFiles {"uploadUrl":"https://upload-firebasehosting.googleapis.com/upload/sites/bigvibestudios-b9839/versions/def58e6e0aaf4b0a/files"}
+[debug] [2025-10-24T16:28:00.690Z] [hosting][populate queue][FINAL] {"max":271,"min":271,"avg":271,"active":0,"complete":1,"success":1,"errored":0,"retried":0,"total":1,"elapsed":271}
+[debug] [2025-10-24T16:28:00.690Z] [hosting] uploads queued: 0
+[debug] [2025-10-24T16:28:00.690Z] [hosting][upload queue][FINAL] {"max":0,"min":9999999999,"avg":0,"active":0,"complete":0,"success":0,"errored":0,"retried":0,"total":0,"elapsed":1761323280690}
+[info] i  hosting: upload complete 
+[info] +  hosting[bigvibestudios-b9839]: file upload complete 
+[debug] [2025-10-24T16:28:00.690Z] [hosting] deploy completed after 285ms
+[debug] [2025-10-24T16:28:00.691Z] [
+  {
+    "config": {
+      "public": "public",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "cleanUrls": true,
+      "site": "bigvibestudios-b9839"
+    },
+    "version": "projects/824215388091/sites/bigvibestudios-b9839/versions/def58e6e0aaf4b0a"
+  }
+]
+[info] i  hosting[bigvibestudios-b9839]: finalizing version... 
+[debug] [2025-10-24T16:28:00.692Z] Checked if tokens are valid: true, expires at: 1761325050781
+[debug] [2025-10-24T16:28:00.693Z] Checked if tokens are valid: true, expires at: 1761325050781
+[debug] [2025-10-24T16:28:00.695Z] >>> [apiv2][query] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions/def58e6e0aaf4b0a updateMask=status%2Cconfig
+[debug] [2025-10-24T16:28:00.695Z] >>> [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions/def58e6e0aaf4b0a {"status":"FINALIZED","config":{"cleanUrls":true}}
+[debug] [2025-10-24T16:28:00.946Z] <<< [apiv2][status] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions/def58e6e0aaf4b0a 200
+[debug] [2025-10-24T16:28:00.946Z] <<< [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions/def58e6e0aaf4b0a {"name":"projects/824215388091/sites/bigvibestudios-b9839/versions/def58e6e0aaf4b0a","status":"FINALIZED","config":{"cleanUrls":true},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2025-10-24T16:28:02.000302Z","createUser":{"email":"TigersGoRawr87@gmail.com"},"finalizeTime":"2025-10-24T16:28:02.812281Z","finalizeUser":{"email":"TigersGoRawr87@gmail.com"}}
+[debug] [2025-10-24T16:28:00.946Z] [hosting] finalized version for bigvibestudios-b9839:[object Object]
+[info] +  hosting[bigvibestudios-b9839]: version finalized 
+[info] i  hosting[bigvibestudios-b9839]: releasing new version... 
+[debug] [2025-10-24T16:28:00.947Z] Checked if tokens are valid: true, expires at: 1761325050781
+[debug] [2025-10-24T16:28:00.947Z] Checked if tokens are valid: true, expires at: 1761325050781
+[debug] [2025-10-24T16:28:00.947Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/channels/live/releases versionName=projects%2F824215388091%2Fsites%2Fbigvibestudios-b9839%2Fversions%2Fdef58e6e0aaf4b0a
+[debug] [2025-10-24T16:28:00.947Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/channels/live/releases {}
+[debug] [2025-10-24T16:28:01.297Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/channels/live/releases 200
+[debug] [2025-10-24T16:28:01.297Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/channels/live/releases {"name":"projects/824215388091/sites/bigvibestudios-b9839/channels/live/releases/1761323282598000","version":{"name":"projects/824215388091/sites/bigvibestudios-b9839/versions/def58e6e0aaf4b0a","status":"FINALIZED","config":{"cleanUrls":true},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2025-10-24T16:28:02.000302Z","createUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"},"finalizeTime":"2025-10-24T16:28:02.812281Z","finalizeUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"}},"type":"DEPLOY","releaseTime":"2025-10-24T16:28:02.598Z","releaseUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"}}
+[debug] [2025-10-24T16:28:01.297Z] [hosting] release: {"name":"projects/824215388091/sites/bigvibestudios-b9839/channels/live/releases/1761323282598000","version":{"name":"projects/824215388091/sites/bigvibestudios-b9839/versions/def58e6e0aaf4b0a","status":"FINALIZED","config":{"cleanUrls":true},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2025-10-24T16:28:02.000302Z","createUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"},"finalizeTime":"2025-10-24T16:28:02.812281Z","finalizeUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"}},"type":"DEPLOY","releaseTime":"2025-10-24T16:28:02.598Z","releaseUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"}}
+[info] +  hosting[bigvibestudios-b9839]: release complete 
+[info] 
+[info] +  Deploy complete! 
+[info] 
+[info] Project Console: https://console.firebase.google.com/project/bigvibestudios-b9839/overview
+[info] Hosting URL: https://bigvibestudios-b9839.web.app
+[debug] [2025-10-24T17:31:30.898Z] ----------------------------------------------------------------------
+[debug] [2025-10-24T17:31:30.899Z] Command:       C:\nvm4w\nodejs\node.exe C:\nvm4w\nodejs\node_modules\firebase-tools\lib\bin\firebase.js deploy --only hosting
+[debug] [2025-10-24T17:31:30.900Z] CLI Version:   13.35.1
+[debug] [2025-10-24T17:31:30.900Z] Platform:      win32
+[debug] [2025-10-24T17:31:30.900Z] Node Version:  v18.20.8
+[debug] [2025-10-24T17:31:30.901Z] Time:          Fri Oct 24 2025 13:31:30 GMT-0400 (Eastern Daylight Time)
+[debug] [2025-10-24T17:31:30.901Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-10-24T17:31:31.088Z] Object "" in "firebase.json" has unknown property: {"additionalProperty":"react-native"}
+[debug] [2025-10-24T17:31:31.093Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-10-24T17:31:31.093Z] > authorizing via signed-in user (tigersgorawr87@gmail.com)
+[debug] [2025-10-24T17:31:31.093Z] [iam] checking project bigvibestudios-b9839 for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2025-10-24T17:31:31.095Z] Checked if tokens are valid: false, expires at: 1761325050781
+[debug] [2025-10-24T17:31:31.095Z] Checked if tokens are valid: false, expires at: 1761325050781
+[debug] [2025-10-24T17:31:31.095Z] > refreshing access token with scopes: []
+[debug] [2025-10-24T17:31:31.097Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-10-24T17:31:31.097Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-24T17:31:31.224Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2025-10-24T17:31:31.224Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-24T17:31:31.250Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/bigvibestudios-b9839:testIamPermissions [none]
+[debug] [2025-10-24T17:31:31.250Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/bigvibestudios-b9839:testIamPermissions x-goog-quota-user=projects/bigvibestudios-b9839
+[debug] [2025-10-24T17:31:31.250Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/bigvibestudios-b9839:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-10-24T17:31:31.360Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/bigvibestudios-b9839:testIamPermissions 200
+[debug] [2025-10-24T17:31:31.361Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/bigvibestudios-b9839:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-10-24T17:31:31.363Z] Checked if tokens are valid: true, expires at: 1761330690224
+[debug] [2025-10-24T17:31:31.363Z] Checked if tokens are valid: true, expires at: 1761330690224
+[debug] [2025-10-24T17:31:31.366Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/bigvibestudios-b9839 [none]
+[debug] [2025-10-24T17:31:31.585Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/bigvibestudios-b9839 200
+[debug] [2025-10-24T17:31:31.585Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/bigvibestudios-b9839 {"projectId":"bigvibestudios-b9839","projectNumber":"824215388091","displayName":"BigVibeStudios","name":"projects/bigvibestudios-b9839","resources":{"hostingSite":"bigvibestudios-b9839"},"state":"ACTIVE","etag":"1_2b72cfad-b3bf-4bc6-8e8c-5b7bc0155578"}
+[info] 
+[info] === Deploying to 'bigvibestudios-b9839'...
+[info] 
+[info] i  deploying hosting 
+[debug] [2025-10-24T17:31:31.590Z] Checked if tokens are valid: true, expires at: 1761330690224
+[debug] [2025-10-24T17:31:31.590Z] Checked if tokens are valid: true, expires at: 1761330690224
+[debug] [2025-10-24T17:31:31.590Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions [none]
+[debug] [2025-10-24T17:31:31.590Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions {"status":"CREATED","labels":{"deployment-tool":"cli-firebase"}}
+[debug] [2025-10-24T17:31:32.073Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions 200
+[debug] [2025-10-24T17:31:32.073Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions {"name":"projects/824215388091/sites/bigvibestudios-b9839/versions/f3351aedd222d4fa","status":"CREATED","config":{},"labels":{"deployment-tool":"cli-firebase"}}
+[info] i  hosting[bigvibestudios-b9839]: beginning deploy... 
+[info] i  hosting[bigvibestudios-b9839]: found 2 files in public 
+[debug] [2025-10-24T17:31:32.085Z] [hosting] uploading with 200 concurrency
+[debug] [2025-10-24T17:31:32.090Z] Checked if tokens are valid: true, expires at: 1761330690224
+[debug] [2025-10-24T17:31:32.090Z] Checked if tokens are valid: true, expires at: 1761330690224
+[debug] [2025-10-24T17:31:32.091Z] [hosting] hash cache [cHVibGlj] stored for 2 files
+[debug] [2025-10-24T17:31:32.091Z] [hosting][hash queue][FINAL] {"max":4,"min":1,"avg":2.5,"active":0,"complete":2,"success":2,"errored":0,"retried":0,"total":2,"elapsed":5}
+[debug] [2025-10-24T17:31:32.091Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/824215388091/sites/bigvibestudios-b9839/versions/f3351aedd222d4fa:populateFiles [none]
+[debug] [2025-10-24T17:31:32.091Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/824215388091/sites/bigvibestudios-b9839/versions/f3351aedd222d4fa:populateFiles {"files":{"/privacy.html":"882b7e4c9670aff37b591775cfde0847c8b88b8720ab62fc059303b423826d03","/index.html":"0e36c070972ff4d8772d0dbd066b1dfe3592e7b550e20b28d6627d391858fd9c"}}
+[debug] [2025-10-24T17:31:32.375Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/824215388091/sites/bigvibestudios-b9839/versions/f3351aedd222d4fa:populateFiles 200
+[debug] [2025-10-24T17:31:32.375Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/824215388091/sites/bigvibestudios-b9839/versions/f3351aedd222d4fa:populateFiles {"uploadRequiredHashes":["0e36c070972ff4d8772d0dbd066b1dfe3592e7b550e20b28d6627d391858fd9c"],"uploadUrl":"https://upload-firebasehosting.googleapis.com/upload/sites/bigvibestudios-b9839/versions/f3351aedd222d4fa/files"}
+[debug] [2025-10-24T17:31:32.377Z] Checked if tokens are valid: true, expires at: 1761330690224
+[debug] [2025-10-24T17:31:32.377Z] Checked if tokens are valid: true, expires at: 1761330690224
+[debug] [2025-10-24T17:31:32.377Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/bigvibestudios-b9839/versions/f3351aedd222d4fa/files/0e36c070972ff4d8772d0dbd066b1dfe3592e7b550e20b28d6627d391858fd9c [none]
+[debug] [2025-10-24T17:31:32.377Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/bigvibestudios-b9839/versions/f3351aedd222d4fa/files/0e36c070972ff4d8772d0dbd066b1dfe3592e7b550e20b28d6627d391858fd9c [stream]
+[debug] [2025-10-24T17:31:32.381Z] [hosting][populate queue][FINAL] {"max":287,"min":287,"avg":287,"active":0,"complete":1,"success":1,"errored":0,"retried":0,"total":1,"elapsed":291}
+[debug] [2025-10-24T17:31:32.381Z] [hosting] uploads queued: 1
+[info] i  hosting: uploading new files [0/1] (0%) 
+[debug] [2025-10-24T17:31:34.181Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/bigvibestudios-b9839/versions/f3351aedd222d4fa/files/0e36c070972ff4d8772d0dbd066b1dfe3592e7b550e20b28d6627d391858fd9c 200
+[debug] [2025-10-24T17:31:34.181Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/bigvibestudios-b9839/versions/f3351aedd222d4fa/files/0e36c070972ff4d8772d0dbd066b1dfe3592e7b550e20b28d6627d391858fd9c [stream]
+[debug] [2025-10-24T17:31:34.181Z] [hosting][upload queue][FINAL] {"max":1806,"min":1806,"avg":1806,"active":0,"complete":1,"success":1,"errored":0,"retried":0,"total":1,"elapsed":1806}
+[info] i  hosting: upload complete 
+[info] +  hosting[bigvibestudios-b9839]: file upload complete 
+[debug] [2025-10-24T17:31:34.182Z] [hosting] deploy completed after 2106ms
+[debug] [2025-10-24T17:31:34.182Z] [
+  {
+    "config": {
+      "public": "public",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "cleanUrls": true,
+      "site": "bigvibestudios-b9839"
+    },
+    "version": "projects/824215388091/sites/bigvibestudios-b9839/versions/f3351aedd222d4fa"
+  }
+]
+[info] i  hosting[bigvibestudios-b9839]: finalizing version... 
+[debug] [2025-10-24T17:31:34.183Z] Checked if tokens are valid: true, expires at: 1761330690224
+[debug] [2025-10-24T17:31:34.183Z] Checked if tokens are valid: true, expires at: 1761330690224
+[debug] [2025-10-24T17:31:34.183Z] >>> [apiv2][query] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions/f3351aedd222d4fa updateMask=status%2Cconfig
+[debug] [2025-10-24T17:31:34.183Z] >>> [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions/f3351aedd222d4fa {"status":"FINALIZED","config":{"cleanUrls":true}}
+[debug] [2025-10-24T17:31:34.461Z] <<< [apiv2][status] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions/f3351aedd222d4fa 200
+[debug] [2025-10-24T17:31:34.461Z] <<< [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/versions/f3351aedd222d4fa {"name":"projects/824215388091/sites/bigvibestudios-b9839/versions/f3351aedd222d4fa","status":"FINALIZED","config":{"cleanUrls":true},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2025-10-24T17:31:33.721685Z","createUser":{"email":"TigersGoRawr87@gmail.com"},"finalizeTime":"2025-10-24T17:31:36.347421Z","finalizeUser":{"email":"TigersGoRawr87@gmail.com"}}
+[debug] [2025-10-24T17:31:34.461Z] [hosting] finalized version for bigvibestudios-b9839:[object Object]
+[info] +  hosting[bigvibestudios-b9839]: version finalized 
+[info] i  hosting[bigvibestudios-b9839]: releasing new version... 
+[debug] [2025-10-24T17:31:34.462Z] Checked if tokens are valid: true, expires at: 1761330690224
+[debug] [2025-10-24T17:31:34.462Z] Checked if tokens are valid: true, expires at: 1761330690224
+[debug] [2025-10-24T17:31:34.462Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/channels/live/releases versionName=projects%2F824215388091%2Fsites%2Fbigvibestudios-b9839%2Fversions%2Ff3351aedd222d4fa
+[debug] [2025-10-24T17:31:34.462Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/channels/live/releases {}
+[debug] [2025-10-24T17:31:34.820Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/channels/live/releases 200
+[debug] [2025-10-24T17:31:34.820Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/bigvibestudios-b9839/channels/live/releases {"name":"projects/824215388091/sites/bigvibestudios-b9839/channels/live/releases/1761327096153000","version":{"name":"projects/824215388091/sites/bigvibestudios-b9839/versions/f3351aedd222d4fa","status":"FINALIZED","config":{"cleanUrls":true},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2025-10-24T17:31:33.721685Z","createUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"},"finalizeTime":"2025-10-24T17:31:36.347421Z","finalizeUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"}},"type":"DEPLOY","releaseTime":"2025-10-24T17:31:36.153Z","releaseUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"}}
+[debug] [2025-10-24T17:31:34.820Z] [hosting] release: {"name":"projects/824215388091/sites/bigvibestudios-b9839/channels/live/releases/1761327096153000","version":{"name":"projects/824215388091/sites/bigvibestudios-b9839/versions/f3351aedd222d4fa","status":"FINALIZED","config":{"cleanUrls":true},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2025-10-24T17:31:33.721685Z","createUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"},"finalizeTime":"2025-10-24T17:31:36.347421Z","finalizeUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"}},"type":"DEPLOY","releaseTime":"2025-10-24T17:31:36.153Z","releaseUser":{"email":"TigersGoRawr87@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLLyvY64iJmtlL7o-xnCtdSVeFOZwpbuYTaSqhMifutLQ_Xbrn8"}}
+[info] +  hosting[bigvibestudios-b9839]: release complete 
+[info] 
+[info] +  Deploy complete! 
+[info] 
+[info] Project Console: https://console.firebase.google.com/project/bigvibestudios-b9839/overview
+[info] Hosting URL: https://bigvibestudios-b9839.web.app

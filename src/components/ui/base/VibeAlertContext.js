@@ -275,6 +275,7 @@ export const VibeAlertProvider = ({ children }) => {
                           !isDefault &&
                           !isCancel && {
                             backgroundColor: getAlertColors(alert.type).border,
+                            borderColor: getAlertColors(alert.type).border,
                           },
                         isRedMenu &&
                           !isLastButton && {

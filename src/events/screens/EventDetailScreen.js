@@ -33,6 +33,7 @@ import {
 } from '../../services/interestService';
 import { reportEvent } from '../../services/reportingService';
 import { getCohostInvitationStatus, acceptCohostInvitation } from '../../services/shared/cohostInvitationsService';
+import { notificationPermissionService } from '../../services/notificationPermissionService';
 import EventStatusBadges from '../components/detail/EventStatusBadges';
 import EventInfoSection from '../components/detail/EventInfoSection';
 import EventActionButtons from '../components/detail/EventActionButtons';
@@ -416,6 +417,10 @@ const EventDetailScreen = memo(function EventDetailScreen({
           setIsSubscribed(true);
           setShowSubscriptionModal(false);
         });
+
+        // Request notification permission when user joins an event (contextual request)
+        // This follows Facebook/Instagram pattern - ask when user takes meaningful action
+        notificationPermissionService.requestPermissionIfNeeded(currentUserId, 'join_event');
 
         // Check if guest can invite/share based on event rules
         // Public events: guests can always invite/share

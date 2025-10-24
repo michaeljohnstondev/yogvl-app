@@ -185,6 +185,45 @@ exports.onEventDeleted = functions.firestore
       const eventTitle = eventData.title || 'Untitled Event';
       const eventCreatorId = eventData.createdBy;
 
+      // CLEANUP FIRST: Delete all scheduled notifications for this deleted event
+      // Do this BEFORE checking subscribers, so it runs even if there are no subscribers to notify
+      console.log(`[Event Deletion] Cleaning up scheduled notifications for event ${eventId}`);
+
+      try {
+        const scheduledNotificationsQuery = admin.firestore()
+          .collection('scheduledNotifications')
+          .where('eventId', '==', eventId);
+
+        const scheduledNotificationsSnapshot = await scheduledNotificationsQuery.get();
+
+        if (scheduledNotificationsSnapshot.empty) {
+          console.log(`[Event Deletion] No scheduled notifications found for event ${eventId}`);
+        } else {
+          // Delete all scheduled notifications in batch
+          const batch = admin.firestore().batch();
+          scheduledNotificationsSnapshot.docs.forEach(doc => {
+            const data = doc.data();
+            batch.delete(doc.ref);
+            // Enhanced logging for each deletion
+            console.log(
+              `[Event Deletion] 🗑️  DELETED scheduledNotification:`,
+              `\n  ID: ${doc.id}`,
+              `\n  Type: ${data.type}`,
+              `\n  UserId: ${data.userId}`,
+              `\n  EventId: ${data.eventId || 'N/A'}`,
+              `\n  ScheduledFor: ${data.scheduledFor?.toDate()?.toISOString() || 'N/A'}`,
+              `\n  Reason: Event deleted`
+            );
+          });
+
+          await batch.commit();
+          console.log(`[Event Deletion] Total deleted: ${scheduledNotificationsSnapshot.size} scheduled notifications for event ${eventId}`);
+        }
+      } catch (cleanupError) {
+        console.error(`[Event Deletion] Error cleaning up scheduled notifications for event ${eventId}:`, cleanupError);
+        // Don't throw - notification cleanup failure shouldn't break the function
+      }
+
       // Get all event subscribers before deletion (from the deleted document data)
       // Note: We can't query the subcollection after deletion, so we use the subscribers array
       const subscriberIds = eventData.subscribers || [];
@@ -300,45 +339,6 @@ exports.onEventDeleted = functions.firestore
 
       // Wait for all notifications to complete
       await Promise.all(notificationPromises);
-
-      // CLEANUP: Delete all scheduled notifications for this deleted event
-      // Query global scheduledNotifications collection for any notifications related to this event
-      console.log(`[Event Deletion] Cleaning up scheduled notifications for event ${eventId}`);
-
-      try {
-        const scheduledNotificationsQuery = admin.firestore()
-          .collection('scheduledNotifications')
-          .where('eventId', '==', eventId);
-
-        const scheduledNotificationsSnapshot = await scheduledNotificationsQuery.get();
-
-        if (scheduledNotificationsSnapshot.empty) {
-          console.log(`[Event Deletion] No scheduled notifications found for event ${eventId}`);
-        } else {
-          // Delete all scheduled notifications in batch
-          const batch = admin.firestore().batch();
-          scheduledNotificationsSnapshot.docs.forEach(doc => {
-            const data = doc.data();
-            batch.delete(doc.ref);
-            // Enhanced logging for each deletion
-            console.log(
-              `[Event Deletion] 🗑️  DELETED scheduledNotification:`,
-              `\n  ID: ${doc.id}`,
-              `\n  Type: ${data.type}`,
-              `\n  UserId: ${data.userId}`,
-              `\n  EventId: ${data.eventId || 'N/A'}`,
-              `\n  ScheduledFor: ${data.scheduledFor?.toDate()?.toISOString() || 'N/A'}`,
-              `\n  Reason: Event deleted`
-            );
-          });
-
-          await batch.commit();
-          console.log(`[Event Deletion] Total deleted: ${scheduledNotificationsSnapshot.size} scheduled notifications for event ${eventId}`);
-        }
-      } catch (cleanupError) {
-        console.error(`[Event Deletion] Error cleaning up scheduled notifications for event ${eventId}:`, cleanupError);
-        // Don't throw - notification cleanup failure shouldn't break the function
-      }
 
     } catch (error) {
       console.error(`[Event Deletion] Error processing event deletion:`, error);

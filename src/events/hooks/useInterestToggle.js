@@ -4,6 +4,7 @@ import {
   addUserInterest,
   removeUserInterest,
 } from '../../services/interestService';
+import { notificationPermissionService } from '../../services/notificationPermissionService';
 
 /**
  * Custom hook for managing interest toggle functionality
@@ -23,6 +24,7 @@ export const useInterestToggle = (
 
   /**
    * Handles interest toggle with optimistic updates and error recovery
+   * Also requests notification permission when user shows interest (first time only)
    * @param {string} interest - Interest to toggle
    * @returns {Promise<void>}
    */
@@ -44,6 +46,10 @@ export const useInterestToggle = (
           await removeUserInterest(currentUserId, interest);
         } else {
           await addUserInterest(currentUserId, interest);
+
+          // Request notification permission when user shows interest (contextual request)
+          // This follows Facebook/Instagram pattern - ask when user engages
+          notificationPermissionService.requestPermissionIfNeeded(currentUserId, 'show_interest');
         }
       } catch (error) {
         console.error('[useInterestToggle] Interest update failed:', {

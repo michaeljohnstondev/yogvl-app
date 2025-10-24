@@ -3,6 +3,15 @@
     "source": "functions",
     "runtime": "nodejs20"
   },
+  "hosting": {
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "cleanUrls": true
+  },
   "react-native": {
     "messaging_ios_foreground_presentation_options": ["badge", "sound", "banner", "list"]
   }

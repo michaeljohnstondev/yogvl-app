@@ -90,6 +90,10 @@ export const getStudioUsers = async (currentUserId, userStudio) => {
       await blockingService.getBlockedUsers(currentUserId);
     const blockedUsersSet = new Set(blockedUsers);
 
+    // Initialize Sets outside try-catch so they're accessible in cross-studio loading
+    let myFavoritesSet = new Set();
+    let myFollowingSet = new Set();
+
     // Load current user's follows/favorites once, then do fast Set lookups
     try {
       // Load all favorites and following at once (much faster than per-user checks)
@@ -101,8 +105,8 @@ export const getStudioUsers = async (currentUserId, userStudio) => {
         getDocs(followingRef)
       ]);
 
-      const myFavoritesSet = new Set(favSnapshot.docs.map(doc => doc.id));
-      const myFollowingSet = new Set(followSnapshot.docs.map(doc => doc.id));
+      myFavoritesSet = new Set(favSnapshot.docs.map(doc => doc.id));
+      myFollowingSet = new Set(followSnapshot.docs.map(doc => doc.id));
 
       // Fast O(1) lookups for each user
       for (const user of users) {

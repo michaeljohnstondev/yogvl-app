@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Switch,
   Alert,
+  Linking,
 } from 'react-native';
 import { doc, updateDoc, getDoc } from '../lib/firebase';
 import { db } from '../auth/services/firebase';
@@ -365,6 +366,33 @@ function PrivacySettings({ navigation }) {
         </View>
       </View>
 
+      {/* Legal Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>LEGAL</Text>
+        <View style={styles.settingsGroup}>
+          <TouchableOpacity
+            style={styles.legalItem}
+            onPress={() => Linking.openURL('https://bigvibestudios.com/privacy')}
+          >
+            <Text style={styles.legalText}>Privacy Policy</Text>
+            <Text style={styles.legalArrow}>→</Text>
+          </TouchableOpacity>
+
+          <View style={styles.settingBorder} />
+
+          <TouchableOpacity
+            style={styles.legalItem}
+            onPress={() => Linking.openURL('mailto:support@bigvibestudios.com')}
+          >
+            <Text style={styles.legalText}>Contact Support</Text>
+            <Text style={styles.legalArrow}>→</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Bottom Spacing */}
+      <View style={{ height: 40 }} />
+
       </ScrollView>
     </View>
   );
@@ -490,6 +518,23 @@ const styles = StyleSheet.create({
   unblockButtonText: {
     color: theme.colors.white,
     fontSize: 12,
+    fontWeight: '600',
+  },
+  // Legal Section
+  legalItem: {
+    padding: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  legalText: {
+    color: theme.colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  legalArrow: {
+    color: theme.colors.vibeBlue,
+    fontSize: 20,
     fontWeight: '600',
   },
 });

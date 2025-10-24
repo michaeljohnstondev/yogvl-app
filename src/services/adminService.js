@@ -201,8 +201,8 @@ export const updateReport = async (
  * Get available studios for dropdown/filtering
  * @returns {Array} Array of studio options
  */
-export const getStudioOptions = () => {
-  const studios = StudioService.getAllStudios();
+export const getStudioOptions = async () => {
+  const studios = await StudioService.getAllStudios();
   return [
     { id: 'all', name: 'All Studios', displayName: 'All Studios' },
     ...studios.map((studio) => ({

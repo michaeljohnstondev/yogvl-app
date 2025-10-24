@@ -29,6 +29,7 @@ import { moderationService } from '../services/moderationService';
 import { VenueService } from '../services/VenueService';
 import { StudioRequestService } from '../services/StudioRequestService';
 import { followUser } from '../services/followService';
+import { cleanupScheduledNotifications } from '../services/scheduledNotificationCleanupService';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 
@@ -41,6 +42,9 @@ export default function AdminScreen({ navigation }) {
   const [selectedStudioFilter, setSelectedStudioFilter] = useState('all');
   const [reportStats, setReportStats] = useState({});
   const [showReportsSection, setShowReportsSection] = useState(false);
+  const [studioOptions, setStudioOptions] = useState([
+    { id: 'all', name: 'All Studios', displayName: 'All Studios' },
+  ]);
 
   // Moderation modal state
   const [showModerationModal, setShowModerationModal] = useState(false);
@@ -59,6 +63,9 @@ export default function AdminScreen({ navigation }) {
 
   // Follow Claude state
   const [followingClaude, setFollowingClaude] = useState(false);
+
+  // Scheduled notification cleanup state
+  const [cleaningNotifications, setCleaningNotifications] = useState(false);
 
   const handleGoBack = () => {
     navigation.goBack();
@@ -84,6 +91,30 @@ export default function AdminScreen({ navigation }) {
       Alert.alert('Error', 'Failed: ' + error.message);
     } finally {
       setFollowingClaude(false);
+    }
+  };
+
+  // Handle scheduled notification cleanup
+  const handleCleanupScheduledNotifications = async () => {
+    setCleaningNotifications(true);
+    try {
+      const result = await cleanupScheduledNotifications();
+
+      if (result.success) {
+        const { summary, deleted } = result.report;
+        const message = `Cleanup Complete!\n\nTotal: ${summary.total}\nDeleted: ${summary.deleted}\nKept: ${summary.kept}\n\nSuccess: ${deleted.success.length}\nFailed: ${deleted.failed.length}\nOverdue: ${deleted.overdue.length}\n\nReport saved to admin/reports`;
+
+        Alert.alert('Scheduled Notification Cleanup', message, [{ text: 'OK' }]);
+      } else {
+        Alert.alert('Error', `Cleanup failed: ${result.error}`, [{ text: 'OK' }]);
+      }
+    } catch (error) {
+      console.error('[AdminScreen] Error cleaning up notifications:', error);
+      Alert.alert('Error', `Failed to cleanup notifications: ${error.message}`, [
+        { text: 'OK' },
+      ]);
+    } finally {
+      setCleaningNotifications(false);
     }
   };
 
@@ -400,9 +431,21 @@ export default function AdminScreen({ navigation }) {
       return `${total} total reports (${pending} pending) across all studios`;
     } else {
       const studioName =
-        getStudioOptions().find((s) => s.id === selectedStudioFilter)
-          ?.displayName || 'Unknown Studio';
+        studioOptions.find((s) => s.id === selectedStudioFilter)?.displayName ||
+        'Unknown Studio';
       return `${total} reports (${pending} pending) in ${studioName}`;
+    }
+  };
+
+  // Load studio options
+  const loadStudioOptions = async () => {
+    try {
+      const options = await getStudioOptions();
+      setStudioOptions(options);
+      console.log(`[AdminScreen] Loaded ${options.length} studio options`);
+    } catch (error) {
+      console.error('[AdminScreen] Error loading studio options:', error);
+      // Don't show alert, just use default "All Studios" option
     }
   };
 
@@ -482,6 +525,7 @@ export default function AdminScreen({ navigation }) {
       setShowReportsSection(true);
       loadReports();
       loadStudioRequests();
+      loadStudioOptions();
     }
   }, [userData]);
 
@@ -536,7 +580,7 @@ export default function AdminScreen({ navigation }) {
               showsHorizontalScrollIndicator={false}
               style={styles.filterScrollView}
             >
-              {getStudioOptions().map((studio) => (
+              {studioOptions.map((studio) => (
                 <TouchableOpacity
                   key={studio.id}
                   style={[
@@ -765,6 +809,26 @@ export default function AdminScreen({ navigation }) {
               style={styles.testButton}
             />
           </View>
+
+          <View style={styles.testingSection}>
+            <Text style={styles.sectionTitle}>Scheduled Notifications</Text>
+            <Text style={styles.testingDescription}>
+              Clean up old scheduled notifications (sent, failed, or overdue).
+              Keeps only pending notifications that haven't fired yet.
+              Report will be saved to admin/reports.
+            </Text>
+
+            <VibeButton
+              label={
+                cleaningNotifications
+                  ? 'Cleaning...'
+                  : 'Cleanup Scheduled Notifications'
+              }
+              onPress={handleCleanupScheduledNotifications}
+              disabled={cleaningNotifications}
+              style={styles.testButton}
+            />
+          </View>
         </ScrollView>
       )}
 
@@ -864,6 +928,13 @@ const styles = StyleSheet.create({
   },
   testingSection: {
     marginBottom: 20,
+  },
+  testingDescription: {
+    color: theme.colors.textSecondary,
+    fontSize: 13,
+    fontFamily: theme.fonts.main,
+    marginBottom: 12,
+    lineHeight: 18,
   },
   testButton: {
     marginBottom: 12,

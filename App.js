@@ -9,6 +9,7 @@ import { useNotificationDisplayInit } from './src/hooks/useNotificationDisplayIn
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import fcmService from './src/services/fcmServiceWrapper';
 import { initializeNotificationServices } from './src/services/notificationInit';
+import { notificationPermissionService } from './src/services/notificationPermissionService';
 import { useFonts, ComicNeue_400Regular, ComicNeue_700Bold } from '@expo-google-fonts/comic-neue';
 import theme from './src/theme/themes';
 
@@ -31,9 +32,14 @@ function AppWithNotifications({ onReady }) {
   // Initialize notification display service with VibeAlert
   useNotificationDisplayInit();
 
-  // Initialize push notifications
+  // Initialize push notifications (without requesting permission)
   useEffect(() => {
     const initializePushNotifications = async () => {
+      // Initialize notification permission service (check if permission was requested before)
+      await notificationPermissionService.initialize();
+
+      // Initialize FCM service but don't request permission yet
+      // Permission will be requested contextually when user creates/joins events, shows interest, or follows
       const success = await fcmService.initialize();
       if (!success) {
         console.warn('[App] ❌ Push notifications initialization failed');
