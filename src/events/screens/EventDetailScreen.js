@@ -205,7 +205,7 @@ const EventDetailScreen = memo(function EventDetailScreen({
         shareMessage += `\n${truncatedDesc}\n`;
       }
 
-      shareMessage += `\n📲 Download the BVS app to find other local events!\n`;
+      shareMessage += `\n📲 Download The Yo to find other local events!\n`;
       shareMessage += `https://bigvibestudios.com/app`;
 
       const result = await Share.share({

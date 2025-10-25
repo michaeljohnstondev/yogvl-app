@@ -16,7 +16,7 @@ export const getDefaultNotificationSettings = () => ({
     newComments: true,
     notifyOnJoin: true,
     notifyOnLeave: true,
-    eventRecap: false,
+    eventRecap: true,
     attendanceReminders: 'none',
     reminderTemplates: {
       '15m': false,
@@ -31,7 +31,7 @@ export const getDefaultNotificationSettings = () => ({
     enabled: true,
     hostChanges: true,
     hostComments: true,
-    newComments: false,
+    newComments: true,
     reminderTemplates: {
       '15m': false,
       '30m': false,

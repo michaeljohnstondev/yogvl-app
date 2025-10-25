@@ -109,7 +109,7 @@ exports.onHostComment = functions.firestore
               .doc(`studios/${studioId}/events/${eventId}/guestNotificationSettings/${subscriberId}`)
               .get();
 
-            if (eventSettingsDoc.exists()) {
+            if (eventSettingsDoc.exists) {
               hostCommentsEnabled = eventSettingsDoc.data()?.notificationSettings?.hostComments ?? true;
               console.log(`[Host Comment] 📋 Using per-event settings for subscriber ${subscriberId}: hostComments = ${hostCommentsEnabled}`);
             } else {
@@ -330,7 +330,7 @@ exports.onGuestComment = functions.firestore
               .doc(`studios/${studioId}/events/${eventId}/guestNotificationSettings/${recipientId}`)
               .get();
 
-            if (eventSettingsDoc.exists()) {
+            if (eventSettingsDoc.exists) {
               newCommentsEnabled = eventSettingsDoc.data()?.notificationSettings?.newComments ?? false;
               console.log(`[Guest Comment] 📋 Using per-event settings for host/cohost ${recipientId}: newComments = ${newCommentsEnabled}`);
             } else {
@@ -465,7 +465,7 @@ exports.onGuestComment = functions.firestore
               .doc(`studios/${studioId}/events/${eventId}/guestNotificationSettings/${subscriberId}`)
               .get();
 
-            if (eventSettingsDoc.exists()) {
+            if (eventSettingsDoc.exists) {
               newCommentsEnabled = eventSettingsDoc.data()?.notificationSettings?.newComments ?? false;
               console.log(`[Guest Comment] 📋 Using per-event settings for subscriber ${subscriberId}: newComments = ${newCommentsEnabled}`);
             } else {
