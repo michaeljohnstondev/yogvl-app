@@ -182,7 +182,11 @@ const EventActionButtons = memo(function EventActionButtons({
           !isActualCreator &&
           !isActualCohost && (
             <VibeButton
-              label={isSubscribed ? 'LEAVE EVENT' : 'JOIN EVENT'}
+              label={
+                isLoading
+                  ? (isSubscribed ? 'LEAVING...' : 'JOINING...')
+                  : (isSubscribed ? 'LEAVE EVENT' : 'JOIN EVENT')
+              }
               onPress={onSubscribe}
               disabled={
                 isLoading || (!isSubscribed && !joinConstraints.canJoin)
@@ -197,7 +201,11 @@ const EventActionButtons = memo(function EventActionButtons({
 
             {/* Join/Leave event button */}
             <VibeButton
-              label={isSubscribed ? 'LEAVE EVENT' : 'JOIN EVENT'}
+              label={
+                isLoading
+                  ? (isSubscribed ? 'LEAVING...' : 'JOINING...')
+                  : (isSubscribed ? 'LEAVE EVENT' : 'JOIN EVENT')
+              }
               onPress={onSubscribe}
               disabled={
                 isLoading || (!isSubscribed && !joinConstraints.canJoin)

@@ -105,7 +105,10 @@ export const VibeAlertProvider = ({ children }) => {
     },
     joinedEvent: (title, message, onViewEvent, onCustomizeAlerts, onInviteFriends, onShareEvent, onGoHome, onCancel) => {
       const buttons = [
-        { text: 'Customize Alerts', onPress: onCustomizeAlerts, style: 'blue' },
+        // Only include View Event button if callback is provided
+        ...(onViewEvent ? [{ text: 'View Event', onPress: onViewEvent, style: 'blue' }] : []),
+        // Only include Customize Alerts button if callback is provided
+        ...(onCustomizeAlerts ? [{ text: 'Customize Alerts', onPress: onCustomizeAlerts, style: 'blue' }] : []),
         // Only include Invite Friends button if callback is provided (permission-based)
         ...(onInviteFriends ? [{ text: 'Invite Friends', onPress: onInviteFriends, style: 'blue' }] : []),
         // Only include Share Event button if callback is provided (permission-based, same as invite)

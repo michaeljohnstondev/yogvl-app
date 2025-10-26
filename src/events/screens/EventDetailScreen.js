@@ -422,18 +422,15 @@ const EventDetailScreen = memo(function EventDetailScreen({
         // This follows Facebook/Instagram pattern - ask when user takes meaningful action
         notificationPermissionService.requestPermissionIfNeeded(currentUserId, 'join_event');
 
-        // Check if guest can invite/share based on event rules
-        // Public events: guests can always invite/share
-        // Private events: only if allowGuestInvites is true
-        const canGuestInvite = !event.isPrivate || event.allowGuestInvites;
-
         vibeAlert.joinedEvent(
           'Joined Event!',
           'You have successfully joined this event!',
-          () => {}, // View Event - already on event detail screen, do nothing
-          () => setShowSubscriptionModal(true), // Customize Alerts
-          canGuestInvite ? () => navigation.navigate('Invite', { eventId, eventTitle: event.title }) : null, // Invite Friends - only if allowed
-          canGuestInvite ? handleShareEvent : null, // Share Event - only if allowed (same as invite)
+          () => {
+            // View Event - dismiss alert and stay on event detail screen
+          },
+          null, // Customize Alerts - removed
+          null, // Invite Friends - removed
+          null, // Share Event - removed
           () => {
             // Go Home and trigger refresh
             navigation.reset({
