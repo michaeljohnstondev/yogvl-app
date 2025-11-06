@@ -42,6 +42,7 @@
       }
     },
     "android": {
+      "supportsTablet": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#000814"
@@ -58,6 +59,9 @@
         "barStyle": "light-content"
       },
       "package": "com.bigvibestudios.bvs",
+      "versionCode": 1,
+      "compileSdkVersion": 35,
+      "targetSdkVersion": 35,
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",

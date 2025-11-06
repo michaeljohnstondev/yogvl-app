@@ -52,6 +52,19 @@ export default function NotificationItem({
   // State for deletion handling
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Debug: Log notification data if title or message is missing
+  if (!notification.title || !notification.message) {
+    console.log('[NotificationItem] ⚠️ BLANK NOTIFICATION DETECTED:', {
+      id: notification.id,
+      type: notification.type,
+      title: notification.title,
+      message: notification.message,
+      data: notification.data,
+      createdAt: notification.createdAt,
+      fullNotification: notification
+    });
+  }
+
   // Handle swipe delete function
   const handleSwipeDelete = useCallback(async () => {
     if (isDeleting) return; // Prevent double deletion

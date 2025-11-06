@@ -6,6 +6,8 @@ import {
   StyleSheet,
   ScrollView,
   Image,
+  Linking,
+  TouchableOpacity,
 } from 'react-native';
 import {
   VibeInput,
@@ -257,6 +259,20 @@ export default function LandingScreen() {
                 </Text>
               )}
             </View>
+
+            {/* Terms and Privacy Policy Links */}
+            <View style={styles.legalLinksContainer}>
+              <Text style={styles.legalText}>
+                By {authMode === 'login' ? 'logging in' : 'signing up'}, you agree to our{' '}
+                <TouchableOpacity onPress={() => Linking.openURL('https://bigvibestudios.com/terms')}>
+                  <Text style={styles.legalLink}>Terms of Service</Text>
+                </TouchableOpacity>
+                {' '}and{' '}
+                <TouchableOpacity onPress={() => Linking.openURL('https://bigvibestudios.com/privacy')}>
+                  <Text style={styles.legalLink}>Privacy Policy</Text>
+                </TouchableOpacity>
+              </Text>
+            </View>
           </>
         )}
       </Animated.View>
@@ -333,5 +349,20 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
     paddingVertical: 8,
     marginTop: 12,
+  },
+  legalLinksContainer: {
+    marginTop: 20,
+    paddingHorizontal: 10,
+  },
+  legalText: {
+    fontSize: 12,
+    color: theme.colors.gray,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  legalLink: {
+    color: theme.colors.vibeBlue,
+    textDecorationLine: 'underline',
+    fontSize: 12,
   },
 });

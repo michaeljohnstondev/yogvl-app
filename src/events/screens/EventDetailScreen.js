@@ -407,16 +407,18 @@ const EventDetailScreen = memo(function EventDetailScreen({
           notificationSettings
         );
 
-        // Batch all state updates together
+        // Update event data with low priority (doesn't affect UI immediately)
         startTransition(() => {
           setEvent((prev) => ({
             ...prev,
             subscribers: result.subscribers,
             subscriberCount: result.subscriberCount,
           }));
-          setIsSubscribed(true);
-          setShowSubscriptionModal(false);
         });
+
+        // Update subscription status and modal immediately (affects button state)
+        setIsSubscribed(true);
+        setShowSubscriptionModal(false);
 
         // Request notification permission when user joins an event (contextual request)
         // This follows Facebook/Instagram pattern - ask when user takes meaningful action
@@ -483,9 +485,6 @@ const EventDetailScreen = memo(function EventDetailScreen({
   const performUnsubscribe = useCallback(async () => {
     if (!event || !currentUserId) return;
 
-    // Show "Leaving..." banner
-    vibeAlert.banner('Leaving...', '', 'info', null, false);
-
     try {
       const result = await eventService.unsubscribeFromEvent(
         currentUserId,
@@ -493,24 +492,22 @@ const EventDetailScreen = memo(function EventDetailScreen({
         studioId
       );
 
-      // Batch state updates to prevent multiple re-renders
+      // Update event data with low priority (doesn't affect UI immediately)
       startTransition(() => {
         setEvent((prev) => ({
           ...prev,
           subscribers: result.subscribers,
           subscriberCount: result.subscriberCount,
         }));
-        setIsSubscribed(false);
       });
 
-      // Hide the banner once unsubscribe is complete
-      vibeAlert.hideBanner();
+      // Update subscription status immediately (affects button state)
+      setIsSubscribed(false);
     } catch (error) {
       console.error(
         '[EventDetailScreen] Error unsubscribing from event:',
         error
       );
-      vibeAlert.hideBanner();
       vibeAlert.error('Error', 'Failed to leave event. Please try again.');
     } finally {
       setIsLoading(false);
@@ -653,10 +650,9 @@ const EventDetailScreen = memo(function EventDetailScreen({
     }, [navigation, handleInviteResult])
   );
 
-  // Load event data on focus
-  useFocusEffect(
-    useCallback(() => {
-      const fetchEventData = async () => {
+  // Load event data on mount only (not on every focus)
+  useEffect(() => {
+    const fetchEventData = async () => {
         if (!studioId || !eventId || !currentUserId) return;
 
         try {
@@ -665,8 +661,6 @@ const EventDetailScreen = memo(function EventDetailScreen({
             eventId,
             currentUserId
           );
-
-          // Data loaded successfully
 
           setEvent(eventData.event);
           setIsSubscribed(eventData.isSubscribed);
@@ -720,9 +714,9 @@ const EventDetailScreen = memo(function EventDetailScreen({
         }
       };
 
-      fetchEventData();
-    }, [studioId, eventId, currentUserId, navigation, vibeAlert])
-  );
+    fetchEventData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studioId, eventId, currentUserId]); // Only refetch if event ID changes, not on navigation/vibeAlert changes
 
   // Handle Android back button - always navigate to Home instead of closing app
   useFocusEffect(
