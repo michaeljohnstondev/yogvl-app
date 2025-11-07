@@ -59,7 +59,7 @@
         "barStyle": "light-content"
       },
       "package": "com.bigvibestudios.bvs",
-      "versionCode": 1,
+      "versionCode": 2,
       "compileSdkVersion": 35,
       "targetSdkVersion": 35,
       "googleServicesFile": "./google-services.json",
