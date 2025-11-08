@@ -8,7 +8,8 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "eslint . --ext .js,.jsx",
-    "clean-ios": "rimraf node_modules ios/Pods ios/Podfile.lock && rimraf %LOCALAPPDATA%\\Temp\\metro-* %LOCALAPPDATA%\\Temp\\react-* && rimraf \"%USERPROFILE%\\Library\\Developer\\Xcode\\DerivedData\" || true && watchman watch-del-all || true && npm install && cd ios && pod install --repo-update && cd .."
+    "clean-ios": "rimraf node_modules ios/Pods ios/Podfile.lock && rimraf %LOCALAPPDATA%\\Temp\\metro-* %LOCALAPPDATA%\\Temp\\react-* && rimraf \"%USERPROFILE%\\Library\\Developer\\Xcode\\DerivedData\" || true && watchman watch-del-all || true && npm install && cd ios && pod install --repo-update && cd ..",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@babel/runtime": "^7.28.3",
@@ -64,6 +65,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-native": "^5.0.0",
     "expo-server-sdk": "^3.15.0",
+    "patch-package": "^8.0.1",
     "rimraf": "^6.0.1"
   },
   "private": true

@@ -114,7 +114,7 @@ android {
         applicationId 'com.bigvibestudios.bvs'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 4
+        versionCode 6
         versionName "1.0.0"
     }
     signingConfigs {
@@ -143,6 +143,12 @@ android {
         jniLibs {
             useLegacyPackaging (findProperty('expo.useLegacyPackaging')?.toBoolean() ?: false)
         }
+    }
+}
+
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+    kotlinOptions {
+        freeCompilerArgs += ["-Xjvm-default=all"]
     }
 }
 
