@@ -23,7 +23,8 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
+      "supportedDevices": ["iPhone"],
       "bundleIdentifier": "com.bigvibestudios.bvs",
       "buildNumber": "15",
       "googleServicesFile": "./GoogleService-Info.plist",
