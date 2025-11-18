@@ -104,25 +104,21 @@ Fetching podspec for `fmt` from `../node_modules/react-native/third-party-podspe
 Fetching podspec for `glog` from `../node_modules/react-native/third-party-podspecs/glog.podspec`
 Fetching podspec for `hermes-engine` from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`
 [Hermes] Using release tarball from URL: https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.74.5/react-native-artifacts-0.74.5-hermes-ios-debug.tar.gz
-% Total    % Received % Xferd  Average Speed
-Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
+% Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+Dload  Upload   Total   Spent    Left  Speed
 
   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
-100 19.7M  100 19.7M    0     0   212M      0 --:--:-- --:--:-- --:--:--  214M
-% Total    % Received % Xferd  Average Speed   Time    Time     T
-ime  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
+0 19.7M    0 13786    0     0
+333k      0  0:01:00 --:--:--  0:01:00  328k
+100 19.7M  100 19.7M    0     0  90.8M      0 --:--:-- --:--:-- --:--:-- 90.5M
+% Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+Dload  Upload   Total   Spent    Left  Speed
 
   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
-100 14.5M  100 14.5M    0     0   202M
-0 --:--:-- --:--:-- --:--:--  205M
-Adding spec repo `trunk` with CDN `https://cdn.cocoapods.org/`
-[!] CocoaPods could not find compatible versions for pod "RNScreens":
-  In Podfile:
-    RNScreens (from `../node_modules/react-native-screens`)
-Specs satisfying the `RNScreens (from `../node_modules/react-native-screens`)` dependency were found, but they required a higher minimum deployment target.
+100 14.5M  100 14.5M    0     0  88.4M      0 --:--:-- --:--:--
+--:--:-- 88.8M
+Cloning spec repo `trunk` from `https://cdn.cocoapods.org/`
+[!] Unable to add a source with url `https://cdn.cocoapods.org/` named `trunk`.
+You can try adding it manually in `/Users/expo/.cocoapods/repos` or via `pod repo add`.
 [!] [Codegen] warn: using experimental new codegen integration
-[!] `<PBXResourcesBuildPhase UUID=`13B07F8E1A680F5B00A75B9A`>` attempted to initialize an object with an unknown UUID. `0E01496B534A43A59CFB5F63` for attribute: `files`. This can be the result of a merge and the unknown UUID is being discarded.
-Error: Some pods require a higher minimum deployment target.
-You can use the expo-build-properties config plugin (https://docs.expo.dev/versions/latest/sdk/build-properties/) to override the default native build properties and set a different minimum deployment target.
+[!] `<PBXResourcesBuildPhase UUID=`13B07F8E1A680F5B00A75B9A`>` attempted to initialize an object with an unknown UUID. `1CA6AB75E1254B3D8D10261B` for attribute: `files`. This can be the result of a merge and the unknown UUID is being discarded.
