@@ -86,6 +86,12 @@ This document provides a comprehensive inventory of all existing components in t
   - Interactive analog clock time picker
   - Props: `visible`, `onClose`, `onConfirm`, `initialTime`, `isFromTemplate`
 
+- **VibeCalendar** (`src/components/ui/VibeCalendar.jsx`)
+  - Custom calendar date picker with punk/cyberpunk theme
+  - Props: `visible`, `onClose`, `onConfirm`, `initialDate`, `minimumDate`, `maximumDate`
+  - Features: Replaces native iOS wheel picker, visual month/year navigation, punk-themed styling
+  - Uses: `react-native-calendars` library with custom theme
+
 - **VibeLoadingScreen** (`src/components/ui/VibeLoadingScreen.js`)
   - Loading screen with BVS branding
   - Props: `loadingText`, `showBranding`, `size`, `color`

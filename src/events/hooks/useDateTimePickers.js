@@ -1,8 +1,7 @@
 // hooks/useDateTimePickers.js
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
-import DateTimePickerModal from 'react-native-modal-datetime-picker';
-import { VibeAnalogClock, VibeButtonPlain } from '../../components/ui/base';
+import { VibeAnalogClock, VibeCalendar, VibeButtonPlain } from '../../components/ui/base';
 import theme from '../../theme/themes';
 
 /**
@@ -85,54 +84,88 @@ const useDateTimePickers = (config = {}, onUpdate = () => {}) => {
   // Handle date confirmation
   const handleDateConfirm = useCallback(
     (pickerId, selectedDate) => {
-      updatePicker(pickerId, 'value', selectedDate);
-      updatePicker(pickerId, 'dateSelected', true);
+      // Batch all state updates together using functional setState
+      setPickerData((prev) => {
+        const currentPicker = prev[pickerId];
+        const shouldMarkSelected = currentPicker?.timeSelected;
+        const shouldShowTime = !currentPicker?.timeSelected;
 
-      // Check if time was already selected, if so mark whole picker as selected
-      const currentPicker = pickerData[pickerId];
-      if (currentPicker?.timeSelected) {
-        updatePicker(pickerId, 'selected', true);
-      }
+        const newData = {
+          ...prev,
+          [pickerId]: {
+            ...prev[pickerId],
+            value: selectedDate,
+            dateSelected: true,
+            selected: shouldMarkSelected || prev[pickerId].selected,
+            showDatePicker: false,
+            showTimePicker: shouldShowTime,
+          },
+        };
 
-      hidePicker(pickerId, 'Date');
+        // Call the update callback with all current values
+        const currentValues = {};
+        Object.keys(newData).forEach((id) => {
+          currentValues[id] = {
+            value: newData[id].value,
+            selected: newData[id].selected,
+            dateSelected: newData[id].dateSelected,
+            timeSelected: newData[id].timeSelected,
+          };
+        });
+        onUpdate(currentValues);
 
-      // Automatically navigate to time picker if time hasn't been selected yet
-      if (!currentPicker?.timeSelected) {
-        // Use setTimeout to ensure the date picker is fully closed first
-        setTimeout(() => {
-          showPicker(pickerId, 'Time');
-        }, 300);
-      }
+        return newData;
+      });
     },
-    [updatePicker, hidePicker, showPicker, pickerData]
+    [onUpdate]
   );
 
   // Handle time confirmation
   const handleTimeConfirm = useCallback(
     (pickerId, selectedTime) => {
-      const currentPicker = pickerData[pickerId];
-      const currentDate = currentPicker.value;
+      // Batch all state updates together using functional setState
+      setPickerData((prev) => {
+        const currentPicker = prev[pickerId];
+        const currentDate = currentPicker.value;
 
-      const newDateTime = new Date(
-        currentDate.getFullYear(),
-        currentDate.getMonth(),
-        currentDate.getDate(),
-        selectedTime.getHours(),
-        selectedTime.getMinutes()
-      );
+        const newDateTime = new Date(
+          currentDate.getFullYear(),
+          currentDate.getMonth(),
+          currentDate.getDate(),
+          selectedTime.getHours(),
+          selectedTime.getMinutes()
+        );
 
-      updatePicker(pickerId, 'value', newDateTime);
-      updatePicker(pickerId, 'timeSelected', true);
-      updatePicker(pickerId, 'isFromTemplate', false); // Reset template flag on user interaction
+        const shouldMarkSelected = currentPicker?.dateSelected;
 
-      // Check if date was already selected, if so mark whole picker as selected
-      if (currentPicker?.dateSelected) {
-        updatePicker(pickerId, 'selected', true);
-      }
+        const newData = {
+          ...prev,
+          [pickerId]: {
+            ...prev[pickerId],
+            value: newDateTime,
+            timeSelected: true,
+            isFromTemplate: false,
+            selected: shouldMarkSelected || prev[pickerId].selected,
+            showTimePicker: false,
+          },
+        };
 
-      hidePicker(pickerId, 'Time');
+        // Call the update callback with all current values
+        const currentValues = {};
+        Object.keys(newData).forEach((id) => {
+          currentValues[id] = {
+            value: newData[id].value,
+            selected: newData[id].selected,
+            dateSelected: newData[id].dateSelected,
+            timeSelected: newData[id].timeSelected,
+          };
+        });
+        onUpdate(currentValues);
+
+        return newData;
+      });
     },
-    [pickerData, updatePicker, hidePicker]
+    [onUpdate]
   );
 
   // Format date for display
@@ -304,7 +337,7 @@ const useDateTimePickers = (config = {}, onUpdate = () => {}) => {
   );
 
   // Generate picker button component
-  const PickerButton = useCallback(
+  const PickerButton = React.memo(
     ({ pickerId, type, placeholder, icon, style }) => {
       const picker = pickerData[pickerId];
       const pickerConfig = config[pickerId];
@@ -338,12 +371,11 @@ const useDateTimePickers = (config = {}, onUpdate = () => {}) => {
           numberOfLines={1} // Limit to single line with ellipsis
         />
       );
-    },
-    [pickerData, config, getFormattedValue, showPicker]
+    }
   );
 
   // Generate date/time picker row
-  const PickerRow = useCallback(
+  const PickerRow = React.memo(
     ({
       pickerId,
       dateIcon = '📅',
@@ -371,8 +403,7 @@ const useDateTimePickers = (config = {}, onUpdate = () => {}) => {
           </View>
         </View>
       );
-    },
-    [PickerButton, pickerData]
+    }
   );
 
   // Generate all modals
@@ -387,11 +418,10 @@ const useDateTimePickers = (config = {}, onUpdate = () => {}) => {
 
           return (
             <React.Fragment key={pickerId}>
-              {/* Date Picker Modal */}
-              <DateTimePickerModal
-                isVisible={picker.showDatePicker}
-                mode="date"
-                date={picker.value}
+              {/* Custom Calendar Picker */}
+              <VibeCalendar
+                visible={picker.showDatePicker}
+                initialDate={picker.value}
                 minimumDate={pickerConfig.futureOnly ? new Date() : undefined}
                 maximumDate={
                   pickerConfig.maxDate
@@ -399,7 +429,7 @@ const useDateTimePickers = (config = {}, onUpdate = () => {}) => {
                     : undefined
                 }
                 onConfirm={(date) => handleDateConfirm(pickerId, date)}
-                onCancel={() => hidePicker(pickerId, 'Date')}
+                onClose={() => hidePicker(pickerId, 'Date')}
               />
 
               {/* Time Picker Modal */}
