@@ -1,5 +1,5 @@
 // components/ui/base/VibeCalendar.jsx
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Modal, View, StyleSheet, TouchableOpacity, Text, ScrollView } from 'react-native';
 import theme from '../../../theme/themes';
 
@@ -24,68 +24,76 @@ const VibeCalendar = ({
     return initialDate || new Date();
   });
 
-  // Get days in month
-  const getDaysInMonth = (date) => {
+  // Memoize helper functions
+  const getDaysInMonth = useCallback((date) => {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-  };
+  }, []);
 
-  // Get first day of month (0 = Sunday, 6 = Saturday)
-  const getFirstDayOfMonth = (date) => {
+  const getFirstDayOfMonth = useCallback((date) => {
     return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
-  };
+  }, []);
 
-  // Check if date is disabled
-  const isDateDisabled = (date) => {
-    if (minimumDate && date < minimumDate) return true;
-    if (maximumDate && date > maximumDate) return true;
+  const isDateDisabled = useCallback((date) => {
+    const compareDate = new Date(date);
+    compareDate.setHours(0, 0, 0, 0);
+
+    if (minimumDate) {
+      const minDate = new Date(minimumDate);
+      minDate.setHours(0, 0, 0, 0);
+      if (compareDate < minDate) return true;
+    }
+
+    if (maximumDate) {
+      const maxDate = new Date(maximumDate);
+      maxDate.setHours(0, 0, 0, 0);
+      if (compareDate > maxDate) return true;
+    }
+
     return false;
-  };
+  }, [minimumDate, maximumDate]);
 
-  // Check if date is today
-  const isToday = (date) => {
+  const isToday = useCallback((date) => {
     const today = new Date();
-    return (
-      date.getDate() === today.getDate() &&
-      date.getMonth() === today.getMonth() &&
-      date.getFullYear() === today.getFullYear()
-    );
-  };
+    today.setHours(0, 0, 0, 0);
+    const compareDate = new Date(date);
+    compareDate.setHours(0, 0, 0, 0);
+    return compareDate.getTime() === today.getTime();
+  }, []);
 
-  // Check if date is selected
-  const isSelected = (date) => {
-    return (
-      selectedDate &&
-      date.getDate() === selectedDate.getDate() &&
-      date.getMonth() === selectedDate.getMonth() &&
-      date.getFullYear() === selectedDate.getFullYear()
-    );
-  };
+  const isSelected = useCallback((date) => {
+    if (!selectedDate) return false;
+    const compareDate = new Date(date);
+    compareDate.setHours(0, 0, 0, 0);
+    const selected = new Date(selectedDate);
+    selected.setHours(0, 0, 0, 0);
+    return compareDate.getTime() === selected.getTime();
+  }, [selectedDate]);
 
   // Navigate months
-  const previousMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
-  };
+  const previousMonth = useCallback(() => {
+    setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  }, []);
 
-  const nextMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
-  };
+  const nextMonth = useCallback(() => {
+    setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  }, []);
 
   // Handle day press
-  const handleDayPress = (day) => {
-    if (day === null) return; // Empty cell
+  const handleDayPress = useCallback((day) => {
+    if (day === null) return;
     const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
     if (!isDateDisabled(date)) {
       setSelectedDate(date);
     }
-  };
+  }, [currentMonth, isDateDisabled]);
 
   // Handle confirm
-  const handleConfirm = () => {
+  const handleConfirm = useCallback(() => {
     onConfirm(selectedDate);
-  };
+  }, [onConfirm, selectedDate]);
 
-  // Generate calendar grid
-  const generateCalendar = () => {
+  // Memoize calendar data - only recalculate when month changes
+  const calendarData = useMemo(() => {
     const daysInMonth = getDaysInMonth(currentMonth);
     const firstDay = getFirstDayOfMonth(currentMonth);
     const days = [];
@@ -101,17 +109,20 @@ const VibeCalendar = ({
     }
 
     return days;
-  };
+  }, [currentMonth, getDaysInMonth, getFirstDayOfMonth]);
 
-  const monthYear = currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  const calendarDays = generateCalendar();
+  // Memoize month/year string
+  const monthYear = useMemo(() => {
+    return currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  }, [currentMonth]);
+
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="slide"
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
@@ -139,7 +150,7 @@ const VibeCalendar = ({
           {/* Calendar grid */}
           <ScrollView style={styles.calendarScroll}>
             <View style={styles.calendarGrid}>
-              {calendarDays.map((day, index) => {
+              {calendarData.map((day, index) => {
                 if (day === null) {
                   return <View key={`empty-${index}`} style={styles.dayCell} />;
                 }
@@ -262,13 +273,13 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   selectedDay: {
-    backgroundColor: theme.colors.vibeBlue,
-    borderRadius: 20,
-  },
-  todayDay: {
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: theme.colors.vibeGreen,
     borderRadius: 20,
+    backgroundColor: 'rgba(0, 255, 65, 0.15)',
+  },
+  todayDay: {
+    // Removed - using selectedDay style instead
   },
   disabledDay: {
     opacity: 0.3,
@@ -279,12 +290,12 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   },
   selectedDayText: {
-    color: theme.colors.black,
-    fontWeight: 'bold',
-  },
-  todayDayText: {
     color: theme.colors.vibeGreen,
     fontWeight: 'bold',
+    fontSize: 18,
+  },
+  todayDayText: {
+    // Removed - using selectedDayText style instead
   },
   disabledDayText: {
     color: theme.colors.textSecondary,
@@ -317,12 +328,14 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
-    backgroundColor: theme.colors.vibeBlue,
+    borderWidth: 2,
+    borderColor: theme.colors.vibeBlue,
+    backgroundColor: 'transparent',
   },
   confirmButtonText: {
-    color: theme.colors.black,
+    color: theme.colors.vibeBlue,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
     textAlign: 'center',
   },
 });

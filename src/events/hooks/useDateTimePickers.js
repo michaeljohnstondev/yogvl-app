@@ -505,7 +505,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   unselectedButton: {
-    opacity: 0.7,
+    // Removed opacity to match VibeInput brightness
   },
   completedButton: {
     // Removed purple border - keep neon blue regardless of state
