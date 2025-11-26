@@ -98,11 +98,20 @@ export default function EditEventScreen({ navigation, route }) {
 
           const subscriberUserIds = eventData.subscribers || [];
           const cohostUserIds = eventData.cohosts || [];
+          const pendingInvitations = eventData.invitations || [];
+
+          // Extract user IDs from invitations (handle both object and string formats)
+          const invitedUserIds = pendingInvitations.map(inv =>
+            typeof inv === 'object' ? inv.userId : inv
+          );
 
           // Make attendees and cohosts mutually exclusive
-          // Attendees are subscribers who are NOT cohosts AND NOT the event creator
+          // Attendees are subscribers + pending invitations who are NOT cohosts AND NOT the event creator
           const creatorId = eventData.createdBy;
-          const attendeeUserIds = subscriberUserIds.filter(
+
+          // Combine subscribers and invited users, then filter
+          const allAttendeeIds = [...new Set([...subscriberUserIds, ...invitedUserIds])];
+          const attendeeUserIds = allAttendeeIds.filter(
             (userId) => !cohostUserIds.includes(userId) && userId !== creatorId
           );
 
@@ -128,7 +137,7 @@ export default function EditEventScreen({ navigation, route }) {
           setCurrentCohosts(cohostUsers.filter(Boolean));
 
           console.log(
-            `[EditEventScreen] Loaded ${attendeeUsers.filter(Boolean).length} attendees and ${cohostUsers.filter(Boolean).length} cohosts`
+            `[EditEventScreen] Loaded ${attendeeUsers.filter(Boolean).length} attendees (including ${invitedUserIds.length} pending invitations) and ${cohostUsers.filter(Boolean).length} cohosts`
           );
         } catch (error) {
           console.error(

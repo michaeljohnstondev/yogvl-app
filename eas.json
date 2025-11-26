@@ -6,14 +6,16 @@
       "android": {
         "buildType": "apk"
       },
-      "channel": "development"
+      "channel": "development",
+      "appConfig": "./app.development.json"
     },
     "preview": {
       "distribution": "internal",
       "android": {
         "buildType": "apk"
       },
-      "channel": "preview"
+      "channel": "preview",
+      "appConfig": "./app.preview.json"
     },
     "production": {
       "android": {

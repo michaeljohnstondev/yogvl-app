@@ -424,7 +424,10 @@ export default function InterestsScreen() {
             <View style={styles.inputContainer}>
               <TextInput
                 ref={textInputRef}
-                style={styles.textInput}
+                style={[
+                  styles.textInput,
+                  showSuggestions && styles.textInputWithDropdown
+                ]}
                 placeholder="Type an interest"
                 placeholderTextColor={theme.colors.gray}
                 value={newInterest}
@@ -603,6 +606,10 @@ const styles = {
     color: theme.colors.white,
     fontSize: 16,
     fontFamily: theme.fonts.main,
+  },
+  textInputWithDropdown: {
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
   },
   addButtonVertical: {
     marginVertical: 0,
