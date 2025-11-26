@@ -85,8 +85,8 @@ export const VibeAlertProvider = ({ children }) => {
         title,
         message,
         [
-          { text: 'Confirm', onPress: onConfirm },
-          { text: 'Cancel', onPress: onCancel },
+          { text: 'Confirm', onPress: onConfirm, style: 'confirmButton' },
+          { text: 'Cancel', onPress: onCancel, style: 'confirmCancel' },
         ],
         'confirm'
       );
@@ -248,6 +248,8 @@ export const VibeAlertProvider = ({ children }) => {
                   const isRed = button.style === 'red';
                   const isDefault = button.style === 'default';
                   const isCancel = button.style === 'cancel';
+                  const isConfirmButton = button.style === 'confirmButton';
+                  const isConfirmCancel = button.style === 'confirmCancel';
                   const isLastButton = index === alert.buttons.length - 1;
 
                   return (
@@ -268,6 +270,8 @@ export const VibeAlertProvider = ({ children }) => {
                         isDefault && styles.defaultButton,
                         isCancel && !isJoinedEvent && styles.cancelButton,
                         isCancel && isJoinedEvent && styles.redCancelButton,
+                        isConfirmButton && styles.confirmButtonStyle,
+                        isConfirmCancel && styles.confirmCancelStyle,
                         !isSubscribe &&
                           !isJoinedEvent &&
                           !isMenu &&
@@ -276,7 +280,9 @@ export const VibeAlertProvider = ({ children }) => {
                           !isBlue &&
                           !isRed &&
                           !isDefault &&
-                          !isCancel && {
+                          !isCancel &&
+                          !isConfirmButton &&
+                          !isConfirmCancel && {
                             backgroundColor: getAlertColors(alert.type).border,
                             borderColor: getAlertColors(alert.type).border,
                           },
@@ -436,6 +442,14 @@ const styles = StyleSheet.create({
   defaultButton: {
     backgroundColor: theme.colors.vibeBlue,
     borderColor: theme.colors.vibeBlue,
+  },
+  confirmButtonStyle: {
+    backgroundColor: '#0072ff',
+    borderColor: theme.colors.vibeTurquoise,
+  },
+  confirmCancelStyle: {
+    backgroundColor: '#0072ff',
+    borderColor: theme.colors.vibeTurquoise,
   },
   buttonText: {
     color: theme.colors.white,

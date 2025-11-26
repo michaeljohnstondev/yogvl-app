@@ -591,6 +591,7 @@ const styles = {
   },
   inputContainer: {
     position: 'relative',
+    marginBottom: 16,
   },
   textInput: {
     backgroundColor: theme.colors.inputBackground,
@@ -602,7 +603,6 @@ const styles = {
     color: theme.colors.white,
     fontSize: 16,
     fontFamily: theme.fonts.main,
-    marginBottom: 16,
   },
   addButtonVertical: {
     marginVertical: 0,

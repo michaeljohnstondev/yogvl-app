@@ -26,7 +26,7 @@
       "supportsTablet": false,
       "supportedDevices": ["iPhone"],
       "bundleIdentifier": "com.bigvibestudios.bvs",
-      "buildNumber": "17",
+      "buildNumber": "18",
       "googleServicesFile": "./GoogleService-Info.plist",
       "runtimeVersion": {
         "policy": "appVersion"
@@ -60,7 +60,7 @@
         "barStyle": "light-content"
       },
       "package": "com.bigvibestudios.bvs",
-      "versionCode": 11,
+      "versionCode": 12,
       "compileSdkVersion": 35,
       "targetSdkVersion": 35,
       "googleServicesFile": "./google-services.json",
