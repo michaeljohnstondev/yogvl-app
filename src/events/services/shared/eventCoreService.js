@@ -212,14 +212,15 @@ export const deleteEvent = async (studioId, eventId, currentUserId, isAdmin = fa
 };
 
 /**
- * Kick an attendee from event (host only)
+ * Kick an attendee from event (host, cohost, or admin only)
  * @param {string} studioId - Studio ID
  * @param {string} eventId - Event ID
  * @param {string} attendeeId - User to kick
  * @param {string} hostId - Host user ID
+ * @param {boolean} isAdmin - Whether the user is an admin
  * @returns {Promise<Object>} Success result
  */
-export const kickAttendee = async (studioId, eventId, attendeeId, hostId) => {
+export const kickAttendee = async (studioId, eventId, attendeeId, hostId, isAdmin = false) => {
   try {
     return await runTransaction(db, async (transaction) => {
       const eventRef = doc(db, 'studios', studioId, 'events', eventId);
@@ -231,12 +232,13 @@ export const kickAttendee = async (studioId, eventId, attendeeId, hostId) => {
 
       const eventData = eventSnap.data();
 
-      // Verify host permissions
+      // Verify host permissions (host, cohost, or admin)
       if (
+        !isAdmin &&
         eventData.createdBy !== hostId &&
         !eventData.cohosts?.includes(hostId)
       ) {
-        throw new Error('Only event host or cohosts can kick attendees');
+        throw new Error('Only event host, cohosts, or admins can kick attendees');
       }
 
       // Cannot kick yourself
@@ -249,6 +251,9 @@ export const kickAttendee = async (studioId, eventId, attendeeId, hostId) => {
       if (!currentSubscribers.includes(attendeeId)) {
         throw new Error('User is not subscribed to this event');
       }
+
+      // Calculate updated subscribers list
+      const updatedSubscribers = currentSubscribers.filter(id => id !== attendeeId);
 
       // Remove from event subscribers
       transaction.update(eventRef, {
@@ -305,7 +310,8 @@ export const kickAttendee = async (studioId, eventId, attendeeId, hostId) => {
 
       return {
         success: true,
-        remainingSubscribers: currentSubscribers.length - 1,
+        subscribers: updatedSubscribers,
+        subscriberCount: updatedSubscribers.length,
       };
     });
   } catch (error) {

@@ -552,7 +552,8 @@ const EventDetailScreen = memo(function EventDetailScreen({
             studioId,
             eventId,
             attendeeId,
-            currentUserId
+            currentUserId,
+            userData?.isAdmin || userData?.isGlobalAdmin
           );
 
           setEvent((prev) => ({
@@ -578,6 +579,15 @@ const EventDetailScreen = memo(function EventDetailScreen({
   };
 
   const handleInvite = () => {
+    console.log('[EventDetailScreen] ============= INVITE BUTTON CLICKED =============');
+    console.log('[EventDetailScreen] Full event object:', JSON.stringify(event, null, 2));
+    console.log('[EventDetailScreen] handleInvite - event data:', {
+      title: event?.title,
+      dateTime: event?.dateTime ? 'present' : 'MISSING',
+      location: event?.location ? 'present' : 'MISSING',
+      eventKeys: event ? Object.keys(event) : 'no event',
+    });
+
     navigation.navigate('Invite', {
       type: 'guests',
       selectedUsers: [],
@@ -588,6 +598,8 @@ const EventDetailScreen = memo(function EventDetailScreen({
       studioId: studioId, // Pass studioId for proper filtering
       source: 'guest_invite',
       inviteType: 'guest_invite',
+      eventDateTime: event?.dateTime, // Pass dateTime for SMS message
+      eventLocation: event?.location, // Pass location for SMS message
     });
   };
 

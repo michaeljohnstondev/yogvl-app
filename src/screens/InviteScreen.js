@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, BackHandler } from 'react-native';
+import { View, Text, ScrollView, BackHandler, Linking, Platform } from 'react-native';
 import { VibeButton } from '../components/ui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -57,11 +57,22 @@ export default function InviteScreen() {
     studioId: routeStudioId = null,
     source = 'unknown',
     inviteType = null, // Type of invitation for event dispatching
+    eventDateTime = null, // Event datetime for SMS message
+    eventLocation = null, // Event location for SMS message
     onSave, // Keep for backward compatibility
   } = route.params || {};
 
   const isHostMode = type === USER_TYPES.HOSTS;
   const { themeColor, themeBgColor } = getThemeColors(isHostMode, theme);
+
+  // Debug logging for route params
+  console.log('[InviteScreen] Route params received:', {
+    eventTitle,
+    eventId,
+    eventDateTime: eventDateTime ? 'received' : 'missing',
+    eventLocation: eventLocation ? 'received' : 'missing',
+    studioId: routeStudioId,
+  });
 
   // Helper function to handle invite completion
   const handleInviteComplete = useCallback((selectedData, options = {}) => {
@@ -222,6 +233,37 @@ export default function InviteScreen() {
     }
   };
 
+  // Helper function to generate SMS invite message with event details
+  const generateInviteMessage = useCallback(() => {
+    console.log('[InviteScreen] Generating SMS with:', {
+      eventTitle,
+      eventDateTime: eventDateTime ? eventDateTime.toString() : 'missing',
+      eventLocation,
+      eventId,
+    });
+
+    let message = `You're invited to ${eventTitle || 'an event'}!\n`;
+
+    // Add event details if available
+    if (eventDateTime) {
+      const eventDate = eventDateTime.toDate ? eventDateTime.toDate() : new Date(eventDateTime);
+      const dateStr = eventDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      const timeStr = eventDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      message += `\n📅 ${dateStr} at ${timeStr}`;
+    }
+
+    if (eventLocation) {
+      message += `\n📍 ${eventLocation}`;
+    }
+
+    // Add app download link
+    message += `\n\nDownload The Yo app: https://bigvibestudios.com`;
+
+    console.log('[InviteScreen] Generated SMS message:', message);
+
+    return message;
+  }, [eventId, eventTitle, eventDateTime, eventLocation]);
+
   // Handle sending invitations immediately for existing events
   const handleSendInvitations = async (selectedData) => {
     try {
@@ -275,8 +317,36 @@ export default function InviteScreen() {
         await Promise.all(invitationPromises);
       }
 
-      // Add phone contacts to successful count (they don't have the same validation)
-      successfulInvitations += phoneContacts.length;
+      // Send SMS invitations for phone contacts
+      if (phoneContacts.length > 0) {
+        try {
+          // Generate SMS message
+          const inviteMessage = generateInviteMessage();
+          const phoneNumbers = phoneContacts
+            .map((contact) => contact.phone)
+            .join(',');
+
+          // Build SMS URL based on platform
+          const smsUrl =
+            Platform.OS === 'ios'
+              ? `sms:${phoneNumbers}&body=${inviteMessage}` // No encoding on iOS
+              : `sms:${phoneNumbers}?body=${encodeURIComponent(inviteMessage)}`; // Encode on Android
+
+          // Open SMS app with pre-filled message
+          await Linking.openURL(smsUrl);
+
+          // Add to successful count
+          successfulInvitations += phoneContacts.length;
+
+          console.log(`[InviteScreen] Opened SMS app to invite ${phoneContacts.length} phone contact(s)`);
+        } catch (error) {
+          console.error('[InviteScreen] Failed to open SMS app:', error);
+          vibeAlert.warning(
+            'SMS Error',
+            'Unable to open SMS app for phone invitations. Please try again.'
+          );
+        }
+      }
 
       // Refresh invitation data to update the UI
       if (contactManagement.loadPendingInvitations) {

@@ -72,6 +72,8 @@ const EventActionButtons = memo(function EventActionButtons({
         eventId: event.id,
         source: 'host_invite',
         inviteType: 'host_guests',
+        eventDateTime: event.eventTimestamp, // Pass eventTimestamp for SMS message
+        eventLocation: event.location, // Pass location for SMS message
       });
     } else if (onInvite) {
       // Guest invite

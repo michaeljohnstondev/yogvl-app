@@ -78,7 +78,7 @@ export default function Navigation({ onReady }) {
   const linking = {
     prefixes: [
       Linking.createURL('/'),
-      'bvs-app://',
+      'the-yo://',
       'https://bigvibestudios.com',
     ],
     config: {
@@ -93,6 +93,13 @@ export default function Navigation({ onReady }) {
           path: '/invite/:inviteCode',
           parse: {
             inviteCode: (inviteCode) => inviteCode,
+          },
+        },
+        // Direct event link
+        EventDetail: {
+          path: '/event/:eventId',
+          parse: {
+            eventId: (eventId) => eventId,
           },
         },
         // New route for app download universal links
