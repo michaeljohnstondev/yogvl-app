@@ -75,6 +75,15 @@ export class UserDataCleanupService {
   }
 
   /**
+   * Check if user has completed interests onboarding
+   * @param {Object} userData - User document data
+   * @returns {boolean} Whether user has completed interests
+   */
+  static hasCompletedInterestsOnboarding(userData) {
+    return !!(userData?.userdata?.onboarding?.hasCompletedInterests);
+  }
+
+  /**
    * Get user's completion status based on actual data
    * @param {Object} userData - User document data
    * @returns {Object} Completion status object
@@ -84,17 +93,20 @@ export class UserDataCleanupService {
       return {
         hasContactInfo: false,
         hasLocation: false,
+        hasInterests: false,
         isComplete: false,
       };
     }
 
     const hasContactInfo = this.hasRequiredContactInfo(userData);
     const hasLocation = this.hasLocationConfigured(userData);
+    const hasInterests = this.hasCompletedInterestsOnboarding(userData);
 
     return {
       hasContactInfo,
       hasLocation,
-      isComplete: hasContactInfo && hasLocation,
+      hasInterests,
+      isComplete: hasContactInfo && hasLocation && hasInterests,
     };
   }
 

@@ -12,14 +12,16 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children, user, userData }) => {
   const value = useMemo(() => {
-    // Extract contact info and location once
+    // Extract contact info, location, and onboarding status
     const contactInfo = userData?.userdata?.contactInfo;
     const defaultStudio = userData?.userdata?.studios?.default;
+    const onboarding = userData?.userdata?.onboarding;
 
     const hasCompletedContactInfo = !!(
       contactInfo?.firstName && contactInfo?.lastName
     );
     const hasSelectedLocation = !!defaultStudio?.studioId;
+    const hasCompletedInterests = !!onboarding?.hasCompletedInterests;
 
     return {
       user,
@@ -28,7 +30,8 @@ export const AuthProvider = ({ children, user, userData }) => {
       isAuthenticated: !!user,
       hasCompletedContactInfo,
       hasSelectedLocation,
-      hasCompletedOnboarding: hasCompletedContactInfo && hasSelectedLocation,
+      hasCompletedInterests,
+      hasCompletedOnboarding: hasCompletedContactInfo && hasSelectedLocation && hasCompletedInterests,
     };
   }, [
     user?.uid,
@@ -36,6 +39,7 @@ export const AuthProvider = ({ children, user, userData }) => {
     userData?.userdata?.contactInfo?.lastName,
     userData?.userdata?.contactInfo?.profilePicture,
     userData?.userdata?.studios?.default?.studioId,
+    userData?.userdata?.onboarding?.hasCompletedInterests,
     userData?.userdata?.settings?.notifications?.hosting?.reminderTemplates,
     userData?.userdata?.settings?.notifications?.attending?.reminderTemplates,
   ]);

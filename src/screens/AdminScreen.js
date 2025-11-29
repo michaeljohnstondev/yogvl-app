@@ -30,7 +30,7 @@ import { VenueService } from '../services/VenueService';
 import { StudioRequestService } from '../services/StudioRequestService';
 import { followUser } from '../services/followService';
 import { cleanupScheduledNotifications } from '../services/scheduledNotificationCleanupService';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 
 export default function AdminScreen({ navigation }) {
@@ -66,6 +66,9 @@ export default function AdminScreen({ navigation }) {
 
   // Scheduled notification cleanup state
   const [cleaningNotifications, setCleaningNotifications] = useState(false);
+
+  // Interest flag reset state
+  const [resettingAllInterests, setResettingAllInterests] = useState(false);
 
   const handleGoBack = () => {
     navigation.goBack();
@@ -116,6 +119,55 @@ export default function AdminScreen({ navigation }) {
     } finally {
       setCleaningNotifications(false);
     }
+  };
+
+  // Handle interest flag reset for ALL users
+  const handleResetAllInterestFlags = async () => {
+    Alert.alert(
+      'Reset All Interest Flags?',
+      'This will clear the interest completion flag for ALL users in the database. Every user will be prompted to select interests on their next login. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset All',
+          style: 'destructive',
+          onPress: async () => {
+            setResettingAllInterests(true);
+            try {
+              const { collection, getDocs, writeBatch } = await import('firebase/firestore');
+
+              const usersRef = collection(db, 'users');
+              const snapshot = await getDocs(usersRef);
+
+              const batch = writeBatch(db);
+              let count = 0;
+
+              snapshot.docs.forEach((userDoc) => {
+                batch.update(userDoc.ref, {
+                  'userdata.onboarding.hasCompletedInterests': false,
+                });
+                count++;
+              });
+
+              await batch.commit();
+
+              Alert.alert(
+                'Success',
+                `Reset interest flags for ${count} users! All users will be prompted to select interests on next login.`,
+                [{ text: 'OK' }]
+              );
+            } catch (error) {
+              console.error('[AdminScreen] Error resetting all interest flags:', error);
+              Alert.alert('Error', `Failed to reset all flags: ${error.message}`, [
+                { text: 'OK' },
+              ]);
+            } finally {
+              setResettingAllInterests(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   // Handle venue seeding
@@ -826,6 +878,24 @@ export default function AdminScreen({ navigation }) {
               }
               onPress={handleCleanupScheduledNotifications}
               disabled={cleaningNotifications}
+              style={styles.testButton}
+            />
+          </View>
+
+          <View style={styles.testingSection}>
+            <Text style={styles.sectionTitle}>Interest Selection</Text>
+            <Text style={styles.testingDescription}>
+              Clear all users' interest flags to prompt everyone to select interests for better event notifications on their next login.
+            </Text>
+
+            <VibeButton
+              label={
+                resettingAllInterests
+                  ? 'Resetting All Users...'
+                  : 'Clear ALL Users Interest Flags'
+              }
+              onPress={handleResetAllInterestFlags}
+              disabled={resettingAllInterests}
               style={styles.testButton}
             />
           </View>

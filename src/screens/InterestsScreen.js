@@ -12,6 +12,8 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
 import { VibeButton, VibeAutoComplete, CloseButton, VibeView } from '../components/ui';
 import { useStatusBar } from '../components/ui/base/VibeAppWrapper';
+import { doc, setDoc } from '../lib/firebase';
+import { db } from '../auth/services/firebase';
 import theme from '../theme/themes';
 import {
   getUserInterests,
@@ -20,9 +22,12 @@ import {
   getStudioInterests,
 } from '../services/interestService';
 
-export default function InterestsScreen() {
+export default function InterestsScreen({ route }) {
   const navigation = useNavigation();
-  const { currentUserId, userData } = useAuth();
+  const { currentUserId, userData, hasCompletedInterests } = useAuth();
+
+  // Check if this is onboarding flow - lock this value on mount to prevent UI changes mid-completion
+  const [isOnboarding] = useState(() => route?.params?.isOnboarding || !hasCompletedInterests);
 
   const [userInterests, setUserInterests] = useState([]);
   const [popularInterests, setPopularInterests] = useState([]);
@@ -31,6 +36,7 @@ export default function InterestsScreen() {
   const [adding, setAdding] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
+  const [completing, setCompleting] = useState(false);
 
   const textInputRef = useRef(null);
   const scrollViewRef = useRef(null);
@@ -40,6 +46,45 @@ export default function InterestsScreen() {
   useEffect(() => {
     loadInterests();
   }, [currentUserId]);
+
+  // Handle completing interests onboarding
+  const handleComplete = async () => {
+    if (!isOnboarding || !currentUserId || completing) return;
+
+    setCompleting(true);
+    try {
+      await setDoc(
+        doc(db, 'users', currentUserId),
+        {
+          userdata: {
+            onboarding: {
+              hasCompletedInterests: true,
+              interestsCompletedAt: new Date(),
+            },
+          },
+        },
+        { merge: true }
+      );
+      console.log('[InterestsScreen] Marked interests as completed, navigating to Home...');
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Home' }],
+      });
+    } catch (error) {
+      console.error('[InterestsScreen] Error marking interests as completed:', error);
+      Alert.alert('Error', 'Failed to save your interests. Please try again.');
+      setCompleting(false);
+    }
+  };
+
+  // Handle close button - complete onboarding if in onboarding mode, otherwise go back
+  const handleClose = () => {
+    if (isOnboarding) {
+      handleComplete();
+    } else {
+      navigation.goBack();
+    }
+  };
 
   // Generate autocomplete suggestions
   const generateSuggestions = (input) => {
@@ -343,7 +388,7 @@ export default function InterestsScreen() {
     return (
       <VibeView>
         <View style={styles.header}>
-          <CloseButton onPress={() => navigation.goBack()} />
+          <CloseButton onPress={handleClose} />
           <Text style={styles.headerTitle}>My Interests</Text>
           <View style={styles.headerRight} />
         </View>
@@ -357,7 +402,7 @@ export default function InterestsScreen() {
   return (
     <View style={{ flex: 1 }}>
       <View style={styles.header}>
-        <CloseButton onPress={() => navigation.goBack()} />
+        <CloseButton onPress={handleClose} />
         <Text style={styles.headerTitle}>My Interests</Text>
         <View style={styles.headerRight} />
       </View>
@@ -471,6 +516,16 @@ export default function InterestsScreen() {
               disabled={!newInterest.trim() || adding}
               style={styles.addButtonVertical}
             />
+
+            {/* Continue button for onboarding mode */}
+            {isOnboarding && (
+              <VibeButton
+                label={completing ? 'Continuing...' : userInterests.length > 0 ? 'Continue' : 'Skip for Now'}
+                onPress={handleComplete}
+                disabled={completing}
+                style={styles.continueButtonInline}
+              />
+            )}
           </View>
 
         <View style={styles.bottomPadding} />
@@ -486,7 +541,7 @@ const styles = {
     justifyContent: 'space-between',
     paddingTop: 0,
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 5,
     backgroundColor: theme.colors.headerBackground,
     borderBottomWidth: 2,
     borderBottomColor: theme.colors.vibeBlue,
@@ -624,5 +679,8 @@ const styles = {
   },
   bottomPadding: {
     height: 120,
+  },
+  continueButtonInline: {
+    marginTop: 4,
   },
 };

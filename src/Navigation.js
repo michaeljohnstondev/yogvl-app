@@ -444,6 +444,19 @@ export default function Navigation({ onReady }) {
             >
               <Stack.Screen name="Location" component={LocationScreen} />
             </Stack.Navigator>
+          ) : !userStatus.hasInterests ? (
+            <Stack.Navigator
+              initialRouteName="Interests"
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: 'transparent' },
+                presentation: 'card',
+                animation: 'none',
+                animationEnabled: false,
+              }}
+            >
+              <Stack.Screen name="Interests" component={InterestsScreen} />
+            </Stack.Navigator>
           ) : (
             <Stack.Navigator
               initialRouteName="Home"

@@ -29,6 +29,12 @@ Based on actual user data from your system:
       profilePicture: string  // Firebase Storage URL for profile picture
     },
 
+    // Onboarding tracking
+    onboarding: {
+      hasCompletedInterests: boolean,  // Whether user completed interest selection
+      interestsCompletedAt: timestamp  // When interests were completed
+    },
+
     // User metrics and activity tracking
     followerCount: number,    // Number of followers
 
