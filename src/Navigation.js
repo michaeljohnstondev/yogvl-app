@@ -122,7 +122,7 @@ export default function Navigation({ onReady }) {
         // Parse URL to extract studio and event parameters for app download links
         try {
           const urlObj = new URL(url);
-          if (urlObj.pathname === '/join') {
+          if (urlObj.pathname === '/join' || urlObj.pathname === '/theyo/join') {
             const studioId = urlObj.searchParams.get('studio');
             const eventId = urlObj.searchParams.get('event');
 
@@ -341,7 +341,7 @@ export default function Navigation({ onReady }) {
               });
             }
           }
-        } else if (pendingLink.includes('/join')) {
+        } else if (pendingLink.includes('/join') || pendingLink.includes('/theyo/join')) {
           // Handle app download universal links
           try {
             const urlObj = new URL(pendingLink);

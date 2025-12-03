@@ -206,7 +206,7 @@ const EventDetailScreen = memo(function EventDetailScreen({
       }
 
       shareMessage += `\n📲 Download The Yo to find other local events!\n`;
-      shareMessage += `https://bigvibestudios.com/app`;
+      shareMessage += `https://bigvibestudios.com/theyo`;
 
       const result = await Share.share({
         message: shareMessage,

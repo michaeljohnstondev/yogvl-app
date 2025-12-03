@@ -10,7 +10,17 @@
       "**/.*",
       "**/node_modules/**"
     ],
-    "cleanUrls": true
+    "cleanUrls": true,
+    "rewrites": [
+      {
+        "source": "/theyo",
+        "destination": "/theyo.html"
+      },
+      {
+        "source": "/theyo/join",
+        "destination": "/theyo.html"
+      }
+    ]
   },
   "react-native": {
     "messaging_ios_foreground_presentation_options": ["badge", "sound", "banner", "list"]

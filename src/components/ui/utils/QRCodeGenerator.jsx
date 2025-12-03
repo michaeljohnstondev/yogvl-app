@@ -19,7 +19,7 @@ const QRCodeGenerator = ({
       case 'app-download':
         // Generate a universal link that works for both app users and non-app users
         // This will redirect to app stores for non-app users, or deep link for app users
-        return `https://bigvibestudios.com/join?studio=${data.studioId}&event=${data.eventId}`;
+        return `https://bigvibestudios.com/theyo/join?studio=${data.studioId}&event=${data.eventId}`;
       default:
         return `bvs-app://user/${data}`;
     }
