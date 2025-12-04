@@ -13,6 +13,7 @@ import {
 import { db } from '../../../../auth/services/firebase';
 import { validateComment, sortComments } from '../utils/commentUtils';
 import { blockingService } from '../../../../services/blockingService';
+import { messageBoardSubscriptionService } from '../../../../services/messageBoardSubscriptionService';
 import { useAuth } from '../../../../auth/AuthContext';
 
 /**
@@ -198,6 +199,17 @@ export const useComments = (eventId) => {
       };
 
       await addDoc(commentsRef, commentData);
+
+      // Auto-subscribe user to message board notifications
+      // This happens in the background and won't block comment posting
+      messageBoardSubscriptionService.subscribeToMessageBoard(
+        studioId,
+        eventId,
+        currentUserId
+      ).catch(err => {
+        console.error('[useComments] Error auto-subscribing to message board:', err);
+        // Don't fail the comment if subscription fails
+      });
 
       setSubmitting(false);
       return true;

@@ -26,7 +26,7 @@ export const deleteUserAccount = async (userId, currentUser) => {
 
   try {
     // Create batch for atomic operations where possible
-    const batch = writeBatch(db);
+    let batch = writeBatch(db);
     let batchCount = 0;
     const MAX_BATCH_SIZE = 500; // Firestore limit
 
@@ -37,6 +37,8 @@ export const deleteUserAccount = async (userId, currentUser) => {
           `[UserDeletion] Committing batch with ${batchCount} operations`
         );
         await batch.commit();
+        // Create a new batch for subsequent operations
+        batch = writeBatch(db);
         batchCount = 0;
       }
     };

@@ -1,6 +1,6 @@
 // FILE: screens/MessageBoardScreen.js
 
-import React, { useRef, useEffect, memo, useCallback } from 'react';
+import React, { useRef, useEffect, memo, useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ import { useStatusBar } from '../components/ui/base/VibeAppWrapper';
 import MessageInput from './MessageBoard/components/MessageInput';
 import theme from '../theme/themes';
 import { useFocusEffect } from '@react-navigation/native';
+import { messageBoardSubscriptionService } from '../services/messageBoardSubscriptionService';
 
 export default function MessageBoardScreen({ route, navigation }) {
   const { eventId, eventTitle, scrollToComment } = route.params;
@@ -33,6 +34,10 @@ export default function MessageBoardScreen({ route, navigation }) {
   const previousMessageCount = useRef(0);
   const isInitialLoad = useRef(true);
   const hasScrolledToComment = useRef(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isLoadingMuteStatus, setIsLoadingMuteStatus] = useState(true);
+
+  const studioId = userData?.userdata?.studios?.default?.studioId;
 
   const {
     comments: messages,
@@ -45,6 +50,58 @@ export default function MessageBoardScreen({ route, navigation }) {
     eventData,
     getCurrentUserRole,
   } = useComments(eventId);
+
+  // Load mute status on mount
+  useEffect(() => {
+    const loadMuteStatus = async () => {
+      if (studioId && eventId && currentUserId) {
+        try {
+          setIsLoadingMuteStatus(true);
+          const muted = await messageBoardSubscriptionService.isMessageBoardMuted(
+            studioId,
+            eventId,
+            currentUserId
+          );
+          setIsMuted(muted);
+        } catch (err) {
+          console.error('[MessageBoard] Error loading mute status:', err);
+        } finally {
+          setIsLoadingMuteStatus(false);
+        }
+      }
+    };
+    loadMuteStatus();
+  }, [studioId, eventId, currentUserId]);
+
+  // Toggle mute/unmute notifications
+  const handleToggleMute = useCallback(async () => {
+    if (!studioId || !eventId || !currentUserId) return;
+
+    try {
+      if (isMuted) {
+        // Unmute notifications
+        await messageBoardSubscriptionService.unmuteMessageBoardNotifications(
+          studioId,
+          eventId,
+          currentUserId
+        );
+        setIsMuted(false);
+        vibeAlert.success('Notifications Enabled', 'You will now receive notifications for new messages.');
+      } else {
+        // Mute notifications
+        await messageBoardSubscriptionService.muteMessageBoardNotifications(
+          studioId,
+          eventId,
+          currentUserId
+        );
+        setIsMuted(true);
+        vibeAlert.success('Notifications Muted', 'You will no longer receive notifications for new messages.');
+      }
+    } catch (err) {
+      console.error('[MessageBoard] Error toggling mute status:', err);
+      vibeAlert.error('Error', 'Failed to update notification settings. Please try again.');
+    }
+  }, [studioId, eventId, currentUserId, isMuted, vibeAlert]);
 
   // Scroll to specific comment when opening from notification
   useEffect(() => {
@@ -357,6 +414,14 @@ export default function MessageBoardScreen({ route, navigation }) {
               {eventTitle}
             </Text>
           </View>
+          {/* Notification Mute/Unmute Toggle */}
+          {!isLoadingMuteStatus && (
+            <Pressable onPress={handleToggleMute} style={styles.muteButton}>
+              <Text style={styles.muteButtonText}>
+                {isMuted ? '🔕' : '🔔'}
+              </Text>
+            </Pressable>
+          )}
         </View>
 
         {/* Messages List */}
@@ -426,6 +491,15 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     fontFamily: theme.fonts.main,
     marginTop: 2,
+  },
+  muteButton: {
+    padding: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  muteButtonText: {
+    fontSize: 24,
   },
   messagesList: {
     flex: 1,

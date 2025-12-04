@@ -163,6 +163,10 @@ Based on actual implementation:
   cohosts: string[],         // Array of cohost user IDs
   subscriberCount: number,    // Cached count of subscribers
 
+  // Message Board tracking
+  messageBoardSubscribers: string[],  // Array of user IDs subscribed to message board notifications
+  messageBoardMuted: string[],        // Array of user IDs who muted message board notifications
+
   // Invitation tracking
   invitations: string[],      // Array of user IDs with pending invitations
 

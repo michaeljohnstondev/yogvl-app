@@ -383,7 +383,7 @@ export default function AdminScreen({ navigation }) {
             { color: getStatusColor(report.status) },
           ]}
         >
-          {report.status.toUpperCase()}
+          STATUS: {report.status.toUpperCase()}
         </Text>
 
         {report.status === 'pending' && (
@@ -738,7 +738,7 @@ export default function AdminScreen({ navigation }) {
               activeTab === 'testing' && styles.activeTabText,
             ]}
           >
-            Testing
+            Utils
           </Text>
         </TouchableOpacity>
       </View>
@@ -849,19 +849,6 @@ export default function AdminScreen({ navigation }) {
           style={styles.scrollView}
           contentContainerStyle={styles.contentContainer}
         >
-          <NotificationTester />
-
-          <View style={styles.testingSection}>
-            <Text style={styles.sectionTitle}>Follow Testing</Text>
-
-            <VibeButton
-              label={followingClaude ? 'Processing...' : 'Claude Follow Me'}
-              onPress={handleFollowClaude}
-              disabled={followingClaude}
-              style={styles.testButton}
-            />
-          </View>
-
           <View style={styles.testingSection}>
             <Text style={styles.sectionTitle}>Scheduled Notifications</Text>
             <Text style={styles.testingDescription}>
@@ -923,9 +910,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 60,
+    paddingTop: 5,
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 5,
     borderBottomWidth: 2,
     borderBottomColor: theme.colors.vibeBlue,
   },
@@ -1192,27 +1179,30 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   reportActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    marginTop: 8,
   },
   reportStatus: {
     fontSize: 13,
     fontWeight: 'bold',
     fontFamily: theme.fonts.main,
+    marginBottom: 8,
   },
   reportButtons: {
     flexDirection: 'row',
-    gap: 4,
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
   },
   reportButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 5,
+    borderRadius: 6,
+    minWidth: 70,
+    alignItems: 'center',
   },
   reportButtonText: {
     color: theme.colors.white,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: 'bold',
     fontFamily: theme.fonts.main,
   },

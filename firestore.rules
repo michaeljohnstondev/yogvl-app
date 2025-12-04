@@ -9,7 +9,7 @@ service cloud.firestore {
 
     // User notifications subcollection - only user can read/write their own notifications
     match /users/{userId}/notifications/{notificationId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write, delete: if request.auth != null && request.auth.uid == userId;
 
       // Validate notification data structure on write
       allow write: if request.auth != null
@@ -23,7 +23,7 @@ service cloud.firestore {
 
     // User reminders subcollection - only user can access their own reminders
     match /users/{userId}/reminders/{reminderId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write, delete: if request.auth != null && request.auth.uid == userId;
 
       // Validate reminder data structure on write
       allow write: if request.auth != null
@@ -31,15 +31,15 @@ service cloud.firestore {
         && validateReminderData(request.resource.data);
 
       // Server-side access for Cloud Functions (reminder processing)
-      allow read, write: if request.auth != null && isServerRequest();
+      allow read, write, delete: if request.auth != null && isServerRequest();
     }
 
     // User scheduled notifications subcollection
     match /users/{userId}/scheduledNotifications/{notificationId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write, delete: if request.auth != null && request.auth.uid == userId;
 
       // Server-side processing access
-      allow read, write: if request.auth != null && isServerRequest();
+      allow read, write, delete: if request.auth != null && isServerRequest();
     }
 
     // ===========================================================================
@@ -78,25 +78,27 @@ service cloud.firestore {
 
       // User favorites subcollection - only owner can modify
       match /favorites/{favoriteUserId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
       }
 
       // User following subcollection - only owner can modify their own following list
       match /following/{followedUserId} {
         allow read: if request.auth != null;
-        allow write: if request.auth != null && request.auth.uid == userId;
+        allow write, delete: if request.auth != null && request.auth.uid == userId;
       }
 
       // User followers subcollection - others can write to say they're following you
       match /followers/{followerId} {
         allow read: if request.auth != null;
         allow write: if request.auth != null && request.auth.uid == followerId;
+        allow delete: if request.auth != null && request.auth.uid == userId;
       }
 
       // Host ratings subcollection - users can read their own ratings
       match /hostRatings/{ratingId} {
         allow read: if request.auth != null && request.auth.uid == userId;
         allow create: if request.auth != null && validateHostRating(request.resource.data);
+        allow delete: if request.auth != null && request.auth.uid == userId;
       }
     }
 
@@ -127,6 +129,10 @@ service cloud.firestore {
         // Users can join/leave events (update subscribers array)
         allow update: if request.auth != null
           && onlyUpdatingEventParticipation();
+
+        // Users can subscribe/unsubscribe to message board notifications
+        allow update: if request.auth != null
+          && onlyUpdatingMessageBoardSubscription();
 
         // Host can complete events and mark attendance
         allow update: if request.auth != null
@@ -168,6 +174,12 @@ service cloud.firestore {
     function onlyUpdatingEventParticipation() {
       let changedKeys = request.resource.data.diff(resource.data).affectedKeys();
       return changedKeys.hasOnly(['subscribers', 'subscriberCount', 'invitations']);
+    }
+
+    // Helper function to check if update only touches message board subscription fields
+    function onlyUpdatingMessageBoardSubscription() {
+      let changedKeys = request.resource.data.diff(resource.data).affectedKeys();
+      return changedKeys.hasOnly(['messageBoardSubscribers', 'messageBoardMuted']);
     }
 
     // Helper function to check if update only touches event completion fields
@@ -294,6 +306,29 @@ service cloud.firestore {
     // Admin users collection - ONLY backend can write, nobody can read
     match /admin/users/{userId} {
       allow read, write: if false; // Only backend/console can modify admin list
+    }
+
+    // Admin global messages - admins can write, all authenticated users can read active messages
+    match /admin/{adminUserId}/messages/{messageId} {
+      // Admins can create and manage their own messages
+      allow create, update, delete: if request.auth != null
+        && isAdmin(request.auth.uid)
+        && request.auth.uid == adminUserId;
+
+      // All authenticated users can read active messages (for global announcements)
+      allow read: if request.auth != null && resource.data.active == true;
+
+      // Admins can read all messages (including inactive ones)
+      allow read: if request.auth != null && isAdmin(request.auth.uid);
+    }
+
+    // Collection group rule for messages - needed for collectionGroup queries
+    match /{path=**}/messages/{messageId} {
+      // All authenticated users can read active messages
+      allow read: if request.auth != null && resource.data.active == true;
+
+      // Admins can read all messages
+      allow read: if request.auth != null && isAdmin(request.auth.uid);
     }
 
     // Admin users can send system-wide notifications

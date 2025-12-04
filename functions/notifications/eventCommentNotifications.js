@@ -65,21 +65,33 @@ exports.onHostComment = functions.firestore
 
       console.log(`[Host Comment] 💬 Comment preview: "${commentPreview}"`);
 
-      // Get all event subscribers
+      // Get all event subscribers (both from subscribers subcollection and messageBoardSubscribers array)
       const subscribersSnapshot = await admin.firestore()
         .collection(`studios/${studioId}/events/${eventId}/subscribers`)
         .get();
 
-      if (subscribersSnapshot.empty) {
-        console.log(`[Host Comment] ⚠️ No subscribers found for event ${eventId}`);
+      // Get message board subscribers from the event document
+      const messageBoardSubscribers = eventData.messageBoardSubscribers || [];
+      const messageBoardMuted = eventData.messageBoardMuted || [];
+
+      console.log(`[Host Comment] 📊 Found ${subscribersSnapshot.docs.length} event subscribers and ${messageBoardSubscribers.length} message board subscribers`);
+
+      // Combine both lists and remove duplicates
+      const eventSubscriberIds = subscribersSnapshot.docs.map(doc => doc.id);
+      const allRecipientIds = [...new Set([...eventSubscriberIds, ...messageBoardSubscribers])];
+
+      // Filter out muted users
+      const recipientIds = allRecipientIds.filter(userId => !messageBoardMuted.includes(userId));
+
+      console.log(`[Host Comment] 📊 Total recipients: ${recipientIds.length} (after filtering ${messageBoardMuted.length} muted users)`);
+
+      if (recipientIds.length === 0) {
+        console.log(`[Host Comment] ⚠️ No recipients found for event ${eventId}`);
         return;
       }
 
-      console.log(`[Host Comment] 📊 Found ${subscribersSnapshot.docs.length} subscribers`);
-
-      // Send notifications to each subscriber (except the host)
-      const notificationPromises = subscribersSnapshot.docs.map(async (subscriberDoc) => {
-        const subscriberId = subscriberDoc.id;
+      // Send notifications to each recipient (except the host)
+      const notificationPromises = recipientIds.map(async (subscriberId) => {
 
         // Skip the host (they don't need to be notified of their own comment)
         if (subscriberId === hostId) {
@@ -293,19 +305,32 @@ exports.onGuestComment = functions.firestore
 
       console.log(`[Guest Comment] 💬 Comment preview: "${commentPreview}"`);
 
-      // Get all event subscribers for notifications
+      // Get all event subscribers for notifications (both from subscribers subcollection and messageBoardSubscribers array)
       const subscribersSnapshot = await admin.firestore()
         .collection(`studios/${studioId}/events/${eventId}/subscribers`)
         .get();
 
+      // Get message board subscribers from the event document
+      const messageBoardSubscribers = eventData.messageBoardSubscribers || [];
+      const messageBoardMuted = eventData.messageBoardMuted || [];
+
+      console.log(`[Guest Comment] 📊 Found ${subscribersSnapshot.docs.length} event subscribers and ${messageBoardSubscribers.length} message board subscribers`);
+
+      // Combine both lists and remove duplicates
+      const eventSubscriberIds = subscribersSnapshot.docs.map(doc => doc.id);
+      const allSubscriberIds = [...new Set([...eventSubscriberIds, ...messageBoardSubscribers])];
+
       // Create recipient lists
       const hostAndCohosts = [hostId, ...cohosts];
-      const allSubscriberIds = subscribersSnapshot.docs.map(doc => doc.id);
+
+      // Filter out hosts, cohosts, the commenter, and muted users
       const otherSubscribers = allSubscriberIds.filter(id =>
-        !hostAndCohosts.includes(id) && id !== commentData.userId
+        !hostAndCohosts.includes(id) &&
+        id !== commentData.userId &&
+        !messageBoardMuted.includes(id)
       );
 
-      console.log(`[Guest Comment] 📊 Recipients - Hosts: ${hostAndCohosts.length}, Other subscribers: ${otherSubscribers.length}`);
+      console.log(`[Guest Comment] 📊 Recipients - Hosts: ${hostAndCohosts.length}, Other subscribers: ${otherSubscribers.length} (after filtering ${messageBoardMuted.length} muted users)`);
 
       // Send notifications to host/cohosts (check hosting.newComments setting)
       const hostNotificationPromises = hostAndCohosts.map(async (recipientId) => {
