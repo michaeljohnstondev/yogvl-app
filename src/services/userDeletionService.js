@@ -64,15 +64,12 @@ export const deleteUserAccount = async (userId, currentUser) => {
       }
     }
 
-    // 3. Clean up Follow Relationships (both directions)
+    // 3. Clean up Follow Relationships (using subcollections)
     console.log('[UserDeletion] Cleaning up follow relationships...');
 
-    // Remove where user is following others
-    const followingQuery = query(
-      collection(db, 'follows'),
-      where('followerId', '==', userId)
-    );
-    const followingSnap = await getDocs(followingQuery);
+    // Remove user's following subcollection
+    const followingRef = collection(db, 'users', userId, 'following');
+    const followingSnap = await getDocs(followingRef);
     console.log(
       `[UserDeletion] Found ${followingSnap.docs.length} following relationships`
     );
@@ -83,12 +80,9 @@ export const deleteUserAccount = async (userId, currentUser) => {
     });
     await commitBatchIfNeeded();
 
-    // Remove where others are following user
-    const followersQuery = query(
-      collection(db, 'follows'),
-      where('targetUserId', '==', userId)
-    );
-    const followersSnap = await getDocs(followersQuery);
+    // Remove user's followers subcollection
+    const followersRef = collection(db, 'users', userId, 'followers');
+    const followersSnap = await getDocs(followersRef);
     console.log(
       `[UserDeletion] Found ${followersSnap.docs.length} follower relationships`
     );
@@ -99,40 +93,44 @@ export const deleteUserAccount = async (userId, currentUser) => {
     });
     await commitBatchIfNeeded();
 
-    // 4. Clean up Friend Requests (both directions)
+    // 4. Clean up Friend Requests (both directions - if collection exists)
     console.log('[UserDeletion] Cleaning up friend requests...');
 
-    // Requests sent by user
-    const sentRequestsQuery = query(
-      collection(db, 'friendRequests'),
-      where('senderId', '==', userId)
-    );
-    const sentRequestsSnap = await getDocs(sentRequestsQuery);
-    console.log(
-      `[UserDeletion] Found ${sentRequestsSnap.docs.length} sent friend requests`
-    );
+    try {
+      // Requests sent by user
+      const sentRequestsQuery = query(
+        collection(db, 'friendRequests'),
+        where('senderId', '==', userId)
+      );
+      const sentRequestsSnap = await getDocs(sentRequestsQuery);
+      console.log(
+        `[UserDeletion] Found ${sentRequestsSnap.docs.length} sent friend requests`
+      );
 
-    sentRequestsSnap.docs.forEach((requestDoc) => {
-      batch.delete(requestDoc.ref);
-      batchCount++;
-    });
-    await commitBatchIfNeeded();
+      sentRequestsSnap.docs.forEach((requestDoc) => {
+        batch.delete(requestDoc.ref);
+        batchCount++;
+      });
+      await commitBatchIfNeeded();
 
-    // Requests received by user
-    const receivedRequestsQuery = query(
-      collection(db, 'friendRequests'),
-      where('recipientId', '==', userId)
-    );
-    const receivedRequestsSnap = await getDocs(receivedRequestsQuery);
-    console.log(
-      `[UserDeletion] Found ${receivedRequestsSnap.docs.length} received friend requests`
-    );
+      // Requests received by user
+      const receivedRequestsQuery = query(
+        collection(db, 'friendRequests'),
+        where('recipientId', '==', userId)
+      );
+      const receivedRequestsSnap = await getDocs(receivedRequestsQuery);
+      console.log(
+        `[UserDeletion] Found ${receivedRequestsSnap.docs.length} received friend requests`
+      );
 
-    receivedRequestsSnap.docs.forEach((requestDoc) => {
-      batch.delete(requestDoc.ref);
-      batchCount++;
-    });
-    await commitBatchIfNeeded();
+      receivedRequestsSnap.docs.forEach((requestDoc) => {
+        batch.delete(requestDoc.ref);
+        batchCount++;
+      });
+      await commitBatchIfNeeded();
+    } catch (error) {
+      console.warn('[UserDeletion] Friend requests collection not accessible:', error.message);
+    }
 
     // 5. Collect Events Created by User (for later deletion)
     console.log('[UserDeletion] Collecting events created by user...');
