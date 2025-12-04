@@ -359,8 +359,26 @@ export const deleteUserAccount = async (userId, currentUser) => {
     // 12. Delete Firebase Auth User (must be last)
     console.log('[UserDeletion] Deleting Firebase Auth user...');
     if (currentUser && currentUser.uid === userId) {
-      await deleteAuthUser(currentUser);
-      console.log('[UserDeletion] Firebase Auth user deleted');
+      try {
+        await deleteAuthUser(currentUser);
+        console.log('[UserDeletion] ✅ Firebase Auth user deleted successfully');
+      } catch (authError) {
+        console.error('[UserDeletion] ❌ Failed to delete Firebase Auth user:', authError);
+
+        // Check if it's a "requires recent login" error
+        if (authError.code === 'auth/requires-recent-login') {
+          throw new Error(
+            'For security, please log out and log back in before deleting your account.'
+          );
+        }
+
+        // Re-throw other auth errors
+        throw new Error(
+          `Failed to delete authentication: ${authError.message || 'Unknown error'}`
+        );
+      }
+    } else {
+      console.warn('[UserDeletion] ⚠️ Current user mismatch or not provided - auth user not deleted');
     }
 
     console.log(

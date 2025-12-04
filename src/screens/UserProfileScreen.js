@@ -553,13 +553,51 @@ function UserProfile({ navigation, route }) {
       vibeAlert.confirm(
         'Final Confirmation',
         `This will permanently delete:\n\n${details}\n\nThis action cannot be undone!`,
-        performAccountDeletion, // onConfirm
+        promptForPassword, // onConfirm - ask for password first
         () => {} // onCancel (do nothing)
       );
     } catch (error) {
       console.error('Error showing deletion preview:', error);
       vibeAlert.error('Error', 'Unable to preview deletion. Please try again.');
     }
+  };
+
+  const promptForPassword = () => {
+    vibeAlert.prompt(
+      'Confirm Password',
+      'For security, please enter your password to continue with account deletion.',
+      async (password) => {
+        if (!password || password.trim() === '') {
+          vibeAlert.error('Error', 'Password is required to delete your account');
+          return;
+        }
+
+        // Reauthenticate before deletion
+        try {
+          const { EmailAuthProvider, reauthenticateWithCredential } = await import('../lib/firebase/auth');
+          const credential = EmailAuthProvider.credential(
+            auth.currentUser.email,
+            password
+          );
+          await reauthenticateWithCredential(auth.currentUser, credential);
+          console.log('[UserProfile] ✅ User reauthenticated successfully');
+
+          // Proceed with deletion
+          await performAccountDeletion();
+        } catch (error) {
+          console.error('[UserProfile] ❌ Reauthentication failed:', error);
+
+          if (error.code === 'auth/wrong-password') {
+            vibeAlert.error('Incorrect Password', 'The password you entered is incorrect. Please try again.');
+          } else if (error.code === 'auth/too-many-requests') {
+            vibeAlert.error('Too Many Attempts', 'Too many failed attempts. Please try again later.');
+          } else {
+            vibeAlert.error('Error', 'Failed to verify password. Please try again.');
+          }
+        }
+      },
+      'password' // Input type
+    );
   };
 
   const performAccountDeletion = async () => {
@@ -569,6 +607,15 @@ function UserProfile({ navigation, route }) {
       const result = await deleteUserAccount(currentUserId, auth.currentUser);
 
       if (result.success) {
+        // Force sign out to prevent auth state mismatch
+        // This ensures we don't get redirected to profile completion
+        await logout();
+
+        // Clear any cached auth state from AsyncStorage to prevent issues on app restart
+        const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+        await AsyncStorage.clear();
+        console.log('[UserProfile] ✅ Cleared AsyncStorage after account deletion');
+
         vibeAlert.success(
           'Account Deleted',
           result.message,
@@ -850,6 +897,23 @@ function UserProfile({ navigation, route }) {
           <View style={styles.loadingContent}>
             <ActivityIndicator size="large" color={theme.colors.vibeBlue} />
             <Text style={styles.loadingText}>Loading profile...</Text>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  // Show loading overlay while deleting account
+  if (isDeleting) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <View style={styles.loadingContent}>
+            <ActivityIndicator size="large" color={theme.colors.vibePink} />
+            <Text style={styles.loadingText}>Deleting account...</Text>
+            <Text style={[styles.loadingText, { fontSize: 14, marginTop: 10, opacity: 0.7 }]}>
+              This may take a moment
+            </Text>
           </View>
         </View>
       </View>
