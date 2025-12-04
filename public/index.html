@@ -29,7 +29,7 @@
         }
 
         header {
-            padding: 40px 0 20px;
+            padding: 40px 0 10px;
             text-align: center;
         }
 
@@ -58,16 +58,16 @@
 
         .hero {
             text-align: center;
-            padding: 40px 20px;
+            padding: 20px 20px 30px;
             max-width: 900px;
             margin: 0 auto;
         }
 
         h1 {
-            font-size: 3em;
-            margin-bottom: 20px;
+            font-size: 2em;
+            margin-bottom: 8px;
             line-height: 1.2;
-            font-weight: 900;
+            font-weight: 600;
         }
 
         .highlight {
@@ -76,10 +76,12 @@
         }
 
         .description {
-            font-size: 1.3em;
+            font-size: 1.1em;
             line-height: 1.6;
             color: #a0a0a0;
-            margin-bottom: 60px;
+            margin-bottom: 20px;
+            white-space: nowrap;
+            font-weight: 400;
         }
 
         .apps-section {
@@ -119,15 +121,30 @@
         }
 
         .app-icon {
-            font-size: 4em;
+            font-size: 3em;
+        }
+
+        .app-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
             margin-bottom: 20px;
         }
 
         .app-card h3 {
-            font-size: 2em;
+            font-size: 2.8em;
             color: #00ff88;
-            margin-bottom: 15px;
+            margin: 0;
             font-weight: 900;
+            flex: 1;
+            text-align: center;
+        }
+
+        /* Center "The Yo" title only on larger screens */
+        @media (min-width: 769px) {
+            .app-card h3 {
+                margin-left: -40px;
+            }
         }
 
         .app-status {
@@ -282,31 +299,25 @@
 <body>
     <div class="container">
         <header>
-            <div class="logo">BIG VIBE STUDIOS</div>
-            <div class="tagline">Building Community Through Technology</div>
+            <a href="/" class="logo" style="text-decoration: none; display: block; cursor: pointer;" onclick="event.preventDefault(); window.location.reload();">BIG VIBE STUDIOS</a>
         </header>
 
         <main>
             <div class="hero">
-                <h1>Creating Apps That <span class="highlight">Connect People</span></h1>
-                <p class="description">
-                    We build innovative mobile applications that bring communities together,
-                    strengthen local connections, and make organizing events effortless.
-                </p>
+                <h1>Find Your Local <span class="highlight">Yo</span> — Join Your Community <span class="highlight">Today</span></h1>
             </div>
 
             <section class="apps-section">
-                <h2 class="section-title">Our Apps</h2>
-
                 <div class="apps-grid">
                     <!-- The Yo -->
                     <a href="/theyo" class="app-card">
-                        <div class="app-icon">📱</div>
-                        <h3>The Yo</h3>
+                        <div class="app-header">
+                            <div class="app-icon">📱</div>
+                            <h3>The Yo</h3>
+                        </div>
                         <span class="app-status">Now Available</span>
                         <p class="app-description">
-                            Your all-in-one community event management platform. Create, join, and manage local events
-                            with ease. Connect with your studio and build stronger communities.
+                            Connect with your studio. Organize events. Build community.
                         </p>
                         <ul class="app-features">
                             <li>Create and manage events</li>
@@ -314,30 +325,23 @@
                             <li>Real-time notifications</li>
                             <li>Community discovery</li>
                         </ul>
-                        <span class="cta-button">Learn More →</span>
+                        <span class="cta-button">Download →</span>
                     </a>
 
-                    <!-- Future App Placeholder -->
-                    <div class="app-card coming-soon-card">
+                    <!-- Call to Action -->
+                    <a href="/join" class="app-card" style="background: linear-gradient(135deg, rgba(0, 212, 255, 0.1) 0%, rgba(0, 255, 136, 0.1) 100%); border-color: #00ff88; text-decoration: none; color: inherit;">
                         <div class="app-icon">🚀</div>
-                        <h3>More Coming Soon</h3>
-                        <span class="app-status coming-soon-badge">In Development</span>
-                        <p class="app-description">
-                            We're constantly innovating and building new tools to help communities thrive.
-                            Stay tuned for our next project.
+                        <h3 style="color: #00D4FF;">Join the Movement</h3>
+                        <p class="app-description" style="font-size: 1.15em; margin-bottom: 25px;">
+                            Whether you're hosting events, looking to connect with your local community,
+                            or just want to be part of something bigger — this is your studio.
                         </p>
-                    </div>
+                        <p class="app-description" style="color: #00ff88; font-weight: 600; margin-bottom: 30px;">
+                            Stay connected. Get updates. Be part of the community.
+                        </p>
+                        <span class="cta-button">Join Now →</span>
+                    </a>
                 </div>
-            </section>
-
-            <section class="about-section">
-                <h2>About Big Vibe Studios</h2>
-                <p>
-                    We're a passionate team dedicated to creating technology that brings people together.
-                    Our mission is to build apps that make organizing, discovering, and participating in
-                    community events seamless and enjoyable. We believe in the power of local communities
-                    and strive to provide the tools that help them flourish.
-                </p>
             </section>
         </main>
 

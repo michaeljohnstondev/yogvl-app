@@ -410,55 +410,64 @@ export const getUserDeletionPreview = async (userId) => {
       friendRequests: 0,
     };
 
-    // Count follows
-    const followingQuery = query(
-      collection(db, 'follows'),
-      where('followerId', '==', userId)
-    );
-    const followersQuery = query(
-      collection(db, 'follows'),
-      where('targetUserId', '==', userId)
-    );
+    // Count follows (using subcollections under users)
+    const followingRef = collection(db, 'users', userId, 'following');
+    const followersRef = collection(db, 'users', userId, 'followers');
     const [followingSnap, followersSnap] = await Promise.all([
-      getDocs(followingQuery),
-      getDocs(followersQuery),
+      getDocs(followingRef),
+      getDocs(followersRef),
     ]);
     preview.follows = followingSnap.docs.length + followersSnap.docs.length;
 
-    // Count friend requests
-    const sentRequestsQuery = query(
-      collection(db, 'friendRequests'),
-      where('senderId', '==', userId)
-    );
-    const receivedRequestsQuery = query(
-      collection(db, 'friendRequests'),
-      where('recipientId', '==', userId)
-    );
-    const [sentRequestsSnap, receivedRequestsSnap] = await Promise.all([
-      getDocs(sentRequestsQuery),
-      getDocs(receivedRequestsQuery),
-    ]);
-    preview.friendRequests =
-      sentRequestsSnap.docs.length + receivedRequestsSnap.docs.length;
+    // Count friend requests (if collection exists)
+    try {
+      const sentRequestsQuery = query(
+        collection(db, 'friendRequests'),
+        where('senderId', '==', userId)
+      );
+      const receivedRequestsQuery = query(
+        collection(db, 'friendRequests'),
+        where('recipientId', '==', userId)
+      );
+      const [sentRequestsSnap, receivedRequestsSnap] = await Promise.all([
+        getDocs(sentRequestsQuery),
+        getDocs(receivedRequestsQuery),
+      ]);
+      preview.friendRequests =
+        sentRequestsSnap.docs.length + receivedRequestsSnap.docs.length;
+    } catch (error) {
+      console.warn('[UserDeletion] Friend requests collection not accessible:', error.message);
+      preview.friendRequests = 0;
+    }
 
     // Count notifications
-    const userNotificationsRef = collection(
-      db,
-      'users',
-      userId,
-      'notifications'
-    );
-    const notificationsSnap = await getDocs(userNotificationsRef);
-    preview.notifications = notificationsSnap.docs.length;
+    try {
+      const userNotificationsRef = collection(
+        db,
+        'users',
+        userId,
+        'notifications'
+      );
+      const notificationsSnap = await getDocs(userNotificationsRef);
+      preview.notifications = notificationsSnap.docs.length;
+    } catch (error) {
+      console.warn('[UserDeletion] Notifications collection not accessible:', error.message);
+      preview.notifications = 0;
+    }
 
     if (userStudio) {
       // Count events created
-      const eventsQuery = query(
-        collection(db, 'studios', userStudio, 'events'),
-        where('createdBy', '==', userId)
-      );
-      const eventsSnap = await getDocs(eventsQuery);
-      preview.events = eventsSnap.docs.length;
+      try {
+        const eventsQuery = query(
+          collection(db, 'studios', userStudio, 'events'),
+          where('createdBy', '==', userId)
+        );
+        const eventsSnap = await getDocs(eventsQuery);
+        preview.events = eventsSnap.docs.length;
+      } catch (error) {
+        console.warn('[UserDeletion] Events collection not accessible:', error.message);
+        preview.events = 0;
+      }
     }
 
     return { success: true, preview };
