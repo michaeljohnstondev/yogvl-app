@@ -246,10 +246,22 @@ export default function InviteScreen() {
 
     // Add event details if available
     if (eventDateTime) {
-      const eventDate = eventDateTime.toDate ? eventDateTime.toDate() : new Date(eventDateTime);
-      const dateStr = eventDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-      const timeStr = eventDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-      message += `\n📅 ${dateStr} at ${timeStr}`;
+      try {
+        const eventDate = eventDateTime.toDate ? eventDateTime.toDate() : new Date(eventDateTime);
+
+        // Validate the date is valid
+        if (!isNaN(eventDate.getTime())) {
+          const dateStr = eventDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+          const timeStr = eventDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+          message += `\n📅 ${dateStr} at ${timeStr}`;
+        } else {
+          console.warn('[InviteScreen] Invalid eventDateTime:', eventDateTime);
+        }
+      } catch (error) {
+        console.error('[InviteScreen] Error formatting eventDateTime:', error);
+      }
+    } else {
+      console.warn('[InviteScreen] No eventDateTime provided for SMS');
     }
 
     if (eventLocation) {
@@ -257,7 +269,8 @@ export default function InviteScreen() {
     }
 
     // Add app download link
-    message += `\n\nDownload The Yo app: https://bigvibestudios.com`;
+    // TODO: Replace with actual App Store URL once available
+    message += `\n\nDownload The Yo app: https://apps.apple.com/app/the-yo`;
 
     console.log('[InviteScreen] Generated SMS message:', message);
 

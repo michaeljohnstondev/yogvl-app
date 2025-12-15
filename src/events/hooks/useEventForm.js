@@ -113,9 +113,22 @@ export const useEventForm = () => {
   const generateInviteMessage = useCallback((eventData, inviteCode = null) => {
     const eventTitle = eventData.title || 'my upcoming event';
     const eventLocation = eventData.location || 'an awesome location';
-    const eventDate = eventData.datetime
-      ? eventData.datetime.toDate().toLocaleDateString()
-      : 'soon';
+
+    // Check for eventTimestamp (Firestore Timestamp) or datetime (Date object)
+    let eventDate = 'soon';
+    const timestamp = eventData.eventTimestamp || eventData.datetime;
+    if (timestamp) {
+      try {
+        const dateObj = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+        if (!isNaN(dateObj.getTime())) {
+          const dateStr = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+          const timeStr = dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+          eventDate = `${dateStr} at ${timeStr}`;
+        }
+      } catch (error) {
+        console.error('[useEventForm] Error formatting event date:', error);
+      }
+    }
 
     const message = `📋 What: ${eventTitle}
 📅 When: ${eventDate}

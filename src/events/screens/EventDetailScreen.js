@@ -599,7 +599,7 @@ const EventDetailScreen = memo(function EventDetailScreen({
       source: 'guest_invite',
       inviteType: 'guest_invite',
       eventDateTime: event?.dateTime, // Pass dateTime for SMS message
-      eventLocation: event?.location, // Pass location for SMS message
+      eventLocation: event?.location?.displayName || event?.address, // Pass location display name for SMS message
     });
   };
 
