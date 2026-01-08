@@ -10,6 +10,7 @@ import {
   Platform,
   Pressable,
   ActivityIndicator,
+  Switch,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -49,6 +50,12 @@ import { blockingService } from '../services/blockingService';
 import { getVisibleContactInfo } from '../services/privacyService';
 import { reportUser } from '../services/reportingService';
 import { addFavorite, removeFavorite, isFavorite } from '../services/favoriteService';
+import {
+  areFriends,
+  isFriendMuted,
+  muteFriendEvents,
+  unmuteFriendEvents,
+} from '../services/friendMuteService';
 import { auth } from '../auth/services/firebase';
 import { doc, updateDoc, getDoc } from '../lib/firebase';
 import { db } from '../auth/services/firebase';
@@ -83,6 +90,9 @@ function UserProfile({ navigation, route }) {
   const [isBlocked, setIsBlocked] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
+  const [isMutualFriend, setIsMutualFriend] = useState(false);
+  const [isFriendEventsMuted, setIsFriendEventsMuted] = useState(false);
+  const [muteLoading, setMuteLoading] = useState(false);
 
   // Use existing follow actions hook
   const {
@@ -208,6 +218,56 @@ function UserProfile({ navigation, route }) {
       vibeAlert.error('Error', 'Failed to remove from favorites');
     } finally {
       setFavoriteLoading(false);
+    }
+  };
+
+  const handleMuteFriendEvents = async () => {
+    if (!currentUserId || !targetUserId || muteLoading) return;
+
+    setMuteLoading(true);
+    setIsFriendEventsMuted(true); // Optimistic update
+    try {
+      const result = await muteFriendEvents(currentUserId, targetUserId);
+      if (result.success) {
+        vibeAlert.success(
+          'Notifications Muted',
+          "You won't receive notifications when this friend joins or creates events"
+        );
+      } else {
+        setIsFriendEventsMuted(false); // Rollback on error
+        vibeAlert.error('Error', result.error || 'Failed to mute notifications');
+      }
+    } catch (error) {
+      console.error('[UserProfile] Error muting friend events:', error);
+      setIsFriendEventsMuted(false); // Rollback on error
+      vibeAlert.error('Error', 'Failed to mute notifications');
+    } finally {
+      setMuteLoading(false);
+    }
+  };
+
+  const handleUnmuteFriendEvents = async () => {
+    if (!currentUserId || !targetUserId || muteLoading) return;
+
+    setMuteLoading(true);
+    setIsFriendEventsMuted(false); // Optimistic update
+    try {
+      const result = await unmuteFriendEvents(currentUserId, targetUserId);
+      if (result.success) {
+        vibeAlert.success(
+          'Notifications Enabled',
+          "You'll now receive notifications when this friend joins or creates events"
+        );
+      } else {
+        setIsFriendEventsMuted(true); // Rollback on error
+        vibeAlert.error('Error', result.error || 'Failed to unmute notifications');
+      }
+    } catch (error) {
+      console.error('[UserProfile] Error unmuting friend events:', error);
+      setIsFriendEventsMuted(true); // Rollback on error
+      vibeAlert.error('Error', 'Failed to unmute notifications');
+    } finally {
+      setMuteLoading(false);
     }
   };
 
@@ -842,6 +902,31 @@ function UserProfile({ navigation, route }) {
     checkFavoriteStatus();
   }, [currentUserId, targetUserId, isOwnProfile]);
 
+  // STEP 5: Check if user is a friend and if their events are muted
+  useEffect(() => {
+    const checkFriendAndMuteStatus = async () => {
+      if (isOwnProfile || !currentUserId || !targetUserId) {
+        setIsMutualFriend(false);
+        setIsFriendEventsMuted(false);
+        return;
+      }
+
+      try {
+        const [friendStatus, muteStatus] = await Promise.all([
+          areFriends(currentUserId, targetUserId),
+          isFriendMuted(currentUserId, targetUserId),
+        ]);
+
+        setIsMutualFriend(friendStatus);
+        setIsFriendEventsMuted(muteStatus);
+      } catch (error) {
+        console.error('[UserProfile] Error checking friend/mute status:', error);
+      }
+    };
+
+    checkFriendAndMuteStatus();
+  }, [currentUserId, targetUserId, isOwnProfile]);
+
   const formatPhoneNumber = (phoneNumber) => {
     if (!phoneNumber) return null;
 
@@ -1150,6 +1235,38 @@ function UserProfile({ navigation, route }) {
             ]}
             enableTouch={isOwnProfile}
           />
+
+          {/* Mute Friend Events Toggle - Only show if viewing a friend's profile */}
+          {!isOwnProfile && isMutualFriend && (
+            <View style={styles.muteToggleContainer}>
+              <View style={styles.muteToggleContent}>
+                <Text style={styles.muteToggleTitle}>
+                  Event Activity Notifications
+                </Text>
+                <Text style={styles.muteToggleDescription}>
+                  {isFriendEventsMuted
+                    ? 'Muted - You will not receive notifications when this friend joins or creates events'
+                    : 'Enabled - You will receive notifications when this friend joins or creates events'}
+                </Text>
+              </View>
+              <Switch
+                value={!isFriendEventsMuted}
+                onValueChange={() => {
+                  if (isFriendEventsMuted) {
+                    handleUnmuteFriendEvents();
+                  } else {
+                    handleMuteFriendEvents();
+                  }
+                }}
+                disabled={muteLoading}
+                trackColor={{
+                  false: theme.colors.darkGray,
+                  true: theme.colors.vibeGreen,
+                }}
+                thumbColor={!isFriendEventsMuted ? theme.colors.white : theme.colors.gray}
+              />
+            </View>
+          )}
         </VibeCard>
 
         {/* QR Code Section - Only for own profile */}

@@ -27,6 +27,7 @@ import {
   notifyNewFollower,
   notifyFriendRequestAccepted,
   notifyFriendRequest,
+  notifyFriendEventActivity,
   notifyMutualFollow,
   notifyMention,
 } from './shared/socialNotificationsService';
@@ -78,6 +79,7 @@ export {
   notifyNewFollower,
   notifyFriendRequestAccepted,
   notifyFriendRequest,
+  notifyFriendEventActivity,
   notifyMutualFollow,
   notifyMention,
 };

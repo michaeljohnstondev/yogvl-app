@@ -21,6 +21,7 @@ import { usePastEventsManager } from '../hooks/usePastEventsManager';
 // Utils and Context
 import { useAuth } from '../../auth/AuthContext';
 import { banEnforcementService } from '../../services/banEnforcementService';
+import { promptForProfilePicture } from '../../services/profilePicturePromptService';
 
 export default function CreateEventScreen({ navigation, route }) {
   const { currentUserId, userData } = useAuth();
@@ -595,6 +596,21 @@ export default function CreateEventScreen({ navigation, route }) {
 
   const handleSubmit = useCallback(async () => {
     try {
+      // Check if user has a profile picture and prompt if not
+      await new Promise((resolve) => {
+        promptForProfilePicture({
+          vibeAlert,
+          currentUserId,
+          userData,
+          context: 'create_event',
+          onComplete: (uploaded) => {
+            // Continue regardless of whether they uploaded or skipped
+            console.log(`[CreateEventScreen] Profile picture prompt completed. Uploaded: ${uploaded}`);
+            resolve();
+          },
+        });
+      });
+
       // Prepare all invitation selections
       const selectedInvitations = {
         users: selectedGuestUsers,

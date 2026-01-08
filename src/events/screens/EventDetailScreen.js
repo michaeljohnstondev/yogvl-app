@@ -34,6 +34,7 @@ import {
 import { reportEvent } from '../../services/reportingService';
 import { getCohostInvitationStatus, acceptCohostInvitation } from '../../services/shared/cohostInvitationsService';
 import { notificationPermissionService } from '../../services/notificationPermissionService';
+import { promptForProfilePicture } from '../../services/profilePicturePromptService';
 import EventStatusBadges from '../components/detail/EventStatusBadges';
 import EventInfoSection from '../components/detail/EventInfoSection';
 import EventActionButtons from '../components/detail/EventActionButtons';
@@ -399,6 +400,21 @@ const EventDetailScreen = memo(function EventDetailScreen({
           setShowSubscriptionModal(false);
         });
       } else {
+        // Check if user has a profile picture and prompt if not (before joining)
+        await new Promise((resolve) => {
+          promptForProfilePicture({
+            vibeAlert,
+            currentUserId,
+            userData,
+            context: 'join_event',
+            onComplete: (uploaded) => {
+              // Continue regardless of whether they uploaded or skipped
+              console.log(`[EventDetailScreen] Profile picture prompt completed. Uploaded: ${uploaded}`);
+              resolve();
+            },
+          });
+        });
+
         // User is not subscribed, subscribe them with settings
         const result = await eventService.subscribeToEvent(
           currentUserId,

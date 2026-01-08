@@ -326,10 +326,127 @@ export const notifyMention = async ({
   }
 };
 
+/**
+ * Notifies friends when someone joins/creates a public event
+ * This function is called by Cloud Functions when events are created or participants are added
+ * @param {Object} params - Notification parameters
+ * @param {string} params.friendId - User ID of the friend who joined/created the event
+ * @param {string} params.friendName - Display name of the friend
+ * @param {string} params.eventId - Event ID
+ * @param {string} params.eventTitle - Event title
+ * @param {string} params.studioId - Studio ID
+ * @param {string} params.activityType - Type of activity: 'joined', 'created', or 'cohosting'
+ * @param {string[]} params.recipientIds - Array of friend user IDs to notify
+ * @param {Object} params.eventData - Full event data for additional checks
+ * @returns {Promise<Object>} Notification result
+ */
+export const notifyFriendEventActivity = async ({
+  friendId,
+  friendName,
+  eventId,
+  eventTitle,
+  studioId,
+  activityType = 'joined',
+  recipientIds = [],
+  eventData = {},
+}) => {
+  try {
+    if (!friendId || !friendName || !eventId || !eventTitle || recipientIds.length === 0) {
+      throw new Error(
+        'Missing required parameters for friend event activity notification'
+      );
+    }
+
+    // Only notify for public events
+    if (eventData.isPrivate) {
+      console.log('[SocialNotifications] Skipping notification for private event');
+      return {
+        success: true,
+        notificationsSent: 0,
+        message: 'Skipped notification for private event',
+      };
+    }
+
+    console.log(
+      `[SocialNotifications] Sending friend event activity notifications for ${friendName} ${activityType} event ${eventId}`
+    );
+
+    // Filter out recipients who are already invited to the event
+    // This prevents duplicate notifications (invitation + friend activity)
+    const invitedUserIds = (eventData.invitations || []).map(inv => inv.userId || inv);
+    const subscribersSet = new Set([
+      ...(eventData.subscribers || []),
+      ...(eventData.cohosts || []),
+      eventData.createdBy
+    ]);
+
+    const filteredRecipients = recipientIds.filter((recipientId) => {
+      // Skip if user is invited (they'll get an invitation notification instead)
+      if (invitedUserIds.includes(recipientId)) {
+        console.log(`[SocialNotifications] Skipping ${recipientId} - already invited`);
+        return false;
+      }
+      // Skip if user is already attending (shouldn't happen, but just in case)
+      if (subscribersSet.has(recipientId)) {
+        console.log(`[SocialNotifications] Skipping ${recipientId} - already attending`);
+        return false;
+      }
+      return true;
+    });
+
+    if (filteredRecipients.length === 0) {
+      console.log('[SocialNotifications] No eligible recipients after filtering');
+      return {
+        success: true,
+        notificationsSent: 0,
+        message: 'All recipients were invited or already attending',
+      };
+    }
+
+    // Send notifications to all filtered recipients in parallel
+    const notificationPromises = filteredRecipients.map((recipientId) =>
+      notificationEngine.createNotification({
+        userId: recipientId,
+        type: NOTIFICATION_TYPES.FRIEND_EVENT_ACTIVITY,
+        data: {
+          friendId,
+          friendName,
+          eventId,
+          eventTitle,
+          studioId,
+          activityType,
+        },
+        priority: NOTIFICATION_PRIORITY.NORMAL,
+        senderId: friendId,
+      })
+    );
+
+    const results = await Promise.allSettled(notificationPromises);
+    const successCount = results.filter((result) => result.status === 'fulfilled').length;
+
+    return {
+      success: successCount > 0,
+      notificationsSent: successCount,
+      totalRecipients: filteredRecipients.length,
+      message: `Friend event activity notifications sent to ${successCount}/${filteredRecipients.length} users`,
+    };
+  } catch (error) {
+    console.error(
+      '[SocialNotifications] Error sending friend event activity notifications:',
+      error
+    );
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+};
+
 export default {
   notifyNewFollower,
   notifyFriendRequestAccepted,
   notifyFriendRequest,
   notifyMutualFollow,
   notifyMention,
+  notifyFriendEventActivity,
 };

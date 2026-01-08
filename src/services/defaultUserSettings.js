@@ -9,7 +9,9 @@ export const getDefaultNotificationSettings = () => ({
     newFollowers: true,
     eventInvitations: true,
     suggestedEvents: true,
+    friendEventActivity: true,
   },
+  mutedFriendsEvents: [],
   hosting: {
     enabled: true,
     hostComments: true,

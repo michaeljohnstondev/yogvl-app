@@ -33,6 +33,7 @@ export const NOTIFICATION_TYPES = {
   FOLLOW_REQUEST: 'follow_request', // When someone follows you
   FRIEND_REQUEST: 'friend_request', // When someone sends a friend request
   FRIEND_ACCEPTED: 'friend_accepted', // When a friend request is accepted
+  FRIEND_EVENT_ACTIVITY: 'friend_event_activity', // When a friend joins/creates a public event
   INVITATION_RECEIVED: 'event_invitation', // Guest invitation to event
   COHOST_INVITATION: 'cohost_invitation', // Cohost invitation to event
   INTEREST_BASED_SUGGESTION: 'interest_based_suggestion', // When an event matches user's interests
@@ -125,6 +126,19 @@ const NOTIFICATION_TEMPLATES = {
   [NOTIFICATION_TYPES.FRIEND_ACCEPTED]: {
     title: 'Friend Request Accepted!',
     getMessage: (data) => `${data.accepterName} accepted your friend request`,
+  },
+  [NOTIFICATION_TYPES.FRIEND_EVENT_ACTIVITY]: {
+    title: 'Friend Event Activity',
+    getMessage: (data) => {
+      const activityType = data.activityType || 'joined';
+      const actionText =
+        activityType === 'created'
+          ? 'created'
+          : activityType === 'cohosting'
+          ? 'is co-hosting'
+          : 'joined';
+      return `${data.friendName} ${actionText} "${data.eventTitle}"`;
+    },
   },
 };
 

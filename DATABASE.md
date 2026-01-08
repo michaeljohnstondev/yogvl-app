@@ -76,7 +76,11 @@ Based on actual user data from your system:
           newFollowers: boolean,         // Notify when someone follows user
           eventInvitations: boolean,     // Notify when invited to events
           suggestedEvents: boolean,      // Notify when new events match user interests
+          friendEventActivity: boolean,  // Notify when friends join/create public events
         },
+
+        // Per-friend notification muting (separate from main settings to avoid cascade complexity)
+        mutedFriendsEvents: string[],    // Array of friend user IDs whose event activity should NOT trigger notifications
         hosting: {            // Default notification settings when hosting events
           enabled: boolean,                    // Enable hosting notifications
           hostComments: boolean,               // Notify about host comments
@@ -1021,3 +1025,163 @@ await updateDoc(venueRef, {
 - **Zero API cost** for cached venues
 - **Studio-scoped** for city-relevant results
 - **Verified addresses only** prevents bad data
+
+---
+
+## Friends' Events Feed & Notifications
+
+### Friends' Events Feed Architecture
+
+**Purpose**: Show users public events their friends are attending or hosting, even if the user isn't invited.
+
+**Feed Logic**:
+1. Query all user's friends from `users/{userId}/friends/{friendId}`
+2. Find public events where friends are in `subscribers[]` or `cohosts[]` arrays
+3. Exclude events the current user is already attending
+4. Filter out events with past RSVP deadlines
+5. Sort by event date (ascending)
+
+**Query Pattern**:
+```javascript
+// Get friend IDs
+const friendsSnapshot = await getDocs(collection(db, 'users', userId, 'friends'));
+const friendIds = friendsSnapshot.docs.map(doc => doc.id);
+
+// Query events where friends are participants
+// Split into batches of 10 for Firestore 'array-contains-any' limit
+for (const friendBatch of batches) {
+  const eventsQuery = query(
+    collection(db, 'studios', studioId, 'events'),
+    where('isPrivate', '==', false),
+    where('eventTimestamp', '>=', now),
+    orderBy('eventTimestamp', 'asc')
+  );
+  // Filter in-memory: event.subscribers includes any friendId
+  // OR event.cohosts includes any friendId
+  // OR event.createdBy is a friendId
+}
+```
+
+### Friend Event Activity Notifications
+
+**Notification Type**: `FRIEND_EVENT_ACTIVITY`
+
+**Trigger Conditions**:
+- Friend joins a public event as guest (added to `subscribers[]`)
+- Friend joins a public event as cohost (added to `cohosts[]`)
+- Friend creates a new public event (becomes `createdBy`)
+
+**Notification Settings Check**:
+1. Check `userdata.settings.notifications.app.friendEventActivity` (global toggle)
+2. Check `userdata.settings.notifications.mutedFriendsEvents[]` (per-friend muting)
+3. Only send if both checks pass
+
+**Notification Content**:
+```javascript
+{
+  type: 'FRIEND_EVENT_ACTIVITY',
+  title: '{FriendName} is going to an event',
+  body: '{FriendName} joined "{EventTitle}" on {EventDate}',
+  data: {
+    eventId: string,
+    studioId: string,
+    friendId: string,
+    friendName: string,
+    activityType: 'joined' | 'created' | 'cohosting'
+  }
+}
+```
+
+**Cloud Function Implementation**:
+```javascript
+// Pseudo-code for Cloud Function trigger
+exports.onEventParticipantAdded = functions.firestore
+  .document('studios/{studioId}/events/{eventId}')
+  .onUpdate(async (change, context) => {
+    const before = change.before.data();
+    const after = change.after.data();
+
+    // Detect new subscribers or cohosts
+    const newSubscribers = after.subscribers.filter(id => !before.subscribers.includes(id));
+    const newCohosts = after.cohosts.filter(id => !before.cohosts.includes(id));
+
+    // For each new participant
+    for (const participantId of [...newSubscribers, ...newCohosts]) {
+      // Find users who have this participant as a friend
+      const friendsOfParticipant = await getFriendsOf(participantId);
+
+      // Send notifications to each friend
+      for (const friendUserId of friendsOfParticipant) {
+        // Check notification settings
+        const friendSettings = await getUserSettings(friendUserId);
+
+        // Skip if global toggle is off
+        if (!friendSettings.notifications.app.friendEventActivity) continue;
+
+        // Skip if friend is muted for event activity
+        if (friendSettings.notifications.mutedFriendsEvents?.includes(participantId)) continue;
+
+        // Skip if friend is already attending this event
+        if (after.subscribers.includes(friendUserId) || after.cohosts.includes(friendUserId)) continue;
+
+        // Send notification
+        await sendFriendEventNotification({
+          recipientId: friendUserId,
+          friendId: participantId,
+          eventId: context.params.eventId,
+          activityType: newSubscribers.includes(participantId) ? 'joined' : 'cohosting'
+        });
+      }
+    }
+  });
+```
+
+### Per-Friend Notification Muting
+
+**Storage**: `users/{userId}/userdata/settings/notifications/mutedFriendsEvents: string[]`
+
+**Purpose**: Allow users to mute event activity notifications from specific friends without unfriending them.
+
+**Usage**:
+- User still sees friend's events in Friends' Events feed
+- User does NOT receive push notifications when that friend joins/creates events
+- Muting is one-way (doesn't affect the friend's notifications)
+
+**Management UI** (Future Implementation):
+- Toggle in friend profile: "Mute event activity notifications"
+- Bulk management in notification settings: List of muted friends with unmute buttons
+
+**Query Pattern**:
+```javascript
+// Check if notification should be sent
+const userSettings = await getDoc(doc(db, 'users', userId));
+const mutedFriends = userSettings.data()?.userdata?.settings?.notifications?.mutedFriendsEvents || [];
+
+if (mutedFriends.includes(friendId)) {
+  // Skip notification
+  return;
+}
+```
+
+### Business Rules
+
+1. **Public Events Only**: Only public events (`isPrivate: false`) appear in Friends' Events feed
+2. **Exclude Current User**: Don't show events the user is already attending
+3. **Friend Relationship Required**: Must be mutual friends (both users have each other in friends subcollection)
+4. **No Self-Notifications**: Users don't receive notifications about their own event activity
+5. **RSVP Deadline Filtering**: Events with past RSVP deadlines are hidden from discovery feeds
+6. **Default Settings**: New users have `friendEventActivity: true` by default (opt-out model)
+
+### Performance Optimizations
+
+1. **Batch Friend Queries**: Use `array-contains-any` with batches of 10 friend IDs
+2. **In-Memory Filtering**: Pre-filter excluded events before returning to client
+3. **Cached Friend Lists**: Consider caching friend IDs in user document for faster lookups
+4. **Indexed Queries**: Ensure compound indexes on `isPrivate` + `eventTimestamp` + `subscribers`
+
+### Privacy Considerations
+
+1. **Respect Event Privacy**: Private events never appear in feed or trigger notifications
+2. **Friend-Only Visibility**: Only mutual friends see each other's public event activity
+3. **Granular Control**: Users can disable feature entirely or mute specific friends
+4. **No Activity Tracking**: System doesn't track who views the feed or notifications

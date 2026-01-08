@@ -11,6 +11,7 @@ if (!admin.apps.length) {
 // Import modular notification functions
 const socialNotifications = require('./notifications/socialNotifications');
 const followNotifications = require('./notifications/followNotifications');
+const friendEventActivityNotifications = require('./notifications/friendEventActivityNotifications');
 const eventSubscriptionNotifications = require('./notifications/eventSubscriptionNotifications');
 const eventCommentNotifications = require('./notifications/eventCommentNotifications');
 const eventChangeNotifications = require('./notifications/eventChangeNotifications');
@@ -30,6 +31,9 @@ const eventCleanup = require('./utils/eventCleanup');
 module.exports = {
   // Follow notifications
   onUserFollowed: followNotifications.onUserFollowed,
+
+  // Friend event activity notifications
+  onFriendEventActivity: friendEventActivityNotifications.onFriendEventActivity,
 
   // Event subscription notifications (join/leave)
   onEventSubscribed: eventSubscriptionNotifications.onEventSubscribed,

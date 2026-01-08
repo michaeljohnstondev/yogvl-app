@@ -10,7 +10,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
-import { getFollowing } from './followService';
+import { getFollowing, getFriends } from './followService';
 import { blockingService } from './blockingService';
 
 /**
@@ -225,6 +225,7 @@ export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
     const {
       followedLimit = 30,
       suggestedLimit = 20,
+      friendsLimit = 20,
       includeSubscribed = true,
     } = options;
 
@@ -238,12 +239,17 @@ export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
     const blockedUserIds = blockedUsersResult.blockedUsers || [];
 
     // Execute feed queries in parallel for better performance
-    const [followedEvents, suggestedEvents] = await Promise.all([
+    const [followedEvents, friendsEvents, suggestedEvents] = await Promise.all([
       getFollowedUsersEventsWithFollowing(
         currentUserId,
         userStudio,
         followedUserIds,
         followedLimit
+      ),
+      getFriendsEvents(
+        currentUserId,
+        userStudio,
+        friendsLimit
       ),
       getSuggestedEventsWithFollowing(
         currentUserId,
@@ -311,6 +317,7 @@ export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
     const allEvents = [
       ...subscribedEvents,
       ...followedEvents,
+      ...friendsEvents,
       ...suggestedEvents,
     ];
     const seenEventIds = new Set();
@@ -342,11 +349,13 @@ export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
       allEvents: uniqueEvents,
       subscribedEvents,
       followedEvents,
+      friendsEvents,
       suggestedEvents,
       stats: {
         totalEvents: uniqueEvents.length,
         subscribedCount: subscribedEvents.length,
         followedCount: followedEvents.length,
+        friendsCount: friendsEvents.length,
         suggestedCount: suggestedEvents.length,
       },
     };
@@ -355,11 +364,13 @@ export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
       allEvents: [],
       subscribedEvents: [],
       followedEvents: [],
+      friendsEvents: [],
       suggestedEvents: [],
       stats: {
         totalEvents: 0,
         subscribedCount: 0,
         followedCount: 0,
+        friendsCount: 0,
         suggestedCount: 0,
       },
     };
@@ -425,6 +436,113 @@ export const getUserEvents = async (
 
     return events;
   } catch (error) {
+    return [];
+  }
+};
+
+/**
+ * Get public events that user's friends are attending or hosting
+ * Shows events where friends are in subscribers[], cohosts[], or as createdBy
+ */
+export const getFriendsEvents = async (
+  currentUserId,
+  userStudio,
+  limitCount = 30
+) => {
+  try {
+    if (!currentUserId || !userStudio) {
+      console.warn('[feedService] Missing currentUserId or userStudio');
+      return [];
+    }
+
+    // Get user's friends (mutual follows)
+    const friends = await getFriends(currentUserId, 100);
+
+    if (friends.length === 0) {
+      return [];
+    }
+
+    const friendIds = friends.map((f) => f.id || f.targetUserId || f.userId);
+
+    // Get all upcoming public events from the studio
+    const eventsRef = collection(db, 'studios', userStudio, 'events');
+    const now = Timestamp.now();
+
+    const q = query(
+      eventsRef,
+      where('eventTimestamp', '>=', now),
+      where('isPrivate', '==', false), // Only public events
+      orderBy('eventTimestamp', 'asc'),
+      firestoreLimit(limitCount * 3) // Get more to filter in-memory
+    );
+
+    const snapshot = await getDocs(q);
+    const friendsEvents = [];
+    const seenEventIds = new Set();
+
+    snapshot.docs.forEach((doc) => {
+      const eventData = { id: doc.id, ...doc.data() };
+
+      // Skip events with past RSVP deadlines
+      if (shouldHideEventDueToRSVPDeadline(eventData)) {
+        return;
+      }
+
+      // Skip if current user is already attending
+      const subscribers = eventData.subscribers || [];
+      const cohosts = eventData.cohosts || [];
+      const isUserAttending =
+        subscribers.includes(currentUserId) ||
+        cohosts.includes(currentUserId) ||
+        eventData.createdBy === currentUserId;
+
+      if (isUserAttending) {
+        return;
+      }
+
+      // Check if any friend is involved in this event
+      const friendsInEvent = [];
+
+      // Check if friend is host
+      if (friendIds.includes(eventData.createdBy)) {
+        friendsInEvent.push(eventData.createdBy);
+      }
+
+      // Check if friends are subscribers
+      subscribers.forEach((subscriberId) => {
+        if (friendIds.includes(subscriberId)) {
+          friendsInEvent.push(subscriberId);
+        }
+      });
+
+      // Check if friends are cohosts
+      cohosts.forEach((cohostId) => {
+        if (friendIds.includes(cohostId)) {
+          friendsInEvent.push(cohostId);
+        }
+      });
+
+      // If at least one friend is involved and we haven't seen this event yet
+      if (friendsInEvent.length > 0 && !seenEventIds.has(eventData.id)) {
+        seenEventIds.add(eventData.id);
+        friendsEvents.push({
+          ...eventData,
+          friendsInEvent: [...new Set(friendsInEvent)], // Deduplicate friend IDs
+          category: 'friends_events',
+        });
+      }
+    });
+
+    // Sort by date and limit
+    friendsEvents.sort((a, b) => {
+      const aDate = a.eventTimestamp?.toDate() || new Date(a.utcDateTime);
+      const bDate = b.eventTimestamp?.toDate() || new Date(b.utcDateTime);
+      return aDate - bDate;
+    });
+
+    return friendsEvents.slice(0, limitCount);
+  } catch (error) {
+    console.error('[feedService] Error getting friends events:', error);
     return [];
   }
 };

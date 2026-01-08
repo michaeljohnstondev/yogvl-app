@@ -42,6 +42,9 @@ function NotificationSettings({ navigation }) {
     suggestedEvents:
       userData?.userdata?.settings?.notifications?.app?.suggestedEvents ??
       true,
+    friendEventActivity:
+      userData?.userdata?.settings?.notifications?.app?.friendEventActivity ??
+      true,
   });
 
   // Hosting default notification settings (for events user creates)
@@ -102,6 +105,9 @@ function NotificationSettings({ navigation }) {
       true,
     suggestedEvents:
       userData?.userdata?.settings?.notifications?.app?.suggestedEvents ??
+      true,
+    friendEventActivity:
+      userData?.userdata?.settings?.notifications?.app?.friendEventActivity ??
       true,
   };
 
@@ -236,6 +242,12 @@ function NotificationSettings({ navigation }) {
                 description="Notify when you're invited to events"
                 value={appSettings.eventInvitations}
                 onToggle={() => toggleAppSetting('eventInvitations')}
+              />
+              <NotificationSettingItem
+                title="Friend Event Activity"
+                description="Notify when friends join or create public events"
+                value={appSettings.friendEventActivity}
+                onToggle={() => toggleAppSetting('friendEventActivity')}
               />
               <NotificationSettingItem
                 title="Suggested Events"

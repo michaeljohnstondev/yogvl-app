@@ -389,4 +389,27 @@ export const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
   },
+  muteToggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.inputBorder,
+    marginTop: 8,
+  },
+  muteToggleContent: {
+    flex: 1,
+    marginRight: 15,
+  },
+  muteToggleTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 5,
+  },
+  muteToggleDescription: {
+    color: theme.colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 18,
+  },
 });
