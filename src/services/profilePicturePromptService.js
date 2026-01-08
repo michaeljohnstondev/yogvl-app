@@ -34,12 +34,12 @@ export const promptForProfilePicture = async ({
   }
 
   // Determine context-specific message
-  let message = 'Other users will see who's attending. Would you like to add a profile picture?';
+  let message = 'Other users will see who is attending. Would you like to add a profile picture?';
 
   if (context === 'create_event') {
-    message = "You're creating an event! Other attendees will see who's hosting. Would you like to add a profile picture so they know what you look like?";
+    message = 'You are creating an event! Other attendees will see who is hosting. Would you like to add a profile picture so they know what you look like?';
   } else if (context === 'join_event') {
-    message = "You're joining an event! Other attendees will see who's coming. Would you like to add a profile picture so they know what you look like?";
+    message = 'You are joining an event! Other attendees will see who is coming. Would you like to add a profile picture so they know what you look like?';
   }
 
   // Show confirmation alert with camera/library options
