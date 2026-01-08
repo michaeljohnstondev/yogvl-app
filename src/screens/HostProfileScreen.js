@@ -10,6 +10,7 @@ import {
   Linking,
   BackHandler,
   SafeAreaView,
+  Switch,
 } from 'react-native';
 import { VibeButton } from '../components/ui';
 import { BlockButton, FollowButton, CloseButton } from '../components/ui/buttons';
@@ -30,6 +31,12 @@ import {
 } from '../services/followService';
 import { reportUser } from '../services/reportingService';
 import { blockingService } from '../services/blockingService';
+import {
+  areFriends,
+  isFriendMuted,
+  muteFriendEvents,
+  unmuteFriendEvents,
+} from '../services/friendMuteService';
 import { useAuth } from '../auth/AuthContext';
 import theme from '../theme/themes';
 
@@ -71,6 +78,9 @@ const HostProfileScreen = ({ navigation, route }) => {
     isBlocked: false,
     loading: true,
   });
+  const [isMutualFriend, setIsMutualFriend] = useState(false);
+  const [isFriendEventsMuted, setIsFriendEventsMuted] = useState(false);
+  const [muteLoading, setMuteLoading] = useState(false);
 
   // Load privacy-filtered contact information
   useEffect(() => {
@@ -159,6 +169,37 @@ const HostProfileScreen = ({ navigation, route }) => {
 
     checkBlockStatus();
   }, [currentUserId, hostData?.id, navigation, vibeAlert]);
+
+  // Check friend and mute status
+  useEffect(() => {
+    const checkFriendAndMuteStatus = async () => {
+      if (!currentUserId || !hostData?.id || isCurrentUser) {
+        setIsMutualFriend(false);
+        setIsFriendEventsMuted(false);
+        return;
+      }
+
+      try {
+        // Check if they are friends
+        const friendStatus = await areFriends(currentUserId, hostData.id);
+        setIsMutualFriend(friendStatus);
+
+        // If they are friends, check mute status
+        if (friendStatus) {
+          const muteStatus = await isFriendMuted(currentUserId, hostData.id);
+          setIsFriendEventsMuted(muteStatus);
+        } else {
+          setIsFriendEventsMuted(false);
+        }
+      } catch (error) {
+        console.error('[HostProfile] Error checking friend/mute status:', error);
+        setIsMutualFriend(false);
+        setIsFriendEventsMuted(false);
+      }
+    };
+
+    checkFriendAndMuteStatus();
+  }, [currentUserId, hostData?.id, isCurrentUser]);
 
   // Load follow statistics
   useEffect(() => {
@@ -393,6 +434,62 @@ const HostProfileScreen = ({ navigation, route }) => {
     }
   };
 
+  const handleMuteFriendEvents = async () => {
+    if (!currentUserId || !hostData?.id || muteLoading) {
+      return;
+    }
+
+    // Optimistic update
+    setIsFriendEventsMuted(true);
+    setMuteLoading(true);
+
+    try {
+      const result = await muteFriendEvents(currentUserId, hostData.id);
+
+      if (!result.success) {
+        // Rollback on error
+        setIsFriendEventsMuted(false);
+        vibeAlert.error('Error', result.error || 'Failed to mute friend events');
+      } else {
+        vibeAlert.success('Muted', `Event notifications from ${displayName} muted`);
+      }
+    } catch (error) {
+      console.error('[HostProfile] Error muting friend events:', error);
+      setIsFriendEventsMuted(false);
+      vibeAlert.error('Error', 'Failed to mute friend events');
+    } finally {
+      setMuteLoading(false);
+    }
+  };
+
+  const handleUnmuteFriendEvents = async () => {
+    if (!currentUserId || !hostData?.id || muteLoading) {
+      return;
+    }
+
+    // Optimistic update
+    setIsFriendEventsMuted(false);
+    setMuteLoading(true);
+
+    try {
+      const result = await unmuteFriendEvents(currentUserId, hostData.id);
+
+      if (!result.success) {
+        // Rollback on error
+        setIsFriendEventsMuted(true);
+        vibeAlert.error('Error', result.error || 'Failed to unmute friend events');
+      } else {
+        vibeAlert.success('Unmuted', `Event notifications from ${displayName} unmuted`);
+      }
+    } catch (error) {
+      console.error('[HostProfile] Error unmuting friend events:', error);
+      setIsFriendEventsMuted(true);
+      vibeAlert.error('Error', 'Failed to unmute friend events');
+    } finally {
+      setMuteLoading(false);
+    }
+  };
+
   const handleBack = () => {
     // Mark that we've navigated away to disable future back button handling
     setHasNavigatedAway(true);
@@ -607,6 +704,36 @@ const HostProfileScreen = ({ navigation, route }) => {
                 </View>
               </View>
             </View>
+
+            {/* Friend Event Notification Mute Toggle - Only show if they are friends */}
+            {isMutualFriend && !isCurrentUser && (
+              <View style={styles.muteToggleContainer}>
+                <View style={styles.muteToggleContent}>
+                  <Text style={styles.muteToggleTitle}>
+                    Mute Event Notifications
+                  </Text>
+                  <Text style={styles.muteToggleDescription}>
+                    Turn off notifications when {displayName} creates or joins events
+                  </Text>
+                </View>
+                <Switch
+                  value={isFriendEventsMuted}
+                  onValueChange={
+                    isFriendEventsMuted
+                      ? handleUnmuteFriendEvents
+                      : handleMuteFriendEvents
+                  }
+                  disabled={muteLoading}
+                  trackColor={{
+                    false: theme.colors.darkGray,
+                    true: theme.colors.vibeRed,
+                  }}
+                  thumbColor={
+                    isFriendEventsMuted ? theme.colors.white : theme.colors.gray
+                  }
+                />
+              </View>
+            )}
           </View>
         </View>
 
@@ -1063,6 +1190,29 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  muteToggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.inputBorder,
+    marginTop: 8,
+  },
+  muteToggleContent: {
+    flex: 1,
+    marginRight: 15,
+  },
+  muteToggleTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 5,
+  },
+  muteToggleDescription: {
+    color: theme.colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 18,
   },
 });
 

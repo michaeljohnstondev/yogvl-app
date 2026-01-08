@@ -94,6 +94,12 @@ service cloud.firestore {
         allow delete: if request.auth != null && request.auth.uid == userId;
       }
 
+      // User friends subcollection - authenticated users can read to check friend status
+      match /friends/{friendId} {
+        allow read: if request.auth != null;
+        allow write, delete: if request.auth != null && request.auth.uid == userId;
+      }
+
       // Host ratings subcollection - users can read their own ratings
       match /hostRatings/{ratingId} {
         allow read: if request.auth != null && request.auth.uid == userId;
