@@ -178,7 +178,7 @@ export default function LocationScreen({ navigation }) {
             const closest = await StudioService.getClosestStudios(
               location.coords.latitude,
               location.coords.longitude,
-              5
+              10
             );
             console.log('[LocationScreen] Found', closest.length, 'nearby studios');
             setNearbyStudios(closest);
@@ -187,7 +187,7 @@ export default function LocationScreen({ navigation }) {
             // Fallback to showing all studios if location fails
             try {
               const allStudios = await StudioService.getAllStudios();
-              setNearbyStudios(allStudios.slice(0, 5)); // Show first 5 studios
+              setNearbyStudios(allStudios.slice(0, 10)); // Show first 10 studios
             } catch (fallbackError) {
               setNearbyStudios([]);
             }
@@ -196,7 +196,7 @@ export default function LocationScreen({ navigation }) {
           // Fallback to showing all studios by region
           try {
             const allStudios = await StudioService.getAllStudios();
-            setNearbyStudios(allStudios.slice(0, 5)); // Show first 5 studios
+            setNearbyStudios(allStudios.slice(0, 10)); // Show first 10 studios
           } catch (fallbackError) {
             setNearbyStudios([]);
           }
@@ -688,11 +688,6 @@ export default function LocationScreen({ navigation }) {
                           ? '📍 Studios Near Me'
                           : '🏢 Available Studios'}
                       </Text>
-                      {userLocation && (
-                        <Text style={styles.sectionSubtitle}>
-                          Showing studios within 100 miles
-                        </Text>
-                      )}
 
                       {nearbyStudios.length > 0 ? (
                         nearbyStudios.map((studio) => (
@@ -733,7 +728,7 @@ export default function LocationScreen({ navigation }) {
                       ) : (
                         <View style={styles.emptyState}>
                           <Text style={styles.emptyStateText}>
-                            No studios found within 100 miles
+                            No studios found nearby
                           </Text>
                           <Text style={styles.emptyStateSubtext}>
                             Try refreshing or search by location

@@ -61,6 +61,11 @@ service cloud.firestore {
         && request.auth.uid == userId
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isAdmin']);
 
+      // Allow users to update their device info and notification settings
+      allow update: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deviceInfo', 'userdata']);
+
       // Users can delete their own documents
       allow delete: if request.auth != null && request.auth.uid == userId;
 
@@ -105,6 +110,11 @@ service cloud.firestore {
         allow read: if request.auth != null && request.auth.uid == userId;
         allow create: if request.auth != null && validateHostRating(request.resource.data);
         allow delete: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // User event templates subcollection - only owner can access their templates
+      match /eventTemplates/{templateId} {
+        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
       }
     }
 
@@ -351,6 +361,14 @@ service cloud.firestore {
     match /scheduledNotifications/{notificationId} {
       allow read, write: if request.auth != null && isAdmin(request.auth.uid);
       allow read, write: if request.auth != null && isServerRequest();
+
+      // Allow users to create their own scheduled notifications
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+
+      // Allow users to read and update their own scheduled notifications
+      allow read, update: if request.auth != null
+        && resource.data.userId == request.auth.uid;
     }
 
     // Check if user is admin by checking their user document field

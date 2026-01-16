@@ -399,6 +399,8 @@ export default function NotificationItem({
         return '👥';
       case 'interest_based_suggestion':
         return '✨';
+      case 'official_event':
+        return '🎪';
       case 'friend_request':
         return '👤'; // DEPRECATED
       case 'friend_accepted':

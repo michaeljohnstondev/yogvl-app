@@ -838,6 +838,7 @@ const EventDetailScreen = memo(function EventDetailScreen({
         onShowAttendeesModal={() => setShowFriendsModal(true)}
         onNotificationSettings={handleNotificationSettings}
         vibeAlert={vibeAlert}
+        studioId={studioId}
       />
 
       {/* Message Board Button */}

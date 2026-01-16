@@ -143,6 +143,13 @@ export default function NotificationsScreen({ navigation }) {
               navigation.navigate('EventDetail', { eventId: data.eventId });
             }
             break;
+          case 'official_event':
+            // Navigate to event detail for official studio events
+            if (data.eventId) {
+              console.log('[NotificationsScreen] 🎪 Official event notification - navigating to event:', data.eventId);
+              navigation.navigate('EventDetail', { eventId: data.eventId });
+            }
+            break;
           default:
             // For system notifications or unknown types, just mark as read
             break;

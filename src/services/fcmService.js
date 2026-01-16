@@ -462,6 +462,13 @@ class FCMService {
       const message = remoteMessage.notification?.body || remoteMessage.data?.message || remoteMessage.data?.body || '';
       const type = remoteMessage.data?.type || 'info';
 
+      // Skip storing blank notifications (both title is default and message is empty)
+      if (title === 'Notification' && message === '') {
+        console.log('[FCMService] ⚠️ Skipping blank notification - no meaningful content');
+        console.log('[FCMService] Notification data:', JSON.stringify(remoteMessage, null, 2));
+        return;
+      }
+
       // Get current user ID (we can't determine user from FCM message alone)
       // This will be set when user logs in via registerTokenForUser
       if (!this.currentUserId) {
@@ -707,6 +714,17 @@ class FCMService {
             console.log('[FCMService] ✅ Navigation called for interest suggestion');
           } else {
             console.warn('[FCMService] ⚠️ No eventId in interest suggestion data');
+          }
+          break;
+
+        case 'official_event':
+          console.log('[FCMService] 🎪 Official event notification - navigating to EventDetail:', eventId);
+          if (eventId) {
+            console.log('[FCMService] 🚀 Calling navigate("EventDetail", { eventId:', eventId, '})');
+            this.navigationRef.navigate('EventDetail', { eventId });
+            console.log('[FCMService] ✅ Navigation called for official event');
+          } else {
+            console.warn('[FCMService] ⚠️ No eventId in official event data');
           }
           break;
 

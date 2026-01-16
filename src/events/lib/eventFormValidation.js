@@ -295,6 +295,7 @@ export const formatEventForStorage = (
     rsvpDeadlineType,
     trackAttendance,
     attendanceType,
+    isOfficialEvent,
   } = formData;
 
   // Format main event date/time
@@ -404,6 +405,9 @@ export const formatEventForStorage = (
     attendanceType: attendanceType ?? 'casual',
     showHostContact: showHostContact ?? true,
     active: true,
+
+    // OFFICIAL EVENTS (admin only)
+    isOfficialEvent: isOfficialEvent ?? false,
   };
 };
 

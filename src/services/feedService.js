@@ -30,6 +30,7 @@ const shouldHideEventDueToRSVPDeadline = (eventData) => {
 
 /**
  * Get events from users that the current user is following (optimized version with pre-fetched following)
+ * Shows events where followed users are hosting, co-hosting, or attending
  */
 const getFollowedUsersEventsWithFollowing = async (
   currentUserId,
@@ -42,65 +43,86 @@ const getFollowedUsersEventsWithFollowing = async (
       return [];
     }
 
-    // Get all events from followed users in the same studio
+    // Get all upcoming public events from the studio
     const eventsRef = collection(db, 'studios', userStudio, 'events');
     const now = Timestamp.now();
 
-    // Create batch queries for all followed users (optimized parallel execution)
-    const batchQueries = [];
+    const q = query(
+      eventsRef,
+      where('eventTimestamp', '>=', now),
+      where('isPrivate', '==', false), // Only public events
+      orderBy('eventTimestamp', 'asc'),
+      firestoreLimit(limitCount * 3) // Get more to filter in-memory
+    );
 
-    // Split followedUserIds into batches of 10 (Firestore 'in' limit)
-    for (let i = 0; i < followedUserIds.length; i += 10) {
-      const batch = followedUserIds.slice(i, i + 10);
-      const batchQuery = query(
-        eventsRef,
-        where('createdBy', 'in', batch),
-        where('eventTimestamp', '>=', now),
-        where('isPrivate', '==', false), // Only public events
-        orderBy('eventTimestamp', 'asc'),
-        firestoreLimit(limitCount)
-      );
-      batchQueries.push(getDocs(batchQuery));
-    }
+    const snapshot = await getDocs(q);
+    const followedEvents = [];
+    const seenEventIds = new Set();
 
-    // Execute all batch queries in parallel for maximum performance
-    const batchResults = await Promise.all(batchQueries);
-    const events = [];
+    snapshot.docs.forEach((doc) => {
+      const eventData = { id: doc.id, ...doc.data() };
 
-    // Process all results
-    batchResults.forEach((snapshot) => {
-      snapshot.docs.forEach((doc) => {
-        const eventData = {
-          id: doc.id,
-          ...doc.data(),
-          isFromFollowedUser: true,
-          category: 'followed_events',
-        };
+      // Skip events with past RSVP deadlines
+      if (shouldHideEventDueToRSVPDeadline(eventData)) {
+        return;
+      }
 
-        // Skip events with past RSVP deadlines
-        if (!shouldHideEventDueToRSVPDeadline(eventData)) {
-          events.push(eventData);
+      // Skip if current user is already attending
+      const subscribers = eventData.subscribers || [];
+      const cohosts = eventData.cohosts || [];
+      const isUserAttending =
+        subscribers.includes(currentUserId) ||
+        cohosts.includes(currentUserId) ||
+        eventData.createdBy === currentUserId;
+
+      if (isUserAttending) {
+        return;
+      }
+
+      // Check if any followed user is involved in this event
+      const followedUsersInEvent = [];
+
+      // Check if followed user is host
+      if (followedUserIds.includes(eventData.createdBy)) {
+        followedUsersInEvent.push(eventData.createdBy);
+      }
+
+      // Check if followed users are subscribers
+      subscribers.forEach((subscriberId) => {
+        if (followedUserIds.includes(subscriberId)) {
+          followedUsersInEvent.push(subscriberId);
         }
       });
+
+      // Check if followed users are cohosts
+      cohosts.forEach((cohostId) => {
+        if (followedUserIds.includes(cohostId)) {
+          followedUsersInEvent.push(cohostId);
+        }
+      });
+
+      // If at least one followed user is involved and we haven't seen this event yet
+      if (followedUsersInEvent.length > 0 && !seenEventIds.has(eventData.id)) {
+        seenEventIds.add(eventData.id);
+        followedEvents.push({
+          ...eventData,
+          isFromFollowedUser: true,
+          category: 'followed_events',
+          followedUsersInEvent: [...new Set(followedUsersInEvent)], // Deduplicate
+        });
+      }
     });
 
-    // Sort all events by date and limit to requested count
-    events.sort((a, b) => {
-      const aDate =
-        a.datetime?.toDate() ||
-        new Date(a.utcDateTime) ||
-        a.eventTimestamp?.toDate();
-      const bDate =
-        b.datetime?.toDate() ||
-        new Date(b.utcDateTime) ||
-        b.eventTimestamp?.toDate();
+    // Sort by date
+    followedEvents.sort((a, b) => {
+      const aDate = a.eventTimestamp?.toDate() || new Date(a.utcDateTime);
+      const bDate = b.eventTimestamp?.toDate() || new Date(b.utcDateTime);
       return aDate - bDate;
     });
 
-    const limitedEvents = events.slice(0, limitCount);
-
-    return limitedEvents;
+    return followedEvents.slice(0, limitCount);
   } catch (error) {
+    console.error('[feedService] Error getting followed users events:', error);
     return [];
   }
 };
@@ -171,8 +193,8 @@ const getSuggestedEventsWithFollowing = async (
     snapshot.docs.forEach((doc) => {
       const eventData = { id: doc.id, ...doc.data() };
 
-      // Skip events from followed users or current user
-      if (!followedUserIdsSet.has(eventData.createdBy)) {
+      // Skip events created by current user, but INCLUDE events from followed users
+      if (eventData.createdBy !== currentUserId) {
         // Skip events with past RSVP deadlines
         if (!shouldHideEventDueToRSVPDeadline(eventData)) {
           suggestedEvents.push({
@@ -209,7 +231,7 @@ export const getSuggestedEvents = async (
 
     // Get list of users that current user is following
     const following = await getFollowing(currentUserId, 100);
-    const followedUserIds = following.map((f) => f.targetUserId);
+    const followedUserIds = following.map((f) => f.id); // Fixed: was f.targetUserId, should be f.id
 
     return getSuggestedEventsWithFollowing(currentUserId, userStudio, followedUserIds, limitCount);
   } catch (error) {
@@ -235,7 +257,7 @@ export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
       blockingService.getBlockedUsers(currentUserId)
     ]);
 
-    const followedUserIds = following.map((f) => f.targetUserId);
+    const followedUserIds = following.map((f) => f.id); // Fixed: was f.targetUserId, should be f.id
     const blockedUserIds = blockedUsersResult.blockedUsers || [];
 
     // Execute feed queries in parallel for better performance
@@ -543,6 +565,97 @@ export const getFriendsEvents = async (
     return friendsEvents.slice(0, limitCount);
   } catch (error) {
     console.error('[feedService] Error getting friends events:', error);
+    return [];
+  }
+};
+
+/**
+ * Get official community events created by admin accounts
+ * Shows special events created on behalf of organizations (e.g., YoGVL, YoATL)
+ * These events are always public and created by admin users for community engagement
+ */
+export const getOfficialEvents = async (
+  currentUserId,
+  userStudio,
+  organizationName = null,
+  limitCount = 20
+) => {
+  try {
+    if (!currentUserId || !userStudio) {
+      console.warn('[feedService] Missing currentUserId or userStudio');
+      return [];
+    }
+
+    const eventsRef = collection(db, 'studios', userStudio, 'events');
+    const now = Timestamp.now();
+
+    console.log('[feedService] Querying for official events in studio:', userStudio);
+
+    // Simplified query - just filter by isOfficialEvent
+    // We'll filter by timestamp in memory to avoid index dependency
+    const q = query(
+      eventsRef,
+      where('isOfficialEvent', '==', true),
+      firestoreLimit(limitCount * 2) // Get more to filter in memory
+    );
+
+    const snapshot = await getDocs(q);
+    const officialEvents = [];
+
+    console.log('[feedService] Official events query results:', {
+      count: snapshot.docs.length,
+      query: organizationName ? 'with org filter' : 'all official',
+    });
+
+    snapshot.docs.forEach((doc) => {
+      const eventData = { id: doc.id, ...doc.data() };
+      console.log('[feedService] Found official event:', {
+        id: doc.id,
+        title: eventData.title,
+        isOfficialEvent: eventData.isOfficialEvent,
+        officialOrganization: eventData.officialOrganization,
+        eventTimestamp: eventData.eventTimestamp,
+      });
+
+      // Filter by timestamp in memory (skip past events)
+      const eventTime = eventData.eventTimestamp?.toDate ? eventData.eventTimestamp.toDate() : new Date(eventData.eventTimestamp);
+      if (eventTime < now.toDate()) {
+        console.log('[feedService] Skipping past event:', eventData.title);
+        return;
+      }
+
+      // Filter by organization if specified
+      if (organizationName && eventData.officialOrganization !== organizationName) {
+        return;
+      }
+
+      // Skip events with past RSVP deadlines
+      if (shouldHideEventDueToRSVPDeadline(eventData)) {
+        return;
+      }
+
+      officialEvents.push({
+        ...eventData,
+        isOfficialEvent: true,
+        category: 'official_events',
+      });
+    });
+
+    // Sort by timestamp and limit
+    const sortedEvents = officialEvents.sort((a, b) => {
+      const aTime = a.eventTimestamp?.toDate ? a.eventTimestamp.toDate() : new Date(a.eventTimestamp);
+      const bTime = b.eventTimestamp?.toDate ? b.eventTimestamp.toDate() : new Date(b.eventTimestamp);
+      return aTime - bTime;
+    });
+
+    return sortedEvents.slice(0, limitCount);
+  } catch (error) {
+    console.error('[feedService] Error getting official events:', error);
+    console.error('[feedService] Error details:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack,
+    });
     return [];
   }
 };

@@ -185,6 +185,51 @@ exports.onEventDeleted = functions.firestore
       const eventTitle = eventData.title || 'Untitled Event';
       const eventCreatorId = eventData.createdBy;
 
+      // Check if this is an old event (likely automated cleanup)
+      const eventDate = eventData.eventTimestamp?.toDate() || eventData.eventDateTime?.toDate();
+      const isOldEvent = eventDate ? (new Date() - eventDate) / (1000 * 60 * 60 * 24) > 30 : false;
+
+      if (isOldEvent) {
+        const daysSinceEvent = Math.floor((new Date() - eventDate) / (1000 * 60 * 60 * 24));
+        console.log(`[Event Deletion] Event is ${daysSinceEvent} days old - likely automated cleanup, skipping subscriber notifications`);
+
+        // Still cleanup scheduled notifications even for old events
+        try {
+          const scheduledNotificationsQuery = admin.firestore()
+            .collection('scheduledNotifications')
+            .where('eventId', '==', eventId);
+
+          const scheduledNotificationsSnapshot = await scheduledNotificationsQuery.get();
+
+          if (!scheduledNotificationsSnapshot.empty) {
+            const batch = admin.firestore().batch();
+            scheduledNotificationsSnapshot.docs.forEach(doc => {
+              const data = doc.data();
+              batch.delete(doc.ref);
+              console.log(
+                `[Event Deletion] 🗑️  DELETED scheduledNotification:`,
+                `\n  ID: ${doc.id}`,
+                `\n  Type: ${data.type}`,
+                `\n  UserId: ${data.userId}`,
+                `\n  EventId: ${data.eventId || 'N/A'}`,
+                `\n  ScheduledFor: ${data.scheduledFor?.toDate()?.toISOString() || 'N/A'}`,
+                `\n  Reason: Old event cleanup (${daysSinceEvent} days old)`
+              );
+            });
+
+            await batch.commit();
+            console.log(`[Event Deletion] Cleaned up ${scheduledNotificationsSnapshot.size} scheduled notifications for old event`);
+          }
+        } catch (cleanupError) {
+          console.error(`[Event Deletion] Error cleaning up scheduled notifications:`, cleanupError);
+        }
+
+        // Exit early - don't send cancellation notifications for old events
+        return;
+      }
+
+      console.log(`[Event Deletion] Event is recent - will notify subscribers of cancellation`);
+
       // CLEANUP FIRST: Delete all scheduled notifications for this deleted event
       // Do this BEFORE checking subscribers, so it runs even if there are no subscribers to notify
       console.log(`[Event Deletion] Cleaning up scheduled notifications for event ${eventId}`);

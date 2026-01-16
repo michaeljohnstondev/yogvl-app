@@ -9,9 +9,11 @@ export const getDefaultNotificationSettings = () => ({
     newFollowers: true,
     eventInvitations: true,
     suggestedEvents: true,
-    friendEventActivity: true,
+    friendEventActivity: true, // Legacy name, still used by Cloud Function
+    officialEvents: true, // Notifications for official studio events
   },
-  mutedFriendsEvents: [],
+  mutedFollowingEvents: [], // New field name for muted users you follow
+  mutedFriendsEvents: [], // Legacy field, kept for backward compatibility
   hosting: {
     enabled: true,
     hostComments: true,

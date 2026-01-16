@@ -51,11 +51,11 @@ import { getVisibleContactInfo } from '../services/privacyService';
 import { reportUser } from '../services/reportingService';
 import { addFavorite, removeFavorite, isFavorite } from '../services/favoriteService';
 import {
-  areFriends,
-  isFriendMuted,
-  muteFriendEvents,
-  unmuteFriendEvents,
-} from '../services/friendMuteService';
+  isFollowing as checkIsFollowing,
+  isFollowedUserMuted as checkIsFollowedUserMuted,
+  muteFollowedUser,
+  unmuteFollowedUser,
+} from '../services/followMuteService';
 import { auth } from '../auth/services/firebase';
 import { doc, updateDoc, getDoc } from '../lib/firebase';
 import { db } from '../auth/services/firebase';
@@ -90,8 +90,8 @@ function UserProfile({ navigation, route }) {
   const [isBlocked, setIsBlocked] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
-  const [isMutualFriend, setIsMutualFriend] = useState(false);
-  const [isFriendEventsMuted, setIsFriendEventsMuted] = useState(false);
+  const [isFollowingUser, setIsFollowingUser] = useState(false);
+  const [isFollowedUserMutedState, setIsFollowedUserMutedState] = useState(false);
   const [muteLoading, setMuteLoading] = useState(false);
 
   // Use existing follow actions hook
@@ -221,50 +221,40 @@ function UserProfile({ navigation, route }) {
     }
   };
 
-  const handleMuteFriendEvents = async () => {
+  const handleMuteUser = async () => {
     if (!currentUserId || !targetUserId || muteLoading) return;
 
     setMuteLoading(true);
-    setIsFriendEventsMuted(true); // Optimistic update
+    setIsFollowedUserMutedState(true); // Optimistic update
     try {
-      const result = await muteFriendEvents(currentUserId, targetUserId);
-      if (result.success) {
-        vibeAlert.success(
-          'Notifications Muted',
-          "You won't receive notifications when this friend joins or creates events"
-        );
-      } else {
-        setIsFriendEventsMuted(false); // Rollback on error
+      const result = await muteFollowedUser(currentUserId, targetUserId);
+      if (!result.success) {
+        setIsFollowedUserMutedState(false); // Rollback on error
         vibeAlert.error('Error', result.error || 'Failed to mute notifications');
       }
     } catch (error) {
-      console.error('[UserProfile] Error muting friend events:', error);
-      setIsFriendEventsMuted(false); // Rollback on error
+      console.error('[UserProfile] Error muting user events:', error);
+      setIsFollowedUserMutedState(false); // Rollback on error
       vibeAlert.error('Error', 'Failed to mute notifications');
     } finally {
       setMuteLoading(false);
     }
   };
 
-  const handleUnmuteFriendEvents = async () => {
+  const handleUnmuteUser = async () => {
     if (!currentUserId || !targetUserId || muteLoading) return;
 
     setMuteLoading(true);
-    setIsFriendEventsMuted(false); // Optimistic update
+    setIsFollowedUserMutedState(false); // Optimistic update
     try {
-      const result = await unmuteFriendEvents(currentUserId, targetUserId);
-      if (result.success) {
-        vibeAlert.success(
-          'Notifications Enabled',
-          "You'll now receive notifications when this friend joins or creates events"
-        );
-      } else {
-        setIsFriendEventsMuted(true); // Rollback on error
+      const result = await unmuteFollowedUser(currentUserId, targetUserId);
+      if (!result.success) {
+        setIsFollowedUserMutedState(true); // Rollback on error
         vibeAlert.error('Error', result.error || 'Failed to unmute notifications');
       }
     } catch (error) {
-      console.error('[UserProfile] Error unmuting friend events:', error);
-      setIsFriendEventsMuted(true); // Rollback on error
+      console.error('[UserProfile] Error unmuting user events:', error);
+      setIsFollowedUserMutedState(true); // Rollback on error
       vibeAlert.error('Error', 'Failed to unmute notifications');
     } finally {
       setMuteLoading(false);
@@ -902,29 +892,29 @@ function UserProfile({ navigation, route }) {
     checkFavoriteStatus();
   }, [currentUserId, targetUserId, isOwnProfile]);
 
-  // STEP 5: Check if user is a friend and if their events are muted
+  // STEP 5: Check if current user is following target user and if they're muted
   useEffect(() => {
-    const checkFriendAndMuteStatus = async () => {
+    const checkFollowingAndMuteStatus = async () => {
       if (isOwnProfile || !currentUserId || !targetUserId) {
-        setIsMutualFriend(false);
-        setIsFriendEventsMuted(false);
+        setIsFollowingUser(false);
+        setIsFollowedUserMutedState(false);
         return;
       }
 
       try {
-        const [friendStatus, muteStatus] = await Promise.all([
-          areFriends(currentUserId, targetUserId),
-          isFriendMuted(currentUserId, targetUserId),
+        const [followingStatus, muteStatus] = await Promise.all([
+          checkIsFollowing(currentUserId, targetUserId),
+          checkIsFollowedUserMuted(currentUserId, targetUserId),
         ]);
 
-        setIsMutualFriend(friendStatus);
-        setIsFriendEventsMuted(muteStatus);
+        setIsFollowingUser(followingStatus);
+        setIsFollowedUserMutedState(muteStatus);
       } catch (error) {
-        console.error('[UserProfile] Error checking friend/mute status:', error);
+        console.error('[UserProfile] Error checking following/mute status:', error);
       }
     };
 
-    checkFriendAndMuteStatus();
+    checkFollowingAndMuteStatus();
   }, [currentUserId, targetUserId, isOwnProfile]);
 
   const formatPhoneNumber = (phoneNumber) => {
@@ -1236,26 +1226,26 @@ function UserProfile({ navigation, route }) {
             enableTouch={isOwnProfile}
           />
 
-          {/* Mute Friend Events Toggle - Only show if viewing a friend's profile */}
-          {!isOwnProfile && isMutualFriend && (
+          {/* Mute User Events Toggle - Only show if you're following this user */}
+          {!isOwnProfile && isFollowingUser && (
             <View style={styles.muteToggleContainer}>
               <View style={styles.muteToggleContent}>
                 <Text style={styles.muteToggleTitle}>
                   Event Activity Notifications
                 </Text>
                 <Text style={styles.muteToggleDescription}>
-                  {isFriendEventsMuted
-                    ? 'Muted - You will not receive notifications when this friend joins or creates events'
-                    : 'Enabled - You will receive notifications when this friend joins or creates events'}
+                  {isFollowedUserMutedState
+                    ? 'Muted - You will not receive notifications when this user joins or creates events'
+                    : 'Enabled - You will receive notifications when this user joins or creates events'}
                 </Text>
               </View>
               <Switch
-                value={!isFriendEventsMuted}
+                value={!isFollowedUserMutedState}
                 onValueChange={() => {
-                  if (isFriendEventsMuted) {
-                    handleUnmuteFriendEvents();
+                  if (isFollowedUserMutedState) {
+                    handleUnmuteUser();
                   } else {
-                    handleMuteFriendEvents();
+                    handleMuteUser();
                   }
                 }}
                 disabled={muteLoading}
@@ -1263,7 +1253,7 @@ function UserProfile({ navigation, route }) {
                   false: theme.colors.darkGray,
                   true: theme.colors.vibeGreen,
                 }}
-                thumbColor={!isFriendEventsMuted ? theme.colors.white : theme.colors.gray}
+                thumbColor={!isFollowedUserMutedState ? theme.colors.white : theme.colors.gray}
               />
             </View>
           )}

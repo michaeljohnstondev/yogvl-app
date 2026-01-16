@@ -152,6 +152,7 @@ export default function CreateEventScreen({ navigation, route }) {
     togglePrivacy,
     toggleHostContact,
     toggleRsvpDeadline,
+    toggleOfficialEvent,
     appendToDetails,
     updateInputHeight,
     validateForm,
@@ -707,6 +708,7 @@ export default function CreateEventScreen({ navigation, route }) {
         toggleRsvpDeadline={toggleRsvpDeadline}
         toggleHostContact={toggleHostContact}
         toggleFee={toggleFee}
+        toggleOfficialEvent={toggleOfficialEvent}
         // Actions
         onShowTemplateModal={openSelectionModal}
         onShowSaveTemplate={() => openSaveModal(formData.title)}

@@ -19,6 +19,7 @@ import {
   VibeSeparator,
   VibeInput,
   VibeDropdown,
+  VibeSegmentedControl,
 } from '../../components/ui/base';
 import { ReliabilityWarning } from '../../components/ui/profile';
 import ScreenHeader from '../../components/ui/layout/ScreenHeader';
@@ -69,6 +70,7 @@ export default function CreateEventForm({
   toggleRsvpDeadline,
   toggleHostContact,
   toggleFee,
+  toggleOfficialEvent,
 
   // Actions
   onShowTemplateModal,
@@ -808,6 +810,30 @@ export default function CreateEventForm({
         >
           <ReliabilityWarning userData={userData} />
 
+          {/* HOST SELECTOR - Studio Admin Only */}
+          {userData?.isAdmin && (
+            <View style={styles.hostSelectorContainer}>
+              <Text style={styles.label}>Event Host</Text>
+              <VibeSegmentedControl
+                options={[
+                  {
+                    value: false,
+                    label: userData?.userdata?.contactInfo?.displayName?.split(' ')[0] || 'Me'
+                  },
+                  {
+                    value: true,
+                    label: 'Studio'
+                  },
+                ]}
+                selectedValue={formData.isOfficialEvent}
+                onSelect={(value) => {
+                  toggleOfficialEvent();
+                  // No need to set officialOrganization - it will be looked up from studio document when displaying
+                }}
+              />
+            </View>
+          )}
+
           {/* WHAT SECTION */}
           <View ref={setSectionRef('what')} style={[styles.sectionContainer, styles.whatSectionContainer]}>
             <What
@@ -999,6 +1025,12 @@ const styles = StyleSheet.create({
   whereSectionContainer: {
     zIndex: 9999,
     elevation: 9999,
+  },
+  hostSelectorContainer: {
+    marginBottom: 20,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.vibeCyan + '40',
   },
   whatSectionContainer: {
     zIndex: 10000,

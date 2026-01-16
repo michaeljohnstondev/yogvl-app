@@ -1,34 +1,36 @@
 // FILE: functions/notifications/friendEventActivityNotifications.js
-// Friend event activity notification handler - notifies friends when someone joins/creates events
+// Friend event activity notification handler - notifies followers when someone joins events
+// NOTE: Event creation notifications are now handled in eventInterestNotifications.js
 
 const admin = require('firebase-admin');
 const functions = require('firebase-functions');
 
 /**
- * Helper function to get all friends of a user (mutual follows)
- * Queries the friends subcollection for the given user
- * @param {string} userId - User ID to get friends for
- * @returns {Promise<string[]>} Array of friend user IDs
+ * Helper function to get all followers of a user
+ * Queries the followers subcollection for the given user
+ * Returns users who are following this user (who would see their event activity)
+ * @param {string} userId - User ID to get followers for
+ * @returns {Promise<string[]>} Array of follower user IDs
  */
-async function getFriendsOf(userId) {
+async function getFollowersOf(userId) {
   try {
-    const friendsSnapshot = await admin
+    const followersSnapshot = await admin
       .firestore()
       .collection('users')
       .doc(userId)
-      .collection('friends')
+      .collection('followers')
       .get();
 
-    return friendsSnapshot.docs.map((doc) => doc.id);
+    return followersSnapshot.docs.map((doc) => doc.id);
   } catch (error) {
-    console.error(`[Friend Activity] Error getting friends of ${userId}:`, error);
+    console.error(`[Follow Activity] Error getting followers of ${userId}:`, error);
     return [];
   }
 }
 
 /**
  * Triggered when an event document is updated
- * Detects new subscribers/cohosts and notifies their friends
+ * Detects new subscribers/cohosts and notifies users who follow them
  * Trigger: studios/{studioId}/events/{eventId} (document updated)
  */
 exports.onFriendEventActivity = functions.firestore
@@ -38,12 +40,12 @@ exports.onFriendEventActivity = functions.firestore
     const before = change.before.data();
     const after = change.after.data();
 
-    console.log(`[Friend Activity] Event ${eventId} updated in studio ${studioId}`);
+    console.log(`[Follow Activity] Event ${eventId} updated in studio ${studioId}`);
 
     try {
       // Only process public events
       if (after.isPrivate) {
-        console.log(`[Friend Activity] Skipping private event ${eventId}`);
+        console.log(`[Follow Activity] Skipping private event ${eventId}`);
         return;
       }
 
@@ -68,12 +70,12 @@ exports.onFriendEventActivity = functions.firestore
       ];
 
       if (newParticipants.length === 0) {
-        console.log(`[Friend Activity] No new participants in event ${eventId}`);
+        console.log(`[Follow Activity] No new participants in event ${eventId}`);
         return;
       }
 
       console.log(
-        `[Friend Activity] Found ${newParticipants.length} new participants`
+        `[Follow Activity] Found ${newParticipants.length} new participants`
       );
 
       const eventTitle = after.title || 'Untitled Event';
@@ -89,7 +91,7 @@ exports.onFriendEventActivity = functions.firestore
       // Process each new participant
       for (const { id: participantId, activityType } of newParticipants) {
         console.log(
-          `[Friend Activity] Processing ${activityType} for participant ${participantId}`
+          `[Follow Activity] Processing ${activityType} for participant ${participantId}`
         );
 
         // Get participant details
@@ -100,7 +102,7 @@ exports.onFriendEventActivity = functions.firestore
 
         if (!participantDoc.exists) {
           console.log(
-            `[Friend Activity] Participant ${participantId} not found`
+            `[Follow Activity] Participant ${participantId} not found`
           );
           continue;
         }
@@ -109,69 +111,69 @@ exports.onFriendEventActivity = functions.firestore
         const participantName =
           participantData?.userdata?.contactInfo?.displayName || 'Someone';
 
-        // Get friends of this participant
-        const friendIds = await getFriendsOf(participantId);
+        // Get followers of this participant (users who follow them)
+        const followerIds = await getFollowersOf(participantId);
 
-        if (friendIds.length === 0) {
+        if (followerIds.length === 0) {
           console.log(
-            `[Friend Activity] Participant ${participantId} has no friends`
+            `[Follow Activity] Participant ${participantId} has no followers`
           );
           continue;
         }
 
         console.log(
-          `[Friend Activity] Found ${friendIds.length} friends of ${participantName}`
+          `[Follow Activity] Found ${followerIds.length} followers of ${participantName}`
         );
 
-        // Check notification settings and send to eligible friends
-        for (const friendId of friendIds) {
+        // Check notification settings and send to eligible followers
+        for (const followerId of followerIds) {
           try {
-            // Skip if friend is invited (they'll get invitation notification)
-            if (eventInvitations.includes(friendId)) {
+            // Skip if follower is invited (they'll get invitation notification)
+            if (eventInvitations.includes(followerId)) {
               console.log(
-                `[Friend Activity] Skipping ${friendId} - already invited`
+                `[Follow Activity] Skipping ${followerId} - already invited`
               );
               continue;
             }
 
-            // Skip if friend is already attending
-            if (allAttendees.has(friendId)) {
+            // Skip if follower is already attending
+            if (allAttendees.has(followerId)) {
               console.log(
-                `[Friend Activity] Skipping ${friendId} - already attending`
+                `[Follow Activity] Skipping ${followerId} - already attending`
               );
               continue;
             }
 
-            // Get friend's notification settings
-            const friendDoc = await admin
+            // Get follower's notification settings
+            const followerDoc = await admin
               .firestore()
-              .doc(`users/${friendId}`)
+              .doc(`users/${followerId}`)
               .get();
 
-            if (!friendDoc.exists) {
-              console.log(`[Friend Activity] Friend ${friendId} not found`);
+            if (!followerDoc.exists) {
+              console.log(`[Follow Activity] Follower ${followerId} not found`);
               continue;
             }
 
-            const friendData = friendDoc.data();
-            const settings = friendData?.userdata?.settings?.notifications;
+            const followerData = followerDoc.data();
+            const settings = followerData?.userdata?.settings?.notifications;
 
             // Check global toggle
-            const friendEventActivityEnabled =
+            const followEventActivityEnabled =
               settings?.app?.friendEventActivity !== false; // Default to true
 
-            if (!friendEventActivityEnabled) {
+            if (!followEventActivityEnabled) {
               console.log(
-                `[Friend Activity] Friend ${friendId} has disabled friend event activity notifications`
+                `[Follow Activity] Follower ${followerId} has disabled follow event activity notifications`
               );
               continue;
             }
 
-            // Check per-friend muting
-            const mutedFriends = settings?.mutedFriendsEvents || [];
-            if (mutedFriends.includes(participantId)) {
+            // Check per-user muting (support both old and new field names)
+            const mutedUsers = settings?.mutedFollowingEvents || settings?.mutedFriendsEvents || [];
+            if (mutedUsers.includes(participantId)) {
               console.log(
-                `[Friend Activity] Friend ${friendId} has muted ${participantName}`
+                `[Follow Activity] Follower ${followerId} has muted ${participantName}`
               );
               continue;
             }
@@ -184,25 +186,53 @@ exports.onFriendEventActivity = functions.firestore
               activityText = 'created';
             }
 
-            const fcmToken = friendData?.deviceInfo?.fcmToken;
+            const fcmToken = followerData?.deviceInfo?.fcmToken;
 
-            // Send push notification if FCM token exists
+            // Prepare notification data (used for both push and in-app)
+            const notificationData = {
+              type: 'follow_event_activity',
+              title: 'Event Update',
+              message: `${participantName} ${activityText} "${eventTitle}"`,
+              data: {
+                eventId: eventId,
+                studioId: studioId,
+                eventTitle: eventTitle,
+                userId: participantId,
+                userName: participantName,
+                activityType: activityType,
+              },
+              read: false,
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            };
+
+            // ALWAYS create in-app notification for history/reliability
+            await admin
+              .firestore()
+              .collection('users')
+              .doc(followerId)
+              .collection('notifications')
+              .add(notificationData);
+            console.log(
+              `[Follow Activity] ✅ Created in-app notification for ${followerId}`
+            );
+
+            // ALSO send push notification if FCM token exists
             if (fcmToken) {
               const message = {
                 token: fcmToken,
                 notification: {
-                  title: 'Friend Event Activity',
+                  title: 'Event Update',
                   body: `${participantName} ${activityText} "${eventTitle}"`,
                 },
                 data: {
-                  type: 'friend_event_activity',
+                  type: 'follow_event_activity',
                   resetStack: 'true',
                   navigationStack: 'Home,EventDetail',
                   eventId: eventId,
                   studioId: studioId,
                   eventTitle: eventTitle,
-                  friendId: participantId,
-                  friendName: participantName,
+                  userId: participantId,
+                  userName: participantName,
                   activityType: activityType,
                 },
               };
@@ -210,81 +240,36 @@ exports.onFriendEventActivity = functions.firestore
               try {
                 await admin.messaging().send(message);
                 console.log(
-                  `[Friend Activity] ✅ Sent notification to ${friendId} about ${participantName}`
+                  `[Follow Activity] ✅ Sent push notification to ${followerId} about ${participantName}`
                 );
               } catch (pushError) {
                 console.error(
-                  `[Friend Activity] ❌ Failed to send push notification to ${friendId}:`,
-                  pushError.message
-                );
-
-                // Fallback: create in-app notification directly
-                await admin
-                  .firestore()
-                  .collection('users')
-                  .doc(friendId)
-                  .collection('notifications')
-                  .add({
-                    type: 'friend_event_activity',
-                    title: 'Friend Event Activity',
-                    message: `${participantName} ${activityText} "${eventTitle}"`,
-                    data: {
-                      eventId: eventId,
-                      studioId: studioId,
-                      eventTitle: eventTitle,
-                      friendId: participantId,
-                      friendName: participantName,
-                      activityType: activityType,
-                    },
-                    read: false,
-                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                  });
-                console.log(
-                  `[Friend Activity] ✅ Created fallback in-app notification for ${friendId}`
+                  `[Follow Activity] ⚠️ Failed to send push notification to ${followerId}:`,
+                  pushError.message,
+                  '(in-app notification already created)'
                 );
               }
             } else {
-              // No FCM token, create in-app notification only
-              await admin
-                .firestore()
-                .collection('users')
-                .doc(friendId)
-                .collection('notifications')
-                .add({
-                  type: 'friend_event_activity',
-                  title: 'Friend Event Activity',
-                  message: `${participantName} ${activityText} "${eventTitle}"`,
-                  data: {
-                    eventId: eventId,
-                    studioId: studioId,
-                    eventTitle: eventTitle,
-                    friendId: participantId,
-                    friendName: participantName,
-                    activityType: activityType,
-                  },
-                  read: false,
-                  createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                });
               console.log(
-                `[Friend Activity] ✅ Created in-app notification for ${friendId} (no FCM token)`
+                `[Follow Activity] ℹ️ No FCM token for ${followerId} (in-app notification created)`
               );
             }
-          } catch (friendError) {
+          } catch (followerError) {
             console.error(
-              `[Friend Activity] Error processing friend ${friendId}:`,
-              friendError
+              `[Follow Activity] Error processing follower ${followerId}:`,
+              followerError
             );
-            // Continue with next friend
+            // Continue with next follower
           }
         }
       }
 
       console.log(
-        `[Friend Activity] ✅ Completed processing friend event activity for event ${eventId}`
+        `[Follow Activity] ✅ Completed processing follow event activity for event ${eventId}`
       );
     } catch (error) {
       console.error(
-        `[Friend Activity] ❌ Error processing friend event activity:`,
+        `[Follow Activity] ❌ Error processing follow event activity:`,
         error
       );
     }

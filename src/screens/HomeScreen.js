@@ -31,8 +31,9 @@ import NotificationButton from '../components/notifications/NotificationButton';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { db } from '../auth/services/firebase';
+import { doc, getDoc } from '../lib/firebase/firestore';
 import { useAuth } from '../auth/AuthContext';
-import { getEventFeed } from '../services/feedService';
+import { getEventFeed, getOfficialEvents } from '../services/feedService';
 import { hasAdminAccess } from '../services/adminService';
 import { banEnforcementService } from '../services/banEnforcementService';
 import { adminNotificationService } from '../services/adminNotificationService';
@@ -43,11 +44,13 @@ import theme from '../theme/themes';
 export default function HomeScreen({ navigation, route }) {
   const [myEvents, setMyEvents] = useState([]);
   const [invitedEvents, setInvitedEvents] = useState([]);
+  const [officialEvents, setOfficialEvents] = useState([]);
   const [followedEvents, setFollowedEvents] = useState([]);
   const [interestBasedEvents, setInterestBasedEvents] = useState([]);
   const [otherEvents, setOtherEvents] = useState([]);
   const [pastEvents, setPastEvents] = useState([]);
   const [studioCity, setStudioCity] = useState('');
+  const [studioNickname, setStudioNickname] = useState('');
 
   // Ban enforcement state
   const [banStatus, setBanStatus] = useState(null);
@@ -108,11 +111,35 @@ export default function HomeScreen({ navigation, route }) {
 
     if (!isRefresh) setIsLoading(true);
     try {
-      const feedData = await getEventFeed(currentUserId, userStudio, {
-        followedLimit: 20,
-        suggestedLimit: 15,
-        includeSubscribed: true,
-      });
+      // Fetch studio nickname from Firestore studio document
+      let nickname = 'GVL'; // Default fallback
+      try {
+        const studioRef = doc(db, 'studios', userStudio);
+        const studioSnap = await getDoc(studioRef);
+        if (studioSnap.exists()) {
+          const studioData = studioSnap.data();
+          // Use nickname without space (e.g., "GVL"), otherwise use city with space (e.g., " Myrtle Beach")
+          if (studioData.nickname) {
+            nickname = studioData.nickname;
+          } else if (studioData.city) {
+            nickname = ` ${studioData.city}`; // Add space before city name
+          } else {
+            nickname = 'GVL';
+          }
+          console.log('[HomeScreen] Fetched studio nickname:', nickname);
+        }
+      } catch (error) {
+        console.warn('[HomeScreen] Failed to fetch studio nickname:', error);
+      }
+
+      const [feedData, official] = await Promise.all([
+        getEventFeed(currentUserId, userStudio, {
+          followedLimit: 20,
+          suggestedLimit: 15,
+          includeSubscribed: true,
+        }),
+        getOfficialEvents(currentUserId, userStudio, null, 15)
+      ]);
 
       // Separate events by category
       const now = new Date();
@@ -206,14 +233,23 @@ export default function HomeScreen({ navigation, route }) {
         return dateB.getTime() - dateA.getTime(); // Most recent first
       });
 
+      console.log('[HomeScreen] Feed loaded:', {
+        myEvents: myUpcoming.length,
+        invited: invited.length,
+        official: official.length,
+        followed: followed.length,
+      });
+
       setMyEvents(myUpcoming);
       setInvitedEvents(invited);
+      setOfficialEvents(official);
       setFollowedEvents(followed);
       setInterestBasedEvents(interestBased);
       setOtherEvents(other);
       setPastEvents(sortedPast);
       setFeedStats(feedData.stats);
       setStudioCity(studioCity);
+      setStudioNickname(nickname);
     } catch (error) {
       console.error('[HomeScreen] Failed to load event feed:', error);
       vibeAlert.error('Error', 'Failed to load events. Please try again.');
@@ -570,6 +606,39 @@ export default function HomeScreen({ navigation, route }) {
             </>
           )}
 
+          {officialEvents.length > 0 && (
+            <>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('EventList', {
+                  title: `Yo${studioNickname}`,
+                  events: officialEvents
+                })}
+                activeOpacity={0.6}
+                hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
+              >
+                <Text style={styles.officialSectionHeader}>
+                  Yo{studioNickname}
+                </Text>
+              </TouchableOpacity>
+              <VibeCarousel
+                data={officialEvents}
+                scrollViewRef={scrollViewRef}
+                renderItem={(item, isScrolling) => (
+                  <EventCard
+                    {...item}
+                    onPress={() => {
+                      if (!isScrolling) {
+                        navigation.navigate('EventDetail', {
+                          eventId: item.id,
+                        });
+                      }
+                    }}
+                  />
+                )}
+              />
+            </>
+          )}
+
           {followedEvents.length > 0 && (
             <>
               <TouchableOpacity
@@ -864,6 +933,18 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     marginTop: 20,
     marginLeft: 4,
+  },
+  officialSectionHeader: {
+    color: theme.colors.vibeGreen,
+    fontSize: 22,
+    fontFamily: theme.fonts.comicBold,
+    marginBottom: 10,
+    marginTop: 20,
+    marginLeft: 4,
+    textShadowColor: theme.colors.vibeGreen,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 4,
+    letterSpacing: 0.5,
   },
   loadingText: {
     color: '#fff',

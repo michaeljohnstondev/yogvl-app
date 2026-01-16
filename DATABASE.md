@@ -77,6 +77,7 @@ Based on actual user data from your system:
           eventInvitations: boolean,     // Notify when invited to events
           suggestedEvents: boolean,      // Notify when new events match user interests
           friendEventActivity: boolean,  // Notify when friends join/create public events
+          officialEvents: boolean,       // Notify when studio posts official events
         },
 
         // Per-friend notification muting (separate from main settings to avoid cascade complexity)
@@ -178,6 +179,12 @@ Based on actual implementation:
   maxGuests: number,          // Maximum number of guests allowed
   isPrivate: boolean,         // Whether event is private
   active: boolean,            // Whether event is active
+
+  // Official/Community Events
+  isOfficialEvent: boolean,   // Whether this is an official community event (created by admin on behalf of organization)
+  // NOTE: Organization name (e.g., "YoGVL", "YoATL") is NOT stored in the event document.
+  // It is dynamically generated from the studio's nickname field when displaying the event.
+  // Lookup: studios/{studioId}.nickname -> format as "Yo{nickname}"
 
   // Event Completion and Attendance Tracking
   status: string,             // 'active', 'completed', 'cancelled'

@@ -1,8 +1,32 @@
 // FILE: functions/notifications/eventInterestNotifications.js
 // Event interest-based notification handlers for new event creation
+// Also handles follow activity notifications when events are created
 
 const admin = require('firebase-admin');
 const functions = require('firebase-functions');
+
+/**
+ * Helper function to get all followers of a user
+ * Queries the followers subcollection for the given user
+ * Returns users who are following this user (who would see their event activity)
+ * @param {string} userId - User ID to get followers for
+ * @returns {Promise<string[]>} Array of follower user IDs
+ */
+async function getFollowersOf(userId) {
+  try {
+    const followersSnapshot = await admin
+      .firestore()
+      .collection('users')
+      .doc(userId)
+      .collection('followers')
+      .get();
+
+    return followersSnapshot.docs.map((doc) => doc.id);
+  } catch (error) {
+    console.error(`[Follow Activity] Error getting followers of ${userId}:`, error);
+    return [];
+  }
+}
 
 /**
  * Triggered when a new event is created
@@ -25,19 +49,152 @@ exports.onEventCreated = functions.firestore
       }
 
       const eventTitle = eventData.title;
+      const isOfficialEvent = eventData.isOfficialEvent || false;
       const hostId = eventData.createdBy;
       const cohosts = eventData.cohosts || [];
       const invitations = eventData.invitations || [];
 
+      // ========== OFFICIAL EVENT NOTIFICATIONS ==========
+      // If this is an official event, send notifications to all studio members first
+      if (isOfficialEvent) {
+        console.log(`[Official Event Notification] Processing official event: "${eventTitle}"`);
+
+        try {
+          // Fetch studio nickname for notification
+          let displayName = 'YoGVL';
+          try {
+            const studioDoc = await admin.firestore().collection('studios').doc(studioId).get();
+            if (studioDoc.exists) {
+              const studioData = studioDoc.data();
+              if (studioData.nickname) {
+                displayName = `Yo${studioData.nickname}`;
+              } else if (studioData.city) {
+                displayName = `Yo ${studioData.city}`;
+              }
+            }
+          } catch (error) {
+            console.warn(`[Official Event Notification] Failed to fetch studio nickname:`, error);
+          }
+
+          // Get all users in the studio
+          const usersSnapshot = await admin.firestore()
+            .collection('users')
+            .where('userdata.studios.default.studioId', '==', studioId)
+            .get();
+
+          console.log(`[Official Event Notification] Found ${usersSnapshot.size} users in studio ${studioId}`);
+
+          // For official events, notify ALL studio members (no filtering)
+          const eligibleUsers = usersSnapshot.docs;
+
+          if (eligibleUsers.length === 0) {
+            console.log(`[Official Event Notification] No users to notify`);
+          } else {
+            // Send notifications in batches
+            let notificationsSent = 0;
+            const batchSize = 10;
+
+            for (let i = 0; i < eligibleUsers.length; i += batchSize) {
+              const batch = eligibleUsers.slice(i, i + batchSize);
+
+              for (const userDoc of batch) {
+                const userId = userDoc.id;
+                const userData = userDoc.data();
+
+                // Check notification settings
+                const notificationSettings = userData?.userdata?.settings?.notifications?.app;
+
+                // Check master push notifications toggle
+                const pushNotificationsEnabled = notificationSettings?.pushNotifications !== false;
+                if (!pushNotificationsEnabled) {
+                  console.log(`[Official Event Notification] User ${userId} has disabled all push notifications`);
+                  continue;
+                }
+
+                // Check if user has enabled official events notifications
+                const officialEventsEnabled = notificationSettings?.officialEvents !== false;
+                if (!officialEventsEnabled) {
+                  console.log(`[Official Event Notification] User ${userId} has muted official events`);
+                  continue;
+                }
+
+                const fcmToken = userData?.deviceInfo?.fcmToken || userData?.fcmToken;
+                const notificationTitle = displayName;
+                const notificationBody = `New event: ${eventTitle}`;
+
+                // Send FCM push notification
+                if (fcmToken) {
+                  try {
+                    await admin.messaging().send({
+                      token: fcmToken,
+                      notification: {
+                        title: notificationTitle,
+                        body: notificationBody,
+                      },
+                      data: {
+                        type: 'official_event',
+                        eventId,
+                        studioId,
+                        eventTitle,
+                        displayName,
+                        screen: 'EventDetail',
+                      },
+                    });
+                    notificationsSent++;
+                    console.log(`[Official Event Notification] ✅ Sent push notification to ${userId}`);
+                  } catch (pushError) {
+                    console.error(`[Official Event Notification] ❌ Failed to send push to ${userId}:`, pushError);
+                    // Fallback: create in-app notification
+                    await admin.firestore()
+                      .collection('users')
+                      .doc(userId)
+                      .collection('notifications')
+                      .add({
+                        type: 'official_event',
+                        title: notificationTitle,
+                        message: notificationBody,
+                        read: false,
+                        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                        data: { eventId, studioId, eventTitle, displayName, screen: 'EventDetail' },
+                      });
+                    console.log(`[Official Event Notification] ✅ Created fallback in-app notification for ${userId}`);
+                  }
+                } else {
+                  // No FCM token - create in-app notification directly
+                  console.log(`[Official Event Notification] ⚠️ User ${userId} has no FCM token - creating in-app notification`);
+                  await admin.firestore()
+                    .collection('users')
+                    .doc(userId)
+                    .collection('notifications')
+                    .add({
+                      type: 'official_event',
+                      title: notificationTitle,
+                      message: notificationBody,
+                      read: false,
+                      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                      data: { eventId, studioId, eventTitle, displayName, screen: 'EventDetail' },
+                    });
+                  console.log(`[Official Event Notification] ✅ Created in-app notification for ${userId}`);
+                }
+              }
+            }
+
+            console.log(`[Official Event Notification] Successfully sent ${notificationsSent} notifications for official event "${eventTitle}"`);
+          }
+        } catch (officialError) {
+          console.error(`[Official Event Notification] Error processing official event ${eventId}:`, officialError);
+        }
+      }
+
+      // ========== INTEREST-BASED NOTIFICATIONS ==========
       // Extract potential interests from event title using actual studio interests
       const eventInterests = await extractInterestsFromEventTitle(eventTitle, studioId);
 
       if (eventInterests.length === 0) {
         console.log(`[Event Interest Notification] No matching interests found in title: "${eventTitle}"`);
-        return;
-      }
-
-      console.log(`[Event Interest Notification] Found interests: ${eventInterests.join(', ')} for event "${eventTitle}"`);
+        // Don't return early - continue to follow activity notifications
+      } else {
+        console.log(`[Event Interest Notification] Found interests: ${eventInterests.join(', ')} for event "${eventTitle}"`);
 
       // Get users with matching interests using the simplified array approach
       const interestedUserIds = [];
@@ -130,13 +287,38 @@ exports.onEventCreated = functions.firestore
 
             const userData = userSnap.data();
 
-            // Check if user has enabled suggested events notifications
+            // Check notification settings
             const notificationSettings = userData?.userdata?.settings?.notifications?.app;
-            const suggestedEventsEnabled = notificationSettings?.suggestedEvents !== false; // Default to true
 
+            // 1. Check master push notifications toggle
+            const pushNotificationsEnabled = notificationSettings?.pushNotifications !== false; // Default to true
+            if (!pushNotificationsEnabled) {
+              console.log(`[Event Interest Notification] User ${userId} has disabled all push notifications`);
+              continue;
+            }
+
+            // 2. Check suggested events toggle
+            const suggestedEventsEnabled = notificationSettings?.suggestedEvents !== false; // Default to true
             if (!suggestedEventsEnabled) {
               console.log(`[Event Interest Notification] User ${userId} has disabled suggested events notifications`);
               continue;
+            }
+
+            // 3. For official events: check if user has official event notifications enabled
+            let notificationTitle = 'New Event Matches Your Interests!';
+            let notificationBody = `"${eventTitle}" - Check it out!`;
+
+            if (isOfficialEvent) {
+              const officialEventsEnabled = notificationSettings?.officialEvents !== false; // Default to true
+              if (officialEventsEnabled) {
+                console.log(`[Event Interest Notification] Skipping user ${userId} for official event - they'll get the official notification instead`);
+                continue;
+              } else {
+                // User has official notifications OFF but matches interests - send with special message
+                console.log(`[Event Interest Notification] Sending interest notification to ${userId} for official event (official notifications disabled)`);
+                notificationTitle = 'Official Event Matches Your Interests!';
+                notificationBody = `"${eventTitle}" - Check it out!`;
+              }
             }
 
             const fcmToken = userData?.deviceInfo?.fcmToken || userData?.fcmToken;
@@ -149,8 +331,8 @@ exports.onEventCreated = functions.firestore
                 const message = {
                   token: fcmToken,
                   notification: {
-                    title: 'New Event Matches Your Interests!',
-                    body: `"${eventTitle}" - Check it out!`,
+                    title: notificationTitle,
+                    body: notificationBody,
                   },
                   data: {
                     type: 'interest_based_suggestion',
@@ -174,8 +356,8 @@ exports.onEventCreated = functions.firestore
                   .collection('notifications')
                   .add({
                     type: 'interest_based_suggestion',
-                    title: 'New Event Matches Your Interests!',
-                    message: `"${eventTitle}" - Check it out!`,
+                    title: notificationTitle,
+                    message: notificationBody,
                     read: false,
                     createdAt: admin.firestore.FieldValue.serverTimestamp(),
                     data: {
@@ -197,8 +379,8 @@ exports.onEventCreated = functions.firestore
                 .collection('notifications')
                 .add({
                   type: 'interest_based_suggestion',
-                  title: 'New Event Matches Your Interests!',
-                  message: `"${eventTitle}" - Check it out!`,
+                  title: notificationTitle,
+                  message: notificationBody,
                   read: false,
                   createdAt: admin.firestore.FieldValue.serverTimestamp(),
                   data: {
@@ -217,7 +399,140 @@ exports.onEventCreated = functions.firestore
         }
       }
 
-      console.log(`[Event Interest Notification] Successfully sent ${notificationsSent} FCM notifications for event "${eventTitle}"`);
+        console.log(`[Event Interest Notification] Successfully sent ${notificationsSent} FCM notifications for event "${eventTitle}"`);
+      }
+
+      // ========== FOLLOW ACTIVITY NOTIFICATIONS ==========
+      // Send notifications to followers of the event creator
+      console.log(`[Follow Activity] Processing follow activity notifications for event ${eventId}`);
+
+      try {
+        // Only process public events for follow activity
+        if (eventData.isPrivate) {
+          console.log(`[Follow Activity] Skipping private event ${eventId}`);
+        } else {
+          const creatorId = eventData.createdBy;
+          const creatorDoc = await admin.firestore().doc(`users/${creatorId}`).get();
+
+          if (!creatorDoc.exists) {
+            console.log(`[Follow Activity] Creator ${creatorId} not found`);
+          } else {
+            const creatorName = creatorDoc.data()?.userdata?.contactInfo?.displayName || 'Someone';
+            const followerIds = await getFollowersOf(creatorId);
+
+            if (followerIds.length === 0) {
+              console.log(`[Follow Activity] Creator ${creatorName} has no followers`);
+            } else {
+              console.log(`[Follow Activity] Notifying ${followerIds.length} followers about new event`);
+
+              // Create exclusion set: invitations, cohosts, subscribers, and host
+              const eventInvitations = (invitations || []).map((inv) => inv.userId || inv);
+              const allExcluded = new Set([
+                hostId,
+                ...cohosts,
+                ...(eventData.subscribers || []),
+                ...eventInvitations,
+              ]);
+
+              console.log(`[Follow Activity] Excluding ${allExcluded.size} users (invited/attending)`);
+
+              // Notify each follower
+              let followNotificationsSent = 0;
+              for (const followerId of followerIds) {
+                try {
+                  // Skip if follower is invited or already attending
+                  if (allExcluded.has(followerId)) {
+                    console.log(`[Follow Activity] Skipping ${followerId} - already invited or attending`);
+                    continue;
+                  }
+
+                  // Get follower's notification settings
+                  const followerDoc = await admin.firestore().doc(`users/${followerId}`).get();
+
+                  if (!followerDoc.exists) {
+                    console.log(`[Follow Activity] Follower ${followerId} not found`);
+                    continue;
+                  }
+
+                  const followerData = followerDoc.data();
+                  const settings = followerData?.userdata?.settings?.notifications;
+
+                  // Check global toggle
+                  if (settings?.app?.friendEventActivity === false) {
+                    console.log(`[Follow Activity] Follower ${followerId} has disabled notifications`);
+                    continue;
+                  }
+
+                  // Check per-user muting
+                  const mutedUsers = settings?.mutedFollowingEvents || settings?.mutedFriendsEvents || [];
+                  if (mutedUsers.includes(creatorId)) {
+                    console.log(`[Follow Activity] Follower ${followerId} has muted ${creatorName}`);
+                    continue;
+                  }
+
+                  const fcmToken = followerData?.deviceInfo?.fcmToken;
+
+                  // Create in-app notification
+                  const notificationData = {
+                    type: 'follow_event_activity',
+                    title: 'New Event',
+                    message: `${creatorName} created "${eventTitle}"`,
+                    data: {
+                      eventId: eventId,
+                      studioId: studioId,
+                      eventTitle: eventTitle,
+                      userId: creatorId,
+                      userName: creatorName,
+                      activityType: 'created',
+                    },
+                    read: false,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                  };
+
+                  await admin.firestore().collection('users').doc(followerId).collection('notifications').add(notificationData);
+                  console.log(`[Follow Activity] ✅ Created in-app notification for ${followerId}`);
+
+                  // Send push notification
+                  if (fcmToken) {
+                    const message = {
+                      token: fcmToken,
+                      notification: {
+                        title: 'New Event',
+                        body: `${creatorName} created "${eventTitle}"`,
+                      },
+                      data: {
+                        type: 'follow_event_activity',
+                        resetStack: 'true',
+                        navigationStack: 'Home,EventDetail',
+                        eventId: eventId,
+                        studioId: studioId,
+                        eventTitle: eventTitle,
+                        userId: creatorId,
+                        userName: creatorName,
+                        activityType: 'created',
+                      },
+                    };
+
+                    try {
+                      await admin.messaging().send(message);
+                      followNotificationsSent++;
+                      console.log(`[Follow Activity] ✅ Sent push notification to ${followerId}`);
+                    } catch (pushError) {
+                      console.error(`[Follow Activity] ⚠️ Failed to send push to ${followerId}:`, pushError.message);
+                    }
+                  }
+                } catch (followerError) {
+                  console.error(`[Follow Activity] Error processing follower ${followerId}:`, followerError);
+                }
+              }
+
+              console.log(`[Follow Activity] ✅ Sent ${followNotificationsSent} follow activity notifications`);
+            }
+          }
+        }
+      } catch (followError) {
+        console.error(`[Follow Activity] ❌ Error processing follow activity:`, followError);
+      }
 
     } catch (error) {
       console.error(`[Event Interest Notification] Error processing event ${eventId}:`, error);

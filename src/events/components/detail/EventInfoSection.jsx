@@ -1,10 +1,12 @@
-import React, { useState, useCallback, memo, useMemo } from 'react';
+import React, { useState, useCallback, memo, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { FormatDate } from '../../../lib/formatDate';
 import { textUtils } from '../../../lib/textUtils';
 import { mapUtils } from '../../../lib/mapUtils';
 import EventCreatorInfo from '../hosts/EventCreatorInfo';
 import theme from '../../../theme/themes';
+import { doc, getDoc } from '../../../lib/firebase/firestore';
+import { db } from '../../../auth/services/firebase';
 
 function EventInfoSection({
   event,
@@ -24,10 +26,51 @@ function EventInfoSection({
   onShowAttendeesModal,
   onNotificationSettings,
   vibeAlert,
+  studioId,
 }) {
   if (!event) return null;
 
   const isHost = event.createdBy === currentUserId;
+
+  // State for dynamically fetched official event organization name
+  const [hostDisplayName, setHostDisplayName] = useState(null);
+
+  // Fetch studio nickname when event is official
+  useEffect(() => {
+    const fetchStudioNickname = async () => {
+      if (event.isOfficialEvent && studioId) {
+        try {
+          const studioRef = doc(db, 'studios', studioId);
+          const studioSnap = await getDoc(studioRef);
+
+          if (studioSnap.exists()) {
+            const studioData = studioSnap.data();
+            console.log('[EventInfoSection] Studio data:', studioData);
+            console.log('[EventInfoSection] Studio nickname:', studioData.nickname);
+            console.log('[EventInfoSection] Studio city:', studioData.city);
+
+            // Use nickname if available, otherwise use city name with a space
+            const displayName = studioData.nickname
+              ? `Yo${studioData.nickname}`
+              : `Yo ${studioData.city || 'GVL'}`;
+
+            console.log('[EventInfoSection] Using display name:', displayName);
+            setHostDisplayName(displayName);
+          } else {
+            console.warn('[EventInfoSection] Studio document not found:', studioId);
+            setHostDisplayName('YoGVL'); // Fallback
+          }
+        } catch (error) {
+          console.error('[EventInfoSection] Error fetching studio nickname:', error);
+          setHostDisplayName('YoGVL'); // Fallback
+        }
+      } else {
+        setHostDisplayName(null); // Not an official event
+      }
+    };
+
+    fetchStudioNickname();
+  }, [event.isOfficialEvent, studioId]);
 
   // Create optimized interest lookup to prevent repeated array searches
   const interestLookup = useMemo(() => {
@@ -294,6 +337,7 @@ function EventInfoSection({
             </Text>
             <EventCreatorInfo
               creatorData={creatorData}
+              hostDisplayName={hostDisplayName}
               showLabel={false}
               showReliability={false}
               onPress={() =>

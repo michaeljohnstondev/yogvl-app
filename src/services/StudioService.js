@@ -373,20 +373,18 @@ export class StudioService {
    * Get closest studios to user's location
    * @param {number} userLat - User's latitude
    * @param {number} userLng - User's longitude
-   * @param {number} limit - Number of studios to return (default 5)
-   * @param {number} maxDistance - Maximum distance in miles (default 100)
+   * @param {number} limit - Number of studios to return (default 10)
    * @returns {Promise<Array>} Array of closest studios with distance
    */
   static async getClosestStudios(
     userLat,
     userLng,
-    limit = 5,
-    maxDistance = 100
+    limit = 10
   ) {
     console.log('[StudioService] Getting closest studios for coordinates:', {
       userLat,
       userLng,
-      maxDistance,
+      limit,
     });
     const allStudios = await this.getAllStudios();
     console.log('[StudioService] All studios loaded:', allStudios.length);
@@ -418,16 +416,14 @@ export class StudioService {
           studio.coordinates.lng
         ),
       }))
-      .filter(
-        (studio) => studio.distance !== null && studio.distance <= maxDistance
-      ) // Filter by maximum distance and valid distance
+      .filter((studio) => studio.distance !== null) // Only filter out invalid distances
       .sort((a, b) => a.distance - b.distance) // Sort by distance
       .slice(0, limit); // Limit results
 
     console.log(
-      '[StudioService] Studios within',
-      maxDistance,
-      'miles:',
+      '[StudioService] Closest',
+      limit,
+      'studios found:',
       studiosWithDistance.length
     );
 

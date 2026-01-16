@@ -1,0 +1,19 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "eventTimestamp",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "isOfficialEvent",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

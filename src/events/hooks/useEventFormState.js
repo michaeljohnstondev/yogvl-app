@@ -20,6 +20,8 @@ const DEFAULT_FORM_DATA = {
   rsvpDeadlineType: 'none',
   trackAttendance: true,
   attendanceType: 'casual', // 'strict' | 'casual'
+  isOfficialEvent: false,
+  officialOrganization: '',
 };
 
 /**
@@ -247,6 +249,10 @@ const useEventFormState = (initialData = {}, options = {}) => {
     updateField('hasRsvpDeadline', !formData.hasRsvpDeadline);
   }, [formData.hasRsvpDeadline, updateField]);
 
+  const toggleOfficialEvent = useCallback(() => {
+    updateField('isOfficialEvent', !formData.isOfficialEvent);
+  }, [formData.isOfficialEvent, updateField]);
+
   // Legacy host management functions removed - now handled via invitation system
 
   const appendToDetails = useCallback(
@@ -297,6 +303,7 @@ const useEventFormState = (initialData = {}, options = {}) => {
     togglePrivacy,
     toggleHostContact,
     toggleRsvpDeadline,
+    toggleOfficialEvent,
     appendToDetails,
     updateInputHeight,
   };

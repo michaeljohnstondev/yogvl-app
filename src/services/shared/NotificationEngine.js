@@ -37,6 +37,7 @@ export const NOTIFICATION_TYPES = {
   INVITATION_RECEIVED: 'event_invitation', // Guest invitation to event
   COHOST_INVITATION: 'cohost_invitation', // Cohost invitation to event
   INTEREST_BASED_SUGGESTION: 'interest_based_suggestion', // When an event matches user's interests
+  OFFICIAL_EVENT: 'official_event', // When an official studio event is created
   ADMIN_NOTIFICATION: 'admin_notification',
   BAN_NOTIFICATION: 'ban_notification',
 };

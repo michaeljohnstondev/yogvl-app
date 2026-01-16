@@ -45,6 +45,8 @@ function NotificationSettings({ navigation }) {
     friendEventActivity:
       userData?.userdata?.settings?.notifications?.app?.friendEventActivity ??
       true,
+    officialEvents:
+      userData?.userdata?.settings?.notifications?.app?.officialEvents ?? true,
   });
 
   // Hosting default notification settings (for events user creates)
@@ -109,6 +111,8 @@ function NotificationSettings({ navigation }) {
     friendEventActivity:
       userData?.userdata?.settings?.notifications?.app?.friendEventActivity ??
       true,
+    officialEvents:
+      userData?.userdata?.settings?.notifications?.app?.officialEvents ?? true,
   };
 
   const initialHostingSettings = {
@@ -254,6 +258,12 @@ function NotificationSettings({ navigation }) {
                 description="Notify when new events match your interests"
                 value={appSettings.suggestedEvents}
                 onToggle={() => toggleAppSetting('suggestedEvents')}
+              />
+              <NotificationSettingItem
+                title="Official Studio Events"
+                description="Notify when your studio posts official events"
+                value={appSettings.officialEvents}
+                onToggle={() => toggleAppSetting('officialEvents')}
                 isLast
               />
             </View>

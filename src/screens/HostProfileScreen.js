@@ -32,11 +32,11 @@ import {
 import { reportUser } from '../services/reportingService';
 import { blockingService } from '../services/blockingService';
 import {
-  areFriends,
-  isFriendMuted,
-  muteFriendEvents,
-  unmuteFriendEvents,
-} from '../services/friendMuteService';
+  isFollowing as checkIsFollowing,
+  isFollowedUserMuted as checkIsFollowedUserMuted,
+  muteFollowedUser,
+  unmuteFollowedUser,
+} from '../services/followMuteService';
 import { useAuth } from '../auth/AuthContext';
 import theme from '../theme/themes';
 
@@ -78,8 +78,8 @@ const HostProfileScreen = ({ navigation, route }) => {
     isBlocked: false,
     loading: true,
   });
-  const [isMutualFriend, setIsMutualFriend] = useState(false);
-  const [isFriendEventsMuted, setIsFriendEventsMuted] = useState(false);
+  const [isFollowingHost, setIsFollowingHost] = useState(false);
+  const [isHostMuted, setIsHostMuted] = useState(false);
   const [muteLoading, setMuteLoading] = useState(false);
 
   // Load privacy-filtered contact information
@@ -170,35 +170,35 @@ const HostProfileScreen = ({ navigation, route }) => {
     checkBlockStatus();
   }, [currentUserId, hostData?.id, navigation, vibeAlert]);
 
-  // Check friend and mute status
+  // Check following and mute status
   useEffect(() => {
-    const checkFriendAndMuteStatus = async () => {
+    const checkFollowingAndMuteStatus = async () => {
       if (!currentUserId || !hostData?.id || isCurrentUser) {
-        setIsMutualFriend(false);
-        setIsFriendEventsMuted(false);
+        setIsFollowingHost(false);
+        setIsHostMuted(false);
         return;
       }
 
       try {
-        // Check if they are friends
-        const friendStatus = await areFriends(currentUserId, hostData.id);
-        setIsMutualFriend(friendStatus);
+        // Check if current user is following this host
+        const followingStatus = await checkIsFollowing(currentUserId, hostData.id);
+        setIsFollowingHost(followingStatus);
 
-        // If they are friends, check mute status
-        if (friendStatus) {
-          const muteStatus = await isFriendMuted(currentUserId, hostData.id);
-          setIsFriendEventsMuted(muteStatus);
+        // If following, check mute status
+        if (followingStatus) {
+          const muteStatus = await checkIsFollowedUserMuted(currentUserId, hostData.id);
+          setIsHostMuted(muteStatus);
         } else {
-          setIsFriendEventsMuted(false);
+          setIsHostMuted(false);
         }
       } catch (error) {
-        console.error('[HostProfile] Error checking friend/mute status:', error);
-        setIsMutualFriend(false);
-        setIsFriendEventsMuted(false);
+        console.error('[HostProfile] Error checking following/mute status:', error);
+        setIsFollowingHost(false);
+        setIsHostMuted(false);
       }
     };
 
-    checkFriendAndMuteStatus();
+    checkFollowingAndMuteStatus();
   }, [currentUserId, hostData?.id, isCurrentUser]);
 
   // Load follow statistics
@@ -434,57 +434,53 @@ const HostProfileScreen = ({ navigation, route }) => {
     }
   };
 
-  const handleMuteFriendEvents = async () => {
+  const handleMuteHost = async () => {
     if (!currentUserId || !hostData?.id || muteLoading) {
       return;
     }
 
     // Optimistic update
-    setIsFriendEventsMuted(true);
+    setIsHostMuted(true);
     setMuteLoading(true);
 
     try {
-      const result = await muteFriendEvents(currentUserId, hostData.id);
+      const result = await muteFollowedUser(currentUserId, hostData.id);
 
       if (!result.success) {
         // Rollback on error
-        setIsFriendEventsMuted(false);
-        vibeAlert.error('Error', result.error || 'Failed to mute friend events');
-      } else {
-        vibeAlert.success('Muted', `Event notifications from ${displayName} muted`);
+        setIsHostMuted(false);
+        vibeAlert.error('Error', result.error || 'Failed to mute notifications');
       }
     } catch (error) {
-      console.error('[HostProfile] Error muting friend events:', error);
-      setIsFriendEventsMuted(false);
-      vibeAlert.error('Error', 'Failed to mute friend events');
+      console.error('[HostProfile] Error muting host events:', error);
+      setIsHostMuted(false);
+      vibeAlert.error('Error', 'Failed to mute notifications');
     } finally {
       setMuteLoading(false);
     }
   };
 
-  const handleUnmuteFriendEvents = async () => {
+  const handleUnmuteHost = async () => {
     if (!currentUserId || !hostData?.id || muteLoading) {
       return;
     }
 
     // Optimistic update
-    setIsFriendEventsMuted(false);
+    setIsHostMuted(false);
     setMuteLoading(true);
 
     try {
-      const result = await unmuteFriendEvents(currentUserId, hostData.id);
+      const result = await unmuteFollowedUser(currentUserId, hostData.id);
 
       if (!result.success) {
         // Rollback on error
-        setIsFriendEventsMuted(true);
-        vibeAlert.error('Error', result.error || 'Failed to unmute friend events');
-      } else {
-        vibeAlert.success('Unmuted', `Event notifications from ${displayName} unmuted`);
+        setIsHostMuted(true);
+        vibeAlert.error('Error', result.error || 'Failed to unmute notifications');
       }
     } catch (error) {
-      console.error('[HostProfile] Error unmuting friend events:', error);
-      setIsFriendEventsMuted(true);
-      vibeAlert.error('Error', 'Failed to unmute friend events');
+      console.error('[HostProfile] Error unmuting host events:', error);
+      setIsHostMuted(true);
+      vibeAlert.error('Error', 'Failed to unmute notifications');
     } finally {
       setMuteLoading(false);
     }
@@ -705,8 +701,8 @@ const HostProfileScreen = ({ navigation, route }) => {
               </View>
             </View>
 
-            {/* Friend Event Notification Mute Toggle - Only show if they are friends */}
-            {isMutualFriend && !isCurrentUser && (
+            {/* User Event Notification Mute Toggle - Only show if you're following them */}
+            {isFollowingHost && !isCurrentUser && (
               <View style={styles.muteToggleContainer}>
                 <View style={styles.muteToggleContent}>
                   <Text style={styles.muteToggleTitle}>
@@ -717,11 +713,11 @@ const HostProfileScreen = ({ navigation, route }) => {
                   </Text>
                 </View>
                 <Switch
-                  value={isFriendEventsMuted}
+                  value={isHostMuted}
                   onValueChange={
-                    isFriendEventsMuted
-                      ? handleUnmuteFriendEvents
-                      : handleMuteFriendEvents
+                    isHostMuted
+                      ? handleUnmuteHost
+                      : handleMuteHost
                   }
                   disabled={muteLoading}
                   trackColor={{
@@ -729,7 +725,7 @@ const HostProfileScreen = ({ navigation, route }) => {
                     true: theme.colors.vibeRed,
                   }}
                   thumbColor={
-                    isFriendEventsMuted ? theme.colors.white : theme.colors.gray
+                    isHostMuted ? theme.colors.white : theme.colors.gray
                   }
                 />
               </View>

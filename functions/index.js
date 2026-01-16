@@ -51,7 +51,7 @@ module.exports = {
   // Event invitation notifications (guest + cohost)
   onEventInvitation: eventInvitationNotifications.onEventInvitation,
 
-  // Event interest-based notifications
+  // Event interest-based notifications (includes official event notifications)
   onEventCreated: eventInterestNotifications.onEventCreated,
 
   // Cohost joined notifications

@@ -6,6 +6,7 @@ import ReliabilityBadge from '../../../components/ui/profile/ReliabilityBadge';
 
 const EventCreatorInfo = ({
   creatorData,
+  hostDisplayName = null, // Optional override for official events
   style,
   showLabel = true,
   showReliability = true,
@@ -16,6 +17,11 @@ const EventCreatorInfo = ({
 
   // Enhanced display name logic
   const getDisplayName = () => {
+    // If hostDisplayName override is provided (for official events), use it
+    if (hostDisplayName) {
+      return hostDisplayName;
+    }
+
     // Always prioritize contactInfo displayName first
     const contactInfo = creatorData?.userdata?.contactInfo || {};
 
@@ -80,11 +86,16 @@ const EventCreatorInfo = ({
   );
 };
 
-const EventCreatorBadge = ({ creatorData, style, onPress = null }) => {
+const EventCreatorBadge = ({ creatorData, hostDisplayName = null, style, onPress = null }) => {
   if (!creatorData) return null;
 
   // Use same display name logic
   const getDisplayName = () => {
+    // If hostDisplayName override is provided (for official events), use it
+    if (hostDisplayName) {
+      return hostDisplayName;
+    }
+
     const contactInfo = creatorData?.userdata?.contactInfo || {};
 
     if (contactInfo.displayName) return contactInfo.displayName;
