@@ -40,6 +40,10 @@ export const NOTIFICATION_TYPES = {
   OFFICIAL_EVENT: 'official_event', // When an official studio event is created
   ADMIN_NOTIFICATION: 'admin_notification',
   BAN_NOTIFICATION: 'ban_notification',
+  // Admin alert types (notify admins of actions needed)
+  STUDIO_REQUEST: 'studio_request', // New studio requested
+  USER_REPORT: 'user_report', // User reported
+  EVENT_REPORT: 'event_report', // Event reported
 };
 
 export const NOTIFICATION_PRIORITY = {

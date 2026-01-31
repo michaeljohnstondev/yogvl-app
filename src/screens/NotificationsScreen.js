@@ -150,6 +150,32 @@ export default function NotificationsScreen({ navigation }) {
               navigation.navigate('EventDetail', { eventId: data.eventId });
             }
             break;
+          case NOTIFICATION_TYPES.STUDIO_REQUEST:
+          case 'studio_request':
+            // Navigate to AdminScreen for studio requests
+            console.log('[NotificationsScreen] 🏙️ Studio request - navigating to AdminScreen');
+            navigation.navigate('AdminScreen', { tab: 'studioRequests' });
+            break;
+          case NOTIFICATION_TYPES.USER_REPORT:
+          case 'user_report':
+            // Navigate to AdminScreen for user reports
+            console.log('[NotificationsScreen] 🚨 User report - navigating to AdminScreen');
+            navigation.navigate('AdminScreen', {
+              tab: 'reports',
+              reportId: data.reportId,
+              studioId: data.studioId
+            });
+            break;
+          case NOTIFICATION_TYPES.EVENT_REPORT:
+          case 'event_report':
+            // Navigate to AdminScreen for event reports
+            console.log('[NotificationsScreen] ⚠️ Event report - navigating to AdminScreen');
+            navigation.navigate('AdminScreen', {
+              tab: 'reports',
+              reportId: data.reportId,
+              studioId: data.studioId
+            });
+            break;
           default:
             // For system notifications or unknown types, just mark as read
             break;

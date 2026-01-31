@@ -22,6 +22,7 @@ const adminNotifications = require('./notifications/adminNotifications');
 const adminDirectNotifications = require('./notifications/adminDirectNotifications');
 const banDetectionNotifications = require('./notifications/banDetectionNotifications');
 const adminAnnouncementNotifications = require('./notifications/adminAnnouncementNotifications');
+const adminAlertNotifications = require('./notifications/adminAlertNotifications');
 const scheduledNotificationProcessor = require('./notifications/scheduledNotificationProcessor');
 
 // Import utility functions
@@ -64,6 +65,11 @@ module.exports = {
   onAdminNotificationCreated: adminDirectNotifications.onAdminNotificationCreated,
   onModerationRecordUpdated: banDetectionNotifications.onModerationRecordUpdated,
   onAdminAnnouncementCreated: adminAnnouncementNotifications.onAdminAnnouncementCreated,
+
+  // Admin alert notifications (notify admins of reports/requests)
+  onStudioRequested: adminAlertNotifications.onStudioRequested,
+  onUserReported: adminAlertNotifications.onUserReported,
+  onEventReported: adminAlertNotifications.onEventReported,
 
   // Scheduled notification processing
   processScheduledNotifications: scheduledNotificationProcessor.processScheduledNotifications,

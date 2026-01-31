@@ -413,6 +413,12 @@ export default function NotificationItem({
         return '🎉';
       case 'guest_accepted':
         return '🎊';
+      case 'studio_request':
+        return '🏙️'; // Admin: New studio request
+      case 'user_report':
+        return '🚨'; // Admin: User reported
+      case 'event_report':
+        return '⚠️'; // Admin: Event reported
       case 'system':
         return 'ℹ️';
       default:
