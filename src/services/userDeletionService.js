@@ -24,6 +24,11 @@ export const deleteUserAccount = async (userId, currentUser) => {
     `[UserDeletion] Starting comprehensive deletion for user ${userId}`
   );
 
+  // Track cleanup errors separately from critical errors
+  const cleanupErrors = [];
+  let firestoreCleanupSuccess = false;
+
+  // PART 1: Firestore Cleanup (non-critical - we continue even if this fails)
   try {
     // Create batch for atomic operations where possible
     let batch = writeBatch(db);
@@ -358,46 +363,72 @@ export const deleteUserAccount = async (userId, currentUser) => {
       await batch.commit();
     }
 
-    // 12. Delete Firebase Auth User (must be last)
+    // Mark Firestore cleanup as successful
+    firestoreCleanupSuccess = true;
+    console.log('[UserDeletion] ✅ Firestore cleanup completed successfully');
+
+  } catch (firestoreError) {
+    // Log Firestore cleanup errors but don't throw - we still want to try Auth deletion
+    console.error('[UserDeletion] ⚠️ Firestore cleanup encountered errors:', firestoreError);
+    cleanupErrors.push({
+      stage: 'firestore_cleanup',
+      error: firestoreError.message,
+    });
+    // Continue to Auth deletion even if Firestore cleanup failed
+  }
+
+  // PART 2: Firebase Auth Deletion (CRITICAL - always attempt this)
+  // This is the critical step that prevents orphaned Auth accounts
+  try {
     console.log('[UserDeletion] Deleting Firebase Auth user...');
-    if (currentUser && currentUser.uid === userId) {
-      try {
-        await deleteAuthUser(currentUser);
-        console.log('[UserDeletion] ✅ Firebase Auth user deleted successfully');
-      } catch (authError) {
-        console.error('[UserDeletion] ❌ Failed to delete Firebase Auth user:', authError);
 
-        // Check if it's a "requires recent login" error
-        if (authError.code === 'auth/requires-recent-login') {
-          throw new Error(
-            'For security, please log out and log back in before deleting your account.'
-          );
-        }
-
-        // Re-throw other auth errors
-        throw new Error(
-          `Failed to delete authentication: ${authError.message || 'Unknown error'}`
-        );
-      }
-    } else {
-      console.warn('[UserDeletion] ⚠️ Current user mismatch or not provided - auth user not deleted');
+    if (!currentUser) {
+      const errorMsg = 'Current user not provided - cannot delete Firebase Auth account';
+      console.error('[UserDeletion] ❌', errorMsg);
+      throw new Error(errorMsg);
     }
 
+    if (currentUser.uid !== userId) {
+      const errorMsg = `User ID mismatch: currentUser.uid (${currentUser.uid}) !== userId (${userId})`;
+      console.error('[UserDeletion] ❌', errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    await deleteAuthUser(currentUser);
+    console.log('[UserDeletion] ✅ Firebase Auth user deleted successfully');
+
+    // Success - Auth deleted (Firestore may have partial errors)
     console.log(
-      `[UserDeletion] Successfully completed comprehensive deletion for user ${userId}`
+      `[UserDeletion] Successfully completed deletion for user ${userId}`
     );
 
     return {
       success: true,
       message: 'Account and all associated data have been permanently deleted.',
+      warnings: cleanupErrors.length > 0 ? cleanupErrors : undefined,
     };
-  } catch (error) {
-    console.error(`[UserDeletion] Error during user deletion:`, error);
 
+  } catch (authError) {
+    console.error('[UserDeletion] ❌ CRITICAL: Failed to delete Firebase Auth user:', authError);
+
+    // Check if it's a "requires recent login" error
+    if (authError.code === 'auth/requires-recent-login') {
+      return {
+        success: false,
+        message: 'For security, please log out and log back in before deleting your account.',
+        error: authError.message,
+        requiresReauth: true,
+      };
+    }
+
+    // Critical failure - Auth not deleted, orphaned account risk
+    console.error('[UserDeletion] ❌ ORPHANED AUTH ACCOUNT RISK - Auth deletion failed');
     return {
       success: false,
-      message: 'Failed to delete account. Please try again.',
-      error: error.message,
+      message: 'Failed to delete account authentication. Please contact support.',
+      error: authError.message,
+      firestoreCleanupSuccess,
+      cleanupErrors: cleanupErrors.length > 0 ? cleanupErrors : undefined,
     };
   }
 };

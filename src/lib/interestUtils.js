@@ -94,3 +94,23 @@ export const validateInterestsArray = (interests) => {
       return true;
     });
 };
+
+/**
+ * Normalizes an event title to an interest string
+ * Removes emojis, trims whitespace, converts to lowercase
+ * This ensures consistent interest matching across the app
+ * @param {string} eventTitle - Event title to normalize
+ * @returns {string} - Normalized interest string (lowercase, no emoji, trimmed)
+ */
+export const normalizeEventTitleToInterest = (eventTitle) => {
+  if (!eventTitle || typeof eventTitle !== 'string') return '';
+
+  // Remove emojis using regex pattern
+  const emojiRegex =
+    /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1FA70}-\u{1FAFF}]/gu;
+
+  const withoutEmoji = eventTitle.replace(emojiRegex, '');
+
+  // Trim and lowercase for consistent storage/lookup
+  return withoutEmoji.trim().toLowerCase();
+};

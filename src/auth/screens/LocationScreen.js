@@ -24,6 +24,8 @@ import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import theme from '../../theme/themes';
 import { useRef } from 'react';
+import { useAuth } from '../AuthContext';
+import { hasAdminAccess } from '../../services/adminService';
 
 export default function LocationScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
@@ -44,6 +46,8 @@ export default function LocationScreen({ navigation }) {
   const scrollViewRef = useRef(null);
 
   const user = auth.currentUser;
+  const { userData } = useAuth();
+  const isAdmin = hasAdminAccess(userData);
 
   useEffect(() => {
     const initializeLocation = async () => {
@@ -652,7 +656,8 @@ export default function LocationScreen({ navigation }) {
                           </Text>
                         ) : null}
                       </View>
-                      {selectedStudio.memberCount &&
+                      {isAdmin &&
+                      selectedStudio.memberCount &&
                       typeof selectedStudio.memberCount === 'number' ? (
                         <Text style={styles.centerItemMembers}>
                           👥 {selectedStudio.memberCount}
@@ -710,7 +715,8 @@ export default function LocationScreen({ navigation }) {
                                   </Text>
                                 ) : null}
                               </View>
-                              {studio.memberCount &&
+                              {isAdmin &&
+                              studio.memberCount &&
                               typeof studio.memberCount === 'number' ? (
                                 <Text style={styles.centerItemMembers}>
                                   👥 {studio.memberCount}
@@ -819,7 +825,8 @@ export default function LocationScreen({ navigation }) {
                           </Text>
                         ) : null}
                       </View>
-                      {selectedStudio.memberCount &&
+                      {isAdmin &&
+                      selectedStudio.memberCount &&
                       typeof selectedStudio.memberCount === 'number' ? (
                         <Text style={styles.centerItemMembers}>
                           👥 {selectedStudio.memberCount}

@@ -188,19 +188,21 @@ exports.onEventCreated = functions.firestore
 
       // ========== INTEREST-BASED NOTIFICATIONS ==========
       // Extract potential interests from event title using actual studio interests
+      console.log(`[Event Interest Notification] 🔍 Extracting interests from title: "${eventTitle}" in studio ${studioId}`);
       const eventInterests = await extractInterestsFromEventTitle(eventTitle, studioId);
 
       if (eventInterests.length === 0) {
-        console.log(`[Event Interest Notification] No matching interests found in title: "${eventTitle}"`);
+        console.log(`[Event Interest Notification] ❌ No matching interests found in title: "${eventTitle}"`);
         // Don't return early - continue to follow activity notifications
       } else {
-        console.log(`[Event Interest Notification] Found interests: ${eventInterests.join(', ')} for event "${eventTitle}"`);
+        console.log(`[Event Interest Notification] ✅ Found interests: ${eventInterests.join(', ')} for event "${eventTitle}"`);
 
       // Get users with matching interests using the simplified array approach
       const interestedUserIds = [];
       for (const interest of eventInterests) {
         try {
           const normalizedInterest = interest.toLowerCase().trim();
+          console.log(`[Event Interest Notification] 🔍 Querying interest document: studios/${studioId}/interests/${normalizedInterest}`);
           const interestDoc = await admin.firestore()
             .collection('studios')
             .doc(studioId)
@@ -210,7 +212,10 @@ exports.onEventCreated = functions.firestore
 
           if (interestDoc.exists) {
             const userIds = interestDoc.data().userIds || [];
+            console.log(`[Event Interest Notification] ✅ Interest "${normalizedInterest}" has ${userIds.length} users:`, userIds);
             interestedUserIds.push(...userIds);
+          } else {
+            console.log(`[Event Interest Notification] ❌ Interest document "${normalizedInterest}" does NOT exist in studio ${studioId}`);
           }
         } catch (error) {
           console.error(`[Event Interest Notification] Error querying interest "${interest}":`, error);
@@ -258,12 +263,11 @@ exports.onEventCreated = functions.firestore
 
       if (uniqueInterestedUsers.length === 0) {
         console.log(`[Event Interest Notification] No eligible users to notify for event ${eventId}`);
-        return;
-      }
+        // Don't return early - continue to follow activity notifications below
+      } else {
+        console.log(`[Event Interest Notification] Found ${uniqueInterestedUsers.length} interested users for event ${eventId}`);
 
-      console.log(`[Event Interest Notification] Found ${uniqueInterestedUsers.length} interested users for event ${eventId}`);
-
-      // Send immediate FCM notifications
+      // Send immediate FCM notifications (only if we have users)
       let notificationsSent = 0;
       const batchSize = 10;
 
@@ -400,6 +404,7 @@ exports.onEventCreated = functions.firestore
       }
 
         console.log(`[Event Interest Notification] Successfully sent ${notificationsSent} FCM notifications for event "${eventTitle}"`);
+      } // End of uniqueInterestedUsers.length > 0 block
       }
 
       // ========== FOLLOW ACTIVITY NOTIFICATIONS ==========
@@ -565,13 +570,17 @@ async function extractInterestsFromEventTitle(eventTitle, studioId) {
 
     // Check which interests appear in the event title
     const matchingInterests = [];
+    const allInterests = [];
     interestsSnapshot.forEach(doc => {
       const interest = doc.id; // The interest name is the document ID
+      allInterests.push(interest);
       if (title.includes(interest.toLowerCase())) {
         matchingInterests.push(interest);
+        console.log(`[Event Interest Notification] ✅ Interest "${interest}" MATCHES title "${eventTitle}"`);
       }
     });
 
+    console.log(`[Event Interest Notification] 📊 Title: "${eventTitle}" | All studio interests: [${allInterests.join(', ')}] | Matched: [${matchingInterests.join(', ')}]`);
     return matchingInterests;
   } catch (error) {
     console.error(`[Event Interest Notification] Error getting studio interests:`, error);

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { FormatDate } from '../../../lib/formatDate';
 import { textUtils } from '../../../lib/textUtils';
 import { mapUtils } from '../../../lib/mapUtils';
+import { normalizeEventTitleToInterest } from '../../../lib/interestUtils';
 import EventCreatorInfo from '../hosts/EventCreatorInfo';
 import theme from '../../../theme/themes';
 import { doc, getDoc } from '../../../lib/firebase/firestore';
@@ -93,12 +94,13 @@ function EventInfoSection({
   const genericInterestState = useMemo(() => {
     if (!event.title) return { isInterested: false, interest: '' };
 
-    const genericInterest = event.title.toLowerCase().trim();
-    const isInterested = interestLookup.has(genericInterest);
+    // Use centralized normalization function to ensure emoji removal, trim, lowercase
+    const normalizedInterest = normalizeEventTitleToInterest(event.title);
+    const isInterested = interestLookup.has(normalizedInterest);
 
     return {
       isInterested,
-      interest: event.title.trim(),
+      interest: normalizedInterest, // Always use normalized version (no emoji, lowercase, trimmed)
     };
   }, [event.title, interestLookup]);
   const isCohost = event.cohosts?.includes(currentUserId);
