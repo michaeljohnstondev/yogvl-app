@@ -16,7 +16,6 @@ function EventInfoSection({
   cohostData,
   friendAttendees,
   userInterests,
-  eventInterests,
   showPrivacyFlash,
   isAdmin,
   isSubscribed,
@@ -82,15 +81,7 @@ function EventInfoSection({
     return lookup;
   }, [userInterests]);
 
-  // Memoized function to check if user is interested in a topic
-  const isUserInterested = useCallback(
-    (interest) => {
-      return interestLookup.has(interest.toLowerCase());
-    },
-    [interestLookup]
-  );
-
-  // Memoized generic interest state (for when no specific interests exist)
+  // Memoized interest state for the event title
   const genericInterestState = useMemo(() => {
     if (!event.title) return { isInterested: false, interest: '' };
 
@@ -103,6 +94,20 @@ function EventInfoSection({
       interest: normalizedInterest, // Always use normalized version (no emoji, lowercase, trimmed)
     };
   }, [event.title, interestLookup]);
+
+  // Memoized venue interest state
+  const venueInterestState = useMemo(() => {
+    if (!event.location) return { isInterested: false, interest: '' };
+
+    // Normalize venue name (lowercase, trim)
+    const normalizedVenue = normalizeEventTitleToInterest(event.location);
+    const isInterested = interestLookup.has(normalizedVenue);
+
+    return {
+      isInterested,
+      interest: normalizedVenue,
+    };
+  }, [event.location, interestLookup]);
   const isCohost = event.cohosts?.includes(currentUserId);
   const isHostOrCohost = isHost || isCohost;
 
@@ -145,18 +150,17 @@ function EventInfoSection({
     }
   }, [event.address, event.location, vibeAlert]);
 
-  const handleInterestPress = useCallback(
-    (interest) => {
-      if (onInterestToggle) {
-        onInterestToggle(interest);
-      }
-    },
-    [onInterestToggle]
-  );
-
   const handleGenericInterestPress = useCallback(() => {
-    handleInterestPress(genericInterestState.interest);
-  }, [genericInterestState.interest, handleInterestPress]);
+    if (onInterestToggle) {
+      onInterestToggle(genericInterestState.interest);
+    }
+  }, [genericInterestState.interest, onInterestToggle]);
+
+  const handleVenueInterestPress = useCallback(() => {
+    if (onInterestToggle) {
+      onInterestToggle(venueInterestState.interest);
+    }
+  }, [venueInterestState.interest, onInterestToggle]);
 
   const handleAttendeesPress = useCallback(() => {
     const canViewAttendees =
@@ -183,7 +187,11 @@ function EventInfoSection({
   return (
     <View style={styles.infoSection}>
       {/* Event Name with Privacy and Interests */}
-      <View style={styles.infoCard}>
+      <TouchableOpacity
+        style={styles.infoCard}
+        onPress={handleGenericInterestPress}
+        activeOpacity={0.7}
+      >
         <View style={styles.eventNameRow}>
           <TouchableOpacity
             onPress={onPrivacyIconPress}
@@ -204,59 +212,69 @@ function EventInfoSection({
             </Text>
           </View>
           <View style={styles.interestStars}>
-            {eventInterests.length > 0 ? (
-              eventInterests.map((interest, index) => {
-                const isInterested = isUserInterested(interest);
-                return (
-                  <TouchableOpacity
-                    key={index}
-                    onPress={() => handleInterestPress(interest)}
-                    style={styles.starButton}
-                  >
-                    <Text
-                      style={[
-                        styles.starIcon,
-                        {
-                          color: isInterested
-                            ? theme.colors.vibeYellow
-                            : theme.colors.textSecondary,
-                          fontSize: isInterested ? 20 : 26,
-                          marginLeft: isInterested ? 2 : 0,
-                        },
-                      ]}
-                    >
-                      {isInterested ? '⭐' : '☆'}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })
-            ) : (
-              <TouchableOpacity
-                onPress={handleGenericInterestPress}
-                style={styles.starButton}
-              >
-                <Text
-                  style={[
-                    styles.starIcon,
-                    {
-                      color: genericInterestState.isInterested
-                        ? theme.colors.vibeYellow
-                        : theme.colors.textSecondary,
-                      fontSize: genericInterestState.isInterested ? 20 : 26,
-                      marginLeft: genericInterestState.isInterested ? 2 : 0,
-                    },
-                  ]}
-                >
-                  {genericInterestState.isInterested ? '⭐' : '☆'}
-                </Text>
-              </TouchableOpacity>
-            )}
+            <Text
+              style={[
+                styles.starIcon,
+                {
+                  color: genericInterestState.isInterested
+                    ? theme.colors.vibeYellow
+                    : theme.colors.textSecondary,
+                  fontSize: genericInterestState.isInterested ? 20 : 26,
+                  marginLeft: genericInterestState.isInterested ? 2 : 0,
+                },
+              ]}
+            >
+              {genericInterestState.isInterested ? '⭐' : '☆'}
+            </Text>
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
+
+      {/* Location */}
+      <TouchableOpacity
+        style={styles.infoCard}
+        onPress={handleLocationPress}
+        disabled={!event.address}
+        activeOpacity={event.address ? 0.7 : 1}
+      >
+        <View style={styles.infoRow}>
+          <Text style={styles.infoIcon}>📍</Text>
+          <View style={styles.infoContent}>
+            <Text style={styles.infoLabel}>Location</Text>
+            <Text style={styles.infoValue}>
+              {event.location || 'Location TBD'}
+            </Text>
+          </View>
+          {event.location && (
+            <TouchableOpacity
+              onPress={handleVenueInterestPress}
+              style={styles.venueStarButton}
+            >
+              <Text
+                style={[
+                  styles.starIcon,
+                  {
+                    color: venueInterestState.isInterested
+                      ? theme.colors.vibeYellow
+                      : theme.colors.textSecondary,
+                    fontSize: venueInterestState.isInterested ? 20 : 26,
+                  },
+                ]}
+              >
+                {venueInterestState.isInterested ? '⭐' : '☆'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </TouchableOpacity>
 
       {/* Date & Time */}
-      <View style={styles.infoCard}>
+      <TouchableOpacity
+        style={styles.infoCard}
+        onPress={onNotificationSettings}
+        disabled={!isSubscribed || isEventPast || !onNotificationSettings}
+        activeOpacity={0.7}
+      >
         <View style={styles.infoRow}>
           <Text style={styles.infoIcon}>📅</Text>
           <View style={styles.infoContent}>
@@ -296,35 +314,11 @@ function EventInfoSection({
               return <Text style={styles.infoValue}>{fullDateTime}</Text>;
             })()}
           </View>
-          {/* Notification Bell Button - Only show when subscribed and event is not past */}
+          {/* Notification Bell Icon - Only show when subscribed and event is not past */}
           {isSubscribed && !isEventPast && onNotificationSettings && (
-            <TouchableOpacity
-              style={styles.notificationButton}
-              onPress={onNotificationSettings}
-              activeOpacity={0.7}
-            >
+            <View style={styles.notificationButton}>
               <Text style={styles.notificationIcon}>🔔</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-
-      {/* Location */}
-      <TouchableOpacity
-        style={styles.infoCard}
-        onPress={handleLocationPress}
-        disabled={!event.address}
-      >
-        <View style={styles.infoRow}>
-          <Text style={styles.infoIcon}>📍</Text>
-          <View style={styles.infoContent}>
-            <Text style={styles.infoLabel}>Location</Text>
-            <Text style={styles.infoValue}>
-              {event.location || 'Location TBD'}
-            </Text>
-          </View>
-          {event.address && (
-            <Text style={styles.tapToOpenMaps}>🗺️</Text>
+            </View>
           )}
         </View>
       </TouchableOpacity>
@@ -368,13 +362,13 @@ function EventInfoSection({
 
       {/* Guests - Show to host/cohost if any guests, or to regular guests if there are other guests besides themselves */}
       {((isHostOrCohost && guestCount > 0) || (!isHostOrCohost && guestCount > 1 && isSubscribed)) && (
-        <View style={styles.infoCard}>
-          <TouchableOpacity
-            style={styles.infoRow}
-            onPress={handleAttendeesPress}
-            disabled={!canViewAttendees}
-            activeOpacity={canViewAttendees ? 0.7 : 1}
-          >
+        <TouchableOpacity
+          style={styles.infoCard}
+          onPress={handleAttendeesPress}
+          disabled={!canViewAttendees}
+          activeOpacity={0.7}
+        >
+          <View style={styles.infoRow}>
             <Text style={styles.infoIcon}>👥</Text>
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>
@@ -393,8 +387,8 @@ function EventInfoSection({
                 )}
               </View>
             </View>
-          </TouchableOpacity>
-        </View>
+          </View>
+        </TouchableOpacity>
       )}
     </View>
   );
@@ -433,12 +427,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginLeft: 8,
   },
-  starButton: {
-    padding: 4,
-    paddingRight: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   starIcon: {
     fontSize: 26,
     fontWeight: 'bold',
@@ -470,12 +458,11 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     lineHeight: 22,
   },
-  tapToOpenMaps: {
-    fontSize: 20,
-    color: theme.colors.vibeBlue,
+  venueStarButton: {
+    padding: 4,
     marginLeft: 8,
-    marginRight: 5,
-    alignSelf: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cohostsContainer: {
     marginTop: 8,
