@@ -14,34 +14,20 @@ const QRCodeTab = ({
 }) => {
   return (
     <View style={styles.qrContainer}>
-      <Text style={styles.qrTitle}>Share with QR Codes</Text>
+      <Text style={styles.qrTitle}>Share with QR Code</Text>
 
-      {/* Event QR Code for App Users */}
+      {/* Universal Event QR Code - Works for both app users and new users */}
       {inviteCode && (
         <View style={styles.qrSection}>
-          <Text style={styles.qrSubtitle}>For App Users</Text>
           <QRCodeGenerator
             type="event"
             data={inviteCode}
-            size={180}
-            showShareButton={false}
-          />
-          <Text style={styles.qrDescription}>Scan to join event instantly</Text>
-        </View>
-      )}
-
-      {/* App Download QR Code for New Users */}
-      {studioId && eventId && (
-        <View style={styles.qrSection}>
-          <Text style={styles.qrSubtitle}>For New Users</Text>
-          <QRCodeGenerator
-            type="app-download"
-            data={{ studioId, eventId }}
-            size={180}
+            size={200}
             showShareButton={false}
           />
           <Text style={styles.qrDescription}>
-            Scan to download app & join event
+            Scan to join event{'\n'}
+            Works for both app users and new downloads
           </Text>
         </View>
       )}

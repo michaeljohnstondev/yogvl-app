@@ -22,6 +22,14 @@
       {
         "source": "/theyo/join",
         "destination": "/theyo.html"
+      },
+      {
+        "source": "/theyo/invite/**",
+        "destination": "/theyo/invite/index.html"
+      },
+      {
+        "source": "/theyo/u/**",
+        "destination": "/theyo/u/index.html"
       }
     ]
   },

@@ -13,15 +13,16 @@ const QRCodeGenerator = ({
   const generateDeepLink = () => {
     switch (type) {
       case 'user':
-        return `bvs-app://user/${data}`;
+        // Use web redirect that tries app first, then falls back to download
+        return `https://bigvibestudios.com/theyo/u/${data}`;
       case 'event':
-        return `bvs-app://invite/${data}`;
+        // Use web redirect that tries app first, then falls back to download
+        return `https://bigvibestudios.com/theyo/invite/${data}`;
       case 'app-download':
-        // Generate a universal link that works for both app users and non-app users
-        // This will redirect to app stores for non-app users, or deep link for app users
-        return `https://bigvibestudios.com/theyo/join?studio=${data.studioId}&event=${data.eventId}`;
+        // Same as event - one URL that handles both scenarios
+        return `https://bigvibestudios.com/theyo/invite/${data.inviteCode || 'unknown'}`;
       default:
-        return `bvs-app://user/${data}`;
+        return `https://bigvibestudios.com/theyo/u/${data}`;
     }
   };
 
@@ -30,9 +31,9 @@ const QRCodeGenerator = ({
       case 'user':
         return 'Follow My Profile';
       case 'event':
-        return 'Join Event';
+        return 'Join This Event';
       case 'app-download':
-        return 'Download BVS & Join Event';
+        return 'Join This Event';
       default:
         return 'Scan to Connect';
     }
@@ -56,12 +57,10 @@ const QRCodeGenerator = ({
 
       <Text style={styles.instructions}>
         {type === 'user'
-          ? 'Scan this QR code to follow my profile'
-          : type === 'event'
-            ? 'Scan this QR code to join the event'
-            : type === 'app-download'
-              ? 'New to Big Vibe Studios? Scan to download the app and join this event!'
-              : 'Scan this QR code to connect'}
+          ? 'Scan to follow my profile'
+          : type === 'event' || type === 'app-download'
+            ? 'Opens the app or redirects to download'
+            : 'Scan to connect'}
       </Text>
 
       {showShareButton && (

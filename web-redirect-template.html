@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Yo - Opening Event</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #000814 0%, #001d3d 100%);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+        }
+        .container {
+            padding: 40px 20px;
+            max-width: 500px;
+        }
+        .logo {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            font-size: 28px;
+            margin: 0 0 10px 0;
+            color: #00d4ff;
+        }
+        p {
+            font-size: 16px;
+            color: #a0a0a0;
+            margin: 0 0 30px 0;
+        }
+        .spinner {
+            border: 3px solid rgba(0, 212, 255, 0.1);
+            border-top: 3px solid #00d4ff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .download-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 12px 30px;
+            background: #00d4ff;
+            color: #000814;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        .download-link:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🎉</div>
+        <h1>Opening The Yo...</h1>
+        <div class="spinner"></div>
+        <p id="status">Trying to open the app</p>
+        <a href="#" id="downloadLink" class="download-link" style="display: none;">Download The Yo</a>
+    </div>
+
+    <script>
+        // INSTRUCTIONS FOR HOSTING:
+        // 1. Upload this file to your web server at: https://bigvibestudios.com/theyo/invite/
+        // 2. Configure your server to serve this file for ANY path under /theyo/invite/*
+        //    For example: /theyo/invite/BVS-12345 should serve this same HTML file
+        // 3. The JavaScript below will extract the invite code from the URL and try to open the app
+        //
+        // Example server configuration (nginx):
+        //   location /theyo/invite/ {
+        //     try_files $uri /theyo/invite/index.html;
+        //   }
+        //
+        // Example server configuration (Apache .htaccess):
+        //   RewriteEngine On
+        //   RewriteCond %{REQUEST_FILENAME} !-f
+        //   RewriteRule ^theyo/invite/.*$ /theyo/invite/index.html [L]
+
+        // Extract the invite code or user ID from the URL
+        const pathParts = window.location.pathname.split('/');
+        const inviteCode = pathParts[pathParts.length - 1]; // Gets "BVS-12345" from "/theyo/invite/BVS-12345"
+        const isUserProfile = window.location.pathname.includes('/theyo/u/');
+
+        // Determine if iOS or Android
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        const isAndroid = /Android/.test(navigator.userAgent);
+
+        // App store URLs
+        const appStoreURL = 'https://apps.apple.com/app/the-yo/YOUR_APP_ID'; // TODO: Replace with your actual App Store URL
+        const playStoreURL = 'https://play.google.com/store/apps/details?id=com.bigvibestudios.bvs';
+
+        // Deep link to open the app
+        let deepLink;
+        if (isUserProfile) {
+            deepLink = `the-yo://user/${inviteCode}`;
+        } else {
+            deepLink = `the-yo://invite/${inviteCode}`;
+        }
+
+        console.log('Attempting to open deep link:', deepLink);
+
+        // Try to open the app
+        let appOpened = false;
+        let startTime = Date.now();
+
+        // Attempt to open the app
+        window.location.href = deepLink;
+
+        // Set a timer to check if the app opened
+        setTimeout(function() {
+            // If we're still on this page after 2 seconds, the app didn't open
+            const elapsed = Date.now() - startTime;
+
+            // If page is still visible and enough time has passed, show download link
+            if (!document.hidden && elapsed >= 1500) {
+                document.getElementById('status').textContent =
+                    "Don't have The Yo app yet? Download it now!";
+
+                const downloadLink = document.getElementById('downloadLink');
+                downloadLink.style.display = 'inline-block';
+
+                // Set the appropriate download link
+                if (isIOS) {
+                    downloadLink.href = appStoreURL;
+                    downloadLink.textContent = 'Download on App Store';
+                } else if (isAndroid) {
+                    downloadLink.href = playStoreURL;
+                    downloadLink.textContent = 'Download on Play Store';
+                } else {
+                    downloadLink.href = playStoreURL; // Default to Play Store
+                    downloadLink.textContent = 'Download The Yo';
+                }
+            }
+        }, 2000);
+
+        // Listen for visibility change (if app opened, page becomes hidden)
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                appOpened = true;
+                console.log('App opened successfully');
+            }
+        });
+
+        // Prevent the page from being visible in browser history when returning from app
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted) {
+                window.location.reload();
+            }
+        });
+    </script>
+</body>
+</html>
