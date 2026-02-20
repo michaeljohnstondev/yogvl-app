@@ -21,6 +21,11 @@ export {
   reauthenticateWithCredential,
   EmailAuthProvider,
 
+  // Google / OAuth
+  signInWithCredential,
+  GoogleAuthProvider,
+  linkWithCredential,
+
   // Auth errors
   AuthErrorCodes,
 } from 'firebase/auth';

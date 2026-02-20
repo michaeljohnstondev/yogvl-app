@@ -4,9 +4,22 @@ import {
   signOut,
   onAuthStateChanged,
   sendPasswordResetEmail,
+  signInWithCredential,
+  GoogleAuthProvider,
 } from 'firebase/auth';
-import { auth } from './firebase';
+import { auth, db } from './firebase';
+import { doc, setDoc, getDoc } from '../../lib/firebase';
 import { useState, useEffect } from 'react';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import {
+  getDefaultUserSettings,
+  getDefaultUserMetrics,
+} from '../../services/defaultUserSettings';
+
+// Configure Google Sign-In
+GoogleSignin.configure({
+  webClientId: '824215388091-hfoep5l3nip6cgpph728q8rk7frpb6fa.apps.googleusercontent.com',
+});
 
 // Email/Password authentication
 export async function signup(email, password) {
@@ -66,6 +79,71 @@ export async function resetPassword(email) {
   } catch (error) {
     throw error;
   }
+}
+
+/**
+ * Sign in with Google via native account picker.
+ * Returns Firebase UserCredential + whether user is new.
+ */
+export async function signInWithGoogle() {
+  // Ensure Google Play Services available (Android)
+  await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+
+  // Trigger native Google sign-in UI
+  const signInResult = await GoogleSignin.signIn();
+
+  // Extract ID token (v13+ style, then fallback)
+  const idToken = signInResult.data?.idToken ?? signInResult.idToken;
+  if (!idToken) {
+    throw new Error('No ID token returned from Google Sign-In');
+  }
+
+  // Build Firebase credential and sign in
+  const googleCredential = GoogleAuthProvider.credential(idToken);
+  const userCredential = await signInWithCredential(auth, googleCredential);
+
+  const isNewUser = userCredential._tokenResponse?.isNewUser ?? false;
+  return { userCredential, isNewUser };
+}
+
+/**
+ * Ensures a Firestore user doc exists. Creates with defaults if not.
+ * Used by both email signup and Google sign-in.
+ */
+export async function ensureUserDocument(user, options = {}) {
+  const userRef = doc(db, 'users', user.uid);
+  const snap = await getDoc(userRef);
+
+  if (snap.exists()) {
+    return { created: false };
+  }
+
+  const contactInfo = { email: user.email };
+  if (options.firstName) contactInfo.firstName = options.firstName;
+  if (options.lastName) contactInfo.lastName = options.lastName;
+  if (options.firstName && options.lastName) {
+    contactInfo.displayName = `${options.firstName} ${options.lastName}`;
+  }
+  if (options.profilePicture) contactInfo.profilePicture = options.profilePicture;
+
+  await setDoc(
+    userRef,
+    {
+      userdata: {
+        contactInfo,
+        metadata: {
+          createdAt: new Date(),
+          authProvider: options.authProvider || 'email',
+        },
+        settings: getDefaultUserSettings(),
+        metrics: getDefaultUserMetrics(),
+      },
+      uid: user.uid,
+    },
+    { merge: true }
+  );
+
+  return { created: true };
 }
 
 // Auth state hook

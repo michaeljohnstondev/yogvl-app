@@ -7,6 +7,7 @@ import {
   ScrollView,
   Image,
   Linking,
+  Pressable,
   TouchableOpacity,
 } from 'react-native';
 import {
@@ -16,13 +17,13 @@ import {
 } from '../components/ui/base';
 import { useNavigation } from '@react-navigation/native';
 import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
-import { login, signup, resetPassword } from '../auth/services/FirebaseAuthService';
-import { db } from '../auth/services/firebase';
-import { doc, setDoc, getDoc } from '../lib/firebase';
 import {
-  getDefaultUserSettings,
-  getDefaultUserMetrics,
-} from '../services/defaultUserSettings';
+  login,
+  signup,
+  resetPassword,
+  signInWithGoogle,
+  ensureUserDocument,
+} from '../auth/services/FirebaseAuthService';
 import theme from '../theme/themes';
 // Helper function to convert Firebase errors to human-friendly messages
 const getHumanFriendlyError = (error) => {
@@ -49,6 +50,12 @@ const getHumanFriendlyError = (error) => {
 
     case 'auth/user-disabled':
       return 'This account has been disabled. Contact support if you need help.';
+
+    case 'auth/account-exists-with-different-credential':
+      return 'An account with this email already exists. Try logging in with email and password.';
+
+    case 'auth/credential-already-in-use':
+      return 'This Google account is already linked to another user.';
 
     default:
       // For any other errors, provide a generic friendly message
@@ -101,30 +108,8 @@ export default function LandingScreen() {
     setLoading(true);
     try {
       const userCredential = await signup(email, password);
-      const user = userCredential.user;
-      console.log('Signed up:', user);
-
-      await setDoc(
-        doc(db, 'users', user.uid),
-        {
-          userdata: {
-            contactInfo: {
-              email: user.email,
-            },
-            metadata: {
-              createdAt: new Date(),
-            },
-            settings: getDefaultUserSettings(),
-            metrics: getDefaultUserMetrics(),
-          },
-          uid: user.uid,
-        },
-        { merge: true }
-      );
-
-      console.log(
-        'User document created successfully - Navigation will handle routing'
-      );
+      await ensureUserDocument(userCredential.user);
+      console.log('User document created - Navigation will handle routing');
     } catch (err) {
       console.error('Signup error:', err);
       vibeAlert.error('Signup Failed', getHumanFriendlyError(err));
@@ -151,6 +136,37 @@ export default function LandingScreen() {
       } else {
         vibeAlert.error('Reset Failed', getHumanFriendlyError(err));
       }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    try {
+      const { userCredential } = await signInWithGoogle();
+      const user = userCredential.user;
+
+      // Extract name from Google profile
+      const displayName = user.displayName || '';
+      const nameParts = displayName.split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
+      await ensureUserDocument(user, {
+        firstName,
+        lastName,
+        profilePicture: user.photoURL || '',
+        authProvider: 'google',
+      });
+
+      console.log('Google sign-in complete - Navigation will handle routing');
+    } catch (err) {
+      // User cancelled — do nothing
+      if (err.code === 'SIGN_IN_CANCELLED' || err.code === '12501') return;
+
+      console.error('Google Sign-In error:', err);
+      vibeAlert.error('Google Sign-In Failed', getHumanFriendlyError(err));
     } finally {
       setLoading(false);
     }
@@ -260,6 +276,26 @@ export default function LandingScreen() {
               )}
             </View>
 
+            {/* Google Sign-In Divider */}
+            <View style={styles.dividerContainer}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Google Sign-In Button */}
+            <Pressable
+              onPress={handleGoogleSignIn}
+              disabled={loading}
+              style={({ pressed }) => [
+                styles.googleButton,
+                { opacity: pressed ? 0.7 : loading ? 0.5 : 1 },
+              ]}
+            >
+              <Text style={styles.googleButtonIcon}>G</Text>
+              <Text style={styles.googleButtonText}>Continue with Google</Text>
+            </Pressable>
+
             {/* Terms and Privacy Policy Links */}
             <View style={styles.legalLinksContainer}>
               <Text style={styles.legalText}>
@@ -349,6 +385,46 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
     paddingVertical: 8,
     marginTop: 12,
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: theme.colors.gray,
+    opacity: 0.3,
+  },
+  dividerText: {
+    color: theme.colors.gray,
+    fontSize: 14,
+    paddingHorizontal: 16,
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderWidth: 2,
+    borderColor: theme.colors.white,
+    borderRadius: theme.sizes?.buttonRadius || 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  googleButtonIcon: {
+    color: theme.colors.white,
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginRight: 12,
+  },
+  googleButtonText: {
+    color: theme.colors.white,
+    fontSize: 16,
+    fontWeight: '600',
   },
   legalLinksContainer: {
     marginTop: 20,

@@ -62,7 +62,9 @@
       "WebFetch(domain:firebase.google.com)",
       "Bash(del:*)",
       "Bash(firebase functions:delete:*)",
-      "Bash(eas build:list:*)"
+      "Bash(eas build:list:*)",
+      "WebFetch(domain:react-native-google-signin.github.io)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": [],
     "ask": [],
