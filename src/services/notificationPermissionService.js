@@ -2,21 +2,26 @@
 // Contextual notification permission request service
 // Requests notification permissions at meaningful moments (creating/joining events, showing interest)
 // Strategy: Ask once per trigger type - gives user multiple chances in different contexts
+// Also checks actual OS permission status and prompts users to enable in Settings
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Linking, Platform } from 'react-native';
 import fcmService from './fcmServiceWrapper';
 
 const STORAGE_KEY_PREFIX = 'notification_permission_';
+const SETTINGS_PROMPT_KEY = 'notification_settings_prompt_last';
+const SETTINGS_PROMPT_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 class NotificationPermissionService {
   constructor() {
     this.requestedTriggers = new Set(); // Track which triggers have been used
     this.isRequesting = false;
     this.permissionGranted = false;
+    this.initialized = false;
   }
 
   /**
-   * Initialize service - check if we've already requested permission for each trigger type
+   * Initialize service - hydrate trigger history AND check actual OS permission status
    */
   async initialize() {
     try {
@@ -30,9 +35,19 @@ class NotificationPermissionService {
         }
       }
 
-      console.log('[NotificationPermission] Previously requested triggers:', Array.from(this.requestedTriggers));
+      // Check actual OS permission status (not just our internal flag)
+      const permissionStatus = await fcmService.getPermissionStatus();
+      this.permissionGranted = permissionStatus.granted;
+
+      this.initialized = true;
+
+      console.log('[NotificationPermission] Initialized:', {
+        permissionGranted: this.permissionGranted,
+        requestedTriggers: Array.from(this.requestedTriggers),
+      });
     } catch (error) {
-      console.error('[NotificationPermission] Failed to check permission status:', error);
+      console.error('[NotificationPermission] Failed to initialize:', error);
+      this.initialized = true; // Mark initialized even on error to avoid blocking
     }
   }
 
@@ -101,6 +116,57 @@ class NotificationPermissionService {
   }
 
   /**
+   * Check if notifications are disabled and we should show a settings prompt.
+   * Returns true if: notifications are off AND we haven't prompted in the last 24h.
+   * Call this on HomeScreen to show a gentle banner/alert.
+   *
+   * @returns {Promise<boolean>} - True if we should show the settings prompt
+   */
+  async shouldShowSettingsPrompt() {
+    try {
+      // Re-check actual OS permission (user may have changed it in Settings)
+      const permissionStatus = await fcmService.getPermissionStatus();
+      this.permissionGranted = permissionStatus.granted;
+
+      // If permission is granted, no prompt needed
+      if (this.permissionGranted) return false;
+
+      // Only prompt if we've already asked at least once (don't prompt brand new users)
+      if (this.requestedTriggers.size === 0) return false;
+
+      // Cooldown: don't show more than once per 24h
+      const lastPrompt = await AsyncStorage.getItem(SETTINGS_PROMPT_KEY);
+      if (lastPrompt) {
+        const elapsed = Date.now() - parseInt(lastPrompt, 10);
+        if (elapsed < SETTINGS_PROMPT_COOLDOWN_MS) return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('[NotificationPermission] Failed to check settings prompt status:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Mark that we just showed the settings prompt (starts the 24h cooldown)
+   */
+  async markSettingsPromptShown() {
+    try {
+      await AsyncStorage.setItem(SETTINGS_PROMPT_KEY, Date.now().toString());
+    } catch (error) {
+      console.error('[NotificationPermission] Failed to mark settings prompt shown:', error);
+    }
+  }
+
+  /**
+   * Open the OS app settings so the user can enable notifications
+   */
+  openNotificationSettings() {
+    Linking.openSettings();
+  }
+
+  /**
    * Check if permission has already been requested for a specific trigger
    * @param {string} trigger - Trigger type to check
    */
@@ -123,6 +189,7 @@ class NotificationPermissionService {
     for (const trigger of triggers) {
       await AsyncStorage.removeItem(`${STORAGE_KEY_PREFIX}${trigger}`);
     }
+    await AsyncStorage.removeItem(SETTINGS_PROMPT_KEY);
     this.requestedTriggers.clear();
     this.permissionGranted = false;
     console.log('[NotificationPermission] Reset all permission request states');

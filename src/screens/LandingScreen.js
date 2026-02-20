@@ -70,6 +70,7 @@ export default function LandingScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const vibeAlert = useVibeAlert();
 
@@ -142,7 +143,7 @@ export default function LandingScreen() {
   };
 
   const handleGoogleSignIn = async () => {
-    setLoading(true);
+    setGoogleLoading(true);
     try {
       const { userCredential } = await signInWithGoogle();
       const user = userCredential.user;
@@ -168,7 +169,7 @@ export default function LandingScreen() {
       console.error('Google Sign-In error:', err);
       vibeAlert.error('Google Sign-In Failed', getHumanFriendlyError(err));
     } finally {
-      setLoading(false);
+      setGoogleLoading(false);
     }
   };
 
@@ -260,7 +261,7 @@ export default function LandingScreen() {
                     : 'Sign Up'
               }
               onPress={authMode === 'login' ? handleLogin : handleSignUp}
-              disabled={loading}
+              disabled={loading || googleLoading}
               style={styles.authButton}
             />
 
@@ -286,14 +287,16 @@ export default function LandingScreen() {
             {/* Google Sign-In Button */}
             <Pressable
               onPress={handleGoogleSignIn}
-              disabled={loading}
+              disabled={loading || googleLoading}
               style={({ pressed }) => [
                 styles.googleButton,
-                { opacity: pressed ? 0.7 : loading ? 0.5 : 1 },
+                { opacity: pressed ? 0.7 : (loading || googleLoading) ? 0.5 : 1 },
               ]}
             >
               <Text style={styles.googleButtonIcon}>G</Text>
-              <Text style={styles.googleButtonText}>Continue with Google</Text>
+              <Text style={styles.googleButtonText}>
+                {googleLoading ? 'Signing in...' : 'Continue with Google'}
+              </Text>
             </Pressable>
 
             {/* Terms and Privacy Policy Links */}

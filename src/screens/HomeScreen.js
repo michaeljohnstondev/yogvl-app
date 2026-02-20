@@ -39,6 +39,7 @@ import { banEnforcementService } from '../services/banEnforcementService';
 import { adminNotificationService } from '../services/adminNotificationService';
 import { globalAdminService } from '../services/globalAdminService';
 import { extractInterestsFromEventTitle } from '../services/interestService';
+import { notificationPermissionService } from '../services/notificationPermissionService';
 import theme from '../theme/themes';
 
 export default function HomeScreen({ navigation, route }) {
@@ -332,6 +333,29 @@ export default function HomeScreen({ navigation, route }) {
       }
     };
 
+    // Check if we need to prompt user to enable notifications in Settings
+    const checkNotificationPermission = async () => {
+      try {
+        const shouldPrompt = await notificationPermissionService.shouldShowSettingsPrompt();
+        if (shouldPrompt) {
+          await notificationPermissionService.markSettingsPromptShown();
+          vibeAlert.warning(
+            'Notifications Off',
+            'Enable notifications so you never miss event updates, invites, or recaps.',
+            [
+              {
+                text: 'Open Settings',
+                onPress: () => notificationPermissionService.openNotificationSettings(),
+              },
+              { text: 'Not Now' },
+            ]
+          );
+        }
+      } catch (error) {
+        console.error('[HomeScreen] Error checking notification permission:', error);
+      }
+    };
+
     // Parallel execution: check ban status while preparing other operations
     const initializeHomeScreen = async () => {
       // Start ban check immediately
@@ -342,10 +366,11 @@ export default function HomeScreen({ navigation, route }) {
 
       // Only proceed if user is not banned
       if (!banStatus?.isBanned) {
-        // Execute feed loading and notification checking in parallel
-        const [, ] = await Promise.all([
+        // Execute feed loading, notification checking, and permission check in parallel
+        await Promise.all([
           loadEventFeed(),
-          checkAdminNotifications()
+          checkAdminNotifications(),
+          checkNotificationPermission(),
         ]);
       }
     };

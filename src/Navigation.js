@@ -19,6 +19,7 @@ import { UserDataCleanupService } from './services/UserDataCleanupService';
 import { AuthProvider } from './auth/AuthContext';
 import { RealtimeNotificationsProvider } from './contexts/RealtimeNotificationsContext';
 import fcmService from './services/fcmServiceWrapper';
+import { notificationPermissionService } from './services/notificationPermissionService';
 
 // Consolidated screen imports using barrel exports
 import {
@@ -185,6 +186,11 @@ export default function Navigation({ onReady }) {
               await fcmService.initialize();
             }
             // Note: Navigation ref is set via handleNavigationReady (onReady callback)
+
+            // Initialize notification permission service (hydrate triggers + check OS status)
+            if (!notificationPermissionService.initialized) {
+              await notificationPermissionService.initialize();
+            }
 
             // Register FCM token for authenticated user
             if (user?.uid) {
