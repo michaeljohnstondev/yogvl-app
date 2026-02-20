@@ -11,17 +11,73 @@ import {
   updateDoc,
   writeBatch,
   arrayRemove,
+  increment,
 } from '../lib/firebase/firestore';
-import { deleteUser as deleteAuthUser } from '../lib/firebase/auth';
+import {
+  deleteUser as deleteAuthUser,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+} from '../lib/firebase/auth';
 import { db } from '../auth/services/firebase';
 
 /**
- * Comprehensive user account deletion service
- * Cleans up all user-related data across the entire app
+ * User account deletion service
+ *
+ * NOTE: This service performs Firestore cleanup CLIENT-SIDE for immediate feedback.
+ * However, the AUTHORITATIVE cleanup is handled by the Cloud Function (functions/auth/onUserDelete.js)
+ * which triggers when Firebase Auth is deleted. The Cloud Function ensures:
+ * - Complete cleanup even if client-side fails
+ * - Proper follower/following count updates
+ * - Cleanup of reverse relationships
+ *
+ * The client-side cleanup here is for UX (faster feedback) but the Cloud Function
+ * is the safety net that ensures everything is cleaned up properly.
  */
+
+/**
+ * Re-authenticate user with their password
+ * Required before sensitive operations like account deletion
+ */
+export const reauthenticateUser = async (currentUser, password) => {
+  try {
+    if (!currentUser?.email) {
+      throw new Error('User email not available for re-authentication');
+    }
+
+    const credential = EmailAuthProvider.credential(currentUser.email, password);
+    await reauthenticateWithCredential(currentUser, credential);
+
+    console.log('[UserDeletion] ✅ User re-authenticated successfully');
+    return { success: true };
+  } catch (error) {
+    console.error('[UserDeletion] ❌ Re-authentication failed:', error);
+
+    if (error.code === 'auth/wrong-password') {
+      return {
+        success: false,
+        error: 'Incorrect password. Please try again.',
+      };
+    }
+
+    if (error.code === 'auth/too-many-requests') {
+      return {
+        success: false,
+        error: 'Too many failed attempts. Please try again later.',
+      };
+    }
+
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+};
 export const deleteUserAccount = async (userId, currentUser) => {
   console.log(
     `[UserDeletion] Starting comprehensive deletion for user ${userId}`
+  );
+  console.log(
+    `[UserDeletion] NOTE: Cloud Function will handle authoritative cleanup after Auth deletion`
   );
 
   // Track cleanup errors separately from critical errors
@@ -74,69 +130,91 @@ export const deleteUserAccount = async (userId, currentUser) => {
     // 3. Clean up Follow Relationships (using subcollections)
     console.log('[UserDeletion] Cleaning up follow relationships...');
 
-    // Remove user's following subcollection
+    // Remove user's following subcollection AND clean up reverse relationships
     const followingRef = collection(db, 'users', userId, 'following');
     const followingSnap = await getDocs(followingRef);
     console.log(
       `[UserDeletion] Found ${followingSnap.docs.length} following relationships`
     );
 
-    followingSnap.docs.forEach((followDoc) => {
+    // For each user this user was following, remove them from that user's followers list
+    for (const followDoc of followingSnap.docs) {
+      const targetUserId = followDoc.id;
+
+      // Delete this user's following relationship
       batch.delete(followDoc.ref);
       batchCount++;
-    });
-    await commitBatchIfNeeded();
+      await commitBatchIfNeeded();
 
-    // Remove user's followers subcollection
+      // Delete the reverse follower relationship from the target user
+      const reverseFollowerRef = doc(db, 'users', targetUserId, 'followers', userId);
+      batch.delete(reverseFollowerRef);
+      batchCount++;
+      await commitBatchIfNeeded();
+
+      // Decrement the target user's follower count
+      const targetUserRef = doc(db, 'users', targetUserId);
+      batch.update(targetUserRef, {
+        'userdata.metrics.social.followersCount': increment(-1)
+      });
+      batchCount++;
+      await commitBatchIfNeeded();
+
+      console.log(`[UserDeletion] Removed follow relationship with user ${targetUserId}`);
+    }
+
+    // Remove user's followers subcollection AND clean up reverse relationships
     const followersRef = collection(db, 'users', userId, 'followers');
     const followersSnap = await getDocs(followersRef);
     console.log(
       `[UserDeletion] Found ${followersSnap.docs.length} follower relationships`
     );
 
-    followersSnap.docs.forEach((followDoc) => {
+    // For each user following this user, remove this user from their following list
+    for (const followDoc of followersSnap.docs) {
+      const followerUserId = followDoc.id;
+
+      // Delete this user's follower relationship
       batch.delete(followDoc.ref);
       batchCount++;
-    });
-    await commitBatchIfNeeded();
+      await commitBatchIfNeeded();
 
-    // 4. Clean up Friend Requests (both directions - if collection exists)
+      // Delete the reverse following relationship from the follower
+      const reverseFollowingRef = doc(db, 'users', followerUserId, 'following', userId);
+      batch.delete(reverseFollowingRef);
+      batchCount++;
+      await commitBatchIfNeeded();
+
+      // Decrement the follower's following count
+      const followerUserRef = doc(db, 'users', followerUserId);
+      batch.update(followerUserRef, {
+        'userdata.metrics.social.followingCount': increment(-1)
+      });
+      batchCount++;
+      await commitBatchIfNeeded();
+
+      console.log(`[UserDeletion] Removed follower relationship with user ${followerUserId}`);
+    }
+
+    // 4. Clean up Friend Requests (subcollection under user)
     console.log('[UserDeletion] Cleaning up friend requests...');
 
     try {
-      // Requests sent by user
-      const sentRequestsQuery = query(
-        collection(db, 'friendRequests'),
-        where('senderId', '==', userId)
-      );
-      const sentRequestsSnap = await getDocs(sentRequestsQuery);
+      // Delete all friend requests in user's subcollection
+      const friendRequestsRef = collection(db, 'users', userId, 'friendRequests');
+      const friendRequestsSnap = await getDocs(friendRequestsRef);
+
       console.log(
-        `[UserDeletion] Found ${sentRequestsSnap.docs.length} sent friend requests`
+        `[UserDeletion] Found ${friendRequestsSnap.docs.length} friend requests in user subcollection`
       );
 
-      sentRequestsSnap.docs.forEach((requestDoc) => {
-        batch.delete(requestDoc.ref);
-        batchCount++;
-      });
-      await commitBatchIfNeeded();
-
-      // Requests received by user
-      const receivedRequestsQuery = query(
-        collection(db, 'friendRequests'),
-        where('recipientId', '==', userId)
-      );
-      const receivedRequestsSnap = await getDocs(receivedRequestsQuery);
-      console.log(
-        `[UserDeletion] Found ${receivedRequestsSnap.docs.length} received friend requests`
-      );
-
-      receivedRequestsSnap.docs.forEach((requestDoc) => {
+      friendRequestsSnap.docs.forEach((requestDoc) => {
         batch.delete(requestDoc.ref);
         batchCount++;
       });
       await commitBatchIfNeeded();
     } catch (error) {
-      console.warn('[UserDeletion] Friend requests collection not accessible:', error.message);
+      console.warn('[UserDeletion] Friend requests subcollection not accessible:', error.message);
     }
 
     // 5. Collect Events Created by User (for later deletion)
@@ -415,7 +493,7 @@ export const deleteUserAccount = async (userId, currentUser) => {
     if (authError.code === 'auth/requires-recent-login') {
       return {
         success: false,
-        message: 'For security, please log out and log back in before deleting your account.',
+        message: 'For security, please confirm your password before deleting your account.',
         error: authError.message,
         requiresReauth: true,
       };
@@ -468,24 +546,13 @@ export const getUserDeletionPreview = async (userId) => {
     ]);
     preview.follows = followingSnap.docs.length + followersSnap.docs.length;
 
-    // Count friend requests (if collection exists)
+    // Count friend requests (subcollection under user)
     try {
-      const sentRequestsQuery = query(
-        collection(db, 'friendRequests'),
-        where('senderId', '==', userId)
-      );
-      const receivedRequestsQuery = query(
-        collection(db, 'friendRequests'),
-        where('recipientId', '==', userId)
-      );
-      const [sentRequestsSnap, receivedRequestsSnap] = await Promise.all([
-        getDocs(sentRequestsQuery),
-        getDocs(receivedRequestsQuery),
-      ]);
-      preview.friendRequests =
-        sentRequestsSnap.docs.length + receivedRequestsSnap.docs.length;
+      const friendRequestsRef = collection(db, 'users', userId, 'friendRequests');
+      const friendRequestsSnap = await getDocs(friendRequestsRef);
+      preview.friendRequests = friendRequestsSnap.docs.length;
     } catch (error) {
-      console.warn('[UserDeletion] Friend requests collection not accessible:', error.message);
+      console.warn('[UserDeletion] Friend requests subcollection not accessible:', error.message);
       preview.friendRequests = 0;
     }
 

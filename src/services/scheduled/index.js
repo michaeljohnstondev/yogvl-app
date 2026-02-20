@@ -241,31 +241,43 @@ export class ScheduledNotificationService {
       const { NOTIFICATION_TYPES, NOTIFICATION_PRIORITY, DELIVERY_CHANNELS } =
         await import('../shared/NotificationEngine');
 
-      // Schedule event recap for the event host only
-      const scheduleId = await ScheduledNotificationCore.scheduleNotification({
-        userId: eventData.createdBy, // Event host
-        eventId: eventData.id,
-        type: NOTIFICATION_TYPES.EVENT_RECAP,
-        title: 'Event Recap Available',
-        message: `Recap for "${eventData.title}" is ready!`,
-        data: {
+      // Get all subscribers (host + guests)
+      const subscribers = eventData.subscribers || [eventData.createdBy];
+      const scheduleIds = [];
+
+      // Schedule event recap for ALL subscribers (host and guests)
+      for (const userId of subscribers) {
+        const scheduleId = await ScheduledNotificationCore.scheduleNotification({
+          userId, // Each subscriber
           eventId: eventData.id,
-          eventTitle: eventData.title,
-          studioId: eventData.studioId,
-          reminderType: 'post_event_recap_1h',
-        },
-        scheduledFor: eventRecapTime,
-        priority: NOTIFICATION_PRIORITY.NORMAL,
-        channels: [DELIVERY_CHANNELS.PUSH],
-      });
+          type: NOTIFICATION_TYPES.EVENT_RECAP,
+          title: 'Event Recap Available',
+          message: `Recap for "${eventData.title}" is ready!`,
+          data: {
+            eventId: eventData.id,
+            eventTitle: eventData.title,
+            studioId: eventData.studioId,
+            reminderType: 'post_event_recap_1h',
+          },
+          scheduledFor: eventRecapTime,
+          priority: NOTIFICATION_PRIORITY.NORMAL,
+          channels: [DELIVERY_CHANNELS.PUSH],
+        });
+
+        scheduleIds.push(scheduleId);
+        console.log(
+          `[ScheduledNotificationService] Event recap scheduled for user ${userId} with ID: ${scheduleId}`
+        );
+      }
 
       console.log(
-        `[ScheduledNotificationService] Event recap scheduled with ID: ${scheduleId} for ${eventRecapTime.toISOString()}`
+        `[ScheduledNotificationService] Event recap scheduled for ${scheduleIds.length} subscribers for ${eventRecapTime.toISOString()}`
       );
 
       return {
         success: true,
-        scheduleId,
+        scheduleIds,
+        subscriberCount: scheduleIds.length,
         reminderTime: eventRecapTime,
         eventId: eventData.id,
         hostId: eventData.createdBy,

@@ -25,6 +25,9 @@ const adminAnnouncementNotifications = require('./notifications/adminAnnouncemen
 const adminAlertNotifications = require('./notifications/adminAlertNotifications');
 const scheduledNotificationProcessor = require('./notifications/scheduledNotificationProcessor');
 
+// Import auth functions
+const authFunctions = require('./auth/onUserDelete');
+
 // Import utility functions
 const eventCleanup = require('./utils/eventCleanup');
 
@@ -73,6 +76,9 @@ module.exports = {
 
   // Scheduled notification processing
   processScheduledNotifications: scheduledNotificationProcessor.processScheduledNotifications,
+
+  // Auth triggers (user account deletion)
+  onUserDelete: authFunctions.onUserDelete,
 
   // Event cleanup utilities
   cleanupEventReminders: eventCleanup.cleanupEventReminders,

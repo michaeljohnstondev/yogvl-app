@@ -663,15 +663,14 @@ class FCMService {
       }
 
       // Legacy navigation handling (fallback)
-      const { type, eventId, screen, userId } = data;
+      const { type, eventId, screen, userId, studioId } = data;
       console.log('[FCMService] 📱 Using legacy navigation pattern');
-      console.log('[FCMService] Navigation data:', { type, eventId, screen, userId });
+      console.log('[FCMService] Navigation data:', { type, eventId, screen, userId, studioId });
 
       switch (type) {
         case 'event_reminder':
         case 'event_updated':
         case 'event_comment':
-        case 'event_recap':
           console.log('[FCMService] 🎯 Navigating to EventDetail for type:', type);
           if (eventId) {
             console.log('[FCMService] 🚀 Calling navigate("EventDetail", { eventId:', eventId, '})');
@@ -679,6 +678,17 @@ class FCMService {
             console.log('[FCMService] ✅ Navigate call completed');
           } else {
             console.warn('[FCMService] ⚠️ No eventId provided for', type);
+          }
+          break;
+
+        case 'event_recap':
+          console.log('[FCMService] 🎯 Navigating to EventWrapUp for event recap');
+          if (eventId && studioId) {
+            console.log('[FCMService] 🚀 Calling navigate("EventWrapUp", { eventId:', eventId, 'studioId:', studioId, '})');
+            this.navigationRef.navigate('EventWrapUp', { eventId, studioId });
+            console.log('[FCMService] ✅ Navigate call completed');
+          } else {
+            console.warn('[FCMService] ⚠️ Missing eventId or studioId for event_recap:', { eventId, studioId });
           }
           break;
 

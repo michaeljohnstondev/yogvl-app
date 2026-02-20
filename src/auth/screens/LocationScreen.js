@@ -420,10 +420,9 @@ export default function LocationScreen({ navigation }) {
             `You've been added to ${studio.name}! Now you can join the event.`
           );
         }, 500);
-      } else {
-        // Navigate to Home screen
-        navigation.navigate('Home');
       }
+      // Navigation.js will automatically transition to Home screen after location is set
+      // No need to manually navigate - the auth state change will trigger it
     } catch (err) {
       console.error('Error joining studio:', err);
       vibeAlert.error('Error', 'Failed to join studio. Please try again.');

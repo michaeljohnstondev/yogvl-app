@@ -40,6 +40,7 @@ import { usePrivacyValidation } from '../hooks/usePrivacyValidation';
 import {
   deleteUserAccount,
   getUserDeletionPreview,
+  reauthenticateUser,
 } from '../services/userDeletionService';
 import {
   uploadProfilePicture,
@@ -618,6 +619,47 @@ function UserProfile({ navigation, route }) {
     performAccountDeletion();
   };
 
+  const showPasswordPrompt = () => {
+    vibeAlert.prompt(
+      'Confirm Password',
+      'For security, please enter your password to confirm account deletion.',
+      async (password) => {
+        if (!password || password.trim() === '') {
+          vibeAlert.error('Error', 'Password is required');
+          return;
+        }
+
+        setIsDeleting(true);
+
+        try {
+          // Re-authenticate user
+          const reauthResult = await reauthenticateUser(auth.currentUser, password);
+
+          if (!reauthResult.success) {
+            vibeAlert.error('Authentication Failed', reauthResult.error);
+            setIsDeleting(false);
+            return;
+          }
+
+          // Now try deletion again after successful re-authentication
+          await performAccountDeletion();
+        } catch (error) {
+          console.error('[UserProfile] Re-authentication error:', error);
+          vibeAlert.error('Error', 'Failed to verify password. Please try again.');
+          setIsDeleting(false);
+        }
+      },
+      () => {
+        // User cancelled
+        console.log('[UserProfile] User cancelled password prompt');
+      },
+      {
+        placeholder: 'Enter your password',
+        secureTextEntry: true,
+      }
+    );
+  };
+
   const performAccountDeletion = async () => {
     setIsDeleting(true);
 
@@ -658,6 +700,11 @@ function UserProfile({ navigation, route }) {
             },
           ]
         );
+      } else if (result.requiresReauth) {
+        // User needs to re-authenticate before deletion
+        console.log('[UserProfile] Re-authentication required, showing password prompt');
+        setIsDeleting(false);
+        showPasswordPrompt();
       } else {
         console.error('[UserProfile] ❌ Deletion failed:', result);
         throw new Error(result.message || 'Deletion failed');

@@ -105,6 +105,21 @@ service cloud.firestore {
         allow write, delete: if request.auth != null && request.auth.uid == userId;
       }
 
+      // User friend requests subcollection
+      match /friendRequests/{requestId} {
+        // Users can read their own friend requests
+        allow read: if request.auth != null && request.auth.uid == userId;
+
+        // Users can create friend requests they send
+        allow create: if request.auth != null
+          && request.resource.data.senderId == request.auth.uid;
+
+        // Users can update/delete their own sent or received requests
+        allow update, delete: if request.auth != null
+          && (request.auth.uid == userId
+              || resource.data.senderId == request.auth.uid);
+      }
+
       // Host ratings subcollection - users can read their own ratings
       match /hostRatings/{ratingId} {
         allow read: if request.auth != null && request.auth.uid == userId;
@@ -404,6 +419,36 @@ service cloud.firestore {
         && data.subscribedAt is timestamp
         && data.source is string
         && data.source in ['website-join-page', 'app', 'event-qr', 'manual'];
+    }
+
+    // ===========================================================================
+    // INVITATIONS COLLECTION
+    // ===========================================================================
+
+    // Global invitations collection for phone-based invitations
+    match /invitations/{invitationId} {
+      // Event hosts can create invitations
+      allow create: if request.auth != null
+        && request.resource.data.hostId == request.auth.uid;
+
+      // Event hosts can read invitations they created
+      allow read: if request.auth != null
+        && resource.data.hostId == request.auth.uid;
+
+      // Users can read invitations sent to their phone (when linking account)
+      allow read: if request.auth != null;
+
+      // Users can update invitations sent to their phone (when linking account)
+      allow update: if request.auth != null
+        && (!resource.data.keys().hasAny(['guestId']) || resource.data.guestId == request.auth.uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['guestId', 'linkedAt', 'status']);
+
+      // Event hosts can update/delete their own invitations
+      allow update, delete: if request.auth != null
+        && resource.data.hostId == request.auth.uid;
+
+      // Admins can manage all invitations
+      allow read, write, delete: if request.auth != null && isAdmin(request.auth.uid);
     }
 
     // ===========================================================================

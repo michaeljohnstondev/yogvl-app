@@ -174,11 +174,28 @@ export default function HomeScreen({ navigation, route }) {
         feedData.subscribedEvents.map((event) => event.id)
       );
 
+      // Add invited events (includes private events the user was invited to)
+      const invitedEventIds = new Set();
+      if (feedData.invitedEvents) {
+        feedData.invitedEvents.forEach((event) => {
+          const eventDate =
+            event.eventTimestamp?.toDate() || new Date(event.utcDateTime);
+          const oneHourAfterEvent = new Date(eventDate.getTime() + 60 * 60 * 1000);
+          if (oneHourAfterEvent >= now && !subscribedEventIds.has(event.id)) {
+            invited.push({
+              ...event,
+              isHostedByUser: event.createdBy === currentUserId,
+            });
+            invitedEventIds.add(event.id);
+          }
+        });
+      }
+
       feedData.followedEvents.forEach((event) => {
         const eventDate =
           event.eventTimestamp?.toDate() || new Date(event.utcDateTime);
-        // Only add if it's upcoming AND user hasn't subscribed to it
-        if (eventDate >= now && !subscribedEventIds.has(event.id)) {
+        // Only add if it's upcoming AND user hasn't subscribed or already invited
+        if (eventDate >= now && !subscribedEventIds.has(event.id) && !invitedEventIds.has(event.id)) {
           const enrichedEvent = {
             ...event,
             isHostedByUser: event.createdBy === currentUserId,
@@ -203,8 +220,8 @@ export default function HomeScreen({ navigation, route }) {
       feedData.suggestedEvents.forEach((event) => {
         const eventDate =
           event.eventTimestamp?.toDate() || new Date(event.utcDateTime);
-        // Only add if upcoming AND not already subscribed
-        if (eventDate >= now && !subscribedEventIds.has(event.id)) {
+        // Only add if upcoming AND not already subscribed or invited
+        if (eventDate >= now && !subscribedEventIds.has(event.id) && !invitedEventIds.has(event.id)) {
           const enrichedEvent = {
             ...event,
             isHostedByUser: event.createdBy === currentUserId,

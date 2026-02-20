@@ -40,7 +40,8 @@ export class NotificationProcessor {
 
       // Query for user's notifications that should be sent now
       const q = query(
-        collection(db, 'users', userId, 'scheduledNotifications'),
+        collection(db, 'scheduledNotifications'),
+        where('userId', '==', userId),
         where('status', '==', 'pending'),
         where('scheduledFor', '<=', Timestamp.fromDate(cutoffTime)),
         orderBy('scheduledFor'),
@@ -295,7 +296,8 @@ export class NotificationProcessor {
   ) {
     try {
       const q = query(
-        collection(db, 'users', userId, 'scheduledNotifications'),
+        collection(db, 'scheduledNotifications'),
+        where('userId', '==', userId),
         where('eventId', '==', eventId),
         where('status', '==', 'pending')
       );
@@ -340,7 +342,8 @@ export class NotificationProcessor {
   static async getUserScheduledNotifications(userId, includeSent = false) {
     try {
       let q = query(
-        collection(db, 'users', userId, 'scheduledNotifications'),
+        collection(db, 'scheduledNotifications'),
+        where('userId', '==', userId),
         orderBy('scheduledFor', 'desc')
       );
 
@@ -393,7 +396,8 @@ export class NotificationProcessor {
       cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
 
       const q = query(
-        collection(db, 'users', userId, 'scheduledNotifications'),
+        collection(db, 'scheduledNotifications'),
+        where('userId', '==', userId),
         where('createdAt', '<', Timestamp.fromDate(cutoffDate)),
         limit(50) // Reduced batch size for user-specific processing
       );

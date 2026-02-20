@@ -335,9 +335,36 @@ export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
       }
     }
 
+    // Get events where user has been invited (includes private events)
+    let invitedEvents = [];
+    try {
+      const eventsRef = collection(db, 'studios', userStudio, 'events');
+      const now = Timestamp.now();
+
+      const invitedQuery = query(
+        eventsRef,
+        where('invitations', 'array-contains', currentUserId),
+        where('eventTimestamp', '>=', now),
+        orderBy('eventTimestamp', 'asc'),
+        firestoreLimit(20)
+      );
+
+      const invitedSnapshot = await getDocs(invitedQuery);
+
+      invitedEvents = invitedSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+        isInvited: true,
+        category: 'invited_events',
+      }));
+    } catch (error) {
+      console.error('[feedService] Failed to get invited events:', error);
+    }
+
     // Combine and deduplicate events
     const allEvents = [
       ...subscribedEvents,
+      ...invitedEvents,
       ...followedEvents,
       ...friendsEvents,
       ...suggestedEvents,
@@ -370,12 +397,14 @@ export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
     return {
       allEvents: uniqueEvents,
       subscribedEvents,
+      invitedEvents,
       followedEvents,
       friendsEvents,
       suggestedEvents,
       stats: {
         totalEvents: uniqueEvents.length,
         subscribedCount: subscribedEvents.length,
+        invitedCount: invitedEvents.length,
         followedCount: followedEvents.length,
         friendsCount: friendsEvents.length,
         suggestedCount: suggestedEvents.length,
@@ -385,12 +414,14 @@ export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
     return {
       allEvents: [],
       subscribedEvents: [],
+      invitedEvents: [],
       followedEvents: [],
       friendsEvents: [],
       suggestedEvents: [],
       stats: {
         totalEvents: 0,
         subscribedCount: 0,
+        invitedCount: 0,
         followedCount: 0,
         friendsCount: 0,
         suggestedCount: 0,
