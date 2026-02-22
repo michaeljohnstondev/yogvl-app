@@ -46,11 +46,14 @@ export default function ContactInfoScreen({ navigation }) {
           setFirstName(contactInfo.firstName || '');
           setLastName(contactInfo.lastName || '');
           setPhoneNumber(contactInfo.phoneNumber || '');
-        } else {
-          // No existing user data, so show empty form
-          setFirstName('');
-          setLastName('');
-          setPhoneNumber('');
+        }
+
+        // Pre-fill name from Firebase Auth profile (Google sign-in) if not in Firestore
+        const contactInfo = snap.exists() ? snap.data()?.userdata?.contactInfo : {};
+        if (!contactInfo?.firstName && user.displayName) {
+          const nameParts = user.displayName.split(' ');
+          setFirstName(nameParts[0] || '');
+          setLastName(nameParts.slice(1).join(' ') || '');
         }
       } catch (err) {
         console.error('Error fetching user data:', err);

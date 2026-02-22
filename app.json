@@ -2,7 +2,7 @@
   "expo": {
     "name": "The Yo",
     "slug": "bvs-app",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "scheme": "the-yo",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
@@ -26,7 +26,7 @@
       "supportsTablet": false,
       "supportedDevices": ["iPhone"],
       "bundleIdentifier": "com.bigvibestudios.bvs",
-      "buildNumber": "19",
+      "buildNumber": "20",
       "googleServicesFile": "./GoogleService-Info.plist",
       "runtimeVersion": {
         "policy": "appVersion"
@@ -38,6 +38,9 @@
         "NSPhotoLibraryUsageDescription": "We need photo library access to let you upload photos for your profile and events.",
         "NSContactsUsageDescription": "We need contacts access to help you invite friends to events."
       },
+      "associatedDomains": [
+        "applinks:bigvibestudios.com"
+      ],
       "entitlements": {
         "aps-environment": "production"
       }
@@ -60,7 +63,7 @@
         "barStyle": "light-content"
       },
       "package": "com.bigvibestudios.bvs",
-      "versionCode": 13,
+      "versionCode": 14,
       "compileSdkVersion": 35,
       "targetSdkVersion": 35,
       "googleServicesFile": "./google-services.json",
@@ -75,6 +78,35 @@
         "android.permission.WAKE_LOCK",
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "bigvibestudios.com",
+              "pathPrefix": "/invite"
+            },
+            {
+              "scheme": "https",
+              "host": "bigvibestudios.com",
+              "pathPrefix": "/event"
+            },
+            {
+              "scheme": "https",
+              "host": "bigvibestudios.com",
+              "pathPrefix": "/user"
+            },
+            {
+              "scheme": "https",
+              "host": "bigvibestudios.com",
+              "pathPrefix": "/join"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
       ],
       "runtimeVersion": "1.0.0"
     },

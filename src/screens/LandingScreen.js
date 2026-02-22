@@ -148,15 +148,9 @@ export default function LandingScreen() {
       const { userCredential } = await signInWithGoogle();
       const user = userCredential.user;
 
-      // Extract name from Google profile
-      const displayName = user.displayName || '';
-      const nameParts = displayName.split(' ');
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
-
+      // Create user doc without firstName/lastName so contact info screen shows
+      // The contact info screen will pre-fill name from auth.currentUser.displayName
       await ensureUserDocument(user, {
-        firstName,
-        lastName,
         profilePicture: user.photoURL || '',
         authProvider: 'google',
       });
@@ -265,24 +259,15 @@ export default function LandingScreen() {
               style={styles.authButton}
             />
 
-            {/* Forgot Password Link - Always reserve space to prevent layout shift */}
-            <View style={styles.forgotPasswordContainer}>
-              {authMode === 'login' && (
-                <Text
-                  style={styles.forgotPasswordLink}
-                  onPress={() => setShowForgotPassword(true)}
-                >
-                  Forgot Password?
-                </Text>
-              )}
-            </View>
-
-            {/* Google Sign-In Divider */}
-            <View style={styles.dividerContainer}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.dividerLine} />
-            </View>
+            {/* Forgot Password Link */}
+            {authMode === 'login' && (
+              <Text
+                style={styles.forgotPasswordLink}
+                onPress={() => setShowForgotPassword(true)}
+              >
+                Forgot Password?
+              </Text>
+            )}
 
             {/* Google Sign-In Button */}
             <Pressable
@@ -290,12 +275,15 @@ export default function LandingScreen() {
               disabled={loading || googleLoading}
               style={({ pressed }) => [
                 styles.googleButton,
-                { opacity: pressed ? 0.7 : (loading || googleLoading) ? 0.5 : 1 },
+                { opacity: pressed ? 0.85 : (loading || googleLoading) ? 0.5 : 1 },
+                { transform: [{ scale: pressed ? 0.98 : 1 }] },
               ]}
             >
-              <Text style={styles.googleButtonIcon}>G</Text>
+              <View style={styles.googleIconContainer}>
+                <Text style={styles.googleG}>G</Text>
+              </View>
               <Text style={styles.googleButtonText}>
-                {googleLoading ? 'Signing in...' : 'Continue with Google'}
+                {googleLoading ? 'Signing in...' : 'Sign in with Google'}
               </Text>
             </Pressable>
 
@@ -349,16 +337,13 @@ const styles = StyleSheet.create({
     marginTop: 10,
     width: '100%',
   },
-  forgotPasswordContainer: {
-    height: 54, // Reserve space: 20px top margin + 14px font + 20px line height
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   forgotPasswordLink: {
     color: theme.colors.vibeBlue,
     fontSize: 14,
     textAlign: 'center',
     textDecorationLine: 'underline',
+    marginTop: 14,
+    marginBottom: 4,
   },
   forgotPasswordSection: {
     width: '100%',
@@ -389,44 +374,35 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginTop: 12,
   },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-    marginVertical: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: theme.colors.gray,
-    opacity: 0.3,
-  },
-  dividerText: {
-    color: theme.colors.gray,
-    fontSize: 14,
-    paddingHorizontal: 16,
-  },
   googleButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
+    height: 48,
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
     borderWidth: 2,
-    borderColor: theme.colors.white,
-    borderRadius: theme.sizes?.buttonRadius || 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: theme.colors.vibeBlue,
+    marginTop: 20,
   },
-  googleButtonIcon: {
-    color: theme.colors.white,
-    fontSize: 20,
+  googleIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  googleG: {
+    fontSize: 18,
     fontWeight: 'bold',
-    marginRight: 12,
+    color: '#4285F4',
   },
   googleButtonText: {
-    color: theme.colors.white,
-    fontSize: 16,
+    color: '#1f1f1f',
+    fontSize: 15,
     fontWeight: '600',
   },
   legalLinksContainer: {

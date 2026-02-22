@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.bigvibestudios.bvs",
+      "sha256_cert_fingerprints": [
+        "4F:EA:2E:23:D8:E5:75:4D:56:4E:91:13:2D:AC:9D:39:6A:38:06:AA:60:F8:7E:FD:87:68:42:90:20:86:8B:18"
+      ]
+    }
+  }
+]

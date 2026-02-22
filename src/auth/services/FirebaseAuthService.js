@@ -64,14 +64,6 @@ export async function logout() {
       }
     }
 
-    // Sign out of Google so account picker shows on next login
-    try {
-      await GoogleSignin.signOut();
-    } catch (googleError) {
-      // Non-critical - user may not have used Google sign-in
-      console.warn('[Auth] ⚠️  Google signOut skipped:', googleError.message);
-    }
-
     await signOut(auth);
   } catch (error) {
     throw error;
@@ -96,6 +88,9 @@ export async function resetPassword(email) {
 export async function signInWithGoogle() {
   // Ensure Google Play Services available (Android)
   await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+
+  // Clear any cached Google session so the account picker always shows
+  try { await GoogleSignin.signOut(); } catch (_) { /* no cached session */ }
 
   // Trigger native Google sign-in UI
   const signInResult = await GoogleSignin.signIn();

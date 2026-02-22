@@ -73,6 +73,7 @@ export default function HomeScreen({ navigation, route }) {
 
   // Ref for ScrollView to enable simultaneous gesture handling
   const scrollViewRef = useRef(null);
+  const hasInitialLoadRef = useRef(false);
 
   // Memoize static components to prevent unnecessary re-renders
   const bellIcon = useMemo(() => <Text style={styles.bellIcon}>🔔</Text>, []);
@@ -375,7 +376,9 @@ export default function HomeScreen({ navigation, route }) {
       }
     };
 
-    initializeHomeScreen();
+    initializeHomeScreen().then(() => {
+      hasInitialLoadRef.current = true;
+    });
 
     // Real-time updates will be handled by useFocusEffect instead
     // to avoid unnecessary reloads from notification-related changes
@@ -405,6 +408,9 @@ export default function HomeScreen({ navigation, route }) {
   // Refresh data when screen comes into focus (e.g., returning from CreateEvent)
   useFocusEffect(
     useCallback(() => {
+      // Skip the initial mount — useEffect already handles it
+      if (!hasInitialLoadRef.current) return;
+
       // Only refresh if user has data and isn't banned
       if (currentUserId && userData && !banStatus?.isBanned && !isLoading) {
         loadEventFeed(true); // Pass true to indicate this is a refresh

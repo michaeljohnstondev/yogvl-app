@@ -180,19 +180,18 @@ export default function Navigation({ onReady }) {
             setUserData(null);
           }
 
-          // Initialize FCM service and register token for authenticated user
+          // Initialize FCM, notification permissions, and register token in parallel
           try {
-            if (!fcmService.isReady()) {
-              await fcmService.initialize();
-            }
-            // Note: Navigation ref is set via handleNavigationReady (onReady callback)
+            const fcmReady = fcmService.isReady()
+              ? Promise.resolve()
+              : fcmService.initialize();
+            const permReady = notificationPermissionService.initialized
+              ? Promise.resolve()
+              : notificationPermissionService.initialize();
 
-            // Initialize notification permission service (hydrate triggers + check OS status)
-            if (!notificationPermissionService.initialized) {
-              await notificationPermissionService.initialize();
-            }
+            await Promise.all([fcmReady, permReady]);
 
-            // Register FCM token for authenticated user
+            // Register token after FCM is ready
             if (user?.uid) {
               const tokenRegistered = await fcmService.registerTokenForUser(
                 user.uid

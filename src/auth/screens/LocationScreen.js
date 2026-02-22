@@ -141,16 +141,13 @@ export default function LocationScreen({ navigation }) {
           status = currentPermissions.status;
           console.log('[LocationScreen] Current permission status:', status);
 
-          // Only request if we don't have it yet (and only if not denied)
-          if (status !== 'granted' && status !== 'denied') {
+          // Request permission if not yet granted (undetermined or denied-but-can-ask-again)
+          if (status !== 'granted') {
             console.log('[LocationScreen] Requesting location permission...');
-            const result = await Promise.race([
-              Location.requestForegroundPermissionsAsync(),
-              new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Permission request timeout')), 3000)
-              ),
-            ]);
+            // No timeout — this is a user interaction, let the OS dialog resolve naturally
+            const result = await Location.requestForegroundPermissionsAsync();
             status = result.status;
+            console.log('[LocationScreen] Permission result after request:', status);
           }
         } catch (permissionError) {
           console.warn('[LocationScreen] Permission check/request failed:', permissionError.message);
