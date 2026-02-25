@@ -136,13 +136,8 @@ exports.onFriendEventActivity = functions.firestore
               continue;
             }
 
-            // Skip if follower is already attending
-            if (allAttendees.has(followerId)) {
-              console.log(
-                `[Follow Activity] Skipping ${followerId} - already attending`
-              );
-              continue;
-            }
+            // Track if follower is already attending (changes notification message)
+            const isAlreadyAttending = allAttendees.has(followerId);
 
             // Get follower's notification settings
             const followerDoc = await admin
@@ -178,7 +173,7 @@ exports.onFriendEventActivity = functions.firestore
               continue;
             }
 
-            // Determine message based on activity type
+            // Determine message based on activity type and whether follower is attending
             let activityText = 'joined';
             if (activityType === 'cohosting') {
               activityText = 'is co-hosting';
@@ -186,13 +181,17 @@ exports.onFriendEventActivity = functions.firestore
               activityText = 'created';
             }
 
+            // Different title for attendees vs non-attendees
+            const notificationTitle = isAlreadyAttending ? 'Friend Joined!' : 'Event Update';
+            const notificationMessage = `${participantName} ${activityText} "${eventTitle}"`;
+
             const fcmToken = followerData?.deviceInfo?.fcmToken;
 
             // Prepare notification data (used for both push and in-app)
             const notificationData = {
               type: 'follow_event_activity',
-              title: 'Event Update',
-              message: `${participantName} ${activityText} "${eventTitle}"`,
+              title: notificationTitle,
+              message: notificationMessage,
               data: {
                 eventId: eventId,
                 studioId: studioId,
@@ -221,8 +220,8 @@ exports.onFriendEventActivity = functions.firestore
               const message = {
                 token: fcmToken,
                 notification: {
-                  title: 'Event Update',
-                  body: `${participantName} ${activityText} "${eventTitle}"`,
+                  title: notificationTitle,
+                  body: notificationMessage,
                 },
                 data: {
                   type: 'follow_event_activity',

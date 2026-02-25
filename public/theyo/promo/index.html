@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Yo - Join Studio</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #000814 0%, #001d3d 100%);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+        }
+        .container {
+            padding: 40px 20px;
+            max-width: 500px;
+        }
+        .logo {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            font-size: 28px;
+            margin: 0 0 10px 0;
+            color: #00d4ff;
+        }
+        p {
+            font-size: 16px;
+            color: #a0a0a0;
+            margin: 0 0 30px 0;
+        }
+        .interests-list {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+        .interest-chip {
+            background: rgba(0, 212, 255, 0.15);
+            border: 1px solid rgba(0, 212, 255, 0.4);
+            border-radius: 20px;
+            padding: 6px 14px;
+            font-size: 14px;
+            color: #00d4ff;
+        }
+        .spinner {
+            border: 3px solid rgba(0, 212, 255, 0.1);
+            border-top: 3px solid #00d4ff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .button {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 14px 32px;
+            background: #00d4ff;
+            color: #000814;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: transform 0.2s, background 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+        .button:hover {
+            transform: scale(1.05);
+            background: #00bfea;
+        }
+        .hidden {
+            display: none;
+        }
+        #buttons {
+            margin-top: 30px;
+        }
+        .tip {
+            font-size: 13px;
+            color: #666;
+            margin-top: 16px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🎯</div>
+        <h1 id="title">Join on The Yo</h1>
+        <div id="interestsDisplay" class="interests-list hidden"></div>
+        <div id="spinner" class="spinner"></div>
+        <p id="status">Tap the button to open in The Yo app</p>
+
+        <div id="buttons">
+            <a href="#" id="openAppButton" class="button">Open in The Yo</a>
+        </div>
+
+        <div id="downloadButtons" class="hidden">
+            <p>Don't have The Yo app yet?</p>
+            <a href="#" id="downloadLink" class="button">Download The Yo</a>
+            <p class="tip">After installing, come back here and tap "Open in The Yo" to auto-join!</p>
+        </div>
+    </div>
+
+    <script>
+        // Extract the studio ID from the URL path
+        const pathParts = window.location.pathname.split('/');
+        const studioId = pathParts[pathParts.length - 1] || pathParts[pathParts.length - 2];
+
+        // Extract interests from query params
+        const urlParams = new URLSearchParams(window.location.search);
+        const interestsParam = urlParams.get('interests');
+        const interests = interestsParam ? interestsParam.split(',').map(i => i.trim()).filter(Boolean) : [];
+
+        console.log('[Redirect] Full path:', window.location.pathname);
+        console.log('[Redirect] Studio ID:', studioId);
+        console.log('[Redirect] Interests:', interests);
+
+        // Show interests if present
+        if (interests.length > 0) {
+            const display = document.getElementById('interestsDisplay');
+            display.classList.remove('hidden');
+            interests.forEach(interest => {
+                const chip = document.createElement('span');
+                chip.className = 'interest-chip';
+                chip.textContent = interest;
+                display.appendChild(chip);
+            });
+        }
+
+        // Determine if iOS or Android
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        const isAndroid = /Android/.test(navigator.userAgent);
+
+        // App store URLs
+        const appStoreURL = 'https://apps.apple.com/app/the-yo/id6738267662';
+        const playStoreURL = 'https://play.google.com/store/apps/details?id=com.bigvibestudios.bvs';
+
+        // Build deep link with interests
+        let deepLink = `the-yo://promo/${studioId}`;
+        if (interestsParam) {
+            deepLink += `?interests=${encodeURIComponent(interestsParam)}`;
+        }
+
+        console.log('[Redirect] Device:', isIOS ? 'iOS' : isAndroid ? 'Android' : 'Other');
+        console.log('[Redirect] Deep link:', deepLink);
+
+        // Setup the open app button
+        const openAppButton = document.getElementById('openAppButton');
+        openAppButton.href = deepLink;
+
+        // Track if app opened
+        let appOpened = false;
+
+        // Handle the open app button click
+        openAppButton.addEventListener('click', function(e) {
+            e.preventDefault();
+
+            console.log('[Redirect] Button clicked, attempting to open app');
+
+            // Try to open the app using iframe method
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = deepLink;
+            document.body.appendChild(iframe);
+
+            // Also try window.location as backup
+            setTimeout(() => {
+                window.location.href = deepLink;
+            }, 100);
+
+            // Hide spinner and button
+            document.getElementById('spinner').classList.add('hidden');
+            openAppButton.classList.add('hidden');
+            document.getElementById('status').textContent = 'Opening The Yo app...';
+
+            // Show download option after 2.5 seconds if app didn't open
+            setTimeout(function() {
+                if (!document.hidden) {
+                    console.log('[Redirect] App did not open, showing download option');
+                    document.getElementById('status').textContent = "App didn't open?";
+                    document.getElementById('downloadButtons').classList.remove('hidden');
+
+                    const downloadLink = document.getElementById('downloadLink');
+                    if (isIOS) {
+                        downloadLink.href = appStoreURL;
+                        downloadLink.textContent = 'Download on App Store';
+                    } else if (isAndroid) {
+                        downloadLink.href = playStoreURL;
+                        downloadLink.textContent = 'Download on Play Store';
+                    } else {
+                        downloadLink.href = playStoreURL;
+                        downloadLink.textContent = 'Download The Yo';
+                    }
+                } else {
+                    console.log('[Redirect] App opened successfully');
+                    appOpened = true;
+                }
+            }, 2500);
+        });
+
+        // Listen for visibility change
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                appOpened = true;
+                console.log('[Redirect] App opened successfully (visibility changed)');
+            }
+        });
+
+        // Auto-click the button on mobile for faster UX
+        if (isIOS || isAndroid) {
+            setTimeout(() => {
+                console.log('[Redirect] Auto-triggering app open for mobile device');
+                openAppButton.click();
+            }, 300);
+        }
+    </script>
+</body>
+</html>

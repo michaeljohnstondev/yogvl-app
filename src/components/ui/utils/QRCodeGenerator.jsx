@@ -4,8 +4,8 @@ import QRCode from 'react-native-qrcode-svg';
 import theme from '../../../theme/themes';
 
 const QRCodeGenerator = ({
-  type = 'user', // 'user', 'event', or 'app-download'
-  data, // userId, inviteCode, or {studioId, eventId} for app-download
+  type = 'user', // 'user', 'event', 'app-download', or 'promo'
+  data, // userId, inviteCode, {studioId, eventId}, or {studioId, interests[]}
   size = 200,
   showShareButton = true,
   onShare = null,
@@ -13,14 +13,20 @@ const QRCodeGenerator = ({
   const generateDeepLink = () => {
     switch (type) {
       case 'user':
-        // Use web redirect that tries app first, then falls back to download
         return `https://bigvibestudios.com/theyo/u/${data}`;
       case 'event':
-        // Use web redirect that tries app first, then falls back to download
         return `https://bigvibestudios.com/theyo/invite/${data}`;
       case 'app-download':
-        // Same as event - one URL that handles both scenarios
         return `https://bigvibestudios.com/theyo/invite/${data.inviteCode || 'unknown'}`;
+      case 'promo': {
+        const studioId = data?.studioId || 'unknown';
+        const interests = data?.interests || [];
+        let url = `https://bigvibestudios.com/theyo/promo/${studioId}`;
+        if (interests.length > 0) {
+          url += `?interests=${encodeURIComponent(interests.join(','))}`;
+        }
+        return url;
+      }
       default:
         return `https://bigvibestudios.com/theyo/u/${data}`;
     }
@@ -34,6 +40,8 @@ const QRCodeGenerator = ({
         return 'Join This Event';
       case 'app-download':
         return 'Join This Event';
+      case 'promo':
+        return 'Join Our Studio';
       default:
         return 'Scan to Connect';
     }
@@ -58,9 +66,11 @@ const QRCodeGenerator = ({
       <Text style={styles.instructions}>
         {type === 'user'
           ? 'Scan to follow my profile'
-          : type === 'event' || type === 'app-download'
-            ? 'Opens the app or redirects to download'
-            : 'Scan to connect'}
+          : type === 'promo'
+            ? 'Scan to join and discover events'
+            : type === 'event' || type === 'app-download'
+              ? 'Opens the app or redirects to download'
+              : 'Scan to connect'}
       </Text>
 
       {showShareButton && (

@@ -42,6 +42,10 @@
       {
         "source": "/theyo/u/**",
         "destination": "/theyo/u/index.html"
+      },
+      {
+        "source": "/theyo/promo/**",
+        "destination": "/theyo/promo/index.html"
       }
     ]
   },

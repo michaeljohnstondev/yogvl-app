@@ -348,8 +348,12 @@ This document provides a comprehensive inventory of all existing components in t
 - **PersonalNotifications** (`src/components/notifications/PersonalNotifications.js`)
   - Personal notification management
 
-- **AddReminderModal** (`src/components/notifications/AddReminderModal.js`)
-  - Modal for adding event reminders
+- **ReminderListSection** (`src/components/notifications/ReminderListSection.js`)
+  - Google Calendar-style reminder list with add/remove modal
+  - Props: `settings`, `onUpdateSettings`, `isLoadingTemplates`, `currentUserId`, `userContext`, `sectionStyle`
+  - Features: Vertical list of active reminders, preset picker modal, custom time input, backward-compatible template ID parsing
+  - **Used By**: HostNotificationSettingsForm, GuestNotificationSettingsForm
+  - **REUSE PRIORITY**: HIGH - Single source for all reminder UI logic
 
 ---
 

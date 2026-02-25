@@ -7,6 +7,7 @@ import { db } from '../../../auth/services/firebase';
 import { useAuth } from '../../../auth/AuthContext';
 import { VibeButton, CloseButton } from '../../../components/ui';
 import GuestNotificationSettingsForm from '../../../components/notifications/GuestNotificationSettingsForm';
+import ReminderListSection from '../../../components/notifications/ReminderListSection';
 import theme from '../../../theme/themes';
 
 const SubscriptionNotificationSettings = memo(function SubscriptionNotificationSettings({
@@ -102,19 +103,22 @@ const SubscriptionNotificationSettings = memo(function SubscriptionNotificationS
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
-            {/* Use the new reusable guest notification settings form */}
+            {/* Reminders first - most relevant when tapping date/time */}
+            <ReminderListSection
+              settings={subscriptionSettings}
+              onUpdateSettings={setSubscriptionSettings}
+              currentUserId={currentUserId}
+              userContext="attending"
+              eventData={eventData}
+              sectionStyle={styles.section}
+            />
             <GuestNotificationSettingsForm
               settings={subscriptionSettings}
               onUpdateSettings={setSubscriptionSettings}
               showCriticalUpdates={true}
               showEventUpdates={true}
-              showReminders={true}
               showSocialActivity={true}
-              showSaveAsDefaults={true}
-              onSaveAsDefaults={saveAsDefaults}
               sectionStyle={styles.section}
-              scrollViewRef={scrollViewRef}
-              userContext="attending"
             />
           </ScrollView>
 

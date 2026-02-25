@@ -111,6 +111,13 @@ export default function Navigation({ onReady }) {
             event: (event) => event,
           },
         },
+        // Promo QR deep link (studio + interests)
+        Interests: {
+          path: '/promo/:studioId',
+          parse: {
+            studioId: (studioId) => studioId,
+          },
+        },
       },
     },
     subscribe(listener) {
@@ -120,15 +127,17 @@ export default function Navigation({ onReady }) {
 
         console.log('[Navigation] Deep link received:', url);
 
-        // Parse URL to extract studio and event parameters for app download links
+        // Parse URL to extract parameters for deep links
         try {
           const urlObj = new URL(url);
-          if (urlObj.pathname === '/join' || urlObj.pathname === '/theyo/join') {
+          const pathname = urlObj.pathname;
+
+          if (pathname === '/join' || pathname === '/theyo/join') {
+            // App download QR with studio + event
             const studioId = urlObj.searchParams.get('studio');
             const eventId = urlObj.searchParams.get('event');
 
             if (studioId && eventId) {
-              // Store the studio and event for after authentication/onboarding
               await AsyncStorage.setItem(
                 'pendingStudioSelection',
                 JSON.stringify({
@@ -141,6 +150,33 @@ export default function Navigation({ onReady }) {
                 '[Navigation] Stored pending studio/event selection:',
                 { studioId, eventId }
               );
+            }
+          } else if (pathname.startsWith('/promo/') || pathname.startsWith('/theyo/promo/')) {
+            // Promo QR with studio + interests
+            const promoPath = pathname.startsWith('/theyo/promo/')
+              ? pathname.replace('/theyo/promo/', '')
+              : pathname.replace('/promo/', '');
+            const studioId = promoPath.split('/')[0];
+            const interestsParam = urlObj.searchParams.get('interests');
+            const interests = interestsParam
+              ? interestsParam.split(',').map(i => decodeURIComponent(i.trim())).filter(Boolean)
+              : [];
+
+            if (studioId) {
+              // Store promo data for processing through onboarding
+              const promoData = { studioId, interests, source: 'promo-qr' };
+              await AsyncStorage.setItem('pendingPromoData', JSON.stringify(promoData));
+
+              // Also set pendingStudioSelection for LocationScreen to auto-select
+              await AsyncStorage.setItem(
+                'pendingStudioSelection',
+                JSON.stringify({
+                  studioId,
+                  source: 'promo-qr',
+                })
+              );
+
+              console.log('[Navigation] Stored pending promo data:', promoData);
             }
           }
         } catch (error) {
@@ -312,7 +348,26 @@ export default function Navigation({ onReady }) {
 
       const userStatus =
         UserDataCleanupService.getUserCompletionStatus(userData);
-      if (!userStatus.hasContactInfo || !userStatus.hasLocation) return;
+
+      // Check for pending promo data (works even during onboarding - interests are auto-added on InterestsScreen)
+      // No navigation needed here - LocationScreen and InterestsScreen read pendingPromoData from AsyncStorage
+      try {
+        const promoData = await AsyncStorage.getItem('pendingPromoData');
+        if (promoData && userStatus.isComplete) {
+          // Fully onboarded user scanned a promo QR - navigate to Interests to auto-add
+          const { interests } = JSON.parse(promoData);
+          if (interests?.length > 0 && navigationRef.current) {
+            console.log('[Navigation] Fully onboarded user with promo data, navigating to Interests');
+            navigationRef.current.navigate('Interests', { promoInterests: interests });
+          }
+          // pendingPromoData will be cleared by InterestsScreen after processing
+        }
+      } catch (error) {
+        console.error('[Navigation] Error checking promo data:', error);
+      }
+
+      // For non-promo deep links, wait until fully onboarded (including interests)
+      if (!userStatus.hasContactInfo || !userStatus.hasLocation || !userStatus.hasInterests) return;
 
       try {
         const pendingLink = await AsyncStorage.getItem('pendingDeepLink');
@@ -371,6 +426,7 @@ export default function Navigation({ onReady }) {
             );
           }
         }
+        // Promo deep links are handled above via pendingPromoData, not here
       } catch (error) {
         console.error('[Navigation] Error handling pending deep link:', error);
       }

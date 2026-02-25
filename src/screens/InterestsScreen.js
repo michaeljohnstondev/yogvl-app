@@ -9,6 +9,7 @@ import {
   Keyboard,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../auth/AuthContext';
 import { VibeButton, VibeAutoComplete, CloseButton, VibeView } from '../components/ui';
 import { useStatusBar } from '../components/ui/base/VibeAppWrapper';
@@ -46,6 +47,62 @@ export default function InterestsScreen({ route }) {
   useEffect(() => {
     loadInterests();
   }, [currentUserId]);
+
+  // Auto-add interests from promo QR code
+  useEffect(() => {
+    if (loading || !currentUserId) return;
+
+    const processPromoInterests = async () => {
+      try {
+        // Check route params first (from Navigation.js for existing users)
+        const routeInterests = route?.params?.promoInterests;
+        // Check AsyncStorage (for new users coming through onboarding)
+        const promoDataStr = await AsyncStorage.getItem('pendingPromoData');
+        const promoData = promoDataStr ? JSON.parse(promoDataStr) : null;
+
+        const interestsToAdd = routeInterests || promoData?.interests;
+        if (!interestsToAdd || interestsToAdd.length === 0) return;
+
+        console.log('[InterestsScreen] Processing promo interests:', interestsToAdd);
+
+        // Auto-add each interest
+        let addedCount = 0;
+        for (const interest of interestsToAdd) {
+          // Skip if already in user's interests (case insensitive)
+          if (userInterests.some(existing => existing.toLowerCase() === interest.toLowerCase())) {
+            continue;
+          }
+
+          const success = await addUserInterest(currentUserId, interest);
+          if (success) {
+            addedCount++;
+            // Update local state immediately
+            setUserInterests(prev => {
+              if (prev.some(existing => existing.toLowerCase() === interest.toLowerCase())) return prev;
+              return [...prev, interest];
+            });
+            // Remove from popular suggestions
+            setPopularInterests(prev =>
+              prev.filter(item => item.interest.toLowerCase() !== interest.toLowerCase())
+            );
+          }
+        }
+
+        // Clear promo data after processing
+        await AsyncStorage.removeItem('pendingPromoData');
+
+        if (addedCount > 0) {
+          console.log(`[InterestsScreen] Auto-added ${addedCount} promo interests`);
+        }
+      } catch (error) {
+        console.error('[InterestsScreen] Error processing promo interests:', error);
+        // Still clear promo data to prevent retry loops
+        await AsyncStorage.removeItem('pendingPromoData').catch(() => {});
+      }
+    };
+
+    processPromoInterests();
+  }, [loading, currentUserId]);
 
   // Handle completing interests onboarding
   const handleComplete = async () => {

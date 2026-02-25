@@ -9,7 +9,8 @@
           "/event/*",
           "/user/*",
           "/join",
-          "/join?*"
+          "/join?*",
+          "/promo/*"
         ]
       }
     ]

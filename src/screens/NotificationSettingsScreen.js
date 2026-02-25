@@ -1,23 +1,15 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
-  Switch,
-  Alert,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-import { doc, updateDoc } from '../lib/firebase';
-import { db } from '../auth/services/firebase';
-import { VibeButton, VibeSegmentedControl } from '../components/ui';
+import { VibeSegmentedControl } from '../components/ui';
 import { NotificationSettingItem } from '../components/ui';
 import ScreenHeader from '../components/ui/layout/ScreenHeader';
-import NotificationSettingsForm from '../components/notifications/NotificationSettingsForm';
 import GuestNotificationSettingsForm from '../components/notifications/GuestNotificationSettingsForm';
 import HostNotificationSettingsForm from '../components/notifications/HostNotificationSettingsForm';
-import CustomTemplateService from '../services/CustomTemplateService';
 import { useAuth } from '../auth/AuthContext';
 import { useNotificationAutoSave } from '../hooks/useNotificationAutoSave';
 import theme from '../theme/themes';
@@ -88,12 +80,6 @@ function NotificationSettings({ navigation }) {
       userData?.userdata?.settings?.notifications?.attending
         ?.reminderTemplates || {}, // Object format, not array
   });
-
-  const reminderOptions = [
-    { label: '15 min', value: '15min' },
-    { label: '1 hour', value: '1hour' },
-    { label: '1 day', value: '1day' },
-  ];
 
   // Initial settings for comparison (prevent unnecessary saves)
   const initialAppSettings = {
@@ -183,14 +169,6 @@ function NotificationSettings({ navigation }) {
     }));
   };
 
-  const toggleHostingSetting = (key) => {
-    setHostingSettings((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
-  };
-
-
   const tabOptions = [
     { label: 'App', value: 'app' },
     { label: 'Hosting', value: 'hosting' },
@@ -279,13 +257,8 @@ function NotificationSettings({ navigation }) {
           onUpdateSettings={setHostingSettings}
           showCriticalUpdates={false}
           showEventUpdates={true}
-          showReminders={true}
           showSocialActivity={true}
-          showSaveAsDefaults={false}
           sectionStyle={styles.section}
-          scrollViewRef={scrollViewRef}
-          currentUserId={currentUserId}
-          userContext="hosting"
         />
       )}
 
@@ -294,14 +267,10 @@ function NotificationSettings({ navigation }) {
         <GuestNotificationSettingsForm
           settings={attendingSettings}
           onUpdateSettings={setAttendingSettings}
-          showCriticalUpdates={false} // Don't show cancellation toggle in defaults
+          showCriticalUpdates={false}
           showEventUpdates={true}
-          showReminders={true}
           showSocialActivity={true}
-          showSaveAsDefaults={false}
           sectionStyle={styles.section}
-          scrollViewRef={scrollViewRef}
-          userContext="attending"
         />
       )}
       </ScrollView>
@@ -320,22 +289,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 50, // Extra bottom spacing for safe scrolling
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.headerBackground,
-    paddingHorizontal: 16,
-    paddingVertical: 15,
-    borderBottomWidth: 3,
-    borderBottomColor: theme.colors.vibeBlue,
-  },
-  headerTitle: {
-    color: theme.colors.textPrimary,
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginLeft: 16,
-    flex: 1,
   },
   tabSection: {
     paddingHorizontal: 16,
@@ -364,28 +317,5 @@ const styles = StyleSheet.create({
     borderRadius: theme.sizes.borderRadius,
     borderWidth: 3,
     borderColor: theme.colors.vibeBlue,
-  },
-  reminderSection: {
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: theme.sizes.borderRadius,
-    borderWidth: 3,
-    borderColor: theme.colors.vibeBlue,
-    padding: 20,
-  },
-  reminderLabel: {
-    color: theme.colors.textPrimary,
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 15,
-  },
-  segmentedControl: {
-    width: '100%',
-  },
-  buttonContainer: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  saveButton: {
-    width: '100%',
   },
 });

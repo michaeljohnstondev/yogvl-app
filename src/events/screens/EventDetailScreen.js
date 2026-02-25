@@ -270,6 +270,7 @@ const EventDetailScreen = memo(function EventDetailScreen({
         userContext: 'hosting',
         eventId,
         studioId,
+        eventData: event,
       });
     } else {
       // Guest: Open subscription modal

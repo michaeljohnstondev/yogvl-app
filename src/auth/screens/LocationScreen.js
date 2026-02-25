@@ -394,14 +394,15 @@ export default function LocationScreen({ navigation }) {
         `User ${user.uid} successfully switched to studio ${studio.id} from ${currentStudioId || 'none'}`
       );
 
-      // Handle pending event navigation or default to Home
+      // Clear pending selection since studio is now saved
+      await AsyncStorage.removeItem('pendingStudioSelection');
+
+      // Handle pending event navigation
       if (pendingData && pendingData.eventId) {
         console.log(
           '[LocationScreen] Navigating to pending event:',
           pendingData.eventId
         );
-        // Clear the pending selection since we're handling it
-        await AsyncStorage.removeItem('pendingStudioSelection');
 
         // Navigate directly to the event
         navigation.navigate('EventDetail', {
@@ -417,8 +418,12 @@ export default function LocationScreen({ navigation }) {
             `You've been added to ${studio.name}! Now you can join the event.`
           );
         }, 500);
+      } else if (pendingData && pendingData.source === 'promo-qr') {
+        // Promo QR: studio saved, interests will be auto-added on InterestsScreen
+        // Navigation.js transitions to InterestsScreen since hasLocation is now true
+        console.log('[LocationScreen] Promo QR studio saved, transitioning to interests...');
       }
-      // Navigation.js will automatically transition to Home screen after location is set
+      // Navigation.js will automatically transition based on onboarding status
       // No need to manually navigate - the auth state change will trigger it
     } catch (err) {
       console.error('Error joining studio:', err);
