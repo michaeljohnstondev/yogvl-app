@@ -9,6 +9,7 @@ import {
   Modal,
   Keyboard,
   Platform,
+  Linking,
 } from 'react-native';
 import VibeInput from '../ui/base/VibeInput';
 import VibeDropdown from '../ui/base/VibeDropdown';
@@ -207,12 +208,39 @@ export default function ReminderListSection({
 
     try {
       const Calendar = await import('expo-calendar');
-      const { status } = await Calendar.requestCalendarPermissionsAsync();
+
+      // Check existing permission first
+      const existing = await Calendar.getCalendarPermissionsAsync();
+      console.log('[ReminderList] Existing calendar permission:', existing.status, 'canAskAgain:', existing.canAskAgain);
+
+      let status = existing.status;
+      if (status !== 'granted') {
+        if (!existing.canAskAgain) {
+          // Permission permanently denied — show alert with Open Settings button
+          vibeAlert.warning(
+            'Calendar Access Needed',
+            'To add events to your calendar, enable Calendar permission in your phone settings.',
+            [
+              { text: 'Open Settings', onPress: () => Linking.openSettings() },
+              { text: 'Cancel' },
+            ]
+          );
+          return;
+        }
+        // Request permission (will show system prompt)
+        const request = await Calendar.requestCalendarPermissionsAsync();
+        console.log('[ReminderList] Calendar permission request result:', request.status);
+        status = request.status;
+      }
 
       if (status !== 'granted') {
         vibeAlert.warning(
           'Calendar Access',
-          'Enable calendar access in your phone settings to add events.'
+          'Calendar permission is needed to add events. Try again and tap "Allow" when prompted.',
+          [
+            { text: 'Try Again', onPress: () => addToCalendar() },
+            { text: 'Cancel' },
+          ]
         );
         return;
       }
