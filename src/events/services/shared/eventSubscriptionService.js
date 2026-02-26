@@ -135,7 +135,19 @@ export const subscribeToEvent = async (
           console.log(`[EventSubscription] Stored notification settings for user ${userId}, event ${eventId}`);
         } catch (settingsError) {
           console.error('[EventSubscription] Failed to store notification settings:', settingsError);
-          // Don't fail subscription if settings storage fails
+        }
+
+        // Store per-event guest notification settings where Cloud Functions check
+        try {
+          const guestSettingsRef = doc(db, 'studios', studioId, 'events', eventId, 'guestNotificationSettings', userId);
+          await setDoc(guestSettingsRef, {
+            notificationSettings,
+            subscribedAt: Timestamp.now(),
+            userId,
+          });
+          console.log(`[EventSubscription] Created guestNotificationSettings for user ${userId}, event ${eventId}`);
+        } catch (settingsError) {
+          console.error('[EventSubscription] Failed to create guestNotificationSettings:', settingsError);
         }
 
         // Add notification subscription with user's settings
@@ -286,18 +298,27 @@ export const addEventNotificationSubscription = async (
 ) => {
   try {
     console.log(
-      `[EventSubscription] Adding notification subscription for user ${userId}, event ${eventId}:`,
+      `[EventSubscription] Updating notification settings for user ${userId}, event ${eventId}:`,
       settings
     );
+
+    // Update per-event guest notification settings where Cloud Functions check
+    try {
+      const guestSettingsRef = doc(db, 'studios', studioId, 'events', eventId, 'guestNotificationSettings', userId);
+      await setDoc(guestSettingsRef, {
+        notificationSettings: settings,
+        updatedAt: Timestamp.now(),
+        userId,
+      }, { merge: true });
+      console.log(`[EventSubscription] Updated guestNotificationSettings for user ${userId}, event ${eventId}`);
+    } catch (settingsError) {
+      console.error('[EventSubscription] Failed to update guestNotificationSettings:', settingsError);
+    }
 
     // Try to import scheduled notification service if it exists
     try {
       const { ScheduledNotificationService } = await import(
         '../../../services/scheduledNotifications'
-      );
-
-      console.log(
-        '[EventSubscription] ScheduledNotificationService imported successfully'
       );
 
       await ScheduledNotificationService.subscribeToEventNotifications(
@@ -308,25 +329,19 @@ export const addEventNotificationSubscription = async (
       );
 
       console.log(
-        `[EventSubscription] Successfully subscribed user ${userId} to event ${eventId} notifications`
+        `[EventSubscription] Successfully updated notification subscriptions for user ${userId}, event ${eventId}`
       );
     } catch (importError) {
       console.error(
         '[EventSubscription] Error importing or using ScheduledNotificationService:',
         importError
       );
-      // For now, log the settings that would have been applied
-      console.log(
-        `[EventSubscription] Notification subscription added for user ${userId}, event ${eventId}:`,
-        settings
-      );
     }
   } catch (error) {
     console.error(
-      '[EventSubscription] Error adding notification subscription:',
+      '[EventSubscription] Error updating notification subscription:',
       error
     );
-    // Re-throw error for proper error handling upstream
     throw error;
   }
 };

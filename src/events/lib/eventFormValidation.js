@@ -296,6 +296,7 @@ export const formatEventForStorage = (
     trackAttendance,
     attendanceType,
     isOfficialEvent,
+    notificationSettings,
   } = formData;
 
   // Format main event date/time
@@ -408,6 +409,9 @@ export const formatEventForStorage = (
 
     // OFFICIAL EVENTS (admin only)
     isOfficialEvent: isOfficialEvent ?? false,
+
+    // HOST NOTIFICATION SETTINGS (per-event)
+    ...(notificationSettings ? { notificationSettings } : {}),
   };
 };
 

@@ -62,8 +62,19 @@ exports.onEventSubscribed = functions.firestore
 
           const recipientData = recipientDoc.data();
 
-          // Check if recipient has enabled join notifications
-          const notifyOnJoin = recipientData?.userdata?.settings?.notifications?.hosting?.notifyOnJoin;
+          // Check per-event host settings first, fall back to user defaults
+          const perEventSettings = eventData.notificationSettings || {};
+          const userHostingSettings = recipientData?.userdata?.settings?.notifications?.hosting || {};
+
+          // Master enabled: per-event if set, else user default
+          const masterEnabled = perEventSettings.enabled ?? userHostingSettings.enabled ?? true;
+          if (!masterEnabled) {
+            console.log(`[Event Subscription] Recipient ${recipientId} has master hosting notifications disabled`);
+            return;
+          }
+
+          // notifyOnJoin: per-event if set, else user default
+          const notifyOnJoin = perEventSettings.notifyOnJoin ?? userHostingSettings.notifyOnJoin ?? true;
 
           if (!notifyOnJoin) {
             console.log(`[Event Subscription] Recipient ${recipientId} has disabled join notifications`);
@@ -221,8 +232,19 @@ exports.onEventUnsubscribed = functions.firestore
 
           const recipientData = recipientDoc.data();
 
-          // Check if recipient has enabled leave notifications
-          const notifyOnLeave = recipientData?.userdata?.settings?.notifications?.hosting?.notifyOnLeave;
+          // Check per-event host settings first, fall back to user defaults
+          const perEventSettings = eventData.notificationSettings || {};
+          const userHostingSettings = recipientData?.userdata?.settings?.notifications?.hosting || {};
+
+          // Master enabled: per-event if set, else user default
+          const masterEnabled = perEventSettings.enabled ?? userHostingSettings.enabled ?? true;
+          if (!masterEnabled) {
+            console.log(`[Event Unsubscription] Recipient ${recipientId} has master hosting notifications disabled`);
+            return;
+          }
+
+          // notifyOnLeave: per-event if set, else user default
+          const notifyOnLeave = perEventSettings.notifyOnLeave ?? userHostingSettings.notifyOnLeave ?? true;
 
           if (!notifyOnLeave) {
             console.log(`[Event Unsubscription] Recipient ${recipientId} has disabled leave notifications`);

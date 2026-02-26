@@ -14,6 +14,7 @@ const GuestNotificationSettingsForm = memo(function GuestNotificationSettingsFor
   showCriticalUpdates = true,
   showEventUpdates = true,
   showSocialActivity = true,
+  isPerEvent = false,
   sectionStyle,
 }) {
   const toggleSetting = (key) => {
@@ -59,11 +60,16 @@ const GuestNotificationSettingsForm = memo(function GuestNotificationSettingsFor
     <>
       {/* Master Toggle for Attendee Notifications */}
       <View style={[styles.section, sectionStyle]}>
-        <Text style={styles.sectionTitle}>GUEST NOTIFICATIONS</Text>
+        <Text style={styles.sectionTitle}>
+          {isPerEvent ? 'EVENT NOTIFICATIONS' : 'GUEST NOTIFICATIONS'}
+        </Text>
         <View style={styles.settingsGroup}>
           <SettingItem
             title="Enable Notifications"
-            description="Turn on notifications for events you're attending"
+            description={isPerEvent
+              ? "Turn on notifications for this event"
+              : "Turn on notifications for events you're attending"
+            }
             value={settings?.enabled ?? true}
             onToggle={() => toggleSetting('enabled')}
             isLast
@@ -81,7 +87,10 @@ const GuestNotificationSettingsForm = memo(function GuestNotificationSettingsFor
           <View style={styles.settingsGroup}>
             <SettingItem
               title="Event Cancellation"
-              description="Important: Always receive cancellation notices"
+              description={isPerEvent
+                ? "Always notified if this event is cancelled"
+                : "Always receive cancellation notices"
+              }
               value={true}
               onToggle={() => {}} // No-op
               disabled={true}
@@ -99,21 +108,28 @@ const GuestNotificationSettingsForm = memo(function GuestNotificationSettingsFor
           <View style={styles.settingsGroup}>
             <SettingItem
               title="Host Changes"
-              description="Time, location, details, fees, and other event changes"
+              description={isPerEvent
+                ? "Notified when the host updates this event"
+                : "Time, location, details, fees, and other event changes"
+              }
               value={settings?.hostChanges ?? true}
               onToggle={() => toggleSetting('hostChanges')}
             />
             <SettingItem
               title="Host Comments"
-              description="Comments from the event host"
-              // TODO: Implement batching after first comment
+              description={isPerEvent
+                ? "Comments posted by the host on this event"
+                : "Comments from the event host"
+              }
               value={settings?.hostComments ?? true}
               onToggle={() => toggleSetting('hostComments')}
             />
             <SettingItem
               title="Other Comments"
-              description="Comments from attendees"
-              // TODO: Implement batching after first comment
+              description={isPerEvent
+                ? "Comments from other attendees on this event"
+                : "Comments from attendees"
+              }
               value={settings?.newComments ?? false}
               onToggle={() => toggleSetting('newComments')}
               isLast

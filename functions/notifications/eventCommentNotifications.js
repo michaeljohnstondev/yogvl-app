@@ -70,15 +70,16 @@ exports.onHostComment = functions.firestore
         .collection(`studios/${studioId}/events/${eventId}/subscribers`)
         .get();
 
-      // Get message board subscribers from the event document
+      // Get message board subscribers, cohosts, and muted list from the event document
       const messageBoardSubscribers = eventData.messageBoardSubscribers || [];
+      const cohosts = eventData.cohosts || [];
       const messageBoardMuted = eventData.messageBoardMuted || [];
 
-      console.log(`[Host Comment] 📊 Found ${subscribersSnapshot.docs.length} event subscribers and ${messageBoardSubscribers.length} message board subscribers`);
+      console.log(`[Host Comment] 📊 Found ${subscribersSnapshot.docs.length} event subscribers, ${cohosts.length} cohosts, and ${messageBoardSubscribers.length} message board subscribers`);
 
-      // Combine both lists and remove duplicates
+      // Combine all lists (subscribers + cohosts + message board) and remove duplicates
       const eventSubscriberIds = subscribersSnapshot.docs.map(doc => doc.id);
-      const allRecipientIds = [...new Set([...eventSubscriberIds, ...messageBoardSubscribers])];
+      const allRecipientIds = [...new Set([...eventSubscriberIds, ...cohosts, ...messageBoardSubscribers])];
 
       // Filter out muted users
       const recipientIds = allRecipientIds.filter(userId => !messageBoardMuted.includes(userId));
@@ -115,6 +116,7 @@ exports.onHostComment = functions.firestore
           console.log(`[Host Comment] ✅ Subscriber ${subscriberId} document found`);
 
           // Check per-event notification settings (NEW LOCATION on event), fall back to defaults
+          let masterEnabled = true;
           let hostCommentsEnabled = false;
           try {
             const eventSettingsDoc = await admin.firestore()
@@ -122,18 +124,29 @@ exports.onHostComment = functions.firestore
               .get();
 
             if (eventSettingsDoc.exists) {
-              hostCommentsEnabled = eventSettingsDoc.data()?.notificationSettings?.hostComments ?? true;
-              console.log(`[Host Comment] 📋 Using per-event settings for subscriber ${subscriberId}: hostComments = ${hostCommentsEnabled}`);
+              const perEventSettings = eventSettingsDoc.data()?.notificationSettings || {};
+              masterEnabled = perEventSettings.enabled ?? true;
+              hostCommentsEnabled = perEventSettings.hostComments ?? true;
+              console.log(`[Host Comment] 📋 Using per-event settings for subscriber ${subscriberId}: enabled = ${masterEnabled}, hostComments = ${hostCommentsEnabled}`);
             } else {
               // Fallback to default template if per-event settings don't exist
-              hostCommentsEnabled = subscriberData?.userdata?.settings?.notifications?.attending?.hostComments ?? true;
-              console.log(`[Host Comment] ⚠️ No per-event settings found, using defaults for subscriber ${subscriberId}: hostComments = ${hostCommentsEnabled}`);
+              const userDefaults = subscriberData?.userdata?.settings?.notifications?.attending || {};
+              masterEnabled = userDefaults.enabled ?? true;
+              hostCommentsEnabled = userDefaults.hostComments ?? true;
+              console.log(`[Host Comment] ⚠️ No per-event settings found, using defaults for subscriber ${subscriberId}: enabled = ${masterEnabled}, hostComments = ${hostCommentsEnabled}`);
             }
           } catch (settingsError) {
             console.error(`[Host Comment] Error fetching per-event settings for ${subscriberId}:`, settingsError);
             // Fallback to defaults on error
-            hostCommentsEnabled = subscriberData?.userdata?.settings?.notifications?.attending?.hostComments ?? true;
+            const userDefaults = subscriberData?.userdata?.settings?.notifications?.attending || {};
+            masterEnabled = userDefaults.enabled ?? true;
+            hostCommentsEnabled = userDefaults.hostComments ?? true;
             console.log(`[Host Comment] ⚠️ Error fetching settings, using defaults for subscriber ${subscriberId}: hostComments = ${hostCommentsEnabled}`);
+          }
+
+          if (!masterEnabled) {
+            console.log(`[Host Comment] ⚠️ Subscriber ${subscriberId} has master notifications disabled`);
+            return;
           }
 
           console.log(`[Host Comment] 📋 Final hostComments setting for subscriber ${subscriberId}: ${hostCommentsEnabled}`);
@@ -349,6 +362,7 @@ exports.onGuestComment = functions.firestore
           console.log(`[Guest Comment] ✅ Host/cohost ${recipientId} document found`);
 
           // Check per-event notification settings (NEW LOCATION on event), fall back to defaults
+          let masterEnabled = true;
           let newCommentsEnabled = false;
           try {
             const eventSettingsDoc = await admin.firestore()
@@ -356,18 +370,29 @@ exports.onGuestComment = functions.firestore
               .get();
 
             if (eventSettingsDoc.exists) {
-              newCommentsEnabled = eventSettingsDoc.data()?.notificationSettings?.newComments ?? false;
-              console.log(`[Guest Comment] 📋 Using per-event settings for host/cohost ${recipientId}: newComments = ${newCommentsEnabled}`);
+              const perEventSettings = eventSettingsDoc.data()?.notificationSettings || {};
+              masterEnabled = perEventSettings.enabled ?? true;
+              newCommentsEnabled = perEventSettings.newComments ?? false;
+              console.log(`[Guest Comment] 📋 Using per-event settings for host/cohost ${recipientId}: enabled = ${masterEnabled}, newComments = ${newCommentsEnabled}`);
             } else {
               // Fallback to hosting defaults for host/cohosts
-              newCommentsEnabled = recipientData?.userdata?.settings?.notifications?.hosting?.newComments ?? false;
-              console.log(`[Guest Comment] ⚠️ No per-event settings found, using hosting defaults for ${recipientId}: newComments = ${newCommentsEnabled}`);
+              const hostDefaults = recipientData?.userdata?.settings?.notifications?.hosting || {};
+              masterEnabled = hostDefaults.enabled ?? true;
+              newCommentsEnabled = hostDefaults.newComments ?? false;
+              console.log(`[Guest Comment] ⚠️ No per-event settings found, using hosting defaults for ${recipientId}: enabled = ${masterEnabled}, newComments = ${newCommentsEnabled}`);
             }
           } catch (settingsError) {
             console.error(`[Guest Comment] Error fetching per-event settings for ${recipientId}:`, settingsError);
             // Fallback to hosting defaults on error
-            newCommentsEnabled = recipientData?.userdata?.settings?.notifications?.hosting?.newComments ?? false;
+            const hostDefaults = recipientData?.userdata?.settings?.notifications?.hosting || {};
+            masterEnabled = hostDefaults.enabled ?? true;
+            newCommentsEnabled = hostDefaults.newComments ?? false;
             console.log(`[Guest Comment] ⚠️ Error fetching settings, using hosting defaults for ${recipientId}: newComments = ${newCommentsEnabled}`);
+          }
+
+          if (!masterEnabled) {
+            console.log(`[Guest Comment] ⚠️ Host/cohost ${recipientId} has master notifications disabled`);
+            return;
           }
 
           console.log(`[Guest Comment] 📋 Final newComments setting for host/cohost ${recipientId}: ${newCommentsEnabled}`);
@@ -484,6 +509,7 @@ exports.onGuestComment = functions.firestore
           console.log(`[Guest Comment] ✅ Subscriber ${subscriberId} document found`);
 
           // Check per-event notification settings (NEW LOCATION on event), fall back to defaults
+          let masterEnabled = true;
           let newCommentsEnabled = false;
           try {
             const eventSettingsDoc = await admin.firestore()
@@ -491,18 +517,29 @@ exports.onGuestComment = functions.firestore
               .get();
 
             if (eventSettingsDoc.exists) {
-              newCommentsEnabled = eventSettingsDoc.data()?.notificationSettings?.newComments ?? false;
-              console.log(`[Guest Comment] 📋 Using per-event settings for subscriber ${subscriberId}: newComments = ${newCommentsEnabled}`);
+              const perEventSettings = eventSettingsDoc.data()?.notificationSettings || {};
+              masterEnabled = perEventSettings.enabled ?? true;
+              newCommentsEnabled = perEventSettings.newComments ?? false;
+              console.log(`[Guest Comment] 📋 Using per-event settings for subscriber ${subscriberId}: enabled = ${masterEnabled}, newComments = ${newCommentsEnabled}`);
             } else {
               // Fallback to default template if per-event settings don't exist
-              newCommentsEnabled = subscriberData?.userdata?.settings?.notifications?.attending?.newComments ?? false;
-              console.log(`[Guest Comment] ⚠️ No per-event settings found, using defaults for subscriber ${subscriberId}: newComments = ${newCommentsEnabled}`);
+              const userDefaults = subscriberData?.userdata?.settings?.notifications?.attending || {};
+              masterEnabled = userDefaults.enabled ?? true;
+              newCommentsEnabled = userDefaults.newComments ?? false;
+              console.log(`[Guest Comment] ⚠️ No per-event settings found, using defaults for subscriber ${subscriberId}: enabled = ${masterEnabled}, newComments = ${newCommentsEnabled}`);
             }
           } catch (settingsError) {
             console.error(`[Guest Comment] Error fetching per-event settings for ${subscriberId}:`, settingsError);
             // Fallback to defaults on error
-            newCommentsEnabled = subscriberData?.userdata?.settings?.notifications?.attending?.newComments ?? false;
+            const userDefaults = subscriberData?.userdata?.settings?.notifications?.attending || {};
+            masterEnabled = userDefaults.enabled ?? true;
+            newCommentsEnabled = userDefaults.newComments ?? false;
             console.log(`[Guest Comment] ⚠️ Error fetching settings, using defaults for subscriber ${subscriberId}: newComments = ${newCommentsEnabled}`);
+          }
+
+          if (!masterEnabled) {
+            console.log(`[Guest Comment] ⚠️ Subscriber ${subscriberId} has master notifications disabled`);
+            return;
           }
 
           console.log(`[Guest Comment] 📋 Final newComments setting for subscriber ${subscriberId}: ${newCommentsEnabled}`);

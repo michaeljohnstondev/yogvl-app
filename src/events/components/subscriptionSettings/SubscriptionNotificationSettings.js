@@ -91,7 +91,7 @@ const SubscriptionNotificationSettings = memo(function SubscriptionNotificationS
             <CloseButton onPress={onClose} />
           </View>
           <Text style={styles.headerTitle}>
-            {isSubscribed ? 'Notification Settings' : 'Notification Preferences'}
+            Event Notifications
           </Text>
           <View style={styles.headerRight} />
         </View>
@@ -118,6 +118,7 @@ const SubscriptionNotificationSettings = memo(function SubscriptionNotificationS
               showCriticalUpdates={true}
               showEventUpdates={true}
               showSocialActivity={true}
+              isPerEvent={true}
               sectionStyle={styles.section}
             />
           </ScrollView>

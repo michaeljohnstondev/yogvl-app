@@ -41,17 +41,21 @@ exports.onEventUpdated = functions.firestore
         .collection(`studios/${studioId}/events/${eventId}/subscribers`)
         .get();
 
-      if (subscribersSnapshot.empty) {
-        console.log(`[Event Update] No subscribers found for event ${eventId}`);
+      // Build recipient list: subscribers + cohosts (deduplicated)
+      const cohosts = afterData.cohosts || [];
+      const subscriberIds = subscribersSnapshot.docs.map(doc => doc.id);
+      const allRecipients = [...new Set([...subscriberIds, ...cohosts])];
+
+      if (allRecipients.length === 0) {
+        console.log(`[Event Update] No recipients found for event ${eventId}`);
         return;
       }
 
       // Create change summary for notification
       const changesSummary = createChangesSummary(significantChanges, beforeData, afterData);
 
-      // Send notifications to each subscriber (excluding event creator)
-      const notificationPromises = subscribersSnapshot.docs.map(async (subscriberDoc) => {
-        const subscriberId = subscriberDoc.id;
+      // Send notifications to each recipient (excluding event creator)
+      const notificationPromises = allRecipients.map(async (subscriberId) => {
 
         // Skip event creator - they made the changes
         if (subscriberId === eventCreatorId) {
@@ -70,8 +74,34 @@ exports.onEventUpdated = functions.firestore
 
           const subscriberData = subscriberUserDoc.data();
 
-          // Check if subscriber has enabled event change notifications
-          const hostChangesEnabled = subscriberData?.userdata?.settings?.notifications?.attending?.hostChanges;
+          // Check per-event settings first, then fall back to user defaults
+          let masterEnabled = true;
+          let hostChangesEnabled = true;
+          try {
+            const perEventDoc = await admin.firestore()
+              .doc(`studios/${studioId}/events/${eventId}/guestNotificationSettings/${subscriberId}`)
+              .get();
+
+            if (perEventDoc.exists) {
+              const perEventSettings = perEventDoc.data()?.notificationSettings || {};
+              masterEnabled = perEventSettings.enabled ?? true;
+              hostChangesEnabled = perEventSettings.hostChanges ?? true;
+            } else {
+              const userDefaults = subscriberData?.userdata?.settings?.notifications?.attending || {};
+              masterEnabled = userDefaults.enabled ?? true;
+              hostChangesEnabled = userDefaults.hostChanges ?? true;
+            }
+          } catch (settingsErr) {
+            console.warn(`[Event Update] Failed to read per-event settings for ${subscriberId}, using defaults`);
+            const userDefaults = subscriberData?.userdata?.settings?.notifications?.attending || {};
+            masterEnabled = userDefaults.enabled ?? true;
+            hostChangesEnabled = userDefaults.hostChanges ?? true;
+          }
+
+          if (!masterEnabled) {
+            console.log(`[Event Update] Subscriber ${subscriberId} has master notifications disabled`);
+            return;
+          }
 
           if (!hostChangesEnabled) {
             console.log(`[Event Update] Subscriber ${subscriberId} has disabled host change notifications`);
@@ -269,12 +299,14 @@ exports.onEventDeleted = functions.firestore
         // Don't throw - notification cleanup failure shouldn't break the function
       }
 
-      // Get all event subscribers before deletion (from the deleted document data)
-      // Note: We can't query the subcollection after deletion, so we use the subscribers array
+      // Get all event subscribers + cohosts before deletion (from the deleted document data)
+      // Note: We can't query the subcollection after deletion, so we use the arrays from the document
       const subscriberIds = eventData.subscribers || [];
+      const cohosts = eventData.cohosts || [];
+      const allRecipients = [...new Set([...subscriberIds, ...cohosts])];
 
       // Filter out the event creator - they don't need a notification about their own deletion
-      const subscribersToNotify = subscriberIds.filter(id => id !== eventCreatorId);
+      const subscribersToNotify = allRecipients.filter(id => id !== eventCreatorId);
 
       if (subscribersToNotify.length === 0) {
         console.log(`[Event Deletion] No subscribers to notify for deleted event ${eventId} (creator excluded)`);
@@ -296,13 +328,8 @@ exports.onEventDeleted = functions.firestore
 
           const subscriberData = subscriberUserDoc.data();
 
-          // Check if subscriber has enabled event change notifications
-          const hostChangesEnabled = subscriberData?.userdata?.settings?.notifications?.attending?.hostChanges;
-
-          if (!hostChangesEnabled) {
-            console.log(`[Event Deletion] Subscriber ${subscriberId} has disabled host change notifications`);
-            return;
-          }
+          // Cancellations are critical — always send, no setting check needed
+          // (UI shows eventCancellation as always-on disabled toggle)
 
           const fcmToken = subscriberData?.deviceInfo?.fcmToken;
 

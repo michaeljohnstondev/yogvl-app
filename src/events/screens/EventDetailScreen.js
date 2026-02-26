@@ -226,8 +226,9 @@ const EventDetailScreen = memo(function EventDetailScreen({
     if (!event) return;
 
     const isHost = event.createdBy === currentUserId;
+    const isCohost = event.cohosts?.includes(currentUserId);
 
-    if (isHost) {
+    if (isHost || isCohost) {
       // Host: Load notification settings (from event or user defaults)
       let notificationSettings = event.notificationSettings;
 
