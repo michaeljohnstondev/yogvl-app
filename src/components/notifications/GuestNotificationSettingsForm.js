@@ -16,6 +16,7 @@ const GuestNotificationSettingsForm = memo(function GuestNotificationSettingsFor
   showSocialActivity = true,
   isPerEvent = false,
   sectionStyle,
+  renderAfterToggle,
 }) {
   const toggleSetting = (key) => {
     onUpdateSettings({
@@ -34,12 +35,10 @@ const GuestNotificationSettingsForm = memo(function GuestNotificationSettingsFor
   }) => (
     <View style={[styles.settingItem, !isLast && styles.settingBorder]}>
       <View style={styles.settingContent}>
-        <Text style={[styles.settingTitle, disabled && styles.disabledText]}>
+        <Text style={styles.settingTitle}>
           {title}
         </Text>
-        <Text
-          style={[styles.settingDescription, disabled && styles.disabledText]}
-        >
+        <Text style={styles.settingDescription}>
           {description}
         </Text>
       </View>
@@ -80,63 +79,57 @@ const GuestNotificationSettingsForm = memo(function GuestNotificationSettingsFor
       {/* Only show other settings if notifications are enabled */}
       {(settings?.enabled ?? true) && (
         <>
-          {/* Critical Updates - Always On */}
-          {showCriticalUpdates && (
-        <View style={[styles.section, sectionStyle]}>
-          <Text style={styles.sectionTitle}>CRITICAL UPDATES</Text>
-          <View style={styles.settingsGroup}>
-            <SettingItem
-              title="Event Cancellation"
-              description={isPerEvent
-                ? "Always notified if this event is cancelled"
-                : "Always receive cancellation notices"
-              }
-              value={true}
-              onToggle={() => {}} // No-op
-              disabled={true}
-              isLast
-            />
-          </View>
-        </View>
-      )}
+          {/* Reminders injected between toggle and activity */}
+          {renderAfterToggle && renderAfterToggle()}
 
-
-      {/* Event Activity */}
-      {showSocialActivity && (
-        <View style={[styles.section, sectionStyle]}>
-          <Text style={styles.sectionTitle}>EVENT ACTIVITY</Text>
-          <View style={styles.settingsGroup}>
-            <SettingItem
-              title="Host Changes"
-              description={isPerEvent
-                ? "Notified when the host updates this event"
-                : "Time, location, details, fees, and other event changes"
-              }
-              value={settings?.hostChanges ?? true}
-              onToggle={() => toggleSetting('hostChanges')}
-            />
-            <SettingItem
-              title="Host Comments"
-              description={isPerEvent
-                ? "Comments posted by the host on this event"
-                : "Comments from the event host"
-              }
-              value={settings?.hostComments ?? true}
-              onToggle={() => toggleSetting('hostComments')}
-            />
-            <SettingItem
-              title="Other Comments"
-              description={isPerEvent
-                ? "Comments from other attendees on this event"
-                : "Comments from attendees"
-              }
-              value={settings?.newComments ?? false}
-              onToggle={() => toggleSetting('newComments')}
-              isLast
-            />
-          </View>
-        </View>
-      )}
+          {/* Event Activity */}
+          {showSocialActivity && (
+            <View style={[styles.section, sectionStyle]}>
+              <Text style={styles.sectionTitle}>EVENT ACTIVITY</Text>
+              <View style={styles.settingsGroup}>
+                {showCriticalUpdates && (
+                  <SettingItem
+                    title="Event Cancellation"
+                    description={isPerEvent
+                      ? "Always notified if this event is cancelled"
+                      : "Always receive cancellation notices"
+                    }
+                    value={true}
+                    onToggle={() => {}}
+                    disabled={true}
+                  />
+                )}
+                <SettingItem
+                  title="Host Changes"
+                  description={isPerEvent
+                    ? "Notified when the host updates this event"
+                    : "Time, location, details, fees, and other event changes"
+                  }
+                  value={settings?.hostChanges ?? true}
+                  onToggle={() => toggleSetting('hostChanges')}
+                />
+                <SettingItem
+                  title="Host Comments"
+                  description={isPerEvent
+                    ? "Comments posted by the host on this event"
+                    : "Comments from the event host"
+                  }
+                  value={settings?.hostComments ?? true}
+                  onToggle={() => toggleSetting('hostComments')}
+                />
+                <SettingItem
+                  title="Other Comments"
+                  description={isPerEvent
+                    ? "Comments from other attendees on this event"
+                    : "Comments from attendees"
+                  }
+                  value={settings?.newComments ?? false}
+                  onToggle={() => toggleSetting('newComments')}
+                  isLast
+                />
+              </View>
+            </View>
+          )}
         </>
       )}
     </>

@@ -10,6 +10,7 @@ import {
   Keyboard,
   Platform,
   Linking,
+  Alert,
 } from 'react-native';
 import VibeInput from '../ui/base/VibeInput';
 import VibeDropdown from '../ui/base/VibeDropdown';
@@ -211,83 +212,106 @@ export default function ReminderListSection({
 
       // Check existing permission first
       const existing = await Calendar.getCalendarPermissionsAsync();
-      console.log('[ReminderList] Existing calendar permission:', existing.status, 'canAskAgain:', existing.canAskAgain);
+      console.log('[Calendar] Permission:', existing.status, 'canAskAgain:', existing.canAskAgain);
 
       let status = existing.status;
       if (status !== 'granted') {
         if (!existing.canAskAgain) {
-          // Permission permanently denied — show alert with Open Settings button
-          vibeAlert.warning(
+          Alert.alert(
             'Calendar Access Needed',
             'To add events to your calendar, enable Calendar permission in your phone settings.',
             [
               { text: 'Open Settings', onPress: () => Linking.openSettings() },
-              { text: 'Cancel' },
+              { text: 'Cancel', style: 'cancel' },
             ]
           );
           return;
         }
-        // Request permission (will show system prompt)
         const request = await Calendar.requestCalendarPermissionsAsync();
-        console.log('[ReminderList] Calendar permission request result:', request.status);
+        console.log('[Calendar] Permission request result:', request.status);
         status = request.status;
       }
 
       if (status !== 'granted') {
-        vibeAlert.warning(
+        Alert.alert(
           'Calendar Access',
           'Calendar permission is needed to add events. Try again and tap "Allow" when prompted.',
           [
             { text: 'Try Again', onPress: () => addToCalendar() },
-            { text: 'Cancel' },
+            { text: 'Cancel', style: 'cancel' },
           ]
         );
         return;
       }
 
+      // Get all calendars and find a writable one
       const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-      const writable = calendars.find(
-        (c) => c.allowsModifications && c.source?.name === (Platform.OS === 'ios' ? 'iCloud' : 'Google')
-      ) || calendars.find((c) => c.allowsModifications);
+      console.log('[Calendar] Found calendars:', calendars.map(c => ({
+        id: c.id, title: c.title, source: c.source?.name,
+        writable: c.allowsModifications, type: c.type,
+      })));
 
-      if (!writable) {
+      const writableCalendars = calendars.filter((c) => c.allowsModifications);
+
+      if (writableCalendars.length === 0) {
+        console.warn('[Calendar] No writable calendar found');
         vibeAlert.warning('No Calendar', 'No writable calendar found on this device.');
         return;
       }
 
-      // Build start date
+      // On iOS prefer iCloud, on Android prefer the primary/default writable calendar
+      const writable = Platform.OS === 'ios'
+        ? writableCalendars.find((c) => c.source?.name === 'iCloud') || writableCalendars[0]
+        : writableCalendars.find((c) => c.isPrimary) || writableCalendars[0];
+
+      console.log('[Calendar] Using calendar:', writable.title, writable.id);
+
+      // Build start date from Firestore Timestamp
       const startDate = eventData.eventTimestamp?.toDate
         ? eventData.eventTimestamp.toDate()
         : new Date(eventData.eventTimestamp || eventData.dateTime);
 
-      // End date: use endTime if available, otherwise 1 hour after start
-      const endDate = eventData.endTime
-        ? (eventData.endTime.toDate ? eventData.endTime.toDate() : new Date(eventData.endTime))
+      // End date: use endDateTime if available, otherwise 1 hour after start
+      const endDate = eventData.endDateTime
+        ? (eventData.endDateTime.toDate ? eventData.endDateTime.toDate() : new Date(eventData.endDateTime))
         : new Date(startDate.getTime() + 60 * 60 * 1000);
 
-      // Build alarms from active reminders
+      // Build alarms from active reminders (just relativeOffset, no method for cross-platform)
       const alarms = getActiveReminders().map((template) => ({
         relativeOffset: -toMinutes(template),
-        method: Calendar.AlarmMethod.ALERT,
       }));
 
-      const location = eventData.location?.displayName || eventData.location || eventData.address || '';
+      const locationStr = typeof eventData.location === 'object'
+        ? eventData.location?.displayName || eventData.address || ''
+        : eventData.location || eventData.address || '';
 
-      await Calendar.createEventAsync(writable.id, {
+      const eventDetails = {
         title: eventData.title || 'Event',
         startDate,
         endDate,
-        location: typeof location === 'object' ? location.displayName || '' : location,
+        location: locationStr,
         notes: eventData.description || '',
-        timeZone: eventData.eventTimeZone || Intl.DateTimeFormat().resolvedOptions().timeZone,
-        alarms: alarms.length > 0 ? alarms : [{ relativeOffset: -1440, method: Calendar.AlarmMethod.ALERT }],
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        alarms: alarms.length > 0 ? alarms : [{ relativeOffset: -60 }],
+      };
+
+      console.log('[Calendar] Creating event:', {
+        title: eventDetails.title,
+        startDate: eventDetails.startDate.toISOString(),
+        endDate: eventDetails.endDate.toISOString(),
+        location: eventDetails.location,
+        timeZone: eventDetails.timeZone,
+        alarmCount: eventDetails.alarms.length,
       });
 
+      const eventId = await Calendar.createEventAsync(writable.id, eventDetails);
+      console.log('[Calendar] Event created with ID:', eventId);
+
       setCalendarAdded(true);
-      vibeAlert.success('Added to Calendar', 'Event and reminders added to your calendar.');
+      Alert.alert('Added to Calendar', `Added to ${writable.title}`);
     } catch (e) {
-      console.warn('[ReminderList] Failed to add to calendar:', e);
-      vibeAlert.error('Calendar Error', 'Failed to add event to calendar.');
+      console.error('[Calendar] Failed to add to calendar:', e);
+      Alert.alert('Calendar Error', `Failed to add event: ${e.message}`);
     } finally {
       setIsAddingToCalendar(false);
     }

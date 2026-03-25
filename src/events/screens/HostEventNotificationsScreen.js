@@ -2,18 +2,14 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Switch } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { ScreenHeader } from '../../components/ui/layout';
-import { useVibeAlert } from '../../components/ui/base/VibeAlertContext';
-import { VibeButton } from '../../components/ui';
 import ReminderListSection from '../../components/notifications/ReminderListSection';
 import theme from '../../theme/themes';
 
 export default function HostEventNotificationsScreen() {
   const route = useRoute();
   const navigation = useNavigation();
-  const vibeAlert = useVibeAlert();
 
   const {
     notificationSettings,
@@ -32,7 +28,7 @@ export default function HostEventNotificationsScreen() {
     newComments: true,
     eventRecap: false,
     attendanceReminders: 'none',
-    reminderTemplates: {}, // Use object instead of array to match expected structure
+    reminderTemplates: {},
   }), []);
 
   // Memoize initial settings to ensure stable reference
@@ -41,121 +37,71 @@ export default function HostEventNotificationsScreen() {
     [notificationSettings, defaultSettings]
   );
   const [localSettings, setLocalSettings] = useState(initialSettings);
-  const [isUpdating, setIsUpdating] = useState(false);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
   const scrollViewRef = useRef(null);
-  const previousSettingsRef = useRef(null);
-
-  // Auto-save - update parent form immediately when local settings change
   const isFirstRender = useRef(true);
   const saveTimeoutRef = useRef(null);
 
-  // Pass settings back to CreateEvent (only when in create mode)
-  const passSettingsToCreateEvent = useCallback(() => {
+  // Handle close button - pass settings if in create mode, otherwise go back
+  const handleClose = useCallback(() => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
     if (!eventId && JSON.stringify(localSettings) !== JSON.stringify(initialSettings)) {
-      console.log('[HostEventNotificationsScreen] Passing settings back to CreateEvent. Reminder templates:', Object.keys(localSettings.reminderTemplates || {}));
+      console.log('[HostEventNotificationsScreen] Passing settings back to CreateEvent');
       navigation.navigate('CreateEvent', {
         updatedNotificationSettings: localSettings,
-        timestamp: Date.now() // Force re-render on CreateEventForm
+        timestamp: Date.now(),
       });
-    }
-  }, [localSettings, initialSettings, navigation, eventId]);
-
-  // Handle close button - pass settings if needed, then go back
-  const handleClose = useCallback(() => {
-    // Clear any pending debounced save
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-
-    // If we're in create mode, pass settings back to CreateEvent before going back
-    if (!eventId && JSON.stringify(localSettings) !== JSON.stringify(initialSettings)) {
-      passSettingsToCreateEvent();
     } else {
-      // Otherwise just go back
       navigation.goBack();
     }
-  }, [passSettingsToCreateEvent, navigation, eventId, localSettings, initialSettings]);
+  }, [navigation, eventId, localSettings, initialSettings]);
 
-  // Handle Update Settings button - save and show confirmation
-  const handleUpdateSettings = useCallback(async () => {
-    setIsUpdating(true);
+  // Auto-save: debounce settings changes to Firestore (edit mode only)
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
 
-    // Clear any pending debounced save
+    // Only auto-save in edit mode (has eventId + studioId)
+    if (!eventId || !studioId) return;
+
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
 
-    // If we have eventId and studioId, save to Firebase (editing existing event)
-    if (eventId && studioId) {
+    saveTimeoutRef.current = setTimeout(async () => {
       try {
         const { updateDoc, doc } = await import('firebase/firestore');
         const { db } = await import('../../auth/services/firebase');
 
         const eventRef = doc(db, 'studios', studioId, 'events', eventId);
+        await updateDoc(eventRef, { notificationSettings: localSettings });
 
-        // Log when templates are added/enabled or removed
-        const previousTemplates = previousSettingsRef.current?.reminderTemplates || {};
-        const currentTemplates = localSettings?.reminderTemplates || {};
-
-        // Log additions/enables
-        Object.keys(currentTemplates).forEach(templateId => {
-          const wasDisabledOrMissing = !previousTemplates[templateId];
-          const isNowEnabled = currentTemplates[templateId] === true;
-
-          if (isNowEnabled && wasDisabledOrMissing) {
-            console.log(`[HostEventNotificationsScreen] adding ${templateId} to studios/${studioId}/events/${eventId}/notificationSettings`);
-          }
-        });
-
-        // Log removals (templates that existed before but are now gone)
-        Object.keys(previousTemplates).forEach(templateId => {
-          const existedBefore = previousTemplates.hasOwnProperty(templateId);
-          const existsNow = currentTemplates.hasOwnProperty(templateId);
-
-          if (existedBefore && !existsNow) {
-            console.log(`[HostEventNotificationsScreen] removing ${templateId} from studios/${studioId}/events/${eventId}/notificationSettings`);
-          }
-        });
-
-        await updateDoc(eventRef, {
-          notificationSettings: localSettings
-        });
-
-        // Store current settings for next comparison
-        previousSettingsRef.current = { ...localSettings };
-
-        console.log('[HostEventNotificationsScreen] Saved notification settings to Firebase for event:', eventId);
-
-        setIsUpdating(false);
-        navigation.goBack();
+        console.log('[HostEventNotificationsScreen] Auto-saved notification settings for event:', eventId);
       } catch (error) {
-        console.error('[HostEventNotificationsScreen] Failed to save settings to Firebase:', error);
-        vibeAlert.error(
-          'Save Failed',
-          'Failed to save notification settings. Please try again.'
-        );
-        setIsUpdating(false);
+        console.error('[HostEventNotificationsScreen] Auto-save failed:', error);
       }
-    } else {
-      // No eventId - we're in create mode, pass settings back to CreateEvent
-      passSettingsToCreateEvent();
-      setIsUpdating(false);
-    }
-  }, [passSettingsToCreateEvent, navigation, vibeAlert, eventId, studioId, localSettings]);
+    }, 800);
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [localSettings, eventId, studioId]);
 
   // Initialize settings from route params
   useEffect(() => {
     if (notificationSettings) {
       console.log('[HostEventNotificationsScreen] Initializing with reminderTemplates:', Object.keys(notificationSettings.reminderTemplates || {}));
       setLocalSettings(notificationSettings);
-      previousSettingsRef.current = { ...notificationSettings };
     } else {
       setLocalSettings(defaultSettings);
-      previousSettingsRef.current = { ...defaultSettings };
     }
-
-    // Set loading to false after initialization
     setIsLoadingTemplates(false);
   }, [notificationSettings, defaultSettings]);
 
@@ -178,12 +124,10 @@ export default function HostEventNotificationsScreen() {
   }) => (
     <View style={[styles.settingItem, !isLast && styles.settingBorder]}>
       <View style={styles.settingContent}>
-        <Text style={[styles.settingTitle, disabled && styles.disabledText]}>
+        <Text style={styles.settingTitle}>
           {title}
         </Text>
-        <Text
-          style={[styles.settingDescription, disabled && styles.disabledText]}
-        >
+        <Text style={styles.settingDescription}>
           {description}
         </Text>
       </View>
@@ -289,17 +233,6 @@ export default function HostEventNotificationsScreen() {
         )}
       </ScrollView>
       </View>
-
-      {/* Sticky Update Settings Button */}
-      <SafeAreaView style={styles.stickyButtonContainer} edges={['bottom']}>
-        <VibeButton
-          label={isUpdating ? "UPDATING..." : "UPDATE SETTINGS"}
-          onPress={handleUpdateSettings}
-          variant="filled"
-          style={styles.stickyButton}
-          disabled={isUpdating}
-        />
-      </SafeAreaView>
     </View>
   );
 }
@@ -323,7 +256,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   scrollContent: {
-    paddingBottom: 100, // Space for sticky button
+    paddingBottom: 30,
   },
   section: {
     marginTop: 20,
@@ -375,15 +308,5 @@ const styles = StyleSheet.create({
   },
   disabledText: {
     opacity: 0.6,
-  },
-  stickyButtonContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    backgroundColor: theme.colors.background,
-    borderTopWidth: 2,
-    borderTopColor: theme.colors.vibeBlue,
-  },
-  stickyButton: {
-    width: '100%',
   },
 });

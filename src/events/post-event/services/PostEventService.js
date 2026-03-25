@@ -97,15 +97,14 @@ export class PostEventService {
 
       batch.update(eventRef, updateData);
 
-      // Process reliability updates atomically (for strict events only)
-      if (eventData.attendanceType === 'strict') {
-        await this.addReliabilityUpdatesToBatch(
-          batch,
-          attendeeIds,
-          noShowIds,
-          eventData
-        );
-      }
+      // Process attendance metrics + reliability updates atomically
+      await this.addReliabilityUpdatesToBatch(
+        batch,
+        attendeeIds,
+        noShowIds,
+        eventData,
+        eventId
+      );
 
       // Commit all changes atomically
       await batch.commit();
@@ -545,36 +544,45 @@ export class PostEventService {
   }
 
   /**
-   * Add reliability score updates to batch for atomic operation
+   * Add attendance metrics + reliability updates to batch for atomic operation
+   * Attendance credit applies to ALL event types
+   * No-show penalties only apply to strict events
+   * Solo events (host-only) skip all metrics
    * @private
    */
   static async addReliabilityUpdatesToBatch(
     batch,
     attendeeIds,
     noShowIds,
-    eventData
+    eventData,
+    eventId
   ) {
     try {
-      // Only update reliability for strict events
-      if (eventData.attendanceType !== 'strict') {
+      // Skip solo events — no metrics for host-only events
+      if (AttendanceService.isSoloEvent(eventData)) {
+        console.log('[PostEventService] Solo event — skipping metrics');
         return;
       }
 
-      // Process no-shows (negative impact)
-      noShowIds.forEach((userId) => {
-        const userRef = doc(db, 'users', userId);
-        batch.update(userRef, {
-          'userdata.metrics.events.noShows': increment(1),
-          'userdata.metrics.events.lastNoShow': Timestamp.now(),
-          'userdata.lastUpdated': Timestamp.now(),
+      // Process no-shows (only for strict events — casual/open don't penalize)
+      if (eventData.attendanceType === 'strict') {
+        noShowIds.forEach((userId) => {
+          const userRef = doc(db, 'users', userId);
+          batch.update(userRef, {
+            'userdata.metrics.events.noShows': increment(1),
+            'userdata.metrics.events.noShowEvents': arrayUnion(eventId),
+            'userdata.metrics.events.lastNoShow': Timestamp.now(),
+            'userdata.lastUpdated': Timestamp.now(),
+          });
         });
-      });
+      }
 
-      // Process attendees (positive impact)
+      // Process attendees — ALL event types get attendance credit
       attendeeIds.forEach((userId) => {
         const userRef = doc(db, 'users', userId);
         batch.update(userRef, {
           'userdata.metrics.events.attended': increment(1),
+          'userdata.metrics.events.attendedEvents': arrayUnion(eventId),
           'userdata.metrics.events.lastAttended': Timestamp.now(),
           'userdata.lastUpdated': Timestamp.now(),
         });

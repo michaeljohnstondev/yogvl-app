@@ -665,7 +665,7 @@ Optimized interest tracking for efficient event-interest matching notifications.
 
 When new events are created, the system:
 
-1. **Extract interests** from event title using `extractInterestsFromEventTitle()`
+1. **Extract interests** from event title and location (venue name) using `extractInterestsFromEvent()`
 2. **Query interest index**: `studios/{studioId}/interests/{interest}/users`
 3. **Filter recipients**: Exclude event creator, cohosts, and invited users
 4. **Check preferences**: Honor user notification setting `settings.notifications.app.suggestedEvents`

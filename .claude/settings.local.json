@@ -66,7 +66,8 @@
       "WebFetch(domain:react-native-google-signin.github.io)",
       "WebFetch(domain:github.com)",
       "Bash(npx create-next-app@15:*)",
-      "Bash(timeout 15 npx next dev:*)"
+      "Bash(timeout 15 npx next dev:*)",
+      "Bash(curl -s https://theyo.org/.well-known/assetlinks.json)"
     ],
     "deny": [],
     "ask": [],

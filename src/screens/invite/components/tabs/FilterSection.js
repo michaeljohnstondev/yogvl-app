@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import styles from '../../styles/inviteScreenStyles';
-import { extractInterestsFromEventTitle } from '../../../../services/interestService';
+import { extractInterestsFromEvent } from '../../../../services/interestService';
 
 const FilterSection = ({
   showFavorites,
@@ -21,7 +21,7 @@ const FilterSection = ({
   // Extract interests from event title when it changes
   useEffect(() => {
     if (eventTitle) {
-      const interests = extractInterestsFromEventTitle(eventTitle);
+      const interests = extractInterestsFromEvent(eventTitle);
       setSuggestedInterests(interests);
       // Auto-select interests from event title
       if (interests.length > 0) {

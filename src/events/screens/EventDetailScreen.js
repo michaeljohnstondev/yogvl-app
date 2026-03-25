@@ -29,7 +29,7 @@ import {
   getUserInterests,
   addUserInterest,
   removeUserInterest,
-  extractInterestsFromEventTitle,
+  extractInterestsFromEvent,
 } from '../../services/interestService';
 import { reportEvent } from '../../services/reportingService';
 import { getCohostInvitationStatus, acceptCohostInvitation } from '../../services/shared/cohostInvitationsService';
@@ -705,9 +705,10 @@ const EventDetailScreen = memo(function EventDetailScreen({
           // Load user interests first
           const userInterestsData = await getUserInterests(currentUserId);
 
-          // Extract interests from title that match user's interests
-          const eventInterestsData = extractInterestsFromEventTitle(
+          // Extract interests from title and location that match user's interests
+          const eventInterestsData = extractInterestsFromEvent(
             eventData.event.title,
+            eventData.event.location,
             userInterestsData
           );
 
@@ -889,10 +890,10 @@ const EventDetailScreen = memo(function EventDetailScreen({
       <SubscriptionNotificationSettings
         visible={showSubscriptionModal}
         onClose={() => setShowSubscriptionModal(false)}
-        onSubscribe={handleSubscribeWithSettings}
         eventData={event}
+        eventId={eventId}
+        studioId={studioId}
         userDefaults={userData?.userdata?.settings?.notifications}
-        currentUserId={currentUserId}
         isSubscribed={isSubscribed}
       />
 

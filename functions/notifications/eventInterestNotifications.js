@@ -187,9 +187,10 @@ exports.onEventCreated = functions.firestore
       }
 
       // ========== INTEREST-BASED NOTIFICATIONS ==========
-      // Extract potential interests from event title using actual studio interests
-      console.log(`[Event Interest Notification] 🔍 Extracting interests from title: "${eventTitle}" in studio ${studioId}`);
-      const eventInterests = await extractInterestsFromEventTitle(eventTitle, studioId);
+      // Extract matching interests from event title and location (venue name)
+      const eventLocation = eventData.location || '';
+      console.log(`[Event Interest Notification] 🔍 Extracting interests from title: "${eventTitle}" and location: "${eventLocation}" in studio ${studioId}`);
+      const eventInterests = await extractInterestsFromEvent(eventTitle, eventLocation, studioId);
 
       if (eventInterests.length === 0) {
         console.log(`[Event Interest Notification] ❌ No matching interests found in title: "${eventTitle}"`);
@@ -545,15 +546,19 @@ exports.onEventCreated = functions.firestore
   });
 
 /**
- * Extract potential interests from event title using actual studio interests
+ * Extract matching interests from event title AND location (venue name)
+ * Checks both fields against actual studio interests, deduplicates results
+ * so a user subscribed to both "karaoke" and "the lazy goat" only gets one notification
  * @param {string} eventTitle - Event title to analyze
+ * @param {string} eventLocation - Event venue/location name (NOT address)
  * @param {string} studioId - Studio ID to get actual interests from
- * @returns {Promise<string[]>} Array of matching interests
+ * @returns {Promise<string[]>} Array of unique matching interests
  */
-async function extractInterestsFromEventTitle(eventTitle, studioId) {
-  if (!eventTitle || !studioId) return [];
+async function extractInterestsFromEvent(eventTitle, eventLocation, studioId) {
+  if (!studioId || (!eventTitle && !eventLocation)) return [];
 
-  const title = eventTitle.toLowerCase().trim();
+  const title = (eventTitle || '').toLowerCase().trim();
+  const location = (eventLocation || '').toLowerCase().trim();
 
   try {
     // Get all actual interests that exist in this studio
@@ -568,20 +573,27 @@ async function extractInterestsFromEventTitle(eventTitle, studioId) {
       return [];
     }
 
-    // Check which interests appear in the event title
-    const matchingInterests = [];
+    // Check which interests appear in the event title OR location (deduplicated)
+    const matchingInterests = new Set();
     const allInterests = [];
     interestsSnapshot.forEach(doc => {
       const interest = doc.id; // The interest name is the document ID
+      const interestLower = interest.toLowerCase();
       allInterests.push(interest);
-      if (title.includes(interest.toLowerCase())) {
-        matchingInterests.push(interest);
+
+      if (title && title.includes(interestLower)) {
+        matchingInterests.add(interest);
         console.log(`[Event Interest Notification] ✅ Interest "${interest}" MATCHES title "${eventTitle}"`);
+      }
+      if (location && location.includes(interestLower)) {
+        matchingInterests.add(interest);
+        console.log(`[Event Interest Notification] ✅ Interest "${interest}" MATCHES location "${eventLocation}"`);
       }
     });
 
-    console.log(`[Event Interest Notification] 📊 Title: "${eventTitle}" | All studio interests: [${allInterests.join(', ')}] | Matched: [${matchingInterests.join(', ')}]`);
-    return matchingInterests;
+    const results = [...matchingInterests];
+    console.log(`[Event Interest Notification] 📊 Title: "${eventTitle}" | Location: "${eventLocation || 'none'}" | All studio interests: [${allInterests.join(', ')}] | Matched: [${results.join(', ')}]`);
+    return results;
   } catch (error) {
     console.error(`[Event Interest Notification] Error getting studio interests:`, error);
     return [];

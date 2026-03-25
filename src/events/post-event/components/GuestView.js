@@ -13,8 +13,7 @@ import ScreenHeader from '../../../components/ui/layout/ScreenHeader';
 import PostEventActions from './PostEventActions';
 import StarRating from '../../../components/ui/feedback/StarRating';
 import { useAuth } from '../../../auth/AuthContext';
-import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
-import { db } from '../../../auth/services/firebase';
+import { addUserInterest } from '../../../services/interestService';
 import { useVibeAlert } from '../../../components/ui/base/VibeAlertContext';
 import theme from '../../../theme/themes';
 
@@ -66,12 +65,12 @@ const GuestView = ({
 
     setAddingToInterests(true);
     try {
-      const userRef = doc(db, 'users', currentUserId);
-      await updateDoc(userRef, {
-        'preferences.interests': arrayUnion(cleanEventName),
-      });
-      // Optimistically update local state immediately
-      setLocallyAdded(true);
+      const success = await addUserInterest(currentUserId, cleanEventName);
+      if (success) {
+        setLocallyAdded(true);
+      } else {
+        vibeAlert.error('Error', 'Failed to add to interests. Please try again.');
+      }
       setAddingToInterests(false);
     } catch (error) {
       console.error('[GuestView] Error adding to interests:', error);

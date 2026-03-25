@@ -38,7 +38,7 @@ import { hasAdminAccess } from '../services/adminService';
 import { banEnforcementService } from '../services/banEnforcementService';
 import { adminNotificationService } from '../services/adminNotificationService';
 import { globalAdminService } from '../services/globalAdminService';
-import { extractInterestsFromEventTitle } from '../services/interestService';
+import { extractInterestsFromEvent } from '../services/interestService';
 import { notificationPermissionService } from '../services/notificationPermissionService';
 import theme from '../theme/themes';
 
@@ -233,8 +233,8 @@ export default function HomeScreen({ navigation, route }) {
           if (pendingInvitations.has(event.id)) {
             invited.push(enrichedEvent);
           } else {
-            // Check if event title matches any user interests (using sanitized interests)
-            const matchedInterests = extractInterestsFromEventTitle(event.title, sanitizedInterests);
+            // Check if event title or location matches any user interests (using sanitized interests)
+            const matchedInterests = extractInterestsFromEvent(event.title, event.location, sanitizedInterests);
 
             if (matchedInterests.length > 0) {
               interestBased.push(enrichedEvent);

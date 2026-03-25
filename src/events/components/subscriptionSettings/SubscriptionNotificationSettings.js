@@ -1,11 +1,9 @@
 // Subscription Notification Settings Modal for Event Attendees
-import React, { useState, useRef, memo, useCallback } from 'react';
+import React, { useState, useRef, useEffect, memo } from 'react';
 import { View, Text, StyleSheet, Modal, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { doc, updateDoc } from '../../../lib/firebase/firestore';
-import { db } from '../../../auth/services/firebase';
 import { useAuth } from '../../../auth/AuthContext';
-import { VibeButton, CloseButton } from '../../../components/ui';
+import { CloseButton } from '../../../components/ui';
+import { addEventNotificationSubscription } from '../../services/shared/eventSubscriptionService';
 import GuestNotificationSettingsForm from '../../../components/notifications/GuestNotificationSettingsForm';
 import ReminderListSection from '../../../components/notifications/ReminderListSection';
 import theme from '../../../theme/themes';
@@ -13,69 +11,64 @@ import theme from '../../../theme/themes';
 const SubscriptionNotificationSettings = memo(function SubscriptionNotificationSettings({
   visible,
   onClose,
-  onSubscribe,
   eventData,
+  eventId,
+  studioId,
   userDefaults = {},
   isSubscribed = false,
 }) {
   const { currentUserId } = useAuth();
   const scrollViewRef = useRef(null);
-  const [isUpdating, setIsUpdating] = useState(false);
+  const isFirstRender = useRef(true);
+  const saveTimeoutRef = useRef(null);
 
   // Get user's attending defaults from the consistent path
-  const attendingDefaults = userDefaults.attending || userDefaults; // Support both old and new structure for now
+  const attendingDefaults = userDefaults.attending || userDefaults;
 
-  // Default subscription notification settings - simplified for better UX
+  // Default subscription notification settings
   const [subscriptionSettings, setSubscriptionSettings] = useState({
-    // Critical changes that affect attendance
-    eventCancellation: true, // Always true - critical info
-    hostChanges: attendingDefaults.hostChanges ?? true, // All host changes (time, location, details, fees, etc.)
-
-    // Reminders for the event
+    eventCancellation: true,
+    hostChanges: attendingDefaults.hostChanges ?? true,
     eventReminders: attendingDefaults.eventReminders ?? true,
-
-    // Social activity
-    hostComments: attendingDefaults.hostComments ?? true, // Host comments in social feed (batched after first) - default ON
-    newComments: attendingDefaults.newComments ?? false, // All other comments (batched after first)
-
-    // Custom reminder templates
-    reminderTemplates: attendingDefaults.reminderTemplates || {}, // Object format, not array
+    hostComments: attendingDefaults.hostComments ?? true,
+    newComments: attendingDefaults.newComments ?? false,
+    reminderTemplates: attendingDefaults.reminderTemplates || {},
   });
 
-  const handleSubscribe = useCallback(async () => {
-    setIsUpdating(true);
-    await onSubscribe(subscriptionSettings);
-    setIsUpdating(false);
-    onClose();
-  }, [onSubscribe, subscriptionSettings, onClose]);
-
-  const saveAsDefaults = async () => {
-    if (!currentUserId) return;
-
-    try {
-      const userRef = doc(db, 'users', currentUserId);
-      await updateDoc(userRef, {
-        'userdata.settings.notifications.attending': {
-          hostChanges: subscriptionSettings.hostChanges,
-          eventReminders: subscriptionSettings.eventReminders,
-          hostComments: subscriptionSettings.hostComments,
-          newComments: subscriptionSettings.newComments,
-          reminderTemplates: subscriptionSettings.reminderTemplates,
-        },
-      });
-
-      // Show success feedback
-      console.log(
-        '[SubscriptionSettings] Notification defaults saved successfully'
-      );
-      // Could add a brief success indicator here if desired
-    } catch (error) {
-      console.error(
-        '[SubscriptionSettings] Failed to save notification defaults:',
-        error
-      );
+  // Auto-save: debounce settings changes to Firestore
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
     }
-  };
+
+    if (!isSubscribed || !currentUserId || !eventId || !studioId) return;
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    saveTimeoutRef.current = setTimeout(async () => {
+      try {
+        console.log('[SubscriptionSettings] Auto-saving notification settings');
+        await addEventNotificationSubscription(
+          currentUserId,
+          eventId,
+          studioId,
+          subscriptionSettings
+        );
+        console.log('[SubscriptionSettings] Auto-save complete');
+      } catch (error) {
+        console.error('[SubscriptionSettings] Auto-save failed:', error);
+      }
+    }, 800);
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [subscriptionSettings, isSubscribed, currentUserId, eventId, studioId]);
 
   return (
     <Modal
@@ -103,15 +96,6 @@ const SubscriptionNotificationSettings = memo(function SubscriptionNotificationS
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
-            {/* Reminders first - most relevant when tapping date/time */}
-            <ReminderListSection
-              settings={subscriptionSettings}
-              onUpdateSettings={setSubscriptionSettings}
-              currentUserId={currentUserId}
-              userContext="attending"
-              eventData={eventData}
-              sectionStyle={styles.section}
-            />
             <GuestNotificationSettingsForm
               settings={subscriptionSettings}
               onUpdateSettings={setSubscriptionSettings}
@@ -120,21 +104,18 @@ const SubscriptionNotificationSettings = memo(function SubscriptionNotificationS
               showSocialActivity={true}
               isPerEvent={true}
               sectionStyle={styles.section}
+              renderAfterToggle={() => (
+                <ReminderListSection
+                  settings={subscriptionSettings}
+                  onUpdateSettings={setSubscriptionSettings}
+                  currentUserId={currentUserId}
+                  userContext="attending"
+                  eventData={eventData}
+                  sectionStyle={styles.section}
+                />
+              )}
             />
           </ScrollView>
-
-          {/* Update Settings Button - Sticky at bottom */}
-          {isSubscribed && (
-            <SafeAreaView style={styles.stickyButtonContainer} edges={['bottom']}>
-              <VibeButton
-                label={isUpdating ? "UPDATING..." : "UPDATE SETTINGS"}
-                onPress={handleSubscribe}
-                variant="filled"
-                style={styles.stickyButton}
-                disabled={isUpdating}
-              />
-            </SafeAreaView>
-          )}
         </View>
       </View>
     </Modal>
@@ -178,20 +159,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   scrollContent: {
-    paddingBottom: 100, // Space for sticky button
+    paddingBottom: 30,
   },
   section: {
     marginBottom: 20,
-    paddingHorizontal: 0, // Remove padding since it's handled by the form component
-  },
-  stickyButtonContainer: {
-    backgroundColor: theme.colors.background,
-    borderTopWidth: 3,
-    borderTopColor: theme.colors.vibeBlue,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-  },
-  stickyButton: {
-    width: '100%',
+    paddingHorizontal: 0,
   },
 });

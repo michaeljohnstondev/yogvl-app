@@ -15,6 +15,7 @@ import {
   setDoc,
   deleteDoc,
   serverTimestamp,
+  increment,
 } from 'firebase/firestore';
 import { db } from '../auth/services/firebase';
 import { sanitizeInterest, validateInterestsArray } from '../lib/interestUtils';
@@ -41,6 +42,35 @@ const getUserStudioId = async (userId) => {
       error: error.message,
     });
     return null;
+  }
+};
+
+/**
+ * Update the aggregated interest counts doc for a studio
+ * @param {string} studioId - Studio ID
+ * @param {string} interest - Interest name
+ * @param {1 | -1} delta - Increment or decrement
+ */
+const updateInterestCounts = async (studioId, interest, delta) => {
+  try {
+    const normalized = interest.toLowerCase().trim();
+    const countsRef = doc(db, 'studios', studioId, 'meta', 'interestCounts');
+    await setDoc(
+      countsRef,
+      {
+        [`counts.${normalized}`]: increment(delta),
+        [`display.${normalized}`]: interest,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch (error) {
+    console.error('[InterestService] Failed to update interest counts:', {
+      studioId,
+      interest: interest?.substring(0, 20),
+      delta,
+      error: error.message,
+    });
   }
 };
 
@@ -208,6 +238,10 @@ export const addUserInterest = async (userId, interest, source = 'unknown') => {
     }, { merge: true });
 
     await batch.commit();
+
+    // Update aggregated interest counts
+    await updateInterestCounts(studioId, sanitizedInterest, 1);
+
     return true;
   } catch (error) {
     console.error('[InterestService] Failed to add interest:', {
@@ -322,6 +356,10 @@ export const removeUserInterest = async (userId, interest) => {
     console.log('[InterestService] 💾 Committing batch...');
     await batch.commit();
     console.log('[InterestService] ✅ Batch committed successfully');
+
+    // Decrement aggregated interest counts
+    await updateInterestCounts(studioId, exactMatch, -1);
+
     return true;
   } catch (error) {
     console.error('[InterestService] Failed to remove interest:', {
@@ -344,62 +382,25 @@ export const getStudioInterests = async (studioId) => {
       return [];
     }
 
-    // Get all users in the studio
-    const studioRef = doc(db, 'studios', studioId);
-    const studioSnap = await getDoc(studioRef);
+    // Read aggregated interest counts (single doc read instead of N user reads)
+    const countsRef = doc(db, 'studios', studioId, 'meta', 'interestCounts');
+    const countsSnap = await getDoc(countsRef);
 
-    if (!studioSnap.exists()) {
+    if (!countsSnap.exists()) {
       return [];
     }
 
-    const studioData = studioSnap.data();
-    const userIds = studioData.users || [];
+    const data = countsSnap.data();
+    const counts = data?.counts || {};
+    const display = data?.display || {};
 
-    if (userIds.length === 0) {
-      return [];
-    }
-
-    // Get all user documents with interests
-    const interestCounts = {};
-    const interestOriginalCase = {}; // Track original case for display
-    const batchSize = 10;
-
-    for (let i = 0; i < userIds.length; i += batchSize) {
-      const batch = userIds.slice(i, i + batchSize);
-      const userPromises = batch.map((uid) => getDoc(doc(db, 'users', uid)));
-      const userSnaps = await Promise.all(userPromises);
-
-      userSnaps.forEach((userSnap) => {
-        if (userSnap.exists()) {
-          const userData = userSnap.data();
-          const interests = userData?.preferences?.interests || [];
-
-          interests.forEach((interest) => {
-            const normalizedInterest = interest.toLowerCase().trim();
-            interestCounts[normalizedInterest] =
-              (interestCounts[normalizedInterest] || 0) + 1;
-
-            // Keep track of the most common case (first one seen or most frequent)
-            if (
-              !interestOriginalCase[normalizedInterest] ||
-              interest.trim().length > 0
-            ) {
-              interestOriginalCase[normalizedInterest] = interest.trim();
-            }
-          });
-        }
-      });
-    }
-
-    // Convert to array and sort by popularity, using original case for display
-    const popularInterests = Object.entries(interestCounts)
-      .map(([normalizedInterest, count]) => ({
-        interest: interestOriginalCase[normalizedInterest],
+    return Object.entries(counts)
+      .filter(([, count]) => count > 0)
+      .map(([key, count]) => ({
+        interest: display[key] || key,
         count,
       }))
       .sort((a, b) => b.count - a.count);
-
-    return popularInterests;
   } catch (error) {
     return [];
   }
@@ -482,23 +483,26 @@ export const findUsersWithInterests = async (
 };
 
 /**
- * Extract interests from event title that match a user's interests
- * Returns only interests the user has that appear in the event title
+ * Extract interests from event title and location that match a user's interests
+ * Checks both title and venue name (not address), deduplicates results
  * @param {string} eventTitle - Event title to analyze
+ * @param {string} eventLocation - Event venue/location name (NOT address)
  * @param {string[]} userInterests - User's current interests
- * @returns {string[]} Array of user's interests that match the title
+ * @returns {string[]} Array of user's interests that match the title or location
  */
-export const extractInterestsFromEventTitle = (eventTitle, userInterests = []) => {
-  if (!eventTitle || !Array.isArray(userInterests) || userInterests.length === 0) {
+export const extractInterestsFromEvent = (eventTitle, eventLocation, userInterests = []) => {
+  if ((!eventTitle && !eventLocation) || !Array.isArray(userInterests) || userInterests.length === 0) {
     return [];
   }
 
-  const title = eventTitle.toLowerCase().trim();
+  const title = (eventTitle || '').toLowerCase().trim();
+  const location = (eventLocation || '').toLowerCase().trim();
 
-  // Return user interests that appear in the event title
-  return userInterests.filter((interest) =>
-    title.includes(interest.toLowerCase().trim())
-  );
+  // Return user interests that appear in the event title or location
+  return userInterests.filter((interest) => {
+    const interestLower = interest.toLowerCase().trim();
+    return (title && title.includes(interestLower)) || (location && location.includes(interestLower));
+  });
 };
 
 /**

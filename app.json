@@ -40,7 +40,8 @@
         "NSCalendarsUsageDescription": "We use calendar access to add events with reminders to your phone calendar."
       },
       "associatedDomains": [
-        "applinks:bigvibestudios.com"
+        "applinks:bigvibestudios.com",
+        "applinks:theyo.org"
       ],
       "entitlements": {
         "aps-environment": "production"
@@ -110,6 +111,31 @@
             {
               "scheme": "https",
               "host": "bigvibestudios.com",
+              "pathPrefix": "/promo"
+            },
+            {
+              "scheme": "https",
+              "host": "theyo.org",
+              "pathPrefix": "/invite"
+            },
+            {
+              "scheme": "https",
+              "host": "theyo.org",
+              "pathPrefix": "/event"
+            },
+            {
+              "scheme": "https",
+              "host": "theyo.org",
+              "pathPrefix": "/user"
+            },
+            {
+              "scheme": "https",
+              "host": "theyo.org",
+              "pathPrefix": "/join"
+            },
+            {
+              "scheme": "https",
+              "host": "theyo.org",
               "pathPrefix": "/promo"
             }
           ],

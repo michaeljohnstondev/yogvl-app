@@ -131,6 +131,11 @@ service cloud.firestore {
       match /eventTemplates/{templateId} {
         allow read, write, delete: if request.auth != null && request.auth.uid == userId;
       }
+
+      // User event subscriptions - stores per-event notification settings for rescheduling
+      match /eventSubscriptions/{eventId} {
+        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
     // ===========================================================================

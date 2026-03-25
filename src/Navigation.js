@@ -81,6 +81,7 @@ export default function Navigation({ onReady }) {
       Linking.createURL('/'),
       'the-yo://',
       'https://bigvibestudios.com',
+      'https://theyo.org',
     ],
     config: {
       screens: {
