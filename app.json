@@ -24,7 +24,9 @@
     ],
     "ios": {
       "supportsTablet": false,
-      "supportedDevices": ["iPhone"],
+      "supportedDevices": [
+        "iPhone"
+      ],
       "bundleIdentifier": "com.bigvibestudios.bvs",
       "buildNumber": "21",
       "googleServicesFile": "./GoogleService-Info.plist",
@@ -139,7 +141,10 @@
               "pathPrefix": "/promo"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "runtimeVersion": "1.0.0"
@@ -191,7 +196,9 @@
         {
           "calendarPermission": "Allow access to your calendar to add events with reminders."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-sharing"
     ],
     "extra": {
       "eas": {
