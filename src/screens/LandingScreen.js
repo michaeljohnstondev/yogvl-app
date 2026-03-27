@@ -8,7 +8,6 @@ import {
   Image,
   Linking,
   Pressable,
-  TouchableOpacity,
 } from 'react-native';
 import {
   VibeInput,
@@ -291,13 +290,13 @@ export default function LandingScreen() {
             <View style={styles.legalLinksContainer}>
               <Text style={styles.legalText}>
                 By {authMode === 'login' ? 'logging in' : 'signing up'}, you agree to our{' '}
-                <TouchableOpacity onPress={() => Linking.openURL('https://bigvibestudios.com/terms')}>
-                  <Text style={styles.legalLink}>Terms of Service</Text>
-                </TouchableOpacity>
+                <Text style={styles.legalLink} onPress={() => Linking.openURL('https://bigvibestudios.com/terms')}>
+                  Terms of Service
+                </Text>
                 {' '}and{' '}
-                <TouchableOpacity onPress={() => Linking.openURL('https://bigvibestudios.com/privacy')}>
-                  <Text style={styles.legalLink}>Privacy Policy</Text>
-                </TouchableOpacity>
+                <Text style={styles.legalLink} onPress={() => Linking.openURL('https://bigvibestudios.com/privacy')}>
+                  Privacy Policy
+                </Text>
               </Text>
             </View>
           </>
