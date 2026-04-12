@@ -19,6 +19,7 @@ import { usePastEventsManager } from '../hooks/usePastEventsManager';
 
 // Utils and Context
 import { useAuth } from '../../auth/AuthContext';
+import { StudioService } from '../../services/StudioService';
 
 export default function EditEventScreen({ navigation, route }) {
   const { currentUserId, userData } = useAuth();
@@ -37,6 +38,9 @@ export default function EditEventScreen({ navigation, route }) {
   // Track if event was successfully updated to allow navigation
   const [eventUpdatedSuccessfully, setEventUpdatedSuccessfully] =
     useState(false);
+
+  // Studio timezone for correct date/time conversion
+  const [studioTimezone, setStudioTimezone] = useState(null);
 
   // Ref to bypass navigation blocking when user confirms discard
   const shouldAllowNavigation = useRef(false);
@@ -85,6 +89,17 @@ export default function EditEventScreen({ navigation, route }) {
     vibeAlert,
     navigation,
   ]);
+
+  // Fetch studio timezone for correct date/time handling
+  useEffect(() => {
+    const userStudioId =
+      studioId ||
+      userData?.userdata?.studios?.default?.studioId ||
+      'greenville_sc';
+    StudioService.getStudioById(userStudioId)
+      .then((studio) => setStudioTimezone(studio?.timezone || 'America/New_York'))
+      .catch(() => setStudioTimezone('America/New_York'));
+  }, [studioId, userData]);
 
   // Load current attendees and cohosts when event data is available
   useEffect(() => {
@@ -159,7 +174,7 @@ export default function EditEventScreen({ navigation, route }) {
   const stableSelectedContacts = useRef([]);
   const stableDateTimeRef = useRef(null);
 
-  if (!hasInitialized.current && eventData) {
+  if (!hasInitialized.current && eventData && studioTimezone) {
     hasInitialized.current = true;
 
     // Initialize form with existing event data
@@ -197,29 +212,50 @@ export default function EditEventScreen({ navigation, route }) {
     // Initialize selected contacts from existing event data
     stableSelectedContacts.current = eventData.invitedContacts || [];
 
-    // Initialize stable date/time values
+    // Helper: convert a UTC Date to a "fake" local Date with wall-clock values in the studio timezone
+    // so the date/time pickers display the correct studio-local time
+    const toStudioWallClock = (utcDate) => {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: studioTimezone,
+        hourCycle: 'h23',
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+      }).formatToParts(utcDate);
+      const get = (type) => Number(parts.find((p) => p.type === type)?.value || 0);
+      return new Date(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), 0, 0);
+    };
+
+    // Convert UTC timestamps to studio wall-clock time for the pickers
+    const rawEventDate = eventData.eventTimestamp
+      ? eventData.eventTimestamp.toDate
+        ? eventData.eventTimestamp.toDate()
+        : new Date(eventData.eventTimestamp)
+      : eventData.utcDateTime
+        ? new Date(eventData.utcDateTime)
+        : null;
+
+    const rawRsvpDate = eventData.rsvpDeadline
+      ? eventData.rsvpDeadline.toDate
+        ? eventData.rsvpDeadline.toDate()
+        : new Date(eventData.rsvpDeadline)
+      : null;
+
+    // Initialize stable date/time values using studio timezone
     stableDateTimeRef.current = {
       event: {
-        value: eventData.eventTimestamp
-          ? eventData.eventTimestamp.toDate
-            ? eventData.eventTimestamp.toDate()
-            : new Date(eventData.eventTimestamp)
-          : eventData.utcDateTime
-            ? new Date(eventData.utcDateTime)
-            : new Date(),
-        selected: !!(eventData.eventTimestamp || eventData.utcDateTime),
-        dateSelected: !!(eventData.eventTimestamp || eventData.utcDateTime),
-        timeSelected: !!(eventData.eventTimestamp || eventData.utcDateTime),
+        value: rawEventDate ? toStudioWallClock(rawEventDate) : new Date(),
+        selected: !!rawEventDate,
+        dateSelected: !!rawEventDate,
+        timeSelected: !!rawEventDate,
       },
       rsvpDeadline: {
-        value: eventData.rsvpDeadline
-          ? eventData.rsvpDeadline.toDate
-            ? eventData.rsvpDeadline.toDate()
-            : new Date(eventData.rsvpDeadline)
-          : new Date(),
-        selected: !!eventData.rsvpDeadline,
-        dateSelected: !!eventData.rsvpDeadline,
-        timeSelected: !!eventData.rsvpDeadline,
+        value: rawRsvpDate ? toStudioWallClock(rawRsvpDate) : new Date(),
+        selected: !!rawRsvpDate,
+        dateSelected: !!rawRsvpDate,
+        timeSelected: !!rawRsvpDate,
       },
     };
   }
@@ -742,6 +778,7 @@ export default function EditEventScreen({ navigation, route }) {
         onSuccess: handleSuccess,
         selectedInvitations,
         vibeAlert,
+        studioTimezone,
       });
     } catch (error) {
       if (error.message !== 'User cancelled update') {
@@ -764,6 +801,7 @@ export default function EditEventScreen({ navigation, route }) {
     selectedTextContacts,
     eventId,
     vibeAlert,
+    studioTimezone,
   ]);
 
   // Show loading while event data is being loaded

@@ -274,7 +274,8 @@ export const validateEventForm = (formData) => {
 export const formatEventForStorage = (
   formData,
   currentUserId,
-  isEditing = false
+  isEditing = false,
+  studioTimezone = null
 ) => {
   const {
     title,
@@ -299,7 +300,8 @@ export const formatEventForStorage = (
     notificationSettings,
   } = formData;
 
-  // Format main event date/time
+  // Format main event date/time using studio timezone
+  const eventZone = studioTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   const combined = DateTime.fromObject(
     {
       year: date.getFullYear(),
@@ -308,7 +310,7 @@ export const formatEventForStorage = (
       hour: time.getHours(),
       minute: time.getMinutes(),
     },
-    { zone: Intl.DateTimeFormat().resolvedOptions().timeZone }
+    { zone: eventZone }
   );
 
   const eventTimestamp = new Date(combined.toUTC().toISO());
@@ -329,7 +331,7 @@ export const formatEventForStorage = (
             hour: rsvpDeadline.getHours(),
             minute: rsvpDeadline.getMinutes(),
           },
-          { zone: Intl.DateTimeFormat().resolvedOptions().timeZone }
+          { zone: eventZone }
         );
         rsvpDeadline_timestamp = new Date(rsvpCombined.toUTC().toISO());
       }

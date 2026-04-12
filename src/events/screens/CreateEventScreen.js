@@ -22,6 +22,7 @@ import { usePastEventsManager } from '../hooks/usePastEventsManager';
 import { useAuth } from '../../auth/AuthContext';
 import { banEnforcementService } from '../../services/banEnforcementService';
 import { promptForProfilePicture } from '../../services/profilePicturePromptService';
+import { StudioService } from '../../services/StudioService';
 
 export default function CreateEventScreen({ navigation, route }) {
   const { currentUserId, userData } = useAuth();
@@ -35,6 +36,16 @@ export default function CreateEventScreen({ navigation, route }) {
   // Ban enforcement state
   const [banStatus, setBanStatus] = useState(null);
   const [showBannedModal, setShowBannedModal] = useState(false);
+
+  // Studio timezone for correct date/time conversion
+  const [studioTimezone, setStudioTimezone] = useState(null);
+  useEffect(() => {
+    const userStudioId =
+      userData?.userdata?.studios?.default?.studioId || 'greenville_sc';
+    StudioService.getStudioById(userStudioId)
+      .then((studio) => setStudioTimezone(studio?.timezone || 'America/New_York'))
+      .catch(() => setStudioTimezone('America/New_York'));
+  }, [userData]);
 
   // Check if we have preserved form state from template save or template from event
   const preservedFormState = route?.params?.preservedFormState;
@@ -656,6 +667,7 @@ export default function CreateEventScreen({ navigation, route }) {
         onSuccess: handleSuccess,
         selectedInvitations, // Pass all invitation selections
         vibeAlert,
+        studioTimezone,
       });
     } catch (error) {
       if (error.message !== 'User cancelled creation') {
@@ -663,6 +675,7 @@ export default function CreateEventScreen({ navigation, route }) {
       }
     }
   }, [
+    studioTimezone,
     submitEvent,
     currentUserId,
     userData,
