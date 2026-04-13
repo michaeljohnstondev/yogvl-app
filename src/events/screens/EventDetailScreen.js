@@ -680,9 +680,10 @@ const EventDetailScreen = memo(function EventDetailScreen({
     }, [navigation, handleInviteResult])
   );
 
-  // Load event data on mount only (not on every focus)
-  useEffect(() => {
-    const fetchEventData = async () => {
+  // Re-fetch event data on every focus (e.g. returning from edit screen)
+  useFocusEffect(
+    useCallback(() => {
+      const fetchEventData = async () => {
         if (!studioId || !eventId || !currentUserId) return;
 
         try {
@@ -745,9 +746,9 @@ const EventDetailScreen = memo(function EventDetailScreen({
         }
       };
 
-    fetchEventData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [studioId, eventId, currentUserId]); // Only refetch if event ID changes, not on navigation/vibeAlert changes
+      fetchEventData();
+    }, [studioId, eventId, currentUserId]) // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   // Handle Android back button - always navigate to Home instead of closing app
   useFocusEffect(

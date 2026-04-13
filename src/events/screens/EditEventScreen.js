@@ -39,8 +39,8 @@ export default function EditEventScreen({ navigation, route }) {
   const [eventUpdatedSuccessfully, setEventUpdatedSuccessfully] =
     useState(false);
 
-  // Studio timezone for correct date/time conversion
-  const [studioTimezone, setStudioTimezone] = useState(null);
+  // Studio timezone for correct date/time conversion (default to Eastern until fetched)
+  const [studioTimezone, setStudioTimezone] = useState('America/New_York');
 
   // Ref to bypass navigation blocking when user confirms discard
   const shouldAllowNavigation = useRef(false);
@@ -174,7 +174,7 @@ export default function EditEventScreen({ navigation, route }) {
   const stableSelectedContacts = useRef([]);
   const stableDateTimeRef = useRef(null);
 
-  if (!hasInitialized.current && eventData && studioTimezone) {
+  if (!hasInitialized.current && eventData) {
     hasInitialized.current = true;
 
     // Initialize form with existing event data

@@ -98,6 +98,14 @@ export const Where = ({
   const handleLocationSelect = async (suggestionText) => {
     if (!suggestionText) return;
 
+    // Skip address auto-population for personal locations (e.g. "home", "my house")
+    if (isPersonalLocation(suggestionText)) {
+      const cleanText = suggestionText.replace(/^[🏢🍽️📍🌳⛪🏥🏪🎭🏟️]\s*/, '');
+      updateField('location', cleanText);
+      hideSuggestions('location');
+      return;
+    }
+
     // Find the full suggestion object that matches this text
     const fullSuggestion = window.locationSuggestionObjects?.find((s) => {
       if (!s || !s.text) return false;
@@ -164,8 +172,10 @@ export const Where = ({
         console.log('[Where] Past event selected:', fullSuggestion.text);
         updateField('location', fullSuggestion.text);
 
-        // Try to get address from venue database
-        if (studioId) {
+        // Skip address lookup for personal locations (e.g. "home", "my house")
+        if (isPersonalLocation(fullSuggestion.text)) {
+          console.log('[Where] Personal location from past event, skipping address lookup');
+        } else if (studioId) {
           try {
             const venueData = await VenueService.getVenueAddress(fullSuggestion.text, studioId);
 
@@ -243,6 +253,7 @@ export const Where = ({
           placeholder="Enter location"
           maxLength={40}
           isCompleted={formData.location && formData.location.trim().length > 0}
+          hasDropdownOpen={getFieldData('location', formData.location).isVisible}
         />
         <VibeAutoComplete
           suggestions={(() => {

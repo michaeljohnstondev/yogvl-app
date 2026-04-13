@@ -78,6 +78,5 @@ const styles = StyleSheet.create({
   inputWithDropdown: {
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
-    borderBottomWidth: 0, // Remove bottom border when dropdown is open
   },
 });
