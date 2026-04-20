@@ -155,6 +155,19 @@
     },
     "plugins": [
       [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableProguardInReleaseBuilds": true
+          },
+          "ios": {
+            "deploymentTarget": "15.1",
+            "useFrameworks": "static",
+            "appDelegateLanguage": "objcpp"
+          }
+        }
+      ],
+      [
         "@react-native-firebase/app"
       ],
       [
@@ -169,19 +182,6 @@
         {
           "photosPermission": "Allow access to photos to set profile picture",
           "cameraPermission": "Allow access to camera to take profile picture"
-        }
-      ],
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "enableProguardInReleaseBuilds": true
-          },
-          "ios": {
-            "deploymentTarget": "15.1",
-            "useFrameworks": "static",
-            "appDelegateLanguage": "objcpp"
-          }
         }
       ],
       [
