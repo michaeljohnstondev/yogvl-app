@@ -23,6 +23,7 @@
       "**/*"
     ],
     "ios": {
+      "language": "objcpp",
       "supportsTablet": false,
       "supportedDevices": [
         "iPhone"
