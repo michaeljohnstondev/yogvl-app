@@ -90,6 +90,16 @@ exports.onFriendEventActivity = functions.firestore
 
       // Process each new participant
       for (const { id: participantId, activityType } of newParticipants) {
+        // For official events, skip the createdBy admin entirely — they didn't
+        // personally "join" anything; the studio created it. The official_event
+        // notification handler already notifies studio members about the event.
+        if (after.isOfficialEvent && participantId === after.createdBy) {
+          console.log(
+            `[Follow Activity] Skipping createdBy ${participantId} for official event ${eventId}`
+          );
+          continue;
+        }
+
         console.log(
           `[Follow Activity] Processing ${activityType} for participant ${participantId}`
         );

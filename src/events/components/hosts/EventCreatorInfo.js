@@ -1,12 +1,23 @@
 // components/events/hosts/EventCreatorInfo.js
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import ProfileAvatar from '../../../components/ui/profile/ProfileAvatar';
 import ReliabilityBadge from '../../../components/ui/profile/ReliabilityBadge';
+
+const OFFICIAL_AVATAR = require('../../../../assets/HeaderIcon.png');
+
+const OfficialAvatar = ({ size = 40 }) => (
+  <Image
+    source={OFFICIAL_AVATAR}
+    style={{ width: size, height: size, borderRadius: size / 2 }}
+    resizeMode="cover"
+  />
+);
 
 const EventCreatorInfo = ({
   creatorData,
   hostDisplayName = null, // Optional override for official events
+  isOfficialEvent = false, // When true, shows Yo branded avatar instead of creator's
   style,
   showLabel = true,
   showReliability = true,
@@ -55,11 +66,15 @@ const EventCreatorInfo = ({
   if (compact) {
     return (
       <Container style={[styles.compactContainer, style]} {...containerProps}>
-        <ProfileAvatar userData={creatorData} size={32} showBorder={true} />
+        {isOfficialEvent ? (
+          <OfficialAvatar size={32} />
+        ) : (
+          <ProfileAvatar userData={creatorData} size={32} showBorder={true} />
+        )}
         <Text style={styles.compactName} numberOfLines={1}>
           {displayName}
         </Text>
-        {showReliability && (
+        {!isOfficialEvent && showReliability && (
           <ReliabilityBadge
             userData={creatorData}
             size="small"
@@ -74,11 +89,15 @@ const EventCreatorInfo = ({
     <Container style={[styles.container, style]} {...containerProps}>
       {showLabel && <Text style={styles.label}>Hosted by:</Text>}
       <View style={styles.details}>
-        <ProfileAvatar userData={creatorData} size={40} showBorder={true} />
+        {isOfficialEvent ? (
+          <OfficialAvatar size={40} />
+        ) : (
+          <ProfileAvatar userData={creatorData} size={40} showBorder={true} />
+        )}
         <View style={styles.nameContainer}>
           <Text style={styles.name}>{displayName}</Text>
           </View>
-        {showReliability && (
+        {!isOfficialEvent && showReliability && (
           <ReliabilityBadge userData={creatorData} size="medium" />
         )}
       </View>

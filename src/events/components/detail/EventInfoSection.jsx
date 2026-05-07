@@ -334,10 +334,13 @@ function EventInfoSection({
             <EventCreatorInfo
               creatorData={creatorData}
               hostDisplayName={hostDisplayName}
+              isOfficialEvent={event.isOfficialEvent}
               showLabel={false}
               showReliability={false}
-              onPress={() =>
-                onShowHostProfile && onShowHostProfile(creatorData)
+              onPress={
+                event.isOfficialEvent
+                  ? null
+                  : () => onShowHostProfile && onShowHostProfile(creatorData)
               }
             />
             {cohostData.length > 0 && (
