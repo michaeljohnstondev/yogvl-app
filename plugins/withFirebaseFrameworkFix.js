@@ -1,11 +1,14 @@
 // @react-native-firebase v22+ wraps native modules in framework modules.
 // With use_frameworks! :linkage => :static, those modules include React-Core
-// headers that aren't part of a clang module, which triggers
-// `-Werror,-Wnon-modular-include-in-framework-module` and breaks the iOS build.
+// headers that aren't part of a clang module, which breaks the iOS build with
+// non-modular include errors and missing RCT type declarations.
 //
-// The fix is to set CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES = YES
-// on every Pod target. This config plugin appends that to the Podfile's
-// post_install block during prebuild.
+// Two changes are needed:
+//   1. $RNFirebaseAsStaticFramework = true  (global flag at top of Podfile)
+//      Tells @react-native-firebase to wrap itself as a static framework
+//      so its headers don't reach for non-modular React-Core symbols.
+//   2. CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES = YES (post_install)
+//      Safety net that relaxes any remaining strict-include checks to warnings.
 
 const { withDangerousMod } = require('@expo/config-plugins');
 const fs = require('fs');
@@ -14,7 +17,9 @@ const path = require('path');
 const TAG_START = '# BEGIN withFirebaseFrameworkFix';
 const TAG_END = '# END withFirebaseFrameworkFix';
 
-const FIX_BLOCK = `
+const STATIC_FRAMEWORK_FLAG = `${TAG_START}\n$RNFirebaseAsStaticFramework = true\n${TAG_END}\n\n`;
+
+const POST_INSTALL_FIX = `
     ${TAG_START}
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
@@ -28,15 +33,20 @@ function injectFix(podfile) {
     return podfile;
   }
 
-  // Inject into an existing `post_install do |installer|` block if present.
-  const postInstallMatch = podfile.match(/post_install do \|installer\|\n/);
+  // 1. Prepend the static framework flag at the top of the Podfile.
+  let updated = STATIC_FRAMEWORK_FLAG + podfile;
+
+  // 2. Add the post_install build setting fix.
+  const postInstallMatch = updated.match(/post_install do \|installer\|\n/);
   if (postInstallMatch) {
     const insertAt = postInstallMatch.index + postInstallMatch[0].length;
-    return podfile.slice(0, insertAt) + FIX_BLOCK + '\n' + podfile.slice(insertAt);
+    updated =
+      updated.slice(0, insertAt) + POST_INSTALL_FIX + '\n' + updated.slice(insertAt);
+  } else {
+    updated += `\n\npost_install do |installer|${POST_INSTALL_FIX}\nend\n`;
   }
 
-  // No existing block — append a new one at the end of the file.
-  return `${podfile}\n\npost_install do |installer|${FIX_BLOCK}\nend\n`;
+  return updated;
 }
 
 module.exports = function withFirebaseFrameworkFix(config) {
