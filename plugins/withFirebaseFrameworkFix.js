@@ -28,6 +28,25 @@ const POST_INSTALL_FIX = `
     end
     ${TAG_END}`;
 
+// React Native pods that need to be declared as modular so that
+// @react-native-firebase's framework modules can import their headers
+// across the framework boundary.
+const MODULAR_PODS_BLOCK = `  ${TAG_START}
+  pod 'React-Core', :modular_headers => true
+  pod 'React-CoreModules', :modular_headers => true
+  pod 'React-RCTAppDelegate', :modular_headers => true
+  pod 'React-cxxreact', :modular_headers => true
+  pod 'React-jsi', :modular_headers => true
+  pod 'React-jsiexecutor', :modular_headers => true
+  pod 'ReactCommon/turbomodule/core', :modular_headers => true
+  pod 'RCT-Folly', :modular_headers => true
+  pod 'RCTRequired', :modular_headers => true
+  pod 'RCTTypeSafety', :modular_headers => true
+  pod 'glog', :modular_headers => true
+  pod 'DoubleConversion', :modular_headers => true
+  ${TAG_END}
+`;
+
 function injectFix(podfile) {
   if (podfile.includes(TAG_START)) {
     return podfile;
@@ -36,7 +55,15 @@ function injectFix(podfile) {
   // 1. Prepend the static framework flag at the top of the Podfile.
   let updated = STATIC_FRAMEWORK_FLAG + podfile;
 
-  // 2. Add the post_install build setting fix.
+  // 2. Add modular_headers pod declarations inside the target block,
+  //    just before use_react_native! is called.
+  const useReactNativeMatch = updated.match(/^( *)use_react_native!\(/m);
+  if (useReactNativeMatch) {
+    const insertAt = useReactNativeMatch.index;
+    updated = updated.slice(0, insertAt) + MODULAR_PODS_BLOCK + '\n' + updated.slice(insertAt);
+  }
+
+  // 3. Add the post_install build setting fix as a safety net.
   const postInstallMatch = updated.match(/post_install do \|installer\|\n/);
   if (postInstallMatch) {
     const insertAt = postInstallMatch.index + postInstallMatch[0].length;
