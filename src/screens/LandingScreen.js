@@ -143,9 +143,11 @@ export default function LandingScreen() {
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
+    let signedIn = false;
     try {
       const { userCredential } = await signInWithGoogle();
       const user = userCredential.user;
+      signedIn = true;
 
       // Create user doc without firstName/lastName so contact info screen shows
       // The contact info screen will pre-fill name from auth.currentUser.displayName
@@ -159,7 +161,19 @@ export default function LandingScreen() {
       // User cancelled — do nothing
       if (err.code === 'SIGN_IN_CANCELLED' || err.code === '12501') return;
 
-      console.error('Google Sign-In error:', err);
+      console.error('[GoogleSignIn] failed', {
+        signedIn,
+        code: err?.code,
+        message: err?.message,
+        name: err?.name,
+        stack: err?.stack,
+      });
+
+      // If the user is already signed in, the auth flow worked — only the
+      // post-signin Firestore step failed. Don't scare the user; navigation
+      // will still route them, and the next launch can retry the doc write.
+      if (signedIn) return;
+
       vibeAlert.error('Google Sign-In Failed', getHumanFriendlyError(err));
     } finally {
       setGoogleLoading(false);
