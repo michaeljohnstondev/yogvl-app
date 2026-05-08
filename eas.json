@@ -33,7 +33,13 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "./bigvibestudios-b9839-c5fefca377e2.json",
+        "track": "production",
+        "releaseStatus": "draft"
+      }
+    }
   },
   "cli": {
     "version": ">= 13.2.3"

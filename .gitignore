@@ -3,6 +3,9 @@
 # dependencies
 node_modules/
 
+# Google Play service account credentials
+bigvibestudios-*.json
+
 # Expo
 .expo/
 dist/
