@@ -102,6 +102,9 @@ exports.onEventSubscribed = functions.firestore
                 eventTitle: eventTitle,
                 subscriberId: userId,
                 subscriberName: subscriberName
+              },
+              android: {
+                priority: 'high'
               }
             };
 
@@ -272,6 +275,9 @@ exports.onEventUnsubscribed = functions.firestore
                 eventTitle: eventTitle,
                 unsubscriberId: userId,
                 unsubscriberName: unsubscriberName
+              },
+              android: {
+                priority: 'high'
               }
             };
 

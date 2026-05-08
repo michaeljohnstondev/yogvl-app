@@ -169,6 +169,9 @@ exports.onEventInvitation = functions.firestore
                 inviterName: String(inviterName || 'Someone'),
                 actionType: invitationType === 'cohost' ? 'cohost_invitation' : 'invitation_received',
                 invitationType: String(invitationType)
+              },
+              android: {
+                priority: 'high'
               }
             };
 
