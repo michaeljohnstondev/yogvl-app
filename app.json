@@ -154,7 +154,6 @@
       "bundler": "metro"
     },
     "plugins": [
-      "./plugins/withFirebaseFrameworkFix",
       [
         "@react-native-firebase/app"
       ],
@@ -180,7 +179,8 @@
           },
           "ios": {
             "deploymentTarget": "15.1",
-            "useFrameworks": "static"
+            "useFrameworks": "static",
+            "forceStaticLinking": ["RNFBApp", "RNFBMessaging"]
           }
         }
       ],
