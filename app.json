@@ -56,6 +56,10 @@
         "backgroundColor": "#000814"
       },
       "backgroundColor": "#001020",
+      "navigationBar": {
+        "visible": "immersive",
+        "backgroundColor": "#00000000"
+      },
       "splash": {
         "image": "./assets/splash.png",
         "resizeMode": "cover",
