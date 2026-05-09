@@ -201,6 +201,7 @@ class FCMService {
         // resurface on a later launch (e.g. user opens app via QR/deep link).
         try {
           await SecureStore.deleteItemAsync(STORAGE_KEYS.PENDING_NOTIFICATION);
+          await AsyncStorage.removeItem(STORAGE_KEYS.PENDING_NOTIFICATION);
         } catch (error) {
           console.warn('[FCMService] Failed to clear pending notification:', error);
         }
