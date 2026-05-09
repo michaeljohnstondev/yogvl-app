@@ -30,12 +30,12 @@ try {
     console.log('[FCMService] Type:', remoteMessage?.data?.type);
     console.log('[FCMService] Event ID:', remoteMessage?.data?.eventId);
 
-    // Store notification data for when app opens
+    // Store notification data for when app opens (with timestamp for TTL)
     if (remoteMessage?.data) {
       try {
         await SecureStore.setItemAsync(
           STORAGE_KEYS.PENDING_NOTIFICATION,
-          JSON.stringify(remoteMessage.data)
+          JSON.stringify({ data: remoteMessage.data, timestamp: Date.now() })
         );
         console.log(`[FCMService] ✅ Stored ${remoteMessage.data.type} notification for app launch`);
       } catch (error) {
@@ -175,18 +175,34 @@ class FCMService {
           // Store initial notification to process after navigation is ready
           this.initialNotification = remoteMessage.data;
         } else {
-          // Fallback: Check if we stored a notification
+          // Fallback: check if a recent notification was stored before the app
+          // launched. Ignore anything older than 5 minutes — that's stale data
+          // from a previous session and shouldn't drive navigation now.
           try {
             const storedItem = await SecureStore.getItemAsync(STORAGE_KEYS.PENDING_NOTIFICATION);
             if (storedItem) {
-              const notificationData = JSON.parse(storedItem);
-              this.initialNotification = notificationData;
-              // Always clear the stored notification
-              await SecureStore.deleteItemAsync(STORAGE_KEYS.PENDING_NOTIFICATION);
+              const parsed = JSON.parse(storedItem);
+              const data = parsed?.data || parsed; // support both shapes
+              const timestamp = parsed?.timestamp || 0;
+              const ageMs = Date.now() - timestamp;
+              const FIVE_MIN = 5 * 60 * 1000;
+              if (timestamp && ageMs <= FIVE_MIN) {
+                this.initialNotification = data;
+              } else {
+                console.log('[FCMService] Ignoring stale pending notification (no/old timestamp)');
+              }
             }
           } catch (error) {
             console.error('[FCMService] Error checking stored notification:', error);
           }
+        }
+
+        // ALWAYS clear the stored pending notification on launch so it can't
+        // resurface on a later launch (e.g. user opens app via QR/deep link).
+        try {
+          await SecureStore.deleteItemAsync(STORAGE_KEYS.PENDING_NOTIFICATION);
+        } catch (error) {
+          console.warn('[FCMService] Failed to clear pending notification:', error);
         }
       })
       .catch((error) => {
