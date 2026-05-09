@@ -28,7 +28,7 @@ export default function MessageBoardButton({
   const getLastMessagePreview = () => {
     if (loading || comments.length === 0) return null;
 
-    const lastMessage = comments[0];
+    const lastMessage = comments[comments.length - 1];
     const preview =
       lastMessage.content.length > 50
         ? `${lastMessage.content.substring(0, 50)}...`

@@ -20,6 +20,7 @@ const STORAGE_KEYS = {
   FCM_TOKEN: 'fcm_push_token',
   PERMISSION_REQUESTED: 'notification_permission_requested',
   PENDING_NOTIFICATION: 'pending_notification_action',
+  CURRENT_USER_ID: 'fcm_current_user_id',
 };
 
 // Configure Firebase messaging for background message handling
@@ -40,6 +41,40 @@ try {
       } catch (error) {
         console.error('[FCMService] Failed to store pending notification:', error);
       }
+    }
+
+    // Mirror the notification into the user's in-app dashboard so the
+    // bell icon / notification list stays in sync even when the app
+    // wasn't open. Foreground messages already write via NotificationEngine
+    // in handleForegroundMessage; this covers the background/closed case.
+    try {
+      const userId = await SecureStore.getItemAsync(STORAGE_KEYS.CURRENT_USER_ID);
+      if (!userId) {
+        console.log('[FCMService] No stored userId — skipping background in-app dashboard write');
+        return;
+      }
+
+      const title = remoteMessage?.notification?.title
+        || remoteMessage?.data?.title
+        || 'Notification';
+      const message = remoteMessage?.notification?.body
+        || remoteMessage?.data?.message
+        || remoteMessage?.data?.body
+        || '';
+      if (title === 'Notification' && message === '') return;
+
+      const { collection, addDoc, serverTimestamp } = await import('firebase/firestore');
+      await addDoc(collection(db, 'users', userId, 'notifications'), {
+        type: remoteMessage?.data?.type || 'info',
+        title,
+        message,
+        data: remoteMessage?.data || {},
+        read: false,
+        createdAt: serverTimestamp(),
+      });
+      console.log('[FCMService] ✅ Wrote background notification to in-app dashboard');
+    } catch (error) {
+      console.error('[FCMService] Failed to write background notification to in-app dashboard:', error);
     }
   });
 } catch (error) {
@@ -305,6 +340,13 @@ class FCMService {
       // Set current user ID IMMEDIATELY so remote logging works even if token fails
       this.currentUserId = userId;
 
+      // Persist for the background message handler (which can't access this instance)
+      try {
+        await SecureStore.setItemAsync(STORAGE_KEYS.CURRENT_USER_ID, userId);
+      } catch (error) {
+        console.warn('[FCMService] Failed to persist current userId:', error);
+      }
+
       // First request permission
       const permissionResult = await this.requestPermission();
       if (!permissionResult.granted) {
@@ -384,6 +426,7 @@ class FCMService {
       // Clear local storage
       try {
         await SecureStore.deleteItemAsync(STORAGE_KEYS.FCM_TOKEN);
+        await SecureStore.deleteItemAsync(STORAGE_KEYS.CURRENT_USER_ID);
         await AsyncStorage.removeItem(STORAGE_KEYS.PENDING_NOTIFICATION);
         console.log('[FCMService] ✅ Cleared local FCM storage');
       } catch (storageError) {
@@ -1024,6 +1067,7 @@ class FCMService {
 
       // Clear secure storage
       await SecureStore.deleteItemAsync(STORAGE_KEYS.FCM_TOKEN);
+      await SecureStore.deleteItemAsync(STORAGE_KEYS.CURRENT_USER_ID);
       this.currentToken = null;
       this.currentUserId = null;
 
