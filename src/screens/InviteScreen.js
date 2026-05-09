@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, BackHandler, Linking, Platform } from 'react-native';
 import { VibeButton } from '../components/ui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -113,6 +113,28 @@ export default function InviteScreen() {
 
   // Get studioId before using it in hooks
   const studioId = userData?.userdata?.studios?.default?.studioId;
+
+  // Resolve invite code: use what was passed, otherwise lazily generate one
+  // for this event so the QR tab isn't blank.
+  const [resolvedInviteCode, setResolvedInviteCode] = useState(inviteCode);
+  useEffect(() => {
+    if (resolvedInviteCode) return;
+    const targetStudioId = routeStudioId || studioId;
+    if (!eventId || !targetStudioId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { enableInviteCodeForEvent } = await import(
+          '../services/inviteCodeService'
+        );
+        const code = await enableInviteCodeForEvent(targetStudioId, eventId);
+        if (!cancelled && code) setResolvedInviteCode(code);
+      } catch (error) {
+        console.warn('[InviteScreen] Failed to generate invite code:', error);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [resolvedInviteCode, eventId, routeStudioId, studioId]);
 
   // Custom hooks
   const state = useInviteScreenState(
@@ -538,7 +560,7 @@ export default function InviteScreen() {
           {state.activeTab === TABS.QR && (
             <QRCodeTab
               eventId={eventId}
-              inviteCode={inviteCode}
+              inviteCode={resolvedInviteCode}
               studioId={routeStudioId || studioId}
               isHostMode={isHostMode}
             />

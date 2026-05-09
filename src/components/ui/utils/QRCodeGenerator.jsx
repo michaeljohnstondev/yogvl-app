@@ -13,22 +13,22 @@ const QRCodeGenerator = ({
   const generateDeepLink = () => {
     switch (type) {
       case 'user':
-        return `https://bigvibestudios.com/theyo/u/${data}`;
+        return `https://theyo.org/user/${data}`;
       case 'event':
-        return `https://bigvibestudios.com/theyo/invite/${data}`;
+        return `https://theyo.org/invite/${data}`;
       case 'app-download':
-        return `https://bigvibestudios.com/theyo/invite/${data.inviteCode || 'unknown'}`;
+        return `https://theyo.org/invite/${data.inviteCode || 'unknown'}`;
       case 'promo': {
         const studioId = data?.studioId || 'unknown';
         const interests = data?.interests || [];
-        let url = `https://bigvibestudios.com/theyo/promo/${studioId}`;
+        let url = `https://theyo.org/promo/${studioId}`;
         if (interests.length > 0) {
           url += `?interests=${encodeURIComponent(interests.join(','))}`;
         }
         return url;
       }
       default:
-        return `https://bigvibestudios.com/theyo/u/${data}`;
+        return `https://theyo.org/user/${data}`;
     }
   };
 
