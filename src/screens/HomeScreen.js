@@ -11,6 +11,7 @@ import {
   Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   VibeButton,
   VibeLoadingScreen,
@@ -43,6 +44,7 @@ import { notificationPermissionService } from '../services/notificationPermissio
 import theme from '../theme/themes';
 
 export default function HomeScreen({ navigation, route }) {
+  const insets = useSafeAreaInsets();
   const [myEvents, setMyEvents] = useState([]);
   const [invitedEvents, setInvitedEvents] = useState([]);
   const [officialEvents, setOfficialEvents] = useState([]);
@@ -393,7 +395,7 @@ export default function HomeScreen({ navigation, route }) {
         () => {
           vibeAlert.confirm(
             'Leave App?',
-            'Are you sure you want to exit Big Vibe Studios?',
+            'Are you sure you want to exit The Yo?',
             () => {
               BackHandler.exitApp();
             }
@@ -503,7 +505,7 @@ export default function HomeScreen({ navigation, route }) {
     return (
       <View style={styles.screen}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Big Vibe Studios</Text>
+          <Text style={styles.headerTitle}>The Yo</Text>
         </View>
 
         <View style={[styles.centerContent, { flex: 1 }]}>
@@ -577,7 +579,10 @@ export default function HomeScreen({ navigation, route }) {
       ) : (
         <ScrollView
           ref={scrollViewRef}
-          contentContainerStyle={styles.container}
+          contentContainerStyle={[
+            styles.container,
+            { paddingBottom: 120 + insets.bottom },
+          ]}
           scrollEnabled={true}
           nestedScrollEnabled={true}
           scrollEventThrottle={16}
@@ -830,7 +835,12 @@ export default function HomeScreen({ navigation, route }) {
       )}
 
       {/* Sticky Create Event Button */}
-      <View style={styles.stickyButtonContainer}>
+      <View
+        style={[
+          styles.stickyButtonContainer,
+          { paddingBottom: Math.max(insets.bottom, 12) + 12 },
+        ]}
+      >
         <VibeButton
           label="CREATE AN EVENT"
           onPress={() => navigation.navigate('CreateEvent')}
