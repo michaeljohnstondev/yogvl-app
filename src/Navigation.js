@@ -129,13 +129,24 @@ export default function Navigation({ onReady }) {
           const urlObj = new URL(url);
           const pathname = urlObj.pathname;
 
-          if (pathname.startsWith('/invite/') || pathname.startsWith('/theyo/invite/')) {
+          // Match invite URLs across all three forms:
+          //   https://theyo.org/invite/CODE          → hostname=theyo.org, pathname=/invite/CODE
+          //   https://bigvibestudios.com/theyo/invite/CODE → pathname=/theyo/invite/CODE
+          //   the-yo://invite/CODE                   → hostname=invite, pathname=/CODE
+          const hostname = urlObj.hostname;
+          const isHttpsInvite =
+            pathname.startsWith('/invite/') || pathname.startsWith('/theyo/invite/');
+          const isCustomSchemeInvite = hostname === 'invite';
+
+          if (isHttpsInvite || isCustomSchemeInvite) {
             // Resolve invite code → event, then navigate (if signed in)
             // or stash for after-auth processing.
-            const inviteCode = pathname
-              .replace('/theyo/invite/', '')
-              .replace('/invite/', '')
-              .split('/')[0];
+            const inviteCode = isCustomSchemeInvite
+              ? pathname.replace(/^\/+/, '').split('/')[0]
+              : pathname
+                  .replace('/theyo/invite/', '')
+                  .replace('/invite/', '')
+                  .split('/')[0];
 
             if (inviteCode) {
               try {
@@ -162,6 +173,32 @@ export default function Navigation({ onReady }) {
                 }
               } catch (error) {
                 console.error('[Navigation] Failed to resolve invite code:', error);
+              }
+            }
+          } else if (
+            pathname.startsWith('/user/') ||
+            pathname.startsWith('/theyo/u/') ||
+            hostname === 'user' ||
+            hostname === 'u'
+          ) {
+            // Match user-profile URLs across all forms:
+            //   https://theyo.org/user/ID
+            //   https://bigvibestudios.com/theyo/u/ID  (legacy)
+            //   the-yo://user/ID  or  the-yo://u/ID
+            const userId =
+              hostname === 'user' || hostname === 'u'
+                ? pathname.replace(/^\/+/, '').split('/')[0]
+                : pathname
+                    .replace('/theyo/u/', '')
+                    .replace('/user/', '')
+                    .split('/')[0];
+
+            if (userId) {
+              if (user && navigationRef.current) {
+                navigationRef.current.navigate('UserProfile', { userId });
+                return;
+              } else {
+                await AsyncStorage.setItem('pendingDeepLink', `/user/${userId}`);
               }
             }
           } else if (pathname === '/join' || pathname === '/theyo/join') {
