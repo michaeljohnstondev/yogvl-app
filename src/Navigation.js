@@ -91,13 +91,9 @@ export default function Navigation({ onReady }) {
             userId: (userId) => userId,
           },
         },
-        EventDetail: {
-          path: '/invite/:inviteCode',
-          parse: {
-            inviteCode: (inviteCode) => inviteCode,
-          },
-        },
-        // Direct event link
+        // Direct event link. Note: /invite/:inviteCode is handled in the
+        // subscribe() handler below so we can resolve the code to an event
+        // before navigating; it is intentionally NOT mapped here.
         EventDetail: {
           path: '/event/:eventId',
           parse: {
@@ -133,7 +129,42 @@ export default function Navigation({ onReady }) {
           const urlObj = new URL(url);
           const pathname = urlObj.pathname;
 
-          if (pathname === '/join' || pathname === '/theyo/join') {
+          if (pathname.startsWith('/invite/') || pathname.startsWith('/theyo/invite/')) {
+            // Resolve invite code → event, then navigate (if signed in)
+            // or stash for after-auth processing.
+            const inviteCode = pathname
+              .replace('/theyo/invite/', '')
+              .replace('/invite/', '')
+              .split('/')[0];
+
+            if (inviteCode) {
+              try {
+                const { findEventByInviteCode } = await import(
+                  './services/inviteCodeService'
+                );
+                const result = await findEventByInviteCode(inviteCode);
+                if (result?.eventId) {
+                  if (user && navigationRef.current) {
+                    navigationRef.current.navigate('EventDetail', {
+                      eventId: result.eventId,
+                      studioId: result.studioId,
+                      inviteCode,
+                    });
+                    return;
+                  } else {
+                    await AsyncStorage.setItem(
+                      'pendingDeepLink',
+                      `/invite/${inviteCode}`
+                    );
+                  }
+                } else {
+                  console.warn('[Navigation] No event found for invite code:', inviteCode);
+                }
+              } catch (error) {
+                console.error('[Navigation] Failed to resolve invite code:', error);
+              }
+            }
+          } else if (pathname === '/join' || pathname === '/theyo/join') {
             // App download QR with studio + event
             const studioId = urlObj.searchParams.get('studio');
             const eventId = urlObj.searchParams.get('event');
