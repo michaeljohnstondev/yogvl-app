@@ -6,49 +6,6 @@
   "firestore": {
     "rules": "firestore.rules"
   },
-  "hosting": {
-    "public": "public",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "!**/.well-known/**",
-      "**/node_modules/**"
-    ],
-    "headers": [
-      {
-        "source": "/.well-known/apple-app-site-association",
-        "headers": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ]
-      }
-    ],
-    "cleanUrls": true,
-    "rewrites": [
-      {
-        "source": "/theyo",
-        "destination": "/theyo.html"
-      },
-      {
-        "source": "/theyo/join",
-        "destination": "/theyo.html"
-      },
-      {
-        "source": "/theyo/invite/**",
-        "destination": "/theyo/invite/index.html"
-      },
-      {
-        "source": "/theyo/u/**",
-        "destination": "/theyo/u/index.html"
-      },
-      {
-        "source": "/theyo/promo/**",
-        "destination": "/theyo/promo/index.html"
-      }
-    ]
-  },
   "react-native": {
     "messaging_ios_foreground_presentation_options": ["badge", "sound", "banner", "list"]
   }
