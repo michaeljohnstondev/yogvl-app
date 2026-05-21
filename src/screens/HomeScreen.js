@@ -339,6 +339,17 @@ export default function HomeScreen({ navigation, route }) {
     // Check if we need to prompt user to enable notifications in Settings
     const checkNotificationPermission = async () => {
       try {
+        // Safety net for users who never got an initial permission prompt
+        // (e.g. finished onboarding before the post-onboarding prompt
+        // shipped, or reinstalled and never created/joined/shown-interest).
+        // The service dedups so this fires at most once per install.
+        if (currentUserId) {
+          await notificationPermissionService.requestPermissionIfNeeded(
+            currentUserId,
+            'home_visit'
+          );
+        }
+
         const shouldPrompt = await notificationPermissionService.shouldShowSettingsPrompt();
         if (shouldPrompt) {
           await notificationPermissionService.markSettingsPromptShown();

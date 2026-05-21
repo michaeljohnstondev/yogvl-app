@@ -22,6 +22,7 @@ import {
   removeUserInterest,
   getStudioInterests,
 } from '../services/interestService';
+import { notificationPermissionService } from '../services/notificationPermissionService';
 
 export default function InterestsScreen({ route }) {
   const navigation = useNavigation();
@@ -123,6 +124,17 @@ export default function InterestsScreen({ route }) {
         { merge: true }
       );
       console.log('[InterestsScreen] Marked interests as completed, navigating to Home...');
+
+      // Onboarding-complete is the natural moment to ask for push permission:
+      // the user has clearly opted in to using the app, and otherwise users
+      // who only consume events (never create/join/show-interest) would never
+      // be prompted and silently miss invitations. Fire-and-forget — don't
+      // block navigation if the prompt is slow or denied.
+      notificationPermissionService.requestPermissionIfNeeded(
+        currentUserId,
+        'onboarding_complete'
+      );
+
       navigation.reset({
         index: 0,
         routes: [{ name: 'Home' }],
