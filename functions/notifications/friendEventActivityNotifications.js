@@ -136,12 +136,25 @@ exports.onFriendEventActivity = functions.firestore
         );
 
         // Check notification settings and send to eligible followers
+        const eventHost = after.createdBy;
+        const eventCohosts = after.cohosts || [];
         for (const followerId of followerIds) {
           try {
             // Skip if follower is invited (they'll get invitation notification)
             if (eventInvitations.includes(followerId)) {
               console.log(
                 `[Follow Activity] Skipping ${followerId} - already invited`
+              );
+              continue;
+            }
+
+            // Skip if follower is the host or a cohost — they'll receive
+            // the more specific "Someone Joined Your Event!" notification
+            // from eventSubscriptionNotifications, so sending this would
+            // just be a duplicate.
+            if (followerId === eventHost || eventCohosts.includes(followerId)) {
+              console.log(
+                `[Follow Activity] Skipping ${followerId} - they're the host/cohost and get the subscription notification instead`
               );
               continue;
             }
