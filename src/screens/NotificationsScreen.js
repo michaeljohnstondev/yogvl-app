@@ -150,6 +150,19 @@ export default function NotificationsScreen({ navigation }) {
               navigation.navigate('EventDetail', { eventId: data.eventId });
             }
             break;
+          case 'follow_event_activity':
+          case 'friend_event_activity':
+          case 'event_subscription':
+          case 'event_unsubscription':
+            // A friend/follower joined or left an event the user follows
+            if (data.eventId) {
+              console.log('[NotificationsScreen] 👥 Follow activity - navigating to event:', data.eventId);
+              navigation.navigate('EventDetail', {
+                eventId: data.eventId,
+                studioId: data.studioId,
+              });
+            }
+            break;
           case NOTIFICATION_TYPES.STUDIO_REQUEST:
           case 'studio_request':
             // Navigate to AdminScreen for studio requests

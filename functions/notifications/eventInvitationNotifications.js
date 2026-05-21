@@ -147,8 +147,36 @@ exports.onEventInvitation = functions.firestore
 
           console.log(`[Event Invitation] FCM token exists: ${!!fcmToken}`);
 
-          // If user has FCM token: send ONLY push notification (FCM handler creates in-app)
-          // If NO token: create in-app notification directly (they won't get push)
+          // Always create the in-app entry first. This makes the
+          // notification history reliable even when the OS silently drops
+          // the push (e.g. user has notifications disabled at the OS
+          // level — FCM.send() still succeeds from the server's POV).
+          const inAppNotificationData = {
+            type: invitationType === 'cohost' ? 'cohost_invitation' : 'event_invitation',
+            title: notificationTitle,
+            message: notificationBody,
+            read: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            data: {
+              resetStack: true,
+              navigationStack: 'Home,EventDetail',
+              eventId: eventId,
+              studioId: studioId,
+              eventTitle: eventTitle,
+              inviterId: inviterId,
+              inviterName: inviterName,
+              actionType: invitationType === 'cohost' ? 'cohost_invitation' : 'invitation_received',
+              invitationType: invitationType
+            }
+          };
+          await admin.firestore()
+            .collection('users')
+            .doc(inviteeId)
+            .collection('notifications')
+            .add(inAppNotificationData);
+          console.log(`[Event Invitation] ✅ Created in-app notification for ${inviteeId}`);
+
+          // Then try the push so the OS surfaces it too (when permitted).
           if (fcmToken) {
             // Send push notification - FCM handler will create in-app notification
             // IMPORTANT: All FCM data fields MUST be strings
@@ -179,60 +207,13 @@ exports.onEventInvitation = functions.firestore
 
             try {
               await admin.messaging().send(message);
-              console.log(`[Event Invitation] ✅ Sent push notification to ${inviteeId} (FCM handler will create in-app)`);
+              console.log(`[Event Invitation] ✅ Sent push notification to ${inviteeId}`);
             } catch (pushError) {
               console.error(`[Event Invitation] ❌ Failed to send push to ${inviteeId}:`, pushError);
-              // Fallback: create in-app notification if push fails
-              await admin.firestore()
-                .collection('users')
-                .doc(inviteeId)
-                .collection('notifications')
-                .add({
-                  type: invitationType === 'cohost' ? 'cohost_invitation' : 'event_invitation',
-                  title: notificationTitle,
-                  message: notificationBody,
-                  read: false,
-                  createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                  data: {
-                    resetStack: true,
-                    navigationStack: 'Home,EventDetail',
-                    eventId: eventId,
-                    studioId: studioId,
-                    eventTitle: eventTitle,
-                    inviterId: inviterId,
-                    inviterName: inviterName,
-                    actionType: invitationType === 'cohost' ? 'cohost_invitation' : 'invitation_received',
-                    invitationType: invitationType
-                  }
-                });
-              console.log(`[Event Invitation] ✅ Created fallback in-app notification for ${inviteeId}`);
+              // In-app entry was already created above, so nothing more to do.
             }
           } else {
-            // No FCM token - create in-app notification directly
-            console.log(`[Event Invitation] ⚠️ Invitee ${inviteeId} has no FCM token - creating in-app notification`);
-            await admin.firestore()
-              .collection('users')
-              .doc(inviteeId)
-              .collection('notifications')
-              .add({
-                type: invitationType === 'cohost' ? 'cohost_invitation' : 'event_invitation',
-                title: notificationTitle,
-                message: notificationBody,
-                read: false,
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                data: {
-                  resetStack: true,
-                  navigationStack: 'Home,EventDetail',
-                  eventId: eventId,
-                  studioId: studioId,
-                  eventTitle: eventTitle,
-                  inviterId: inviterId,
-                  inviterName: inviterName,
-                  actionType: invitationType === 'cohost' ? 'cohost_invitation' : 'invitation_received',
-                  invitationType: invitationType
-                }
-              });
-            console.log(`[Event Invitation] ✅ Created in-app notification for ${inviteeId} (no token)`);
+            console.log(`[Event Invitation] ⚠️ Invitee ${inviteeId} has no FCM token — in-app only`);
           }
 
         } catch (error) {

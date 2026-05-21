@@ -83,10 +83,32 @@ exports.onEventSubscribed = functions.firestore
 
           const fcmToken = recipientData?.deviceInfo?.fcmToken;
 
-          // If user has FCM token: send ONLY push notification (FCM handler creates in-app)
-          // If NO token: create in-app notification directly (they won't get push)
+          // Always create the in-app entry so notification history is
+          // reliable even when OS push is denied/dropped.
+          const inAppNotificationData = {
+            type: 'event_subscription',
+            title: 'Someone Joined Your Event!',
+            message: `${subscriberName} joined your event '${eventTitle}'`,
+            read: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            data: {
+              resetStack: true,
+              navigationStack: 'Home,EventDetail',
+              eventId: eventId,
+              studioId: studioId,
+              eventTitle: eventTitle,
+              subscriberId: userId,
+              subscriberName: subscriberName
+            }
+          };
+          await admin.firestore()
+            .collection('users')
+            .doc(recipientId)
+            .collection('notifications')
+            .add(inAppNotificationData);
+          console.log(`[Event Subscription] ✅ Created in-app notification for ${recipientId}`);
+
           if (fcmToken) {
-            // Send push notification - FCM handler will create in-app notification
             const message = {
               token: fcmToken,
               notification: {
@@ -110,56 +132,12 @@ exports.onEventSubscribed = functions.firestore
 
             try {
               await admin.messaging().send(message);
-              console.log(`[Event Subscription] ✅ Sent push notification to ${recipientId} (FCM handler will create in-app)`);
+              console.log(`[Event Subscription] ✅ Sent push notification to ${recipientId}`);
             } catch (pushError) {
               console.error(`[Event Subscription] ❌ Failed to send push to ${recipientId}:`, pushError);
-              // Fallback: create in-app notification if push fails
-              await admin.firestore()
-                .collection('users')
-                .doc(recipientId)
-                .collection('notifications')
-                .add({
-                  type: 'event_subscription',
-                  title: 'Someone Joined Your Event!',
-                  message: `${subscriberName} joined your event '${eventTitle}'`,
-                  read: false,
-                  createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                  data: {
-                    resetStack: true,
-                    navigationStack: 'Home,EventDetail',
-                    eventId: eventId,
-                    studioId: studioId,
-                    eventTitle: eventTitle,
-                    subscriberId: userId,
-                    subscriberName: subscriberName
-                  }
-                });
-              console.log(`[Event Subscription] ✅ Created fallback in-app notification for ${recipientId}`);
             }
           } else {
-            // No FCM token - create in-app notification directly
-            console.log(`[Event Subscription] ⚠️ Recipient ${recipientId} has no FCM token - creating in-app notification`);
-            await admin.firestore()
-              .collection('users')
-              .doc(recipientId)
-              .collection('notifications')
-              .add({
-                type: 'event_subscription',
-                title: 'Someone Joined Your Event!',
-                message: `${subscriberName} joined your event '${eventTitle}'`,
-                read: false,
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                data: {
-                  resetStack: true,
-                  navigationStack: 'Home,EventDetail',
-                  eventId: eventId,
-                  studioId: studioId,
-                  eventTitle: eventTitle,
-                  subscriberId: userId,
-                  subscriberName: subscriberName
-                }
-              });
-            console.log(`[Event Subscription] ✅ Created in-app notification for ${recipientId} (no token)`);
+            console.log(`[Event Subscription] ⚠️ Recipient ${recipientId} has no FCM token — in-app only`);
           }
 
         } catch (error) {
@@ -256,10 +234,31 @@ exports.onEventUnsubscribed = functions.firestore
 
           const fcmToken = recipientData?.deviceInfo?.fcmToken;
 
-          // If user has FCM token: send ONLY push notification (FCM handler creates in-app)
-          // If NO token: create in-app notification directly (they won't get push)
+          // Always create the in-app entry first.
+          const inAppNotificationData = {
+            type: 'event_unsubscription',
+            title: 'Someone Left Your Event',
+            message: `${unsubscriberName} left your event '${eventTitle}'`,
+            read: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            data: {
+              resetStack: true,
+              navigationStack: 'Home,EventDetail',
+              eventId: eventId,
+              studioId: studioId,
+              eventTitle: eventTitle,
+              unsubscriberId: userId,
+              unsubscriberName: unsubscriberName
+            }
+          };
+          await admin.firestore()
+            .collection('users')
+            .doc(recipientId)
+            .collection('notifications')
+            .add(inAppNotificationData);
+          console.log(`[Event Unsubscription] ✅ Created in-app notification for ${recipientId}`);
+
           if (fcmToken) {
-            // Send push notification - FCM handler will create in-app notification
             const message = {
               token: fcmToken,
               notification: {
@@ -283,56 +282,12 @@ exports.onEventUnsubscribed = functions.firestore
 
             try {
               await admin.messaging().send(message);
-              console.log(`[Event Unsubscription] ✅ Sent push notification to ${recipientId} (FCM handler will create in-app)`);
+              console.log(`[Event Unsubscription] ✅ Sent push notification to ${recipientId}`);
             } catch (pushError) {
               console.error(`[Event Unsubscription] ❌ Failed to send push to ${recipientId}:`, pushError);
-              // Fallback: create in-app notification if push fails
-              await admin.firestore()
-                .collection('users')
-                .doc(recipientId)
-                .collection('notifications')
-                .add({
-                  type: 'event_unsubscription',
-                  title: 'Someone Left Your Event',
-                  message: `${unsubscriberName} left your event '${eventTitle}'`,
-                  read: false,
-                  createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                  data: {
-                    resetStack: true,
-                    navigationStack: 'Home,EventDetail',
-                    eventId: eventId,
-                    studioId: studioId,
-                    eventTitle: eventTitle,
-                    unsubscriberId: userId,
-                    unsubscriberName: unsubscriberName
-                  }
-                });
-              console.log(`[Event Unsubscription] ✅ Created fallback in-app notification for ${recipientId}`);
             }
           } else {
-            // No FCM token - create in-app notification directly
-            console.log(`[Event Unsubscription] ⚠️ Recipient ${recipientId} has no FCM token - creating in-app notification`);
-            await admin.firestore()
-              .collection('users')
-              .doc(recipientId)
-              .collection('notifications')
-              .add({
-                type: 'event_unsubscription',
-                title: 'Someone Left Your Event',
-                message: `${unsubscriberName} left your event '${eventTitle}'`,
-                read: false,
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                data: {
-                  resetStack: true,
-                  navigationStack: 'Home,EventDetail',
-                  eventId: eventId,
-                  studioId: studioId,
-                  eventTitle: eventTitle,
-                  unsubscriberId: userId,
-                  unsubscriberName: unsubscriberName
-                }
-              });
-            console.log(`[Event Unsubscription] ✅ Created in-app notification for ${recipientId} (no token)`);
+            console.log(`[Event Unsubscription] ⚠️ Recipient ${recipientId} has no FCM token — in-app only`);
           }
 
           console.log(`[Event Unsubscription] Successfully sent notification to ${recipientId} about ${unsubscriberName} leaving event ${eventId}`);
