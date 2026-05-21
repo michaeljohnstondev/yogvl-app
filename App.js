@@ -4,6 +4,7 @@ import { View, Image, ActivityIndicator, StyleSheet, LogBox } from 'react-native
 import * as SplashScreen from 'expo-splash-screen';
 import Navigation from './src/Navigation';
 import { VibeAlertProvider, VibeAppWrapper } from './src/components/ui/base';
+import UpdateBanner from './src/components/ui/feedback/UpdateBanner';
 import { useEventEndNotifications } from './src/hooks/useEventEndNotifications';
 import { useNotificationDisplayInit } from './src/hooks/useNotificationDisplayInit';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -101,6 +102,7 @@ export default function App() {
       <VibeAppWrapper>
         <VibeAlertProvider>
           <AppWithNotifications onReady={onNavigationReady} />
+          <UpdateBanner />
         </VibeAlertProvider>
       </VibeAppWrapper>
     </SafeAreaProvider>
