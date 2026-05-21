@@ -87,8 +87,8 @@ exports.onEventSubscribed = functions.firestore
           // reliable even when OS push is denied/dropped.
           const inAppNotificationData = {
             type: 'event_subscription',
-            title: 'Someone Joined Your Event!',
-            message: `${subscriberName} joined your event '${eventTitle}'`,
+            title: `${subscriberName} joined your event`,
+            message: eventTitle,
             read: false,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             data: {
@@ -112,8 +112,8 @@ exports.onEventSubscribed = functions.firestore
             const message = {
               token: fcmToken,
               notification: {
-                title: 'Someone Joined Your Event!',
-                body: `${subscriberName} joined your event '${eventTitle}'`
+                title: `${subscriberName} joined your event`,
+                body: eventTitle
               },
               data: {
                 type: 'event_subscription',
@@ -237,8 +237,8 @@ exports.onEventUnsubscribed = functions.firestore
           // Always create the in-app entry first.
           const inAppNotificationData = {
             type: 'event_unsubscription',
-            title: 'Someone Left Your Event',
-            message: `${unsubscriberName} left your event '${eventTitle}'`,
+            title: `${unsubscriberName} left your event`,
+            message: eventTitle,
             read: false,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             data: {
@@ -262,8 +262,8 @@ exports.onEventUnsubscribed = functions.firestore
             const message = {
               token: fcmToken,
               notification: {
-                title: 'Someone Left Your Event',
-                body: `${unsubscriberName} left your event '${eventTitle}'`
+                title: `${unsubscriberName} left your event`,
+                body: eventTitle
               },
               data: {
                 type: 'event_unsubscription',

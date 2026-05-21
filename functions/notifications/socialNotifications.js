@@ -67,8 +67,8 @@ exports.onMutualFollowTrigger = functions.firestore.onDocumentCreated(
               await admin.messaging().send({
                 token: fcmToken,
                 notification: {
-                  title: 'Mutual Follow!',
-                  body: `You and ${notification.userName} are now following each other`,
+                  title: 'New Friend!',
+                  body: `You and ${notification.userName} are now friends`,
                 },
                 data: {
                   type: 'mutual_follow',
@@ -93,8 +93,8 @@ exports.onMutualFollowTrigger = functions.firestore.onDocumentCreated(
                 .collection('notifications')
                 .add({
                   type: 'mutual_follow',
-                  title: 'Mutual Follow!',
-                  message: `You and ${notification.userName} are now following each other`,
+                  title: 'New Friend!',
+                  message: `You and ${notification.userName} are now friends`,
                   read: false,
                   createdAt: admin.firestore.FieldValue.serverTimestamp(),
                   data: {
@@ -113,8 +113,8 @@ exports.onMutualFollowTrigger = functions.firestore.onDocumentCreated(
               .collection('notifications')
               .add({
                 type: 'mutual_follow',
-                title: 'Mutual Follow!',
-                message: `You and ${notification.userName} are now following each other`,
+                title: 'New Friend!',
+                message: `You and ${notification.userName} are now friends`,
                 read: false,
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
                 data: {
