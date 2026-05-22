@@ -40,7 +40,7 @@ const EMAIL_CONFIGS = {
     priority: 'normal',
   },
   [EMAIL_TEMPLATES.WELCOME]: {
-    subject: 'Welcome to Big Vibe Studios!',
+    subject: 'Welcome to The Yo!',
     template: 'welcome',
     priority: 'normal',
   },
@@ -396,7 +396,7 @@ const generateInvitationEmailHTML = (data) => {
           </div>
           
           <p style="text-align: center; margin-top: 30px;">
-            <a href="${data.appDownloadUrl}" style="color: #00bfff;">Download Big Vibe Studios App</a> for the best experience!
+            <a href="${data.appDownloadUrl}" style="color: #00bfff;">Download The Yo</a> for the best experience!
           </p>
         </div>
         

@@ -387,7 +387,7 @@ export default function NotificationTester() {
       const testResult = await notificationEngine.createNotification({
         userId: currentUserId,
         type: 'admin_notification',
-        title: 'Big Vibe Studios',
+        title: 'The Yo',
         message: 'Test notification - your push notifications are working! 🎉',
         data: { type: 'test', timestamp: Date.now() },
       });
@@ -474,7 +474,7 @@ export default function NotificationTester() {
           },
         },
         default: {
-          title: 'Big Vibe Studios 🎊',
+          title: 'The Yo 🎊',
           body: 'This is a general app notification test',
           data: {
             type: 'admin_notification',

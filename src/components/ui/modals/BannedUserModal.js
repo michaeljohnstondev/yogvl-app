@@ -35,11 +35,11 @@ export default function BannedUserModal({
 
   const getBanMessage = () => {
     if (banStatus?.type === 'permanent') {
-      return `Your account has been permanently banned from Big Vibe Studios.\n\nYou cannot create events, join events, or participate in the community.`;
+      return `Your account has been permanently banned from The Yo.\n\nYou cannot create events, join events, or participate in the community.`;
     } else if (banStatus?.type === 'temporary') {
-      return `Your account has been temporarily banned from Big Vibe Studios.\n\nYou cannot create events, join events, or participate in the community until your ban expires.`;
+      return `Your account has been temporarily banned from The Yo.\n\nYou cannot create events, join events, or participate in the community until your ban expires.`;
     }
-    return 'Your account has restricted access to Big Vibe Studios features.';
+    return 'Your account has restricted access to The Yo features.';
   };
 
   const getTimeRemaining = () => {

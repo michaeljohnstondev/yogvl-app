@@ -199,6 +199,14 @@ export default function EditEventScreen({ navigation, route }) {
       dressCode: eventData.dressCode || '',
       ageRestrictions: eventData.ageRestrictions || '',
       trackAttendance: eventData.trackAttendance || false,
+      // Backwards-compat: events created before the links feature have no
+      // links field, so default to []. Filter just in case Firestore returns
+      // legacy shapes.
+      links: Array.isArray(eventData.links)
+        ? eventData.links
+            .filter((l) => l && typeof l === 'object')
+            .map((l) => ({ label: l.label || '', url: l.url || '' }))
+        : [],
       notificationSettings: {
         enabled: eventData.notificationSettings?.enabled ?? true,
         notifyOnJoin: eventData.notificationSettings?.notifyOnJoin ?? true,
@@ -632,6 +640,7 @@ export default function EditEventScreen({ navigation, route }) {
             templateFormData.trackAttendance !== undefined
               ? templateFormData.trackAttendance
               : false,
+          links: Array.isArray(templateFormData.links) ? templateFormData.links : [],
         });
 
         // Apply date/time if present in template and valid

@@ -34,6 +34,7 @@ import { When } from './when/When';
 import { Where } from './where/Where';
 import { Who } from './who/Who';
 import { Details } from './details/Details';
+import { Links } from './links/Links';
 import { AdditionalSettings } from './additionalSettings/AdditionalSettings';
 import GuestListViewer from './guests/GuestListViewer';
 import ManageNotificationsButton from './notificationSettings/ManageNotificationsButton';
@@ -911,6 +912,19 @@ export default function CreateEventForm({
               onExpansionChange={(isExpanded) =>
                 handleSectionExpansion('details', isExpanded)
               }
+              setFieldRef={setFieldRef}
+            />
+          </View>
+
+          {/* LINKS SECTION */}
+          <View
+            ref={setSectionRef('links')}
+            style={styles.sectionContainer}
+          >
+            <Links
+              formData={formData}
+              updateField={updateField}
+              styles={styles}
               setFieldRef={setFieldRef}
             />
           </View>

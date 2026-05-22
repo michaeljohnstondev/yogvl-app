@@ -22,6 +22,7 @@ const DEFAULT_FORM_DATA = {
   attendanceType: 'casual', // 'strict' | 'casual'
   isOfficialEvent: false,
   officialOrganization: '',
+  links: [], // Array of { label?: string, url: string } — max 5 enforced by validator
 };
 
 /**
@@ -362,6 +363,26 @@ export const eventFormValidators = {
       }
       if (feeValue > 10000) {
         return 'Entry fee cannot exceed $10,000';
+      }
+    }
+    return true;
+  },
+
+  links: (value) => {
+    // Links are optional. Validate shape, count, URL format if provided.
+    if (!value) return true;
+    if (!Array.isArray(value)) return 'Links must be a list';
+    if (value.length > 5) return 'You can add up to 5 links';
+    for (let i = 0; i < value.length; i++) {
+      const link = value[i] || {};
+      const url = (link.url || '').trim();
+      const label = (link.label || '').trim();
+      if (!url) continue; // Empty rows get filtered out at save time
+      if (url.length > 2000) return `Link ${i + 1}: URL is too long`;
+      if (label.length > 60) return `Link ${i + 1}: label must be 60 characters or less`;
+      // Allow http(s) only — block javascript:, data:, file:, etc.
+      if (!/^https?:\/\//i.test(url)) {
+        return `Link ${i + 1}: URL must start with http:// or https://`;
       }
     }
     return true;

@@ -298,6 +298,7 @@ export const formatEventForStorage = (
     attendanceType,
     isOfficialEvent,
     notificationSettings,
+    links,
   } = formData;
 
   // Format main event date/time using studio timezone
@@ -411,6 +412,17 @@ export const formatEventForStorage = (
 
     // OFFICIAL EVENTS (admin only)
     isOfficialEvent: isOfficialEvent ?? false,
+
+    // LINKS — array of { label?, url }, empty rows dropped, trimmed, max 5
+    links: Array.isArray(links)
+      ? links
+          .map((l) => ({
+            label: (l?.label || '').trim(),
+            url: (l?.url || '').trim(),
+          }))
+          .filter((l) => l.url.length > 0)
+          .slice(0, 5)
+      : [],
 
     // HOST NOTIFICATION SETTINGS (per-event)
     ...(notificationSettings ? { notificationSettings } : {}),

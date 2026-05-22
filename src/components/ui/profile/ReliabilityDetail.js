@@ -76,7 +76,7 @@ export default function ReliabilityDetail({ userData, onClose }) {
           {reliabilityData.isNewUser && (
             <View style={styles.newUserSection}>
               <Text style={styles.newUserTitle}>
-                🎉 Welcome to Big Vibe Studios!
+                🎉 Welcome to The Yo!
               </Text>
               <Text style={styles.newUserText}>
                 Your reliability score will be calculated after attending a few

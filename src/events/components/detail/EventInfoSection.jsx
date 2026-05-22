@@ -1,5 +1,5 @@
 import React, { useState, useCallback, memo, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
 import { FormatDate } from '../../../lib/formatDate';
 import { textUtils } from '../../../lib/textUtils';
 import { mapUtils } from '../../../lib/mapUtils';
@@ -392,6 +392,37 @@ function EventInfoSection({
             </View>
           </View>
         </TouchableOpacity>
+      )}
+
+      {/* Links — only render if the event has any. Each link opens in browser. */}
+      {Array.isArray(event.links) && event.links.length > 0 && (
+        <View style={styles.infoCard}>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoIcon}>🔗</Text>
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>Links</Text>
+              {event.links.map((link, idx) => {
+                if (!link?.url) return null;
+                const displayText = (link.label && link.label.trim()) || link.url;
+                return (
+                  <TouchableOpacity
+                    key={`${link.url}-${idx}`}
+                    onPress={() => Linking.openURL(link.url).catch(() => {})}
+                    style={{ paddingVertical: 6 }}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[styles.infoValue, { color: theme.colors.vibeBlue, textDecorationLine: 'underline' }]}
+                      numberOfLines={1}
+                    >
+                      {displayText}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </View>
       )}
     </View>
   );

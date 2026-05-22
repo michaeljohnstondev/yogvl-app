@@ -463,6 +463,7 @@ export default function CreateEventScreen({ navigation, route }) {
             templateFormData.trackAttendance !== undefined
               ? templateFormData.trackAttendance
               : false,
+          links: Array.isArray(templateFormData.links) ? templateFormData.links : [],
         });
 
         // Apply invitation selections from template

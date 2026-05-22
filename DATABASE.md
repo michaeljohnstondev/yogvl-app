@@ -180,6 +180,13 @@ Based on actual implementation:
   isPrivate: boolean,         // Whether event is private
   active: boolean,            // Whether event is active
 
+  // Optional reference links attached to the event (max 5)
+  // Each entry: { label?: string, url: string }. URL must start with http(s)://.
+  // Empty rows are dropped at save time. Older events have no field — treat as [].
+  links: [
+    { label: string, url: string }
+  ],
+
   // Official/Community Events
   isOfficialEvent: boolean,   // Whether this is an official community event (created by admin on behalf of organization)
   // NOTE: Organization name (e.g., "YoGVL", "YoATL") is NOT stored in the event document.
