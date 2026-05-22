@@ -43,39 +43,9 @@ try {
       }
     }
 
-    // Mirror the notification into the user's in-app dashboard so the
-    // bell icon / notification list stays in sync even when the app
-    // wasn't open. Foreground messages already write via NotificationEngine
-    // in handleForegroundMessage; this covers the background/closed case.
-    try {
-      const userId = await SecureStore.getItemAsync(STORAGE_KEYS.CURRENT_USER_ID);
-      if (!userId) {
-        console.log('[FCMService] No stored userId — skipping background in-app dashboard write');
-        return;
-      }
-
-      const title = remoteMessage?.notification?.title
-        || remoteMessage?.data?.title
-        || 'Notification';
-      const message = remoteMessage?.notification?.body
-        || remoteMessage?.data?.message
-        || remoteMessage?.data?.body
-        || '';
-      if (title === 'Notification' && message === '') return;
-
-      const { collection, addDoc, serverTimestamp } = await import('firebase/firestore');
-      await addDoc(collection(db, 'users', userId, 'notifications'), {
-        type: remoteMessage?.data?.type || 'info',
-        title,
-        message,
-        data: remoteMessage?.data || {},
-        read: false,
-        createdAt: serverTimestamp(),
-      });
-      console.log('[FCMService] ✅ Wrote background notification to in-app dashboard');
-    } catch (error) {
-      console.error('[FCMService] Failed to write background notification to in-app dashboard:', error);
-    }
+    // Note: Cloud Functions are now the sole source of in-app notification
+    // entries. They write to users/{uid}/notifications themselves, so we
+    // no longer mirror background pushes here (it would create duplicates).
   });
 } catch (error) {
   console.warn('[FCMService] Failed to set background message handler:', error);
@@ -490,8 +460,11 @@ class FCMService {
         (data) => this.navigateFromNotification(data)
       );
 
-      // Store notification in dashboard for later viewing
-      await this.storeForegroundNotificationInDashboard(remoteMessage);
+      // Cloud Functions are now the sole source of in-app notification
+      // entries (each function writes to users/{uid}/notifications). Writing
+      // a second one here when push delivers in the foreground would create
+      // a visible duplicate, so this client-side write has been removed.
+      // (The foreground banner above is still shown.)
 
       if (!displaySuccess) {
         console.warn('[FCMService] Failed to display foreground notification banner');

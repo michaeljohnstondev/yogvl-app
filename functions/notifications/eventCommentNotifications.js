@@ -168,7 +168,7 @@ exports.onHostComment = functions.firestore
               token: fcmToken,
               notification: {
                 title: eventTitle,
-                body: `New message`
+                body: `${hostName}: ${commentPreview}`
               },
               data: {
                 type: 'host_comment',
@@ -414,7 +414,7 @@ exports.onGuestComment = functions.firestore
               token: fcmToken,
               notification: {
                 title: eventTitle,
-                body: `New message`
+                body: `${guestName}: ${commentPreview}`
               },
               data: {
                 type: 'guest_comment',
