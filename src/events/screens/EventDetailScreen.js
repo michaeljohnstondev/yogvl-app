@@ -220,7 +220,7 @@ const EventDetailScreen = memo(function EventDetailScreen({
   // Share button entry point — ask which way the user wants to share.
   const handleShareEvent = useCallback(() => {
     if (!event) return;
-    vibeAlert.info(
+    vibeAlert.menuDark(
       'Share Event',
       'How would you like to share?',
       [

@@ -78,6 +78,8 @@ export const VibeAlertProvider = ({ children }) => {
       showAlert(title, message, buttons, 'teal'),
     menu: (title, message, buttons) =>
       showAlert(title, message, buttons, 'menu'),
+    menuDark: (title, message, buttons) =>
+      showAlert(title, message, buttons, 'menuDark'),
     redmenu: (title, message, buttons) =>
       showAlert(title, message, buttons, 'redmenu'),
     confirm: (title, message, onConfirm, onCancel) => {
@@ -146,6 +148,8 @@ export const VibeAlertProvider = ({ children }) => {
         return { border: theme.colors.vibeBlue, icon: '🎉' };
       case 'menu':
         return { border: theme.colors.vibeBlue, icon: '👤' };
+      case 'menuDark':
+        return { border: theme.colors.vibeRoyalBlue, icon: '📤' };
       case 'redmenu':
         return { border: theme.colors.vibeRed, icon: '🚨' };
       case 'cyan':
@@ -232,6 +236,7 @@ export const VibeAlertProvider = ({ children }) => {
                   (alert.type === 'subscribe' ||
                     alert.type === 'joinedEvent' ||
                     alert.type === 'menu' ||
+                    alert.type === 'menuDark' ||
                     alert.type === 'redmenu') &&
                     styles.subscribeButtonContainer,
                 ]}
@@ -240,6 +245,7 @@ export const VibeAlertProvider = ({ children }) => {
                   const isSubscribe = alert.type === 'subscribe';
                   const isJoinedEvent = alert.type === 'joinedEvent';
                   const isMenu = alert.type === 'menu';
+                  const isMenuDark = alert.type === 'menuDark';
                   const isRedMenu = alert.type === 'redmenu';
                   const isPrimary = button.style === 'primary';
                   const isSecondary = button.style === 'secondary';
@@ -260,6 +266,8 @@ export const VibeAlertProvider = ({ children }) => {
                         (isSubscribe || isJoinedEvent) && styles.subscribeButton,
                         isMenu && styles.menuButton,
                         isMenu && isLastButton && styles.menuCancelButton,
+                        isMenuDark && styles.menuDarkButton,
+                        isMenuDark && isLastButton && styles.menuCancelButton,
                         isRedMenu && styles.subscribeButton,
                         isRedMenu && isLastButton && styles.cancelButton,
                         isPrimary && styles.primaryButton,
@@ -275,6 +283,7 @@ export const VibeAlertProvider = ({ children }) => {
                         !isSubscribe &&
                           !isJoinedEvent &&
                           !isMenu &&
+                          !isMenuDark &&
                           !isRedMenu &&
                           !isGreen &&
                           !isBlue &&
@@ -302,6 +311,7 @@ export const VibeAlertProvider = ({ children }) => {
                           isCancel && !isJoinedEvent && styles.cancelButtonText,
                           isCancel && isJoinedEvent && styles.redCancelButtonText,
                           isMenu && isLastButton && styles.cancelButtonText,
+                          isMenuDark && isLastButton && styles.cancelButtonText,
                           isRedMenu && isLastButton && styles.cancelButtonText,
                           isRedMenu &&
                             !isLastButton && {
@@ -405,6 +415,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     backgroundColor: theme.colors.vibeBlue,
     borderColor: theme.colors.vibeBlue,
+  },
+  menuDarkButton: {
+    minWidth: '100%',
+    borderWidth: 1,
+    backgroundColor: theme.colors.vibeRoyalBlue,
+    borderColor: theme.colors.vibeRoyalBlue,
   },
   menuCancelButton: {
     backgroundColor: 'transparent',

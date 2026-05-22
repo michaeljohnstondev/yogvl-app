@@ -1,0 +1,21 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Profile pictures — owner-only write, public read
+    match /users/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Event posters — any signed-in user can upload (host check is
+    // enforced in the app UI). Public read so posters render on shared
+    // events. Path: studios/{studioId}/events/{eventId}/poster_{ts}.jpg
+    match /studios/{studioId}/events/{eventId}/{filename} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+  }
+}

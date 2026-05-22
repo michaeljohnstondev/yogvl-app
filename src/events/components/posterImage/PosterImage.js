@@ -67,9 +67,6 @@ export const PosterImage = ({
       <View style={styles.labelContainer}>
         <Text style={styles.label}>Poster Image</Text>
       </View>
-      <Text style={localStyles.helperText}>
-        Optional. Flyer, photo, or anything visual for your event.
-      </Text>
 
       {posterImage ? (
         <View style={localStyles.previewContainer}>

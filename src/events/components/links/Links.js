@@ -39,9 +39,6 @@ export const Links = ({
       <View style={styles.labelContainer}>
         <Text style={styles.label}>Links</Text>
       </View>
-      <Text style={localStyles.helperText}>
-        Optional. Up to {MAX_LINKS}.
-      </Text>
 
       {links.map((link, index) => (
         <View key={index} style={localStyles.row}>

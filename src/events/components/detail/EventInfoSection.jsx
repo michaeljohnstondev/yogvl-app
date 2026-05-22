@@ -186,17 +186,6 @@ function EventInfoSection({
 
   return (
     <View style={styles.infoSection}>
-      {/* Poster Image — only render if uploaded. Wide 4:5 portrait. */}
-      {event.posterImage && typeof event.posterImage === 'string' && (
-        <View style={styles.posterContainer}>
-          <Image
-            source={{ uri: event.posterImage }}
-            style={styles.posterImage}
-            resizeMode="cover"
-          />
-        </View>
-      )}
-
       {/* Event Name with Privacy and Interests */}
       <TouchableOpacity
         style={styles.infoCard}
@@ -240,6 +229,17 @@ function EventInfoSection({
           </View>
         </View>
       </TouchableOpacity>
+
+      {/* Poster Image — only render if uploaded. 4:5 portrait. */}
+      {event.posterImage && typeof event.posterImage === 'string' && (
+        <View style={styles.posterContainer}>
+          <Image
+            source={{ uri: event.posterImage }}
+            style={styles.posterImage}
+            resizeMode="cover"
+          />
+        </View>
+      )}
 
       {/* Location */}
       <TouchableOpacity
