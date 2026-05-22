@@ -1,5 +1,5 @@
 import React, { useState, useCallback, memo, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Linking, Image } from 'react-native';
 import { FormatDate } from '../../../lib/formatDate';
 import { textUtils } from '../../../lib/textUtils';
 import { mapUtils } from '../../../lib/mapUtils';
@@ -186,6 +186,17 @@ function EventInfoSection({
 
   return (
     <View style={styles.infoSection}>
+      {/* Poster Image — only render if uploaded. Wide 4:5 portrait. */}
+      {event.posterImage && typeof event.posterImage === 'string' && (
+        <View style={styles.posterContainer}>
+          <Image
+            source={{ uri: event.posterImage }}
+            style={styles.posterImage}
+            resizeMode="cover"
+          />
+        </View>
+      )}
+
       {/* Event Name with Privacy and Interests */}
       <TouchableOpacity
         style={styles.infoCard}
@@ -440,6 +451,18 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 3,
     borderColor: theme.colors.vibeBlue,
+  },
+  posterContainer: {
+    marginVertical: 8,
+    borderRadius: theme.sizes.borderRadius,
+    borderWidth: 3,
+    borderColor: theme.colors.vibeBlue,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  posterImage: {
+    width: '100%',
+    aspectRatio: 4 / 5,
   },
   eventNameRow: {
     flexDirection: 'row',

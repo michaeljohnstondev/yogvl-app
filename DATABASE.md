@@ -187,6 +187,14 @@ Based on actual implementation:
     { label: string, url: string }
   ],
 
+  // Optional poster/flyer image for the event. Firebase Storage download URL
+  // (https://...). Older events have no field — treat as '' (no image).
+  // Storage path: studios/{studioId}/events/{eventId}/poster_{timestamp}.jpg
+  // Uploads happen post-create (need eventId) so the field is written via
+  // a second updateDoc on the new event. Replacing a poster cleans up the
+  // previous file in Storage.
+  posterImage: string,
+
   // Official/Community Events
   isOfficialEvent: boolean,   // Whether this is an official community event (created by admin on behalf of organization)
   // NOTE: Organization name (e.g., "YoGVL", "YoATL") is NOT stored in the event document.

@@ -207,6 +207,9 @@ export default function EditEventScreen({ navigation, route }) {
             .filter((l) => l && typeof l === 'object')
             .map((l) => ({ label: l.label || '', url: l.url || '' }))
         : [],
+      // Backwards-compat: older events have no posterImage field
+      posterImage:
+        typeof eventData.posterImage === 'string' ? eventData.posterImage : '',
       notificationSettings: {
         enabled: eventData.notificationSettings?.enabled ?? true,
         notifyOnJoin: eventData.notificationSettings?.notifyOnJoin ?? true,
@@ -574,8 +577,17 @@ export default function EditEventScreen({ navigation, route }) {
     closeSaveModal();
 
     try {
+      // Drop unsaved local picker URIs from templates — only persisted
+      // https URLs are usable across devices and future events.
+      const templatePoster =
+        typeof formData.posterImage === 'string' &&
+        /^https?:\/\//i.test(formData.posterImage)
+          ? formData.posterImage
+          : '';
+
       const combinedFormData = {
         ...formData,
+        posterImage: templatePoster,
         date: dateTimeValues.event.value,
         dateSelected: dateTimeValues.event.selected,
         time: dateTimeValues.event.value,
@@ -641,6 +653,10 @@ export default function EditEventScreen({ navigation, route }) {
               ? templateFormData.trackAttendance
               : false,
           links: Array.isArray(templateFormData.links) ? templateFormData.links : [],
+          posterImage:
+            typeof templateFormData.posterImage === 'string'
+              ? templateFormData.posterImage
+              : '',
         });
 
         // Apply date/time if present in template and valid

@@ -299,6 +299,7 @@ export const formatEventForStorage = (
     isOfficialEvent,
     notificationSettings,
     links,
+    posterImage,
   } = formData;
 
   // Format main event date/time using studio timezone
@@ -423,6 +424,14 @@ export const formatEventForStorage = (
           .filter((l) => l.url.length > 0)
           .slice(0, 5)
       : [],
+
+    // POSTER IMAGE — only persist if it's an https URL (already uploaded).
+    // Local picker URIs (file://, content://, ph://) are uploaded by the
+    // submit flow and the resulting URL is written via a separate updateDoc.
+    posterImage:
+      typeof posterImage === 'string' && /^https?:\/\//i.test(posterImage)
+        ? posterImage
+        : '',
 
     // HOST NOTIFICATION SETTINGS (per-event)
     ...(notificationSettings ? { notificationSettings } : {}),

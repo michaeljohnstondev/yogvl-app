@@ -374,8 +374,17 @@ export default function CreateEventScreen({ navigation, route }) {
     closeSaveModal();
 
     try {
+      // Drop unsaved local picker URIs from templates — only persisted
+      // https URLs are usable across devices and future events.
+      const templatePoster =
+        typeof formData.posterImage === 'string' &&
+        /^https?:\/\//i.test(formData.posterImage)
+          ? formData.posterImage
+          : '';
+
       const combinedFormData = {
         ...formData,
+        posterImage: templatePoster,
         // Only include date/time in templates if actually selected
         ...(dateTimeValues.event.selected
           ? {
@@ -464,6 +473,10 @@ export default function CreateEventScreen({ navigation, route }) {
               ? templateFormData.trackAttendance
               : false,
           links: Array.isArray(templateFormData.links) ? templateFormData.links : [],
+          posterImage:
+            typeof templateFormData.posterImage === 'string'
+              ? templateFormData.posterImage
+              : '',
         });
 
         // Apply invitation selections from template

@@ -23,6 +23,7 @@ const DEFAULT_FORM_DATA = {
   isOfficialEvent: false,
   officialOrganization: '',
   links: [], // Array of { label?: string, url: string } — max 5 enforced by validator
+  posterImage: '', // Firebase Storage URL once uploaded, or a local picker URI pre-upload
 };
 
 /**
@@ -365,6 +366,16 @@ export const eventFormValidators = {
         return 'Entry fee cannot exceed $10,000';
       }
     }
+    return true;
+  },
+
+  posterImage: (value) => {
+    // Optional. Allow empty string (no poster) or any non-empty string
+    // (a picker URI or Firebase URL — actual upload validation happens
+    // server-side at the storage layer).
+    if (!value) return true;
+    if (typeof value !== 'string') return 'Poster image must be a URL';
+    if (value.length > 2000) return 'Poster image URL is too long';
     return true;
   },
 

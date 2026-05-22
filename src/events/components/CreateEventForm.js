@@ -35,6 +35,7 @@ import { Where } from './where/Where';
 import { Who } from './who/Who';
 import { Details } from './details/Details';
 import { Links } from './links/Links';
+import { PosterImage } from './posterImage/PosterImage';
 import { AdditionalSettings } from './additionalSettings/AdditionalSettings';
 import GuestListViewer from './guests/GuestListViewer';
 import ManageNotificationsButton from './notificationSettings/ManageNotificationsButton';
@@ -922,6 +923,19 @@ export default function CreateEventForm({
             style={styles.sectionContainer}
           >
             <Links
+              formData={formData}
+              updateField={updateField}
+              styles={styles}
+              setFieldRef={setFieldRef}
+            />
+          </View>
+
+          {/* POSTER IMAGE SECTION */}
+          <View
+            ref={setSectionRef('posterImage')}
+            style={styles.sectionContainer}
+          >
+            <PosterImage
               formData={formData}
               updateField={updateField}
               styles={styles}
