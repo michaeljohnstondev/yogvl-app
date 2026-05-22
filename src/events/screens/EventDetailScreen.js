@@ -14,6 +14,8 @@ import {
 import { VibeButton } from '../../components/ui';
 import { MessageBoardButton } from '../../components/ui/buttons';
 import { useVibeAlert } from '../../components/ui/base/VibeAlertContext';
+import VibeModal from '../../components/ui/base/VibeModal';
+import QRCodeGenerator from '../../components/ui/utils/QRCodeGenerator';
 import { useFocusEffect } from '@react-navigation/native';
 import SubscriptionNotificationSettings from '../components/subscriptionSettings/SubscriptionNotificationSettings';
 import { useAuth } from '../../auth/AuthContext';
@@ -56,6 +58,7 @@ const EventDetailScreen = memo(function EventDetailScreen({
 
   // State
   const [event, setEvent] = useState(null);
+  const [showShareQR, setShowShareQR] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [creatorData, setCreatorData] = useState(null);
@@ -166,53 +169,45 @@ const EventDetailScreen = memo(function EventDetailScreen({
     setShowPrivacyFlash(true);
   }, []);
 
-  const handleShareEvent = useCallback(async () => {
+  // Build the formatted share message (date, time, location, description, link)
+  const buildShareMessage = useCallback(() => {
+    if (!event) return '';
+    const eventDate = event.eventTimestamp?.toDate
+      ? event.eventTimestamp.toDate()
+      : new Date(event.eventTimestamp);
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const dateFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    const timeFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+    const formattedDate = dateFormatter.format(eventDate);
+    const formattedTime = timeFormatter.format(eventDate);
+
+    let msg = `🎉 ${event.title}\n\n`;
+    msg += `📅 ${formattedDate}\n`;
+    msg += `🕐 ${formattedTime}\n`;
+    msg += `📍 ${event.location || event.address || 'Location TBA'}\n`;
+    if (event.description) {
+      msg += `\n${textUtils.truncateText(event.description, 150)}\n`;
+    }
+    // Always point recipients at the download page (consistent funnel).
+    msg += `\nhttps://theyo.org/download`;
+    return msg;
+  }, [event]);
+
+  // Native share sheet (Messages, Mail, etc.)
+  const handleShareViaApps = useCallback(async () => {
     if (!event) return;
-
     try {
-      // Format date and time
-      const eventDate = event.eventTimestamp?.toDate
-        ? event.eventTimestamp.toDate()
-        : new Date(event.eventTimestamp);
-
-      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-      const dateFormatter = new Intl.DateTimeFormat('en-US', {
-        timeZone,
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      });
-
-      const timeFormatter = new Intl.DateTimeFormat('en-US', {
-        timeZone,
-        hour: 'numeric',
-        minute: '2-digit',
-      });
-
-      const formattedDate = dateFormatter.format(eventDate);
-      const formattedTime = timeFormatter.format(eventDate);
-
-      // Build share message with event details
-      let shareMessage = `🎉 ${event.title}\n\n`;
-      shareMessage += `📅 ${formattedDate}\n`;
-      shareMessage += `🕐 ${formattedTime}\n`;
-      shareMessage += `📍 ${event.location || event.address || 'Location TBA'}\n`;
-
-      // Add description if available
-      if (event.description) {
-        const truncatedDesc = textUtils.truncateText(event.description, 150);
-        shareMessage += `\n${truncatedDesc}\n`;
-      }
-
-      shareMessage += `\n📲 Download The Yo to find other local events!\n`;
-      shareMessage += `https://bigvibestudios.com/theyo`;
-
-      const result = await Share.share({
-        message: shareMessage,
-      });
-
+      const result = await Share.share({ message: buildShareMessage() });
       if (result.action === Share.sharedAction) {
         console.log('[EventDetailScreen] Event shared successfully');
       }
@@ -220,7 +215,21 @@ const EventDetailScreen = memo(function EventDetailScreen({
       console.error('[EventDetailScreen] Error sharing event:', error);
       vibeAlert.error('Error', 'Failed to share event');
     }
-  }, [event, eventId, vibeAlert]);
+  }, [event, buildShareMessage, vibeAlert]);
+
+  // Share button entry point — ask which way the user wants to share.
+  const handleShareEvent = useCallback(() => {
+    if (!event) return;
+    vibeAlert.info(
+      'Share Event',
+      'How would you like to share?',
+      [
+        ...(event.inviteCode ? [{ text: 'Show QR code', onPress: () => setShowShareQR(true) }] : []),
+        { text: 'Share via apps', onPress: handleShareViaApps },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  }, [event, vibeAlert, handleShareViaApps]);
 
   const handleNotificationSettings = useCallback(async () => {
     if (!event) return;
@@ -909,6 +918,30 @@ const EventDetailScreen = memo(function EventDetailScreen({
         onKickAttendee={handleKickAttendee}
         navigation={navigation}
       />
+
+      {/* QR Code share modal — opened from the Share menu */}
+      <VibeModal
+        visible={showShareQR}
+        onClose={() => setShowShareQR(false)}
+        title="Share Event"
+      >
+        <View style={{ alignItems: 'center', paddingVertical: 16, gap: 16 }}>
+          <Text style={{ color: theme.colors.textPrimary, fontFamily: theme.fonts.main, fontSize: 16, textAlign: 'center' }}>
+            Scan to open {event?.title || 'this event'} in The Yo
+          </Text>
+          {event?.inviteCode && (
+            <QRCodeGenerator type="event" data={event.inviteCode} size={240} showShareButton={false} />
+          )}
+          <VibeButton
+            label="Share via apps"
+            onPress={() => {
+              setShowShareQR(false);
+              handleShareViaApps();
+            }}
+            style={{ marginTop: 8, width: '100%' }}
+          />
+        </View>
+      </VibeModal>
     </ScrollView>
   );
 });
