@@ -592,7 +592,12 @@ export default function HomeScreen({ navigation, route }) {
           ref={scrollViewRef}
           contentContainerStyle={[
             styles.container,
-            { paddingBottom: 120 + insets.bottom },
+            // The sticky CREATE button container already accounts for
+            // insets.bottom itself, so the ScrollView only needs enough
+            // padding to clear the button + its top padding (~140px).
+            // Adding insets.bottom here too double-counts and shows an
+            // empty gap below the last item.
+            { paddingBottom: 140 },
           ]}
           scrollEnabled={true}
           nestedScrollEnabled={true}
