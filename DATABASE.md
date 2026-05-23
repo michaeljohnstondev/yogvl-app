@@ -195,6 +195,18 @@ Based on actual implementation:
   // previous file in Storage.
   posterImage: string,
 
+  // Optional event duration in minutes. Older events have no field —
+  // treat as null (legacy "ends at start" behavior). Capped at 10080
+  // (7 days) by the form validator. Drives the duration-aware
+  // isPastEvent / isUpcoming helpers so events stay clickable until
+  // start + eventDuration elapses.
+  // Presets at the form layer: 30m / 1h / 2h / 4h / All day / Custom.
+  // - "All day"  = minutes until 23:59 of that day in the studio timezone.
+  // - "Custom"   = user-picked end time (max start + 7 days).
+  // Feed/listing queries widen their lower bound by 7d and then filter
+  // through isPastEvent client-side to keep active events visible.
+  eventDuration: number,
+
   // Official/Community Events
   isOfficialEvent: boolean,   // Whether this is an official community event (created by admin on behalf of organization)
   // NOTE: Organization name (e.g., "YoGVL", "YoATL") is NOT stored in the event document.

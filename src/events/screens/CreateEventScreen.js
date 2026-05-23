@@ -477,6 +477,11 @@ export default function CreateEventScreen({ navigation, route }) {
             typeof templateFormData.posterImage === 'string'
               ? templateFormData.posterImage
               : '',
+          eventDuration:
+            templateFormData.eventDuration != null &&
+            Number.isFinite(Number(templateFormData.eventDuration))
+              ? Number(templateFormData.eventDuration)
+              : null,
         });
 
         // Apply invitation selections from template
@@ -744,6 +749,7 @@ export default function CreateEventScreen({ navigation, route }) {
         PickerRow={PickerRow}
         DateTimePickerModals={DateTimePickerModals}
         dateTimeValues={dateTimeValues}
+        studioTimezone={studioTimezone || 'America/New_York'}
         // Invitation tracking
         onSelectedTextContactsChange={handleSelectedTextContactsChange}
         onGuestInvitationChange={handleGuestInvitationChange}

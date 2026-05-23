@@ -93,16 +93,18 @@ const EventActionButtons = memo(function EventActionButtons({
     navigation.navigate('EventAttendance', { eventId, studioId });
   };
 
-  // Calculate time-based attendance management availability
+  // Calculate time-based attendance management availability.
+  // Window is 3 hours before the event START to 30 minutes after the event
+  // ENDS (start + eventDuration). Events without a duration end at start.
   const getAttendanceManagementAvailability = () => {
     if (!event || !event.eventTimestamp) return false;
 
     const now = new Date();
     const eventTime = new Date(event.eventTimestamp.seconds * 1000);
-    const threeHoursBefore = new Date(eventTime.getTime() - 3 * 60 * 60 * 1000); // 3 hours before
-    const thirtyMinutesAfter = new Date(eventTime.getTime() + 30 * 60 * 1000); // 30 minutes after
+    const durationMs = (Number(event.eventDuration) || 0) * 60 * 1000;
+    const threeHoursBefore = new Date(eventTime.getTime() - 3 * 60 * 60 * 1000);
+    const thirtyMinutesAfter = new Date(eventTime.getTime() + durationMs + 30 * 60 * 1000);
 
-    // Available from 3 hours before until 30 minutes after event
     return now >= threeHoursBefore && now <= thirtyMinutesAfter;
   };
 

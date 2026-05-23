@@ -24,6 +24,11 @@ const DEFAULT_FORM_DATA = {
   officialOrganization: '',
   links: [], // Array of { label?: string, url: string } — max 5 enforced by validator
   posterImage: '', // Firebase Storage URL once uploaded, or a local picker URI pre-upload
+  // Duration of the event in minutes. Optional — missing/null means "no
+  // declared duration" (legacy behavior, event is treated as past at start
+  // time). Capped at 10080 (7 days) by validator. Used to keep events
+  // active in lists and past-checks until start + duration elapses.
+  eventDuration: null,
 };
 
 /**
@@ -366,6 +371,15 @@ export const eventFormValidators = {
         return 'Entry fee cannot exceed $10,000';
       }
     }
+    return true;
+  },
+
+  eventDuration: (value) => {
+    if (value === null || value === undefined || value === '') return true;
+    const minutes = Number(value);
+    if (!Number.isFinite(minutes)) return 'Duration must be a number of minutes';
+    if (minutes < 0) return 'Duration cannot be negative';
+    if (minutes > 10080) return 'Duration cannot exceed 7 days';
     return true;
   },
 

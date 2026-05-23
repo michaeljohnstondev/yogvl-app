@@ -1,21 +1,46 @@
 // components/events/utils/eventStatus.js
 
 /**
+ * Resolve an event's effective end time: start + eventDuration (minutes).
+ * Backwards-compat: if eventDuration is missing/0, returns the start time
+ * (legacy "event ends at start" behavior).
+ *
+ * @param {Object} event - Event with eventTimestamp and optional eventDuration
+ * @returns {Date|null}
+ */
+export const getEventEndTime = (event) => {
+  if (!event?.eventTimestamp) return null;
+  const start = event.eventTimestamp.toDate
+    ? event.eventTimestamp.toDate()
+    : new Date(event.eventTimestamp);
+  const durationMin = Number(event.eventDuration) || 0;
+  return new Date(start.getTime() + durationMin * 60 * 1000);
+};
+
+/**
  * Get the current status of an event
  * @param {Object} event - Event object with eventTimestamp and status
- * @returns {string} Event status: 'Upcoming', 'Starting Soon', 'Completed', 'Ended', 'Unknown'
+ * @returns {string} Event status: 'Upcoming', 'Starting Soon', 'Live', 'Completed', 'Ended', 'Unknown'
  */
 export const getEventStatus = (event) => {
   if (!event?.eventTimestamp) return 'Unknown';
 
-  const eventDate = event.eventTimestamp.toDate();
+  const start = event.eventTimestamp.toDate();
+  const end = getEventEndTime(event);
   const now = new Date();
 
-  if (eventDate < now) {
+  // Past — fully over
+  if (end && now > end) {
     return event.status === 'completed' ? 'Completed' : 'Ended';
   }
 
-  const hoursDiff = (eventDate - now) / (1000 * 60 * 60);
+  // Currently happening (has a real duration and we're between start and end)
+  const durationMin = Number(event.eventDuration) || 0;
+  if (durationMin > 0 && now >= start && (!end || now <= end)) {
+    return 'Live';
+  }
+
+  const hoursDiff = (start - now) / (1000 * 60 * 60);
 
   if (hoursDiff <= 1 && hoursDiff > 0) {
     return 'Starting Soon';
@@ -45,13 +70,15 @@ export const getStatusColor = (status) => {
 };
 
 /**
- * Check if an event has already passed
- * @param {Object} event - Event object with eventTimestamp
+ * Check if an event has fully ended (past start + duration).
+ * Events with no eventDuration fall back to legacy "ends at start" behavior.
+ * @param {Object} event - Event object with eventTimestamp and optional eventDuration
  * @returns {boolean} True if event is in the past
  */
 export const isPastEvent = (event) => {
   if (!event?.eventTimestamp) return false;
-  return event.eventTimestamp.toDate() < new Date();
+  const end = getEventEndTime(event);
+  return end != null && end < new Date();
 };
 
 /**

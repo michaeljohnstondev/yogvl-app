@@ -12,6 +12,16 @@ import {
 import { db } from '../auth/services/firebase';
 import { getFollowing, getFriends } from './followService';
 import { blockingService } from './blockingService';
+import { isPastEvent } from '../events/lib/eventStatus';
+
+// Max event duration matches the form validator (10080 minutes = 7 days).
+// We widen the lower bound of "upcoming" queries by this amount so we
+// don't miss events that started in the past but are still running per
+// their eventDuration field. The widened result set is filtered through
+// isPastEvent (which accounts for duration) before being returned.
+const MAX_EVENT_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
+const upcomingLowerBound = () =>
+  Timestamp.fromMillis(Date.now() - MAX_EVENT_DURATION_MS);
 
 /**
  * Helper function to check if an event should be hidden due to past RSVP deadline
@@ -49,7 +59,7 @@ const getFollowedUsersEventsWithFollowing = async (
 
     const q = query(
       eventsRef,
-      where('eventTimestamp', '>=', now),
+      where('eventTimestamp', '>=', upcomingLowerBound()),
       where('isPrivate', '==', false), // Only public events
       orderBy('eventTimestamp', 'asc'),
       firestoreLimit(limitCount * 3) // Get more to filter in-memory
@@ -61,6 +71,13 @@ const getFollowedUsersEventsWithFollowing = async (
 
     snapshot.docs.forEach((doc) => {
       const eventData = { id: doc.id, ...doc.data() };
+
+      // Skip events that have fully ended (start + eventDuration < now).
+      // The widened query bound brings in events from the past 7 days, so
+      // we filter here using the duration-aware helper.
+      if (isPastEvent(eventData)) {
+        return;
+      }
 
       // Skip events with past RSVP deadlines
       if (shouldHideEventDueToRSVPDeadline(eventData)) {
@@ -181,7 +198,7 @@ const getSuggestedEventsWithFollowing = async (
 
     const q = query(
       eventsRef,
-      where('eventTimestamp', '>=', now),
+      where('eventTimestamp', '>=', upcomingLowerBound()),
       where('isPrivate', '==', false), // Only public events
       orderBy('eventTimestamp', 'asc'),
       firestoreLimit(limitCount * 2) // Get more to filter out followed users
@@ -192,6 +209,9 @@ const getSuggestedEventsWithFollowing = async (
 
     snapshot.docs.forEach((doc) => {
       const eventData = { id: doc.id, ...doc.data() };
+
+      // Skip events that have fully ended (duration-aware)
+      if (isPastEvent(eventData)) return;
 
       // Skip events created by current user, but INCLUDE events from followed users
       if (eventData.createdBy !== currentUserId) {
@@ -292,7 +312,7 @@ export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
         const upcomingQuery = query(
           eventsRef,
           where('subscribers', 'array-contains', currentUserId),
-          where('eventTimestamp', '>=', now),
+          where('eventTimestamp', '>=', upcomingLowerBound()),
           orderBy('eventTimestamp', 'asc'),
           firestoreLimit(20)
         );
@@ -315,19 +335,17 @@ export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
           getDocs(pastQuery),
         ]);
 
-        const upcomingEvents = upcomingSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          isSubscribed: true,
-          category: 'my_events',
-        }));
+        // Duration-aware: widened upcoming query may include events that
+        // have already ended; past query may include events still running.
+        const upcomingEvents = upcomingSnapshot.docs
+          .map((doc) => ({ id: doc.id, ...doc.data() }))
+          .filter((e) => !isPastEvent(e))
+          .map((e) => ({ ...e, isSubscribed: true, category: 'my_events' }));
 
-        const pastEvents = pastSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          isSubscribed: true,
-          category: 'my_events',
-        }));
+        const pastEvents = pastSnapshot.docs
+          .map((doc) => ({ id: doc.id, ...doc.data() }))
+          .filter((e) => isPastEvent(e))
+          .map((e) => ({ ...e, isSubscribed: true, category: 'my_events' }));
 
         subscribedEvents = [...upcomingEvents, ...pastEvents];
       } catch (error) {
@@ -344,19 +362,17 @@ export const getEventFeed = async (currentUserId, userStudio, options = {}) => {
       const invitedQuery = query(
         eventsRef,
         where('invitations', 'array-contains', currentUserId),
-        where('eventTimestamp', '>=', now),
+        where('eventTimestamp', '>=', upcomingLowerBound()),
         orderBy('eventTimestamp', 'asc'),
         firestoreLimit(20)
       );
 
       const invitedSnapshot = await getDocs(invitedQuery);
 
-      invitedEvents = invitedSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        isInvited: true,
-        category: 'invited_events',
-      }));
+      invitedEvents = invitedSnapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() }))
+        .filter((e) => !isPastEvent(e))
+        .map((e) => ({ ...e, isInvited: true, category: 'invited_events' }));
     } catch (error) {
       console.error('[feedService] Failed to get invited events:', error);
     }
@@ -523,7 +539,7 @@ export const getFriendsEvents = async (
 
     const q = query(
       eventsRef,
-      where('eventTimestamp', '>=', now),
+      where('eventTimestamp', '>=', upcomingLowerBound()),
       where('isPrivate', '==', false), // Only public events
       orderBy('eventTimestamp', 'asc'),
       firestoreLimit(limitCount * 3) // Get more to filter in-memory
@@ -535,6 +551,11 @@ export const getFriendsEvents = async (
 
     snapshot.docs.forEach((doc) => {
       const eventData = { id: doc.id, ...doc.data() };
+
+      // Skip events that have fully ended (duration-aware)
+      if (isPastEvent(eventData)) {
+        return;
+      }
 
       // Skip events with past RSVP deadlines
       if (shouldHideEventDueToRSVPDeadline(eventData)) {

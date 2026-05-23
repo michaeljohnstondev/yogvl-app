@@ -324,6 +324,33 @@ function EventInfoSection({
               // Fallback: show as single line if can't split
               return <Text style={styles.infoValue}>{fullDateTime}</Text>;
             })()}
+            {/* End time — only render if event has a declared duration. */}
+            {(() => {
+              const durationMin = Number(event.eventDuration) || 0;
+              if (!durationMin || !event.eventTimestamp) return null;
+              const start = event.eventTimestamp.toDate
+                ? event.eventTimestamp.toDate()
+                : new Date(event.eventTimestamp);
+              const end = new Date(start.getTime() + durationMin * 60 * 1000);
+              const tz =
+                event.eventTimeZone ||
+                Intl.DateTimeFormat().resolvedOptions().timeZone;
+              try {
+                const formatter = new Intl.DateTimeFormat('en-US', {
+                  timeZone: tz,
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  weekday: 'short',
+                });
+                return (
+                  <Text style={[styles.infoValue, { color: theme.colors.textSecondary, fontSize: 14 }]}>
+                    Ends {formatter.format(end)}
+                  </Text>
+                );
+              } catch {
+                return null;
+              }
+            })()}
           </View>
           {/* Notification Bell Icon - Only show when subscribed and event is not past */}
           {isSubscribed && !isEventPast && onNotificationSettings && (

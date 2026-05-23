@@ -300,6 +300,7 @@ export const formatEventForStorage = (
     notificationSettings,
     links,
     posterImage,
+    eventDuration,
   } = formData;
 
   // Format main event date/time using studio timezone
@@ -432,6 +433,16 @@ export const formatEventForStorage = (
       typeof posterImage === 'string' && /^https?:\/\//i.test(posterImage)
         ? posterImage
         : '',
+
+    // DURATION (minutes). Capped at 10080 (7 days). null/empty means
+    // legacy behavior — event treated as past at start time. Used by
+    // past/upcoming logic to keep events active during their duration.
+    eventDuration: (() => {
+      if (eventDuration == null || eventDuration === '') return null;
+      const n = Number(eventDuration);
+      if (!Number.isFinite(n) || n <= 0) return null;
+      return Math.min(10080, Math.round(n));
+    })(),
 
     // HOST NOTIFICATION SETTINGS (per-event)
     ...(notificationSettings ? { notificationSettings } : {}),

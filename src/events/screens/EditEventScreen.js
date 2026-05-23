@@ -210,6 +210,11 @@ export default function EditEventScreen({ navigation, route }) {
       // Backwards-compat: older events have no posterImage field
       posterImage:
         typeof eventData.posterImage === 'string' ? eventData.posterImage : '',
+      // Backwards-compat: older events have no eventDuration field
+      eventDuration:
+        eventData.eventDuration != null && Number.isFinite(Number(eventData.eventDuration))
+          ? Number(eventData.eventDuration)
+          : null,
       notificationSettings: {
         enabled: eventData.notificationSettings?.enabled ?? true,
         notifyOnJoin: eventData.notificationSettings?.notifyOnJoin ?? true,
@@ -657,6 +662,11 @@ export default function EditEventScreen({ navigation, route }) {
             typeof templateFormData.posterImage === 'string'
               ? templateFormData.posterImage
               : '',
+          eventDuration:
+            templateFormData.eventDuration != null &&
+            Number.isFinite(Number(templateFormData.eventDuration))
+              ? Number(templateFormData.eventDuration)
+              : null,
         });
 
         // Apply date/time if present in template and valid
@@ -887,6 +897,7 @@ export default function EditEventScreen({ navigation, route }) {
         PickerRow={PickerRow}
         DateTimePickerModals={DateTimePickerModals}
         dateTimeValues={dateTimeValues}
+        studioTimezone={studioTimezone}
         // Invitation tracking
         onSelectedTextContactsChange={handleSelectedTextContactsChange}
         onGuestInvitationChange={handleGuestInvitationChange}

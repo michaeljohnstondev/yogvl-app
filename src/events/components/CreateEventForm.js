@@ -31,6 +31,7 @@ import {
 // Sections
 import { What } from './what/What';
 import { When } from './when/When';
+import { Duration } from './duration/Duration';
 import { Where } from './where/Where';
 import { Who } from './who/Who';
 import { Details } from './details/Details';
@@ -89,6 +90,7 @@ export default function CreateEventForm({
   PickerRow,
   DateTimePickerModals,
   dateTimeValues,
+  studioTimezone,
 
   // Invitation tracking
   onSelectedTextContactsChange,
@@ -858,6 +860,14 @@ export default function CreateEventForm({
               PickerRow={PickerRow}
               styles={styles}
               dateTimeValues={dateTimeValues}
+            />
+            <Duration
+              formData={formData}
+              updateField={updateField}
+              styles={styles}
+              setFieldRef={setFieldRef}
+              dateTimeValues={dateTimeValues}
+              studioTimezone={studioTimezone}
             />
           </View>
 
