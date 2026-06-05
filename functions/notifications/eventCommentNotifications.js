@@ -57,8 +57,9 @@ exports.onHostComment = functions.firestore
 
       console.log(`[Host Comment] 👤 Host name: ${hostName}`);
 
-      // Create comment preview (first 50 characters)
-      const commentText = commentData.text || '';
+      // Create comment preview (first 50 characters). Client writes the
+      // body under `content`; fall back to `text` for any legacy docs.
+      const commentText = commentData.content || commentData.text || '';
       const commentPreview = commentText.length > 50
         ? commentText.substring(0, 50) + '...'
         : commentText;
@@ -310,8 +311,9 @@ exports.onGuestComment = functions.firestore
 
       console.log(`[Guest Comment] 👤 Guest name: ${guestName}`);
 
-      // Create comment preview (first 50 characters)
-      const commentText = commentData.text || '';
+      // Create comment preview (first 50 characters). Client writes the
+      // body under `content`; fall back to `text` for any legacy docs.
+      const commentText = commentData.content || commentData.text || '';
       const commentPreview = commentText.length > 50
         ? commentText.substring(0, 50) + '...'
         : commentText;
