@@ -24,6 +24,7 @@
     "@react-navigation/native-stack": "^6.9.26",
     "@types/react": "~19.2.10",
     "expo": "~55.0.23",
+    "expo-apple-authentication": "~55.0.13",
     "expo-blur": "~55.0.14",
     "expo-build-properties": "~55.0.13",
     "expo-calendar": "~55.0.14",

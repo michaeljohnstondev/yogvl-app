@@ -8,6 +8,7 @@ import {
   Image,
   Linking,
   Pressable,
+  Platform,
 } from 'react-native';
 import {
   VibeInput,
@@ -21,6 +22,7 @@ import {
   signup,
   resetPassword,
   signInWithGoogle,
+  signInWithApple,
   ensureUserDocument,
 } from '../auth/services/FirebaseAuthService';
 import theme from '../theme/themes';
@@ -70,6 +72,7 @@ export default function LandingScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const vibeAlert = useVibeAlert();
 
@@ -138,6 +141,43 @@ export default function LandingScreen() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    setAppleLoading(true);
+    let signedIn = false;
+    try {
+      const { userCredential, firstName, lastName } = await signInWithApple();
+      const user = userCredential.user;
+      signedIn = true;
+
+      // Apple gives us name only on first sign-in. Pre-fill the user
+      // doc so ContactInfo can skip the name step when present.
+      await ensureUserDocument(user, {
+        firstName: firstName || undefined,
+        lastName: lastName || undefined,
+        authProvider: 'apple',
+      });
+
+      console.log('Apple sign-in complete - Navigation will handle routing');
+    } catch (err) {
+      // Apple's cancellation codes — silently ignore
+      if (err.code === 'ERR_REQUEST_CANCELED' || err.code === 'ERR_CANCELED') return;
+
+      console.error('[AppleSignIn] failed', {
+        signedIn,
+        code: err?.code,
+        message: err?.message,
+      });
+
+      // If Firebase signed in but the doc write failed, Navigation
+      // will still route; suppress the error toast.
+      if (signedIn) return;
+
+      vibeAlert.error('Apple Sign-In Failed', getHumanFriendlyError(err));
+    } finally {
+      setAppleLoading(false);
     }
   };
 
@@ -268,7 +308,7 @@ export default function LandingScreen() {
                     : 'Sign Up'
               }
               onPress={authMode === 'login' ? handleLogin : handleSignUp}
-              disabled={loading || googleLoading}
+              disabled={loading || googleLoading || appleLoading}
               style={styles.authButton}
             />
 
@@ -282,13 +322,32 @@ export default function LandingScreen() {
               </Text>
             )}
 
+            {/* Apple Sign-In Button — iOS only. Required by App Store
+                guideline 4.8 when offering third-party login. */}
+            {Platform.OS === 'ios' && (
+              <Pressable
+                onPress={handleAppleSignIn}
+                disabled={loading || googleLoading || appleLoading}
+                style={({ pressed }) => [
+                  styles.appleButton,
+                  { opacity: pressed ? 0.85 : (loading || googleLoading || appleLoading) ? 0.5 : 1 },
+                  { transform: [{ scale: pressed ? 0.98 : 1 }] },
+                ]}
+              >
+                <Text style={styles.appleLogo}></Text>
+                <Text style={styles.appleButtonText}>
+                  {appleLoading ? 'Signing in...' : 'Sign in with Apple'}
+                </Text>
+              </Pressable>
+            )}
+
             {/* Google Sign-In Button */}
             <Pressable
               onPress={handleGoogleSignIn}
-              disabled={loading || googleLoading}
+              disabled={loading || googleLoading || appleLoading}
               style={({ pressed }) => [
                 styles.googleButton,
-                { opacity: pressed ? 0.85 : (loading || googleLoading) ? 0.5 : 1 },
+                { opacity: pressed ? 0.85 : (loading || googleLoading || appleLoading) ? 0.5 : 1 },
                 { transform: [{ scale: pressed ? 0.98 : 1 }] },
               ]}
             >
@@ -387,6 +446,31 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginTop: 12,
   },
+  // Apple HIG: black background, white text, Apple logo on left.
+  // Sits above Google so the required option has equal/greater prominence.
+  appleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    height: 48,
+    backgroundColor: '#000000',
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: theme.colors.vibeBlue,
+    marginTop: 20,
+  },
+  appleLogo: {
+    color: '#ffffff',
+    fontSize: 20,
+    marginRight: 10,
+    marginTop: -2,
+  },
+  appleButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
   googleButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -397,7 +481,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 2,
     borderColor: theme.colors.vibeBlue,
-    marginTop: 20,
+    marginTop: 12,
   },
   googleIconContainer: {
     width: 28,

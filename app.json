@@ -2,7 +2,7 @@
   "expo": {
     "name": "The Yo",
     "slug": "bvs-app",
-    "version": "1.3.0",
+    "version": "1.3.1",
     "scheme": "the-yo",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
@@ -27,8 +27,9 @@
       "supportedDevices": [
         "iPhone"
       ],
+      "usesAppleSignIn": true,
       "bundleIdentifier": "com.bigvibestudios.bvs",
-      "buildNumber": "22",
+      "buildNumber": "23",
       "googleServicesFile": "./GoogleService-Info.plist",
       "runtimeVersion": {
         "policy": "appVersion"
@@ -71,7 +72,7 @@
         "barStyle": "light-content"
       },
       "package": "com.bigvibestudios.bvs",
-      "versionCode": 17,
+      "versionCode": 18,
       "compileSdkVersion": 35,
       "targetSdkVersion": 35,
       "googleServicesFile": "./google-services.json",
@@ -151,7 +152,7 @@
           ]
         }
       ],
-      "runtimeVersion": "1.3.0"
+      "runtimeVersion": "1.3.1"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -196,6 +197,7 @@
       ],
       "expo-secure-store",
       "expo-font",
+      "expo-apple-authentication",
       [
         "expo-calendar",
         {

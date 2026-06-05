@@ -6,11 +6,14 @@ import {
   sendPasswordResetEmail,
   signInWithCredential,
   GoogleAuthProvider,
+  OAuthProvider,
 } from 'firebase/auth';
+import { Platform } from 'react-native';
 import { auth, db } from './firebase';
 import { doc, setDoc, getDoc } from '../../lib/firebase';
 import { useState, useEffect } from 'react';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import {
   getDefaultUserSettings,
   getDefaultUserMetrics,
@@ -107,6 +110,54 @@ export async function signInWithGoogle() {
 
   const isNewUser = userCredential._tokenResponse?.isNewUser ?? false;
   return { userCredential, isNewUser };
+}
+
+/**
+ * Sign in with Apple via the native iOS sheet. Returns a Firebase
+ * UserCredential, whether the user is new, and the parsed name when
+ * Apple provides one (only on first authorization — subsequent
+ * sign-ins return null for `fullName`).
+ *
+ * iOS-only. Apple Sign-In is required by App Store guideline 4.8
+ * when any third-party login is offered (Google in our case).
+ */
+export async function signInWithApple() {
+  if (Platform.OS !== 'ios') {
+    throw new Error('Apple Sign-In is only available on iOS');
+  }
+
+  const available = await AppleAuthentication.isAvailableAsync();
+  if (!available) {
+    throw new Error('Apple Sign-In is not available on this device');
+  }
+
+  // Trigger native Apple sheet
+  const credential = await AppleAuthentication.signInAsync({
+    requestedScopes: [
+      AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+      AppleAuthentication.AppleAuthenticationScope.EMAIL,
+    ],
+  });
+
+  if (!credential.identityToken) {
+    throw new Error('No identity token returned from Apple Sign-In');
+  }
+
+  // Build Firebase credential — Apple uses generic OAuthProvider
+  const provider = new OAuthProvider('apple.com');
+  const firebaseCredential = provider.credential({
+    idToken: credential.identityToken,
+    rawNonce: undefined, // expo-apple-authentication does not surface the nonce
+  });
+  const userCredential = await signInWithCredential(auth, firebaseCredential);
+
+  // Apple returns the user's full name only on the FIRST sign-in.
+  // Persist it so we can pre-fill ContactInfo and skip ahead.
+  const firstName = credential.fullName?.givenName || null;
+  const lastName = credential.fullName?.familyName || null;
+
+  const isNewUser = userCredential._tokenResponse?.isNewUser ?? false;
+  return { userCredential, isNewUser, firstName, lastName };
 }
 
 /**
