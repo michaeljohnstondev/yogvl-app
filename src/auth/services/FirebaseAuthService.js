@@ -14,6 +14,7 @@ import { doc, setDoc, getDoc } from '../../lib/firebase';
 import { useState, useEffect } from 'react';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import * as Crypto from 'expo-crypto';
 import {
   getDefaultUserSettings,
   getDefaultUserMetrics,
@@ -131,12 +132,24 @@ export async function signInWithApple() {
     throw new Error('Apple Sign-In is not available on this device');
   }
 
+  // Generate a raw nonce + its SHA-256 hash. Apple gets the HASHED
+  // nonce so it can stamp it into the identity token; Firebase gets
+  // the RAW nonce so it can re-hash and verify the token wasn't
+  // replayed. Skipping this caused Firebase to reject the credential
+  // with auth/invalid-credential for some users on first try.
+  const rawNonce = `${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+  const hashedNonce = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    rawNonce,
+  );
+
   // Trigger native Apple sheet
   const credential = await AppleAuthentication.signInAsync({
     requestedScopes: [
       AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
       AppleAuthentication.AppleAuthenticationScope.EMAIL,
     ],
+    nonce: hashedNonce,
   });
 
   if (!credential.identityToken) {
@@ -147,7 +160,7 @@ export async function signInWithApple() {
   const provider = new OAuthProvider('apple.com');
   const firebaseCredential = provider.credential({
     idToken: credential.identityToken,
-    rawNonce: undefined, // expo-apple-authentication does not surface the nonce
+    rawNonce,
   });
   const userCredential = await signInWithCredential(auth, firebaseCredential);
 
