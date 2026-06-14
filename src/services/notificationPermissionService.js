@@ -26,7 +26,7 @@ class NotificationPermissionService {
   async initialize() {
     try {
       // Check which triggers have been used
-      const triggers = ['create_event', 'join_event', 'show_interest'];
+      const triggers = ['create_event', 'join_event', 'show_interest', 'home_visit'];
 
       for (const trigger of triggers) {
         const requested = await AsyncStorage.getItem(`${STORAGE_KEY_PREFIX}${trigger}`);
@@ -62,48 +62,44 @@ class NotificationPermissionService {
    */
   async requestPermissionIfNeeded(userId, trigger = 'unknown') {
     try {
-      // If permission already granted, register token and skip
+      // Permission already granted — just ensure the FCM token is
+      // registered for this user and skip the native call.
       if (this.permissionGranted) {
-        console.log('[NotificationPermission] Permission already granted, ensuring token is registered');
         if (userId) {
           await fcmService.registerTokenForUser(userId);
         }
         return true;
       }
 
-      // Don't request if currently requesting
+      // Avoid concurrent native prompts.
       if (this.isRequesting) {
-        console.log('[NotificationPermission] Request already in progress');
         return false;
       }
 
-      // Check if we've already asked for this specific trigger
-      if (this.requestedTriggers.has(trigger)) {
-        console.log(`[NotificationPermission] Already requested for trigger: ${trigger}`);
-        return false;
-      }
-
+      // Always ask. This is a notifications-driven app, so we want every
+      // natural trigger to attempt a request. The OS will only surface a
+      // system prompt the first time (undetermined status); after grant
+      // or deny it returns the cached value silently — no user-visible
+      // re-prompt. Catches users who flipped notifications on in Settings
+      // between launches.
       console.log(`[NotificationPermission] 🔔 Requesting permission (trigger: ${trigger})`);
       this.isRequesting = true;
 
-      // Request permission via FCM service
       const result = await fcmService.requestPermission();
 
-      // Mark this trigger as used (regardless of outcome)
+      // Track which triggers fired (for debug visibility), but don't gate
+      // future calls on it — the OS handles deduplication.
       this.requestedTriggers.add(trigger);
       await AsyncStorage.setItem(`${STORAGE_KEY_PREFIX}${trigger}`, 'true');
 
       if (result.granted) {
         console.log('[NotificationPermission] ✅ Permission granted');
         this.permissionGranted = true;
-
-        // Register FCM token for this user
         if (userId) {
           await fcmService.registerTokenForUser(userId);
         }
       } else {
-        console.log(`[NotificationPermission] ⚠️ Permission denied for trigger: ${trigger}`);
-        console.log(`[NotificationPermission] Can still ask via: ${['create_event', 'join_event', 'show_interest'].filter(t => !this.requestedTriggers.has(t)).join(', ')}`);
+        console.log(`[NotificationPermission] ⚠️ Permission denied (trigger: ${trigger})`);
       }
 
       this.isRequesting = false;
