@@ -93,10 +93,6 @@ export const Tags = ({ formData, updateField, styles, setFieldRef }) => {
       <View style={styles.labelContainer}>
         <Text style={styles.label}>Tags</Text>
       </View>
-      <Text style={localStyles.helper}>
-        Add up to {MAX_TAGS} tags (e.g. concert, house music). People interested
-        in these get notified when you post.
-      </Text>
 
       {tags.length > 0 && (
         <View style={localStyles.chipRow}>
@@ -120,8 +116,8 @@ export const Tags = ({ formData, updateField, styles, setFieldRef }) => {
         <VibeInput
           value={draft}
           onChangeText={setDraft}
-          placeholder="Type a tag and tap Add"
-          autoCapitalize="none"
+          placeholder="Enter a tag"
+          autoCapitalize="sentences"
           autoCorrect={false}
           maxLength={MAX_TAG_LENGTH}
           onSubmitEditing={() => canAddDraft && addTag(trimmedDraft)}
@@ -162,12 +158,6 @@ export const Tags = ({ formData, updateField, styles, setFieldRef }) => {
 };
 
 const localStyles = StyleSheet.create({
-  helper: {
-    color: theme.colors.textSecondary,
-    fontFamily: theme.fonts.main,
-    fontSize: 12,
-    marginBottom: 10,
-  },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
