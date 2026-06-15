@@ -13,6 +13,19 @@
   <uses-permission android:name="android.permission.WAKE_LOCK"/>
   <uses-permission android:name="android.permission.WRITE_CALENDAR"/>
   <uses-permission android:name="android.permission.WRITE_CONTACTS"/>
+  <!--
+    expo-image-picker and other transitive libraries declare these
+    photo-access permissions even when we don't request them. We use
+    the Android system Photo Picker instead, which needs zero perms.
+    tools:node="remove" tells the manifest merger to strip them from
+    the final APK so Google Play's Photo and Video Permissions policy
+    can't flag the app for declaring permissions it doesn't use.
+  -->
+  <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:node="remove"/>
+  <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" tools:node="remove"/>
+  <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" tools:node="remove"/>
+  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove"/>
+  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove"/>
   <queries>
     <intent>
       <action android:name="android.intent.action.VIEW"/>
