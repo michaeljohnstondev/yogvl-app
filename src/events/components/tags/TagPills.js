@@ -72,13 +72,14 @@ const TagPills = ({ tags, userInterests, onInterestToggle }) => {
   return (
     <View style={styles.row}>
       {tags.map((tag) => {
-        const key = (tag || '').toLowerCase().trim();
+        const display = (tag || '').trim();
+        const key = display.toLowerCase();
         if (!key) return null;
         const isInterested = interestSet.has(key);
         return (
           <TagPill
             key={key}
-            tag={key}
+            tag={display}
             isInterested={isInterested}
             onPress={() => onInterestToggle && onInterestToggle(key)}
           />
@@ -110,7 +111,6 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.main,
     fontSize: 13,
     fontWeight: '600',
-    textTransform: 'lowercase',
   },
   check: {
     width: 14,

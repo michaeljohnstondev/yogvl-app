@@ -15,10 +15,11 @@ import { getStudioInterests } from '../../../services/interestService';
 const MAX_TAGS = 5;
 const MAX_TAG_LENGTH = 40;
 
-// Normalize a free-form tag the same way the validator does on save so
-// what the user sees on screen matches what gets stored + matched in
-// the interest index.
-const normalize = (raw) => (raw || '').toLowerCase().trim();
+// Trim only — preserve the user's casing for display. Case-insensitive
+// dedup is done separately via lower(). The Cloud Function and interest
+// index already lowercase for matching, so display casing is free.
+const clean = (raw) => (raw || '').trim();
+const lower = (raw) => clean(raw).toLowerCase();
 
 export const Tags = ({ formData, updateField, styles, setFieldRef }) => {
   const tags = Array.isArray(formData.tags) ? formData.tags : [];
@@ -36,9 +37,12 @@ export const Tags = ({ formData, updateField, styles, setFieldRef }) => {
     (async () => {
       try {
         // Returns [{ interest, count }] sorted by count desc.
+        // Preserve casing — `interest` is the display name from
+        // studios/{id}/meta/interestCounts.display (capitalization
+        // of whoever added it first).
         const list = await getStudioInterests(studioId);
         if (!cancelled && Array.isArray(list)) {
-          setStudioInterests(list.map((entry) => normalize(entry?.interest)));
+          setStudioInterests(list.map((entry) => clean(entry?.interest)).filter(Boolean));
         }
       } catch (e) {
         // Non-fatal — user can still type tags freely without suggestions.
@@ -49,42 +53,51 @@ export const Tags = ({ formData, updateField, styles, setFieldRef }) => {
     };
   }, [studioId]);
 
-  const trimmedDraft = normalize(draft);
-  const alreadyAdded = (tag) => tags.includes(tag);
+  const cleanedDraft = clean(draft);
+  const lowerDraft = lower(draft);
+  const lowerTags = useMemo(() => tags.map(lower), [tags]);
+  const alreadyAdded = (tag) => lowerTags.includes(lower(tag));
   const atCap = tags.length >= MAX_TAGS;
 
-  // Filter suggestions: match the typed prefix, exclude already-selected
-  // tags, cap to 6 so the dropdown stays readable.
+  // Filter suggestions: case-insensitive prefix match, exclude already-
+  // selected tags, drop the exact same case-insensitive draft (so the
+  // "Add new" row below doesn't shadow an existing suggestion), cap to 6.
   const suggestions = useMemo(() => {
-    if (!trimmedDraft) return [];
+    if (!cleanedDraft) return [];
     return studioInterests
-      .filter(
-        (i) => i.includes(trimmedDraft) && !alreadyAdded(i) && i !== trimmedDraft
-      )
+      .filter((i) => {
+        const li = lower(i);
+        return (
+          li.includes(lowerDraft) &&
+          !lowerTags.includes(li) &&
+          li !== lowerDraft
+        );
+      })
       .slice(0, 6);
-  }, [trimmedDraft, studioInterests, tags]);
+  }, [cleanedDraft, lowerDraft, studioInterests, lowerTags]);
 
-  // Only offer "Add new" when the typed text isn't already an existing
-  // studio interest (otherwise it would shadow the suggestion above it).
+  // Only offer "Add new" when the typed text isn't already in the user's
+  // selected tags. Comparison is case-insensitive so "Concert" and
+  // "concert" can't both land.
   const canAddDraft =
-    trimmedDraft.length > 0 &&
-    trimmedDraft.length <= MAX_TAG_LENGTH &&
-    !alreadyAdded(trimmedDraft) &&
+    cleanedDraft.length > 0 &&
+    cleanedDraft.length <= MAX_TAG_LENGTH &&
+    !lowerTags.includes(lowerDraft) &&
     !atCap;
 
   const addTag = (tag) => {
-    const normalized = normalize(tag);
-    if (!normalized) return;
-    if (alreadyAdded(normalized)) return;
+    const display = clean(tag);
+    if (!display) return;
+    if (alreadyAdded(display)) return;
     if (atCap) return;
-    updateField('tags', [...tags, normalized].slice(0, MAX_TAGS));
+    updateField('tags', [...tags, display].slice(0, MAX_TAGS));
     setDraft('');
   };
 
   const removeTag = (tag) => {
     updateField(
       'tags',
-      tags.filter((t) => t !== tag)
+      tags.filter((t) => lower(t) !== lower(tag))
     );
   };
 
@@ -120,7 +133,7 @@ export const Tags = ({ formData, updateField, styles, setFieldRef }) => {
           autoCapitalize="sentences"
           autoCorrect={false}
           maxLength={MAX_TAG_LENGTH}
-          onSubmitEditing={() => canAddDraft && addTag(trimmedDraft)}
+          onSubmitEditing={() => canAddDraft && addTag(cleanedDraft)}
           returnKeyType="done"
           isCompleted={canAddDraft}
         />
@@ -140,10 +153,10 @@ export const Tags = ({ formData, updateField, styles, setFieldRef }) => {
           ))}
           {canAddDraft && (
             <TouchableOpacity
-              onPress={() => addTag(trimmedDraft)}
+              onPress={() => addTag(cleanedDraft)}
               style={[localStyles.suggestionItem, localStyles.suggestionAddNew]}
             >
-              <Text style={localStyles.suggestionText}>Add “{trimmedDraft}”</Text>
+              <Text style={localStyles.suggestionText}>Add “{cleanedDraft}”</Text>
               <Text style={localStyles.suggestionHint}>New tag</Text>
             </TouchableOpacity>
           )}
