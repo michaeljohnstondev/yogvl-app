@@ -30,15 +30,11 @@ export const PosterImage = ({
     if (picking) return;
     setPicking(true);
     try {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) {
-        Alert.alert(
-          'Permission Needed',
-          'Allow photo library access to add a poster image.'
-        );
-        return;
-      }
-
+      // No permission request — launchImageLibraryAsync routes through
+      // Android's system Photo Picker on API 33+, which hands us only
+      // the single picked image and never touches READ_MEDIA_IMAGES.
+      // Google Play's photo/video permissions policy is satisfied
+      // because we declare no broad gallery permission at all.
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,

@@ -116,15 +116,10 @@ const openCamera = async (vibeAlert, currentUserId, userData) => {
  */
 const openImageLibrary = async (vibeAlert, currentUserId, userData) => {
   try {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      vibeAlert.error(
-        'Permission Needed',
-        'Photo library permission is required to choose photos.'
-      );
-      return false;
-    }
-
+    // No permission request — launchImageLibraryAsync routes through
+    // Android's system Photo Picker on API 33+ (single-image hand-off,
+    // no broad gallery access required). Satisfies Google Play's
+    // photo/video permissions policy without a perm prompt.
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
