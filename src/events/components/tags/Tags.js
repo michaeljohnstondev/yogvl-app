@@ -11,15 +11,14 @@ import { VibeInput } from '../../../components/ui';
 import theme from '../../../theme/themes';
 import { useAuth } from '../../../auth/AuthContext';
 import { getStudioInterests } from '../../../services/interestService';
+import { titleCaseInterest } from '../../../lib/interestUtils';
 
 const MAX_TAGS = 5;
 const MAX_TAG_LENGTH = 40;
 
-// Trim only — preserve the user's casing for display. Case-insensitive
-// dedup is done separately via lower(). The Cloud Function and interest
-// index already lowercase for matching, so display casing is free.
-const clean = (raw) => (raw || '').trim();
-const lower = (raw) => clean(raw).toLowerCase();
+// Tags are stored lowercase + trimmed (canonical DB form). UI title-
+// cases at render time via titleCaseInterest().
+const norm = (raw) => (raw || '').trim().toLowerCase();
 
 export const Tags = ({ formData, updateField, styles, setFieldRef }) => {
   const tags = Array.isArray(formData.tags) ? formData.tags : [];
@@ -40,9 +39,12 @@ export const Tags = ({ formData, updateField, styles, setFieldRef }) => {
         // Preserve casing — `interest` is the display name from
         // studios/{id}/meta/interestCounts.display (capitalization
         // of whoever added it first).
+        // Returns [{ interest, count }] sorted by count desc. We
+        // lowercase here so suggestion comparisons match the lowercase
+        // tag store; chips render via titleCaseInterest for display.
         const list = await getStudioInterests(studioId);
         if (!cancelled && Array.isArray(list)) {
-          setStudioInterests(list.map((entry) => clean(entry?.interest)).filter(Boolean));
+          setStudioInterests(list.map((entry) => norm(entry?.interest)).filter(Boolean));
         }
       } catch (e) {
         // Non-fatal — user can still type tags freely without suggestions.
@@ -53,52 +55,41 @@ export const Tags = ({ formData, updateField, styles, setFieldRef }) => {
     };
   }, [studioId]);
 
-  const cleanedDraft = clean(draft);
-  const lowerDraft = lower(draft);
-  const lowerTags = useMemo(() => tags.map(lower), [tags]);
-  const alreadyAdded = (tag) => lowerTags.includes(lower(tag));
+  const normDraft = norm(draft);
+  const alreadyAdded = (tag) => tags.includes(norm(tag));
   const atCap = tags.length >= MAX_TAGS;
 
-  // Filter suggestions: case-insensitive prefix match, exclude already-
-  // selected tags, drop the exact same case-insensitive draft (so the
-  // "Add new" row below doesn't shadow an existing suggestion), cap to 6.
+  // Filter suggestions: prefix-includes match against the lowercase
+  // tag draft, exclude already-selected tags, drop the exact same
+  // draft (so the "Add new" row below doesn't shadow an existing
+  // suggestion), cap to 6.
   const suggestions = useMemo(() => {
-    if (!cleanedDraft) return [];
+    if (!normDraft) return [];
     return studioInterests
-      .filter((i) => {
-        const li = lower(i);
-        return (
-          li.includes(lowerDraft) &&
-          !lowerTags.includes(li) &&
-          li !== lowerDraft
-        );
-      })
+      .filter(
+        (i) => i.includes(normDraft) && !tags.includes(i) && i !== normDraft
+      )
       .slice(0, 6);
-  }, [cleanedDraft, lowerDraft, studioInterests, lowerTags]);
+  }, [normDraft, studioInterests, tags]);
 
-  // Only offer "Add new" when the typed text isn't already in the user's
-  // selected tags. Comparison is case-insensitive so "Concert" and
-  // "concert" can't both land.
   const canAddDraft =
-    cleanedDraft.length > 0 &&
-    cleanedDraft.length <= MAX_TAG_LENGTH &&
-    !lowerTags.includes(lowerDraft) &&
+    normDraft.length > 0 &&
+    normDraft.length <= MAX_TAG_LENGTH &&
+    !tags.includes(normDraft) &&
     !atCap;
 
   const addTag = (tag) => {
-    const display = clean(tag);
-    if (!display) return;
-    if (alreadyAdded(display)) return;
+    const key = norm(tag);
+    if (!key) return;
+    if (alreadyAdded(key)) return;
     if (atCap) return;
-    updateField('tags', [...tags, display].slice(0, MAX_TAGS));
+    updateField('tags', [...tags, key].slice(0, MAX_TAGS));
     setDraft('');
   };
 
   const removeTag = (tag) => {
-    updateField(
-      'tags',
-      tags.filter((t) => lower(t) !== lower(tag))
-    );
+    const key = norm(tag);
+    updateField('tags', tags.filter((t) => t !== key));
   };
 
   return (
@@ -111,7 +102,7 @@ export const Tags = ({ formData, updateField, styles, setFieldRef }) => {
         <View style={localStyles.chipRow}>
           {tags.map((tag) => (
             <View key={tag} style={localStyles.chip}>
-              <Text style={localStyles.chipText}>{tag}</Text>
+              <Text style={localStyles.chipText}>{titleCaseInterest(tag)}</Text>
               <TouchableOpacity
                 onPress={() => removeTag(tag)}
                 style={localStyles.chipRemove}
@@ -133,7 +124,7 @@ export const Tags = ({ formData, updateField, styles, setFieldRef }) => {
           autoCapitalize="sentences"
           autoCorrect={false}
           maxLength={MAX_TAG_LENGTH}
-          onSubmitEditing={() => canAddDraft && addTag(cleanedDraft)}
+          onSubmitEditing={() => canAddDraft && addTag(normDraft)}
           returnKeyType="done"
           isCompleted={canAddDraft}
         />
@@ -147,16 +138,16 @@ export const Tags = ({ formData, updateField, styles, setFieldRef }) => {
               onPress={() => addTag(s)}
               style={localStyles.suggestionItem}
             >
-              <Text style={localStyles.suggestionText}>{s}</Text>
+              <Text style={localStyles.suggestionText}>{titleCaseInterest(s)}</Text>
               <Text style={localStyles.suggestionHint}>Existing tag</Text>
             </TouchableOpacity>
           ))}
           {canAddDraft && (
             <TouchableOpacity
-              onPress={() => addTag(cleanedDraft)}
+              onPress={() => addTag(normDraft)}
               style={[localStyles.suggestionItem, localStyles.suggestionAddNew]}
             >
-              <Text style={localStyles.suggestionText}>Add “{cleanedDraft}”</Text>
+              <Text style={localStyles.suggestionText}>Add “{titleCaseInterest(normDraft)}”</Text>
               <Text style={localStyles.suggestionHint}>New tag</Text>
             </TouchableOpacity>
           )}

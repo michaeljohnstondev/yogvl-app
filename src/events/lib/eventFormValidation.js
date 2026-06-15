@@ -427,29 +427,20 @@ export const formatEventForStorage = (
           .slice(0, 5)
       : [],
 
-    // TAGS — broaden the interest-match net for notifications. Preserve
-    // the user's casing for display ("House Music" stays "House Music")
-    // and let the Cloud Function lowercase at match time so they still
-    // line up with the studio-level interest index keys. Dedup is
-    // case-insensitive so "Concert" and "concert" can't both land.
-    // Trim, drop empties, cap at 5. Missing/legacy events without this
-    // field still work — readers treat absent as [].
-    tags: (() => {
-      if (!Array.isArray(tags)) return [];
-      const seen = new Set();
-      const out = [];
-      for (const raw of tags) {
-        if (typeof raw !== 'string') continue;
-        const display = raw.trim();
-        if (!display || display.length > 40) continue;
-        const key = display.toLowerCase();
-        if (seen.has(key)) continue;
-        seen.add(key);
-        out.push(display);
-        if (out.length >= 5) break;
-      }
-      return out;
-    })(),
+    // TAGS — stored lowercase + trimmed so they slot directly into the
+    // studio's interest index keys (matches the existing convention:
+    // DB = canonical lowercase, frontend title-cases on render).
+    // Dedup, drop empties, cap at 5. Missing/legacy events without
+    // this field still work — readers treat absent as [].
+    tags: Array.isArray(tags)
+      ? Array.from(
+          new Set(
+            tags
+              .map((t) => (typeof t === 'string' ? t.toLowerCase().trim() : ''))
+              .filter((t) => t.length > 0 && t.length <= 40)
+          )
+        ).slice(0, 5)
+      : [],
 
     // POSTER IMAGE — only persist if it's an https URL (already uploaded).
     // Local picker URIs (file://, content://, ph://) are uploaded by the

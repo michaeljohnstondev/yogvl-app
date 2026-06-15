@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import theme from '../../../theme/themes';
+import { titleCaseInterest } from '../../../lib/interestUtils';
 
 const TagPill = ({ tag, isInterested, onPress }) => {
   // Bounce the check on transition from off → on. Off → no anim.
@@ -57,7 +58,7 @@ const TagPill = ({ tag, isInterested, onPress }) => {
       >
         <Text style={[styles.checkText, { color }]}>✓</Text>
       </Animated.View>
-      <Text style={[styles.pillText, { color }]}>{tag}</Text>
+      <Text style={[styles.pillText, { color }]}>{titleCaseInterest(tag)}</Text>
     </TouchableOpacity>
   );
 };

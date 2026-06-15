@@ -215,6 +215,14 @@ export default function EditEventScreen({ navigation, route }) {
         eventData.eventDuration != null && Number.isFinite(Number(eventData.eventDuration))
           ? Number(eventData.eventDuration)
           : null,
+      // Backwards-compat: events created before the tags feature have no
+      // tags field. Default to [] so the form renders empty and the
+      // submit doesn't wipe a field that was never there. For events
+      // that do have tags, carry them through so the chips show pre-
+      // populated and aren't silently reset on save.
+      tags: Array.isArray(eventData.tags)
+        ? eventData.tags.filter((t) => typeof t === 'string' && t.trim().length > 0)
+        : [],
       notificationSettings: {
         enabled: eventData.notificationSettings?.enabled ?? true,
         notifyOnJoin: eventData.notificationSettings?.notifyOnJoin ?? true,

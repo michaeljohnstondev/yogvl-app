@@ -16,6 +16,7 @@ import { useStatusBar } from '../components/ui/base/VibeAppWrapper';
 import { doc, setDoc } from '../lib/firebase';
 import { db } from '../auth/services/firebase';
 import theme from '../theme/themes';
+import { titleCaseInterest } from '../lib/interestUtils';
 import {
   getUserInterests,
   addUserInterest,
@@ -447,7 +448,7 @@ export default function InterestsScreen({ route }) {
             : styles.popularInterestText,
         ]}
       >
-        {interest}
+        {titleCaseInterest(interest)}
       </Text>
       {count && count > 1 && <Text style={styles.countText}>{count}</Text>}
     </TouchableOpacity>

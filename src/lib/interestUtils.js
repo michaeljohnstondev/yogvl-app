@@ -4,6 +4,29 @@
  */
 
 /**
+ * Title-cases an interest string for display only. Interests are stored
+ * lowercase as canonical keys; this is what UI chips, pills, and
+ * banners should call at render time so the display is always nice
+ * regardless of what casing was originally stored. Handles plain
+ * lowercase ("magnolia park"), already-cased values ("House Music"),
+ * and multi-word strings consistently.
+ *
+ * @param {string} interest - Interest string (any casing)
+ * @returns {string} Title-cased interest, or '' if invalid
+ * @example
+ *   titleCaseInterest('magnolia park') // 'Magnolia Park'
+ *   titleCaseInterest('HOUSE MUSIC')   // 'House Music'
+ *   titleCaseInterest('concert')       // 'Concert'
+ */
+export const titleCaseInterest = (interest) => {
+  if (!interest || typeof interest !== 'string') return '';
+  return interest
+    .trim()
+    .toLowerCase()
+    .replace(/(^|\s)\S/g, (c) => c.toUpperCase());
+};
+
+/**
  * Compares two interests ignoring case sensitivity
  * @param {string} interest1 - First interest to compare
  * @param {string} interest2 - Second interest to compare
