@@ -301,6 +301,7 @@ export const formatEventForStorage = (
     links,
     posterImage,
     eventDuration,
+    tags,
   } = formData;
 
   // Format main event date/time using studio timezone
@@ -424,6 +425,20 @@ export const formatEventForStorage = (
           }))
           .filter((l) => l.url.length > 0)
           .slice(0, 5)
+      : [],
+
+    // TAGS — broaden the interest-match net for notifications. Normalize
+    // to lowercase + trimmed so they line up with the studio-level
+    // interest index keys. Dedupe, drop empties, cap at 5. Missing/legacy
+    // events without this field still work — readers treat absent as [].
+    tags: Array.isArray(tags)
+      ? Array.from(
+          new Set(
+            tags
+              .map((t) => (typeof t === 'string' ? t.toLowerCase().trim() : ''))
+              .filter((t) => t.length > 0 && t.length <= 40)
+          )
+        ).slice(0, 5)
       : [],
 
     // POSTER IMAGE — only persist if it's an https URL (already uploaded).

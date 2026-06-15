@@ -187,10 +187,22 @@ exports.onEventCreated = functions.firestore
       }
 
       // ========== INTEREST-BASED NOTIFICATIONS ==========
-      // Extract matching interests from event title and location (venue name)
+      // Extract matching interests from event title and location (venue
+      // name), then merge in the creator's explicit tags so broad-match
+      // tags (e.g. "concert", "house music") fan out even when title +
+      // location don't naturally contain those words. Legacy events
+      // without a tags field still work — they just contribute nothing
+      // here. Downstream `new Set(interestedUserIds)` already collapses
+      // a user matching multiple tags to a single notification.
       const eventLocation = eventData.location || '';
-      console.log(`[Event Interest Notification] 🔍 Extracting interests from title: "${eventTitle}" and location: "${eventLocation}" in studio ${studioId}`);
-      const eventInterests = await extractInterestsFromEvent(eventTitle, eventLocation, studioId);
+      const explicitTags = Array.isArray(eventData.tags)
+        ? eventData.tags
+            .map((t) => (typeof t === 'string' ? t.toLowerCase().trim() : ''))
+            .filter((t) => t.length > 0)
+        : [];
+      console.log(`[Event Interest Notification] 🔍 Extracting interests from title: "${eventTitle}", location: "${eventLocation}", tags: [${explicitTags.join(', ')}] in studio ${studioId}`);
+      const extracted = await extractInterestsFromEvent(eventTitle, eventLocation, studioId);
+      const eventInterests = Array.from(new Set([...extracted, ...explicitTags]));
 
       if (eventInterests.length === 0) {
         console.log(`[Event Interest Notification] ❌ No matching interests found in title: "${eventTitle}"`);
@@ -237,8 +249,22 @@ exports.onEventCreated = functions.firestore
         totalExcluded: 1 + cohosts.length + invitedUserIds.length
       });
 
-      // Remove duplicates and filter out excluded users
+      // Remove duplicates and filter out excluded users. For public
+      // events, also exclude the creator's followers — they get the
+      // follow-activity notification below, and we want one notification
+      // per user per event regardless of how many channels matched
+      // (interest tag, venue interest, friend posting). Private events
+      // skip this exclusion because follow-activity doesn't fire there.
       const excludeUserIds = new Set([hostId, ...cohosts, ...invitedUserIds]);
+      if (!eventData.isPrivate) {
+        try {
+          const creatorFollowers = await getFollowersOf(eventData.createdBy);
+          creatorFollowers.forEach((id) => excludeUserIds.add(id));
+          console.log(`[Event Interest Notification] 🔁 Excluding ${creatorFollowers.length} followers (they'll get follow-activity instead)`);
+        } catch (e) {
+          console.error('[Event Interest Notification] Failed to fetch followers for dedup:', e);
+        }
+      }
 
       // Debug: Log the exclusion set
       console.log(`[Event Interest Notification] 🚫 Excluded user IDs:`, {

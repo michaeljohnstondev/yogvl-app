@@ -35,6 +35,7 @@ import { Duration } from './duration/Duration';
 import { Where } from './where/Where';
 import { Who } from './who/Who';
 import { Details } from './details/Details';
+import { Tags } from './tags/Tags';
 import { Links } from './links/Links';
 import { PosterImage } from './posterImage/PosterImage';
 import { AdditionalSettings } from './additionalSettings/AdditionalSettings';
@@ -923,6 +924,19 @@ export default function CreateEventForm({
               onExpansionChange={(isExpanded) =>
                 handleSectionExpansion('details', isExpanded)
               }
+              setFieldRef={setFieldRef}
+            />
+          </View>
+
+          {/* TAGS SECTION — broaden interest-match net for notifications */}
+          <View
+            ref={setSectionRef('tags')}
+            style={styles.sectionContainer}
+          >
+            <Tags
+              formData={formData}
+              updateField={updateField}
+              styles={styles}
               setFieldRef={setFieldRef}
             />
           </View>

@@ -5,6 +5,7 @@ import { textUtils } from '../../../lib/textUtils';
 import { mapUtils } from '../../../lib/mapUtils';
 import { normalizeEventTitleToInterest } from '../../../lib/interestUtils';
 import EventCreatorInfo from '../hosts/EventCreatorInfo';
+import TagPills from '../tags/TagPills';
 import theme from '../../../theme/themes';
 import { doc, getDoc } from '../../../lib/firebase/firestore';
 import { db } from '../../../auth/services/firebase';
@@ -278,6 +279,14 @@ function EventInfoSection({
           )}
         </View>
       </TouchableOpacity>
+
+      {/* Tag Pills — broad-match interest tags the creator set on the
+          event. Tap to toggle add/remove from the viewer's interests. */}
+      <TagPills
+        tags={event.tags}
+        userInterests={userInterests}
+        onInterestToggle={onInterestToggle}
+      />
 
       {/* Date & Time */}
       <TouchableOpacity

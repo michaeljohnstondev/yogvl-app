@@ -23,6 +23,13 @@ const DEFAULT_FORM_DATA = {
   isOfficialEvent: false,
   officialOrganization: '',
   links: [], // Array of { label?: string, url: string } — max 5 enforced by validator
+  // Free-form tags that broaden the interest-match net for notifications.
+  // E.g. an event titled "DJ Khaled" can be tagged "concert" and "house
+  // music" so users following those interests get notified even if they
+  // don't follow this specific DJ. Max 5 enforced by validator;
+  // normalized to lowercase + trimmed on save so they slot into the
+  // existing studios/{studioId}/interests/{key} index.
+  tags: [],
   posterImage: '', // Firebase Storage URL once uploaded, or a local picker URI pre-upload
   // Duration of the event in minutes. Optional — missing/null means "no
   // declared duration" (legacy behavior, event is treated as past at start
