@@ -17,6 +17,7 @@ import { ModerationActionModal } from '../components/ui/modals';
 import {
   AdminNotificationTool,
   NotificationTester,
+  VersionInfo,
 } from '../components/ui/admin';
 import {
   isGlobalAdmin,
@@ -850,6 +851,10 @@ export default function AdminScreen({ navigation }) {
           contentContainerStyle={styles.contentContainer}
         >
           <View style={styles.testingSection}>
+            {/* Version info — surfaces the binary version + OTA runtime
+                so the dev can confirm what's actually running on this
+                device after a release or OTA push. */}
+            <VersionInfo />
             <Text style={styles.sectionTitle}>Scheduled Notifications</Text>
             <Text style={styles.testingDescription}>
               Clean up old scheduled notifications (sent, failed, or overdue).

@@ -2,3 +2,4 @@
 export { default as AdminNotificationTool } from './AdminNotificationTool';
 export { default as ModerationInfo } from './ModerationInfo';
 export { default as NotificationTester } from './NotificationTester';
+export { default as VersionInfo } from './VersionInfo';
