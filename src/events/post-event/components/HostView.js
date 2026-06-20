@@ -13,6 +13,8 @@ import { VibeButton, CloseButton } from '../../../components/ui';
 import ScreenHeader from '../../../components/ui/layout/ScreenHeader';
 import AttendanceTracker from './AttendanceTracker';
 import PostEventActions from './PostEventActions';
+import { useAuth } from '../../../auth/AuthContext';
+import useShareImageToBoard from '../hooks/useShareImageToBoard';
 import theme from '../../../theme/themes';
 
 const HostView = ({
@@ -31,7 +33,20 @@ const HostView = ({
   eventId,
 }) => {
   const vibeAlert = useVibeAlert();
+  const { currentUserId, userData } = useAuth();
   const [showAttendanceTracker, setShowAttendanceTracker] = useState(false);
+
+  // Share-image flow shared with GuestView via useShareImageToBoard.
+  // Host posts get userRole='host' so the comment doc + downstream
+  // notification render with the host badge / branch.
+  const { shareImage, isSharing } = useShareImageToBoard({
+    studioId,
+    eventId,
+    currentUserId,
+    displayName: userData?.userdata?.contactInfo?.displayName,
+    userRole: 'host',
+    vibeAlert,
+  });
 
   const handleManageAttendance = () => {
     navigation.navigate('EventAttendance', { eventId, studioId });
@@ -130,6 +145,14 @@ const HostView = ({
               style={styles.navButton}
             />
           )}
+
+          <VibeButton
+            label={isSharing ? 'SHARING…' : '📷 SHARE AN IMAGE'}
+            onPress={shareImage}
+            disabled={isSharing}
+            variant="primary"
+            style={styles.navButton}
+          />
 
           <VibeButton
             label="BACK TO EVENT"

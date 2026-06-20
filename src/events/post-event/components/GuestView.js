@@ -15,6 +15,7 @@ import StarRating from '../../../components/ui/feedback/StarRating';
 import { useAuth } from '../../../auth/AuthContext';
 import { addUserInterest } from '../../../services/interestService';
 import { useVibeAlert } from '../../../components/ui/base/VibeAlertContext';
+import useShareImageToBoard from '../hooks/useShareImageToBoard';
 import theme from '../../../theme/themes';
 
 const GuestView = ({
@@ -34,6 +35,18 @@ const GuestView = ({
   const vibeAlert = useVibeAlert();
   const [addingToInterests, setAddingToInterests] = useState(false);
   const [locallyAdded, setLocallyAdded] = useState(false);
+
+  // Share-image flow shared with HostView via useShareImageToBoard.
+  // Guest posts get userRole='guest' so the comment doc renders
+  // without the host badge.
+  const { shareImage, isSharing } = useShareImageToBoard({
+    studioId,
+    eventId,
+    currentUserId,
+    displayName: userData?.userdata?.contactInfo?.displayName,
+    userRole: 'guest',
+    vibeAlert,
+  });
 
   // Check if event name is already in user's interests
   const eventName = eventData?.title || '';
@@ -178,6 +191,14 @@ const GuestView = ({
 
           {/* Navigation Buttons */}
           <View style={styles.navigationButtons}>
+            <VibeButton
+              label={isSharing ? 'SHARING…' : '📷 SHARE AN IMAGE'}
+              onPress={shareImage}
+              disabled={isSharing}
+              variant="primary"
+              style={styles.navButton}
+            />
+
             <VibeButton
               label="BACK TO EVENT"
               onPress={onNavigateBack}
