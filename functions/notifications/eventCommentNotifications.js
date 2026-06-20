@@ -59,12 +59,16 @@ exports.onHostComment = functions.firestore
 
       // Create comment preview (first 50 characters). Client writes the
       // body under `content`; fall back to `text` for any legacy docs.
+      // Image-only posts use a distinct body — "shared an image for X"
+      // — so subscribers see a recognizable preview instead of the
+      // host's name with no text.
       const commentText = commentData.content || commentData.text || '';
+      const hasImage = !!commentData.imageUrl;
       const commentPreview = commentText.length > 50
         ? commentText.substring(0, 50) + '...'
         : commentText;
 
-      console.log(`[Host Comment] 💬 Comment preview: "${commentPreview}"`);
+      console.log(`[Host Comment] 💬 Comment preview: "${commentPreview}"${hasImage ? ' (with image)' : ''}`);
 
       // Get all event subscribers (both from subscribers subcollection and messageBoardSubscribers array)
       const subscribersSnapshot = await admin.firestore()
@@ -165,11 +169,14 @@ exports.onHostComment = functions.firestore
           // If NO token: create in-app notification directly (they won't get push)
           if (fcmToken) {
             // Send push notification - FCM handler will create in-app notification
+            const hostBody = hasImage
+              ? `${hostName} shared an image for ${eventTitle}`
+              : `${hostName}: ${commentPreview}`;
             const message = {
               token: fcmToken,
               notification: {
                 title: eventTitle,
-                body: `${hostName}: ${commentPreview}`
+                body: hostBody,
               },
               data: {
                 type: 'host_comment',
@@ -313,7 +320,9 @@ exports.onGuestComment = functions.firestore
 
       // Create comment preview (first 50 characters). Client writes the
       // body under `content`; fall back to `text` for any legacy docs.
+      // Image-only posts get a distinct "shared an image" preview body.
       const commentText = commentData.content || commentData.text || '';
+      const hasImage = !!commentData.imageUrl;
       const commentPreview = commentText.length > 50
         ? commentText.substring(0, 50) + '...'
         : commentText;
@@ -412,11 +421,14 @@ exports.onGuestComment = functions.firestore
           // If NO token: create in-app notification directly (they won't get push)
           if (fcmToken) {
             // Send push notification - FCM handler will create in-app notification
+            const guestBody = hasImage
+              ? `${guestName} shared an image for ${eventTitle}`
+              : `${guestName}: ${commentPreview}`;
             const message = {
               token: fcmToken,
               notification: {
                 title: eventTitle,
-                body: `${guestName}: ${commentPreview}`
+                body: guestBody,
               },
               data: {
                 type: 'guest_comment',

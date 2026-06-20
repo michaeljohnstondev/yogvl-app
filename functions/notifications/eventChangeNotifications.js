@@ -215,6 +215,22 @@ exports.onEventDeleted = functions.firestore
       const eventTitle = eventData.title || 'Untitled Event';
       const eventCreatorId = eventData.createdBy;
 
+      // Wipe all message-board images for this event from Storage. Runs
+      // for every deletion (manual + automated old-event cleanup) so
+      // orphaned image blobs don't accumulate. Non-fatal: deletion-
+      // failures are logged but don't block the rest of the function.
+      try {
+        const bucket = admin.storage().bucket();
+        const prefix = `studios/${studioId}/events/${eventId}/`;
+        const [files] = await bucket.getFiles({ prefix });
+        if (files.length > 0) {
+          await Promise.all(files.map((f) => f.delete().catch(() => {})));
+          console.log(`[Event Deletion] 🧹 Removed ${files.length} files under ${prefix}`);
+        }
+      } catch (storageErr) {
+        console.error('[Event Deletion] Storage cleanup failed:', storageErr);
+      }
+
       // Check if this is an old event (likely automated cleanup)
       const eventDate = eventData.eventTimestamp?.toDate() || eventData.eventDateTime?.toDate();
       const isOldEvent = eventDate ? (new Date() - eventDate) / (1000 * 60 * 60 * 24) > 30 : false;

@@ -18,7 +18,11 @@ import {
 } from '../../../services/followService';
 import { VibeButton } from '../../../components/ui';
 import { ProfileAvatar } from '../../../components/ui/profile';
+import * as ImagePicker from 'expo-image-picker';
 import theme from '../../../theme/themes';
+import { uploadMessageBoardImage } from '../../../services/messageBoardImageService';
+import { collection, addDoc, serverTimestamp } from '../../../lib/firebase/firestore';
+import { db } from '../../../auth/services/firebase';
 
 const PostEventActions = ({
   participants,
@@ -36,6 +40,58 @@ const PostEventActions = ({
   const [followingStatus, setFollowingStatus] = useState({});
   const [mutualFollowStatus, setMutualFollowStatus] = useState({});
   const [loadingFollows, setLoadingFollows] = useState(true);
+  const [sharingImage, setSharingImage] = useState(false);
+
+  // Share-image flow for the recap. Same pattern as MessageInput but
+  // writes the post directly to Firestore (no useComments hook needed
+  // here since this component is rendered outside the message board
+  // screen). Posting an image-only comment puts it in the same thread
+  // the user would see if they tapped the message board button.
+  const handleShareImage = async () => {
+    if (sharingImage || !currentUserId || !studioId || !eventId) return;
+    setSharingImage(true);
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 0.7,
+      });
+      if (result.canceled || !result.assets?.[0]?.uri) return;
+
+      const imageUrl = await uploadMessageBoardImage(
+        studioId,
+        eventId,
+        result.assets[0].uri
+      );
+
+      const displayName =
+        userData?.userdata?.contactInfo?.displayName ||
+        userData?.displayName ||
+        'Guest';
+      const userRole = userStatus?.isHost ? 'host' : 'guest';
+
+      await addDoc(
+        collection(db, `studios/${studioId}/events/${eventId}/comments`),
+        {
+          userId: currentUserId,
+          userName: displayName,
+          content: '',
+          imageUrl,
+          timestamp: serverTimestamp(),
+          parentCommentId: null,
+          level: 0,
+          userRole,
+        }
+      );
+
+      vibeAlert.success?.('Shared', 'Your image was posted to the message board.');
+    } catch (error) {
+      console.error('[PostEventActions] Share image failed:', error);
+      vibeAlert.error?.('Upload Failed', 'Could not share the image. Try again.');
+    } finally {
+      setSharingImage(false);
+    }
+  };
 
   // Load follow status for all participants
   useEffect(() => {
@@ -208,6 +264,19 @@ const PostEventActions = ({
 
   return (
     <View style={styles.container}>
+      {/* Share Image — available to both host and guest. Posts an
+          image-only message into the event's message board so anyone
+          subscribed gets the "X shared an image for Y" notification. */}
+      <View style={styles.shareImageRow}>
+        <VibeButton
+          label={sharingImage ? 'Sharing…' : '📷 Share an Image'}
+          onPress={handleShareImage}
+          disabled={sharingImage}
+          variant="primary"
+          style={styles.shareImageButton}
+        />
+      </View>
+
       {/* Participants Section */}
       {participants.length > 0 && (
         <View style={styles.participantsSection}>
@@ -250,6 +319,14 @@ const PostEventActions = ({
 const styles = StyleSheet.create({
   container: {
     marginBottom: 10,
+  },
+  shareImageRow: {
+    marginTop: 10,
+    marginBottom: 6,
+    alignItems: 'center',
+  },
+  shareImageButton: {
+    minWidth: 220,
   },
 
   // Participants Section

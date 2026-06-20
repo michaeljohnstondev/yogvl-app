@@ -154,21 +154,27 @@ export const useComments = (eventId) => {
   }, [eventId, studioId, currentUserId]);
 
   /**
-   * Add a new comment
+   * Add a new comment. Optionally attach an image — pass a Firebase
+   * Storage download URL (already uploaded via messageBoardImageService).
+   * Image-only posts are allowed: when imageUrl is set, content can be
+   * an empty string and validation is skipped.
    */
-  const addComment = async (content, parentCommentId = null) => {
+  const addComment = async (content, parentCommentId = null, imageUrl = null) => {
     if (!currentUserId || !eventId) {
       console.log('Missing currentUserId or eventId');
       setError('You must be logged in to comment');
       return false;
     }
 
-    // Validate comment
-    const validation = validateComment(content);
-    if (!validation.isValid) {
-      console.log('Validation failed:', validation.error);
-      setError(validation.error);
-      return false;
+    // Image-only posts skip text validation. Otherwise enforce normal
+    // comment validation rules.
+    if (!imageUrl) {
+      const validation = validateComment(content);
+      if (!validation.isValid) {
+        console.log('Validation failed:', validation.error);
+        setError(validation.error);
+        return false;
+      }
     }
 
     setSubmitting(true);
@@ -190,12 +196,16 @@ export const useComments = (eventId) => {
       const commentData = {
         userId: currentUserId,
         userName: getDisplayName(),
-        content: content.trim(),
+        content: (content || '').trim(),
         timestamp: serverTimestamp(),
         parentCommentId: parentCommentId,
         level: level,
         // Store the current user's role at comment creation time
         userRole: getCurrentUserRole(),
+        // Optional image attachment — the Cloud Function notification
+        // branches its body when this is set, and CommentItem renders
+        // the image inline above any text content.
+        ...(imageUrl ? { imageUrl } : {}),
       };
 
       await addDoc(commentsRef, commentData);

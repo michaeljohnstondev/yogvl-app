@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   TouchableOpacity,
   Alert,
@@ -14,10 +15,12 @@ import ProfileAvatar from '../profile/ProfileAvatar';
 import { useAuth } from '../../../auth/AuthContext';
 import { formatTimestamp } from './utils/commentUtils';
 import theme from '../../../theme/themes';
+import ImageViewer from './ImageViewer';
 
 const CommentItem = ({ comment, onDelete }) => {
   const { currentUserId } = useAuth();
   const [commentUserData, setCommentUserData] = useState(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
   const isOwner = currentUserId === comment.userId;
 
   // Fetch user data for profile picture
@@ -147,10 +150,32 @@ const CommentItem = ({ comment, onDelete }) => {
               )}
             </View>
 
-            <Text style={styles.content}>{comment.content}</Text>
+            {comment.imageUrl && (
+              <TouchableOpacity
+                onPress={() => setViewerOpen(true)}
+                activeOpacity={0.85}
+                style={styles.imageWrap}
+              >
+                <Image
+                  source={{ uri: comment.imageUrl }}
+                  style={styles.image}
+                  resizeMode="cover"
+                />
+              </TouchableOpacity>
+            )}
+            {!!comment.content && (
+              <Text style={styles.content}>{comment.content}</Text>
+            )}
           </LinearGradient>
         </View>
       </LinearGradient>
+      {comment.imageUrl && (
+        <ImageViewer
+          visible={viewerOpen}
+          imageUrl={comment.imageUrl}
+          onClose={() => setViewerOpen(false)}
+        />
+      )}
     </View>
   );
 };
@@ -233,6 +258,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     lineHeight: 18,
+  },
+  imageWrap: {
+    marginTop: 8,
+    marginBottom: 4,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  image: {
+    width: '100%',
+    aspectRatio: 4 / 3,
+    backgroundColor: 'rgba(0,0,0,0.25)',
   },
   content: {
     color: '#fff',

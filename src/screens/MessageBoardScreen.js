@@ -148,12 +148,14 @@ export default function MessageBoardScreen({ route, navigation }) {
     previousMessageCount.current = messages.length;
   }, [messages.length, scrollToComment]);
 
-  // Handle sending message from isolated input component
+  // Handle sending message from isolated input component. Accepts an
+  // optional second arg (imageUrl) for image attachments uploaded by
+  // MessageInput before calling onSendMessage. Image-only posts pass
+  // an empty messageText and a populated imageUrl.
   const handleSendMessage = useCallback(
-    async (messageText) => {
-      const success = await sendMessage(messageText);
+    async (messageText, imageUrl = null) => {
+      const success = await sendMessage(messageText, null, imageUrl);
       if (success) {
-        // Auto-scroll to bottom when new message is sent (newest messages are last)
         setTimeout(() => {
           flatListRef.current?.scrollToEnd({ animated: true });
         }, 100);
@@ -452,6 +454,8 @@ export default function MessageBoardScreen({ route, navigation }) {
           onSendMessage={handleSendMessage}
           submitting={submitting}
           disabled={false}
+          studioId={studioId}
+          eventId={eventId}
         />
       </View>
     </View>
