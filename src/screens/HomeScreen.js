@@ -418,6 +418,30 @@ export default function HomeScreen({ navigation, route }) {
     }, [])
   );
 
+  // 🐛 DIAGNOSTIC (admin-only on screen, console logs for everyone but
+  // they're invisible to users): tracks insets.bottom and the screen
+  // we navigated back from so we can pinpoint what triggers the
+  // create-button drift. Remove once we've identified the root cause.
+  // Tagged for `react-native log-android | grep INSET-DBG` filtering.
+  useEffect(() => {
+    console.log(
+      `[Screen:Home] INSET-DBG change top=${insets.top} bottom=${insets.bottom}`
+    );
+  }, [insets.top, insets.bottom]);
+
+  useFocusEffect(
+    useCallback(() => {
+      try {
+        const state = navigation.getState?.();
+        const routes = state?.routes || [];
+        const prev = routes.length >= 2 ? routes[routes.length - 2]?.name : null;
+        console.log(
+          `[Screen:Home] INSET-DBG focused from=${prev || '(none)'} bottom=${insets.bottom}`
+        );
+      } catch (e) {}
+    }, [insets.bottom, navigation])
+  );
+
   // Refresh data when screen comes into focus (e.g., returning from CreateEvent)
   useFocusEffect(
     useCallback(() => {
@@ -850,6 +874,20 @@ export default function HomeScreen({ navigation, route }) {
         </ScrollView>
       )}
 
+      {/* 🐛 DIAGNOSTIC: admin-only live insets readout pinned to top-
+          right corner so we can watch insets.bottom drift in real
+          time. Remove once the root cause is identified. */}
+      {hasAdminAccess(userData) && (
+        <View
+          pointerEvents="none"
+          style={[styles.insetDebug, { top: insets.top + 4 }]}
+        >
+          <Text style={styles.insetDebugText}>
+            INSET b:{insets.bottom} t:{insets.top}
+          </Text>
+        </View>
+      )}
+
       {/* Sticky Create Event Button */}
       <View
         style={[
@@ -996,6 +1034,25 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
     borderTopWidth: 2,
     borderTopColor: theme.colors.vibeBlue,
+  },
+  // 🐛 DIAGNOSTIC overlay styles — admin-only live insets readout.
+  // Remove together with the JSX block when the root cause is found.
+  insetDebug: {
+    position: 'absolute',
+    right: 6,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    zIndex: 9999,
+    borderWidth: 1,
+    borderColor: theme.colors.vibePink || '#ff66ff',
+  },
+  insetDebugText: {
+    color: '#fff',
+    fontSize: 10,
+    fontFamily: theme.fonts.main,
+    fontWeight: '700',
   },
   stickyButton: {
     width: '100%',
