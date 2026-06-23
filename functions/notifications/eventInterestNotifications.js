@@ -187,6 +187,14 @@ exports.onEventCreated = functions.firestore
       }
 
       // ========== INTEREST-BASED NOTIFICATIONS ==========
+      // Private events MUST NOT fan out to interest-matched users. Only
+      // explicitly invited people should know a private event exists.
+      // Previously the interest fanout ran regardless of isPrivate, so
+      // a private "DJ Khaled" event tagged "concert" would still ping
+      // every user following "concert" — a real privacy leak.
+      if (eventData.isPrivate) {
+        console.log(`[Event Interest Notification] 🔒 Skipping interest fanout — event ${eventId} is private`);
+      } else {
       // Extract matching interests from event title and location (venue
       // name), then merge in the creator's explicit tags so broad-match
       // tags (e.g. "concert", "house music") fan out even when title +
@@ -433,6 +441,7 @@ exports.onEventCreated = functions.firestore
         console.log(`[Event Interest Notification] Successfully sent ${notificationsSent} FCM notifications for event "${eventTitle}"`);
       } // End of uniqueInterestedUsers.length > 0 block
       }
+      } // End of !eventData.isPrivate guard around the interest fanout
 
       // ========== FOLLOW ACTIVITY NOTIFICATIONS ==========
       // Send notifications to followers of the event creator

@@ -225,9 +225,20 @@ export class ScheduledNotificationService {
         return { success: true, skipped: true, reason: 'Event recap disabled' };
       }
 
-      // Calculate 1 hour after event start time
+      // Calculate 1 hour after the event ENDS, not 1 hour after it
+      // starts. Events with a declared eventDuration (minutes) shift
+      // the recap later so a 2-hour party at 8pm doesn't push the
+      // recap notification at 9pm while everyone's still there. If
+      // eventDuration is missing/null/invalid, fall back to legacy
+      // behavior (1 hour after start).
       const eventDate = new Date(eventData.date.seconds * 1000); // Convert Firestore timestamp
-      const eventRecapTime = new Date(eventDate.getTime() + 60 * 60 * 1000); // Add 1 hour
+      const durationMinutes = Number(eventData.eventDuration);
+      const durationMs = Number.isFinite(durationMinutes) && durationMinutes > 0
+        ? durationMinutes * 60 * 1000
+        : 0;
+      const eventRecapTime = new Date(
+        eventDate.getTime() + durationMs + 60 * 60 * 1000
+      );
 
       // Only schedule if the recap time is in the future
       if (eventRecapTime <= new Date()) {
