@@ -19,6 +19,12 @@ import {
   getDefaultUserSettings,
   getDefaultUserMetrics,
 } from '../../services/defaultUserSettings';
+import { switchUserStudio } from '../../services/userService';
+
+// Default studio assigned to every new user so the LocationScreen step
+// can be skipped during onboarding. Users can still switch studios via
+// Settings > Location. Change this constant if the default city changes.
+const DEFAULT_STUDIO_ID = 'greenville_sc';
 
 // Configure Google Sign-In
 GoogleSignin.configure({
@@ -209,6 +215,25 @@ export async function ensureUserDocument(user, options = {}) {
     },
     { merge: true }
   );
+
+  // Auto-assign new users to the default studio (Greenville). This
+  // populates userdata.studios.default with full metadata AND registers
+  // the user in the studio's member list — same side effects as picking
+  // a studio via LocationScreen, but no user step required. If it fails
+  // (e.g. studio doc missing) we log and continue — the navigation
+  // gate will detect the missing studio and fall back to LocationScreen
+  // so onboarding still completes.
+  try {
+    const switchResult = await switchUserStudio(user.uid, null, DEFAULT_STUDIO_ID);
+    if (!switchResult?.success) {
+      console.warn(
+        '[ensureUserDocument] Default studio auto-assign failed:',
+        switchResult?.error
+      );
+    }
+  } catch (error) {
+    console.warn('[ensureUserDocument] Default studio auto-assign threw:', error);
+  }
 
   return { created: true };
 }
