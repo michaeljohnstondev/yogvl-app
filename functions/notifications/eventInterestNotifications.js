@@ -50,6 +50,7 @@ exports.onEventCreated = functions.firestore
 
       const eventTitle = eventData.title;
       const isOfficialEvent = eventData.isOfficialEvent || false;
+      const isPrivate = !!eventData.isPrivate;
       const hostId = eventData.createdBy;
       const cohosts = eventData.cohosts || [];
       const invitations = eventData.invitations || [];
@@ -192,7 +193,7 @@ exports.onEventCreated = functions.firestore
       // Previously the interest fanout ran regardless of isPrivate, so
       // a private "DJ Khaled" event tagged "concert" would still ping
       // every user following "concert" — a real privacy leak.
-      if (eventData.isPrivate) {
+      if (isPrivate) {
         console.log(`[Event Interest Notification] 🔒 Skipping interest fanout — event ${eventId} is private`);
       } else {
       // Extract matching interests from event title and location (venue
@@ -264,7 +265,7 @@ exports.onEventCreated = functions.firestore
       // (interest tag, venue interest, friend posting). Private events
       // skip this exclusion because follow-activity doesn't fire there.
       const excludeUserIds = new Set([hostId, ...cohosts, ...invitedUserIds]);
-      if (!eventData.isPrivate) {
+      if (!isPrivate) {
         try {
           const creatorFollowers = await getFollowersOf(eventData.createdBy);
           creatorFollowers.forEach((id) => excludeUserIds.add(id));
@@ -449,7 +450,7 @@ exports.onEventCreated = functions.firestore
 
       try {
         // Only process public events for follow activity
-        if (eventData.isPrivate) {
+        if (isPrivate) {
           console.log(`[Follow Activity] Skipping private event ${eventId}`);
         } else {
           const creatorId = eventData.createdBy;

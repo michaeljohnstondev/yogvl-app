@@ -387,7 +387,7 @@ export default function NotificationTester() {
       const testResult = await notificationEngine.createNotification({
         userId: currentUserId,
         type: 'admin_notification',
-        title: 'The Yo',
+        title: 'Yo GVL',
         message: 'Test notification - your push notifications are working! 🎉',
         data: { type: 'test', timestamp: Date.now() },
       });

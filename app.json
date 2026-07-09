@@ -1,13 +1,13 @@
 {
   "expo": {
-    "name": "The Yo",
+    "name": "Yo GVL",
     "slug": "bvs-app",
-    "version": "1.3.1",
+    "version": "1.4.0",
     "scheme": "the-yo",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "dark",
-    "description": "Community event management app - create, join, and manage local events with your studio.",
+    "description": "Greenville's community event app — create, join, and never miss what's happening in the city.",
     "privacy": "public",
     "privacyPolicyUrl": "https://bigvibestudios.com/privacy",
     "experiments": {
@@ -72,7 +72,7 @@
         "barStyle": "light-content"
       },
       "package": "com.bigvibestudios.bvs",
-      "versionCode": 19,
+      "versionCode": 20,
       "compileSdkVersion": 35,
       "targetSdkVersion": 35,
       "googleServicesFile": "./google-services.json",
@@ -150,7 +150,7 @@
           ]
         }
       ],
-      "runtimeVersion": "1.3.1"
+      "runtimeVersion": "1.4.0"
     },
     "web": {
       "favicon": "./assets/favicon.png",
