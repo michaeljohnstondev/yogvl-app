@@ -38,6 +38,11 @@
         "serviceAccountKeyPath": "./bigvibestudios-b9839-c5fefca377e2.json",
         "track": "production",
         "releaseStatus": "completed"
+      },
+      "ios": {
+        "appleId": "mjohnst87@gmail.com",
+        "ascAppId": "6754061620",
+        "appleTeamId": "MK38TQM834"
       }
     }
   },
