@@ -302,6 +302,11 @@ export const formatEventForStorage = (
     posterImage,
     eventDuration,
     tags,
+    whatsProvided,
+    whatToBring,
+    parkingInstructions,
+    dressCode,
+    ageRestrictions,
   } = formData;
 
   // Format main event date/time using studio timezone
@@ -459,6 +464,21 @@ export const formatEventForStorage = (
       if (!Number.isFinite(n) || n <= 0) return null;
       return Math.min(10080, Math.round(n));
     })(),
+
+    // EXTRA DETAILS — optional free-text fields the host fills out in
+    // the Details block (what's provided, what to bring, parking,
+    // dress code, age restrictions). Missing from the persisted doc
+    // for months — the Details form UI existed but these were silently
+    // dropped in this formatter. Now write them through (trimmed,
+    // empty-string default) so the event detail screen can display
+    // whichever ones the host bothered to fill in.
+    whatsProvided: typeof whatsProvided === 'string' ? whatsProvided.trim() : '',
+    whatToBring: typeof whatToBring === 'string' ? whatToBring.trim() : '',
+    parkingInstructions:
+      typeof parkingInstructions === 'string' ? parkingInstructions.trim() : '',
+    dressCode: typeof dressCode === 'string' ? dressCode.trim() : '',
+    ageRestrictions:
+      typeof ageRestrictions === 'string' ? ageRestrictions.trim() : '',
 
     // HOST NOTIFICATION SETTINGS (per-event)
     ...(notificationSettings ? { notificationSettings } : {}),

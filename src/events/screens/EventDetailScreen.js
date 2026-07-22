@@ -39,6 +39,7 @@ import { notificationPermissionService } from '../../services/notificationPermis
 import { promptForProfilePicture } from '../../services/profilePicturePromptService';
 import EventStatusBadges from '../components/detail/EventStatusBadges';
 import EventInfoSection from '../components/detail/EventInfoSection';
+import ExtraDetailsSection from '../components/detail/ExtraDetailsSection';
 import EventActionButtons from '../components/detail/EventActionButtons';
 import AttendeeSection from '../components/detail/AttendeeSection';
 import theme from '../../theme/themes';
@@ -853,6 +854,11 @@ const EventDetailScreen = memo(function EventDetailScreen({
         vibeAlert={vibeAlert}
         studioId={studioId}
       />
+
+      {/* Extra Details — what's provided, what to bring, parking,
+          dress code, age restrictions. Renders nothing if the host
+          didn't fill any. */}
+      <ExtraDetailsSection event={event} />
 
       {/* Message Board Button */}
       <MessageBoardButton
