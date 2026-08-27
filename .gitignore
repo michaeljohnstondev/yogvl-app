@@ -37,3 +37,12 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+# EAS signing credentials (keystore/cert passwords)
+credentials.json
+credentials/
+
+# Env
+.env
+.env.*
+!.env.example
