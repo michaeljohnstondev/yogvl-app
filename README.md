@@ -14,7 +14,7 @@ Cloud Functions, Storage, FCM) · Reanimated 4 · EAS Build & Update
 - **Events end to end** — create, edit, cancel, duplicate from templates,
   recurrence rules, co-hosts, private events, and a live guest list with RSVP
   states.
-- **Notifications** — 19 Cloud Functions (~6.2k lines) sit behind every push:
+- **Notifications** — 26 Cloud Functions (~6.2k lines) sit behind every push:
   invites, RSVP changes, comments, new followers, scheduled reminders, and
   expiry cleanup.
 - **QR invite deep links** — verified universal links (iOS) and App Links
