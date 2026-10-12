@@ -93,27 +93,32 @@ export const getStudioUsers = async (currentUserId, userStudio) => {
     // Initialize Sets outside try-catch so they're accessible in cross-studio loading
     let myFavoritesSet = new Set();
     let myFollowingSet = new Set();
+    let myFollowersSet = new Set();
 
     // Load current user's follows/favorites once, then do fast Set lookups
     try {
-      // Load all favorites and following at once (much faster than per-user checks)
+      // Load all favorites, following and followers at once (much faster than per-user checks)
       const favoritesRef = collection(db, 'users', currentUserId, 'favorites');
       const followingRef = collection(db, 'users', currentUserId, 'following');
+      const followersRef = collection(db, 'users', currentUserId, 'followers');
 
-      const [favSnapshot, followSnapshot] = await Promise.all([
+      const [favSnapshot, followSnapshot, followersSnapshot] = await Promise.all([
         getDocs(favoritesRef),
-        getDocs(followingRef)
+        getDocs(followingRef),
+        getDocs(followersRef)
       ]);
 
       myFavoritesSet = new Set(favSnapshot.docs.map(doc => doc.id));
       myFollowingSet = new Set(followSnapshot.docs.map(doc => doc.id));
+      myFollowersSet = new Set(followersSnapshot.docs.map(doc => doc.id));
 
       // Fast O(1) lookups for each user
       for (const user of users) {
         user.isFavorite = myFavoritesSet.has(user.id);
         user.isFollowing = myFollowingSet.has(user.id);
-        user.isMutualFollow = false; // Would need followers subcollection to check this efficiently
-        user.isFriend = false; // Friends = mutual followers
+        // Friends = mutual followers
+        user.isMutualFollow = user.isFollowing && myFollowersSet.has(user.id);
+        user.isFriend = user.isMutualFollow;
       }
     } catch (error) {
       console.warn('[userService] Error checking follow relationships:', error);
@@ -202,6 +207,8 @@ export const getStudioUsers = async (currentUserId, userStudio) => {
                 if (isBlockedByUser) continue;
 
                 // Use the Sets we already loaded above for fast lookups
+                const isMutualFollow =
+                  myFollowingSet.has(userId) && myFollowersSet.has(userId);
                 crossStudioUsers.push({
                   id: userId,
                   name: `${contactInfo.firstName} ${contactInfo.lastName || ''}`.trim(),
@@ -212,8 +219,8 @@ export const getStudioUsers = async (currentUserId, userStudio) => {
                   avatar: getAvatarForUser(contactInfo.firstName),
                   isFavorite: myFavoritesSet.has(userId),
                   isFollowing: myFollowingSet.has(userId),
-                  isMutualFollow: false,
-                  isFriend: false,
+                  isMutualFollow,
+                  isFriend: isMutualFollow,
                   isLocalNode: false, // From different studio = NOT local node
                   category: 'cross_studio',
                 });

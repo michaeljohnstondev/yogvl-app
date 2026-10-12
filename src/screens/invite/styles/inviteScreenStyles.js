@@ -65,7 +65,7 @@ export default StyleSheet.create({
     paddingHorizontal: 20,
   },
   scrollContent: {
-    paddingBottom: 100, // Add padding to prevent content from being hidden behind fixed button
+    paddingBottom: 20,
   },
 
   // Tabs
@@ -613,12 +613,8 @@ export default StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Bottom button
+  // Bottom button - sits below the ScrollView (not overlaid) so the list ends above it
   bottomButtonContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     backgroundColor: theme.colors.background,
     paddingHorizontal: 20,
     paddingVertical: 20,
