@@ -13,7 +13,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import theme from '../../../theme/themes';
+import { useTheme } from '../../../theme/ThemeContext';
 
 // Context for managing status bar background
 const StatusBarContext = createContext();
@@ -30,13 +30,17 @@ export default function VibeAppWrapper({
   children,
   edges = ['top', 'left', 'right'],
 }) {
-  const [statusBarBg, setStatusBarBg] = useState(theme.colors.headerBackground);
+  const { theme } = useTheme();
+  const t = theme.semantic;
+  // null = follow the theme's header colour; screens can still override.
+  const [statusBarOverride, setStatusBarBg] = useState(null);
+  const statusBarBg = statusBarOverride ?? t.header;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: t.background }}>
       <StatusBarContext.Provider value={{ statusBarBg, setStatusBarBg }}>
         <View style={{ flex: 1, backgroundColor: statusBarBg }}>
-          <StatusBar style="light" />
+          <StatusBar style={t.statusBar} />
           <SafeAreaView style={styles.safeArea} edges={edges}>
             <KeyboardAvoidingView
               style={styles.keyboardView}
@@ -44,7 +48,7 @@ export default function VibeAppWrapper({
               keyboardVerticalOffset={0}
             >
               <LinearGradient
-                colors={theme.colors.backgroundGradient}
+                colors={t.backgroundGradient}
                 style={styles.contentWrapper}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 0, y: 1 }}

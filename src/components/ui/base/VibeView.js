@@ -12,12 +12,13 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import theme from '../../../theme/themes';
+import { useTheme } from '../../../theme/ThemeContext';
 
 export default function VibeView({ children, style, ...otherProps }) {
+  const { theme } = useTheme();
   return (
     <LinearGradient
-      colors={theme.colors.backgroundGradient}
+      colors={theme.semantic.backgroundGradient}
       style={[styles.container, style]}
       {...otherProps}
     >

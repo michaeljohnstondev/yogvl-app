@@ -1,28 +1,20 @@
 import React from 'react';
-import { View, Text, ActivityIndicator, ImageBackground, StyleSheet } from 'react-native';
-import theme from '../../../theme/themes';
+import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { useTheme } from '../../../theme/ThemeContext';
 
-export default function VibeLoadingScreen({
-  loadingText = 'Loading...',
-  showBranding = true,
-  size = 'large',
-  color = theme.colors.vibeBlue || '#00C6FF',
-}) {
+// Plain themed loader. The Big Vibe Studios splash art was retired —
+// `showBranding` is kept in the signature so existing callers don't break.
+// eslint-disable-next-line no-unused-vars
+export default function VibeLoadingScreen({ loadingText = 'Loading...', showBranding, size = 'large', color }) {
+  const { theme } = useTheme();
+  const t = theme.semantic;
+
   return (
-    <View style={styles.container}>
-      {/* Image background with absolute positioning to prevent layout shift */}
-      <ImageBackground
-        source={require('../../../../assets/splash.png')}
-        style={styles.splashBackground}
-        resizeMode="cover"
-        fadeDuration={0}
-      />
-
-      {/* Loading indicator at bottom */}
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size={size} color={color} />
-        {loadingText && <Text style={styles.loadingText}>{loadingText}</Text>}
-      </View>
+    <View style={[styles.container, { backgroundColor: t.background }]}>
+      <ActivityIndicator size={size} color={color || t.accent} />
+      {loadingText ? (
+        <Text style={[styles.loadingText, { color: t.textMuted }]}>{loadingText}</Text>
+      ) : null}
     </View>
   );
 }
@@ -30,29 +22,12 @@ export default function VibeLoadingScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000814', // Match splash background for seamless transition
-  },
-  splashBackground: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    width: '100%',
-    height: '100%',
-  },
-  loadingContainer: {
-    position: 'absolute',
-    bottom: 100,
-    left: 0,
-    right: 0,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   loadingText: {
-    color: theme.colors.white,
     fontSize: 16,
     marginTop: 16,
-    opacity: 0.8,
     textAlign: 'center',
   },
 });

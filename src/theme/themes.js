@@ -81,3 +81,59 @@ const theme = {
 };
 
 export default theme;
+
+/**
+ * Light ("Pro") theme — a clean, white, corporate counterpart to the neon look.
+ *
+ * Not an inversion of the dark palette: neon on white is unreadable, and the
+ * 3px neon borders read as loud on a lit surface. Pro swaps the treatment —
+ * white surfaces, hairline grey borders, near-black text, one brand blue.
+ *
+ * Migrated components read `semantic`; un-migrated ones keep importing the
+ * default `theme` (dark) until their batch lands, so nothing breaks mid-rollout.
+ */
+export const darkTheme = {
+  ...theme,
+  isDark: true,
+  semantic: {
+    background: theme.colors.background,
+    backgroundGradient: theme.colors.backgroundGradient,
+    header: theme.colors.headerBackground,
+    headerGradient: ['#001020', '#001840'],
+    headerBorder: theme.colors.vibeBlue,
+    headerBorderWidth: 3,
+    surface: theme.colors.vibeBackgroundBlue,
+    border: theme.colors.vibeBlue,
+    borderWidth: 3,
+    text: theme.colors.textPrimary,
+    textMuted: theme.colors.textSecondary,
+    accent: theme.colors.vibeBlue,
+    searchBg: 'rgba(255, 255, 255, 0.04)',
+    searchBorder: '#444',
+    statusBar: 'light',
+  },
+};
+
+export const lightTheme = {
+  ...theme,
+  isDark: false,
+  semantic: {
+    background: '#FFFFFF',
+    backgroundGradient: ['#FFFFFF', '#FFFFFF'],
+    header: '#FFFFFF',
+    headerGradient: ['#FFFFFF', '#FFFFFF'],
+    headerBorder: '#E5E7EB',
+    headerBorderWidth: 1,
+    surface: '#FFFFFF',
+    border: '#E5E7EB',
+    borderWidth: 1,
+    text: '#0F172A',
+    textMuted: '#64748B',
+    accent: '#0066FF',
+    searchBg: '#F3F4F6',
+    searchBorder: '#E5E7EB',
+    statusBar: 'dark',
+  },
+};
+
+export const themes = { dark: darkTheme, light: lightTheme };

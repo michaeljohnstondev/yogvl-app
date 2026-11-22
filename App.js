@@ -12,7 +12,7 @@ import fcmService from './src/services/fcmServiceWrapper';
 import { initializeNotificationServices } from './src/services/notificationInit';
 import { notificationPermissionService } from './src/services/notificationPermissionService';
 import { useFonts, ComicNeue_400Regular, ComicNeue_700Bold } from '@expo-google-fonts/comic-neue';
-import theme from './src/theme/themes';
+import { ThemeProvider } from './src/theme/ThemeContext';
 
 // Suppress annoying Firebase Firestore warning about WebChannelConnection transport errors
 // These are transient network issues that Firebase handles automatically
@@ -99,12 +99,14 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <VibeAppWrapper>
-        <VibeAlertProvider>
-          <AppWithNotifications onReady={onNavigationReady} />
-          <UpdateBanner />
-        </VibeAlertProvider>
-      </VibeAppWrapper>
+      <ThemeProvider>
+        <VibeAppWrapper>
+          <VibeAlertProvider>
+            <AppWithNotifications onReady={onNavigationReady} />
+            <UpdateBanner />
+          </VibeAlertProvider>
+        </VibeAppWrapper>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

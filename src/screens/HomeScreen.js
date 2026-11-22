@@ -42,8 +42,12 @@ import { globalAdminService } from '../services/globalAdminService';
 import { extractInterestsFromEvent } from '../services/interestService';
 import { notificationPermissionService } from '../services/notificationPermissionService';
 import theme from '../theme/themes';
+import { useTheme } from '../theme/ThemeContext';
 
 export default function HomeScreen({ navigation, route }) {
+  // Themed overrides for the pieces migrated so far (header, sections, sticky bar).
+  const { theme: activeTheme, toggleTheme } = useTheme();
+  const t = activeTheme.semantic;
   const insets = useSafeAreaInsets();
   const [myEvents, setMyEvents] = useState([]);
   const [invitedEvents, setInvitedEvents] = useState([]);
@@ -568,22 +572,28 @@ export default function HomeScreen({ navigation, route }) {
     <View style={styles.screen}>
       {/* Header with Search Bar */}
       <LinearGradient
-        colors={['#001020', '#001840']}
+        colors={t.headerGradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
-        style={styles.header}
+        style={[
+          styles.header,
+          { borderBottomColor: t.headerBorder, borderBottomWidth: t.headerBorderWidth },
+        ]}
       >
-        <Image
-          source={require('../../assets/HeaderIcon.png')}
-          style={styles.headerLogo}
-          resizeMode="contain"
-        />
+        {/* Long-press the logo to flip dark/light — temporary until Settings has a toggle */}
+        <Pressable onLongPress={toggleTheme} delayLongPress={400}>
+          <Image
+            source={require('../../assets/HeaderIcon.png')}
+            style={styles.headerLogo}
+            resizeMode="contain"
+          />
+        </Pressable>
         <Pressable
-          style={styles.searchBar}
+          style={[styles.searchBar, { backgroundColor: t.searchBg, borderColor: t.searchBorder }]}
           onPress={() => setShowSearch(true)}
         >
           <Text style={styles.searchIcon}>🔍</Text>
-          <Text style={styles.searchPlaceholder}>Search...</Text>
+          <Text style={[styles.searchPlaceholder, { color: t.textMuted }]}>Search...</Text>
         </Pressable>
         <View style={styles.headerIcons}>
           <NotificationButton
@@ -631,9 +641,9 @@ export default function HomeScreen({ navigation, route }) {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              tintColor={theme.colors.vibeBlue}
-              colors={[theme.colors.vibeBlue]}
-              progressBackgroundColor={theme.colors.background}
+              tintColor={t.accent}
+              colors={[t.accent]}
+              progressBackgroundColor={t.background}
             />
           }
         >
@@ -647,7 +657,7 @@ export default function HomeScreen({ navigation, route }) {
                 activeOpacity={0.6}
                 hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
               >
-                <Text style={styles.sectionHeader}>Your Events</Text>
+                <Text style={[styles.sectionHeader, !activeTheme.isDark && { color: t.text }]}>Your Events</Text>
               </TouchableOpacity>
               <VibeCarousel
                 data={myEvents}
@@ -678,7 +688,7 @@ export default function HomeScreen({ navigation, route }) {
                 activeOpacity={0.6}
                 hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
               >
-                <Text style={styles.sectionHeader}>Invited To</Text>
+                <Text style={[styles.sectionHeader, !activeTheme.isDark && { color: t.text }]}>Invited To</Text>
               </TouchableOpacity>
               <VibeCarousel
                 data={invitedEvents}
@@ -709,7 +719,12 @@ export default function HomeScreen({ navigation, route }) {
                 activeOpacity={0.6}
                 hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
               >
-                <Text style={styles.officialSectionHeader}>
+                <Text
+                  style={[
+                    styles.officialSectionHeader,
+                    !activeTheme.isDark && { color: t.accent, textShadowRadius: 0 },
+                  ]}
+                >
                   Yo{studioNickname}
                 </Text>
               </TouchableOpacity>
@@ -742,7 +757,7 @@ export default function HomeScreen({ navigation, route }) {
                 activeOpacity={0.6}
                 hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
               >
-                <Text style={styles.sectionHeader}>
+                <Text style={[styles.sectionHeader, !activeTheme.isDark && { color: t.text }]}>
                   Events from People You Follow
                 </Text>
               </TouchableOpacity>
@@ -775,7 +790,7 @@ export default function HomeScreen({ navigation, route }) {
                 activeOpacity={0.6}
                 hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
               >
-                <Text style={styles.sectionHeader}>
+                <Text style={[styles.sectionHeader, !activeTheme.isDark && { color: t.text }]}>
                   For You in {studioCity}
                 </Text>
               </TouchableOpacity>
@@ -808,7 +823,7 @@ export default function HomeScreen({ navigation, route }) {
                 activeOpacity={0.6}
                 hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
               >
-                <Text style={styles.sectionHeader}>
+                <Text style={[styles.sectionHeader, !activeTheme.isDark && { color: t.text }]}>
                   Discover {studioCity}
                 </Text>
               </TouchableOpacity>
@@ -841,7 +856,7 @@ export default function HomeScreen({ navigation, route }) {
                 activeOpacity={0.6}
                 hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
               >
-                <Text style={styles.sectionHeader}>Your Past Events</Text>
+                <Text style={[styles.sectionHeader, !activeTheme.isDark && { color: t.text }]}>Your Past Events</Text>
               </TouchableOpacity>
               <VibeCarousel
                 data={pastEvents}
@@ -892,6 +907,11 @@ export default function HomeScreen({ navigation, route }) {
       <View
         style={[
           styles.stickyButtonContainer,
+          !activeTheme.isDark && {
+            backgroundColor: t.background,
+            borderTopColor: t.border,
+            borderTopWidth: 1,
+          },
           { paddingBottom: Math.max(insets.bottom, 12) + 12 },
         ]}
       >

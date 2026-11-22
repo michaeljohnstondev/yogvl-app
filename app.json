@@ -14,9 +14,8 @@
       "newArchEnabled": false
     },
     "splash": {
-      "image": "./assets/splash.png",
       "resizeMode": "cover",
-      "backgroundColor": "#000814",
+      "backgroundColor": "#001020",
       "hideStatusBar": true
     },
     "assetBundlePatterns": [
@@ -62,9 +61,8 @@
         "backgroundColor": "#00000000"
       },
       "splash": {
-        "image": "./assets/splash.png",
         "resizeMode": "cover",
-        "backgroundColor": "#000814",
+        "backgroundColor": "#001020",
         "hideStatusBar": true
       },
       "statusBar": {
