@@ -612,6 +612,7 @@ export default function HomeScreen({ navigation, route }) {
           ref={scrollViewRef}
           contentContainerStyle={[
             styles.container,
+            pro && styles.containerPro,
             // The sticky CREATE button container already accounts for
             // insets.bottom itself, so the ScrollView only needs enough
             // padding to clear the button + its top padding (~140px).
@@ -961,11 +962,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 3,
     borderBottomColor: theme.colors.vibeBlue,
   },
-  // Light theme app bar: ~60px tall, even 10px padding, every item 40px on
+  // Light theme app bar: ~51px tall, 4px top / 7px bottom, every item 40px on
   // one centre line, soft shadow instead of a border.
   headerPro: {
-    paddingTop: 10,
-    paddingBottom: 10,
+    paddingTop: 4,
+    paddingBottom: 7,
     zIndex: 2,
     elevation: 4,
     shadowColor: '#000',
@@ -1061,8 +1062,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
     letterSpacing: -0.2,
     textShadowRadius: 0,
-    marginTop: 24,
+    marginTop: 16,
     marginBottom: 12,
+  },
+  // Light theme: the section label's own margin sets the gap under the
+  // header, so the list adds no extra top padding.
+  containerPro: {
+    paddingTop: 0,
   },
   officialSectionHeader: {
     color: theme.colors.vibeGreen,
