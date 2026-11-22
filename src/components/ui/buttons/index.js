@@ -4,3 +4,4 @@ export { default as BlockButton } from './BlockButton';
 export { default as MessageBoardButton } from './MessageBoardButton';
 export { default as FollowButton } from './FollowButton';
 export { default as FavoriteButton } from './FavoriteButton';
+export { default as SwipeableButtonDeck } from './SwipeableButtonDeck';

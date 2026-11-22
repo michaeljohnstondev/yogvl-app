@@ -42,9 +42,13 @@ export default function VibeAppWrapper({
         <View style={{ flex: 1, backgroundColor: statusBarBg }}>
           <StatusBar style={t.statusBar} />
           <SafeAreaView style={styles.safeArea} edges={edges}>
+            {/* iOS only: Android already resizes the window (adjustResize), and
+                stacking 'height' on top of that left a stale, shorter layout
+                after the keyboard closed — the gap under the sticky Create bar. */}
             <KeyboardAvoidingView
               style={styles.keyboardView}
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              enabled={Platform.OS === 'ios'}
+              behavior="padding"
               keyboardVerticalOffset={0}
             >
               <LinearGradient

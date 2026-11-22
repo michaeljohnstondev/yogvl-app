@@ -33,6 +33,12 @@ This document provides a comprehensive inventory of all existing components in t
   - Features: LinearGradient styling, loading state with ActivityIndicator, BVS theme compliance
   - Colors: Dark red gradient ['#CC0022', '#FF0844', '#AA001B']
 
+- **SwipeableButtonDeck** (`src/components/ui/buttons/SwipeableButtonDeck.js`)
+  - One button slot that pages horizontally between full-width VibeButtons, with page dots
+  - Props: `buttons` ([{ key, label, onPress, variant }]), `style`
+  - Single button → renders a plain VibeButton (no swipe, no dots)
+  - **Used By**: HomeScreen sticky bar (CREATE AN EVENT ↔ ADMIN TOOLS for admins)
+
 - **MessageBoardButton** (`src/components/ui/buttons/MessageBoardButton.js`)
   - Navigation button to event message board with preview (131 lines)
   - Props: `eventId`, `eventTitle`, `navigation`

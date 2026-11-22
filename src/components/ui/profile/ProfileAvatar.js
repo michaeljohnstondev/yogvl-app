@@ -5,6 +5,7 @@ import { View, Text, Image, StyleSheet, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getProfilePictureUrl } from '../../../services/profilePictureService';
 import theme from '../../../theme/themes';
+import { useTheme } from '../../../theme/ThemeContext';
 
 export default function ProfileAvatar({
   userData,
@@ -13,6 +14,11 @@ export default function ProfileAvatar({
   showBorder = true,
   isLoading = false,
 }) {
+  const { theme: active } = useTheme();
+  // Light theme: flat matte ring instead of the neon gradient.
+  const ringColors = active.isDark
+    ? theme.colors.buttonGradient
+    : [active.semantic.accent, active.semantic.accent];
   if (!userData) return null;
 
   const contactInfo = userData?.userdata?.contactInfo || {};
@@ -53,7 +59,7 @@ export default function ProfileAvatar({
         <LinearGradient
           colors={
             showBorder
-              ? theme.colors.buttonGradient
+              ? ringColors
               : ['transparent', 'transparent']
           }
           style={[styles.borderGradient, avatarStyle]}
@@ -77,7 +83,7 @@ export default function ProfileAvatar({
       <LinearGradient
         colors={
           showBorder
-            ? theme.colors.buttonGradient
+            ? ringColors
             : ['transparent', 'transparent']
         }
         style={[styles.borderGradient, avatarStyle]}

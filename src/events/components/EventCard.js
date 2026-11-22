@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FormatDate } from '../../lib/formatDate';
 import theme from '../../theme/themes';
+import { useTheme } from '../../theme/ThemeContext';
 
 export default function EventCard({
   title,
@@ -13,13 +14,22 @@ export default function EventCard({
   onPress,
   isHostedByUser = false, // New prop to indicate if user is hosting
 }) {
-  // Choose gradient colors based on hosting status
-  const gradientColors = isHostedByUser
+  const { theme: active } = useTheme();
+  const light = !active.isDark;
+  const p = active.semantic.palette;
+
+  // Dark: neon gradient frame. Light: flat matte frame on a white card.
+  const flat = isHostedByUser ? p.teal : p.blue;
+  const gradientColors = light
+    ? [flat, flat]
+    : isHostedByUser
     ? [theme.colors.vibeBlue, theme.colors.vibePurple] // Vibe blue to purple gradient for hosted events
     : ['#00f2fe', '#4facfe']; // Cyan/blue gradient for regular events
 
   // Choose background color that works well with border
-  const cardBackgroundColor = isHostedByUser
+  const cardBackgroundColor = light
+    ? '#FFFFFF'
+    : isHostedByUser
     ? 'rgba(0, 16, 32, 0.8)' // Background for hosted events (closer to app background)
     : 'rgba(0, 8, 20, 0.8)'; // Standard background for regular events
 
@@ -34,11 +44,17 @@ export default function EventCard({
         colors={gradientColors}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.gradient}
+        style={[styles.gradient, light && styles.gradientLight]}
       >
-        <View style={[styles.card, { backgroundColor: cardBackgroundColor }]}>
+        <View
+          style={[
+            styles.card,
+            light && styles.cardLight,
+            { backgroundColor: cardBackgroundColor },
+          ]}
+        >
           {(eventTimestamp || utcDateTime) && (
-            <Text style={styles.meta}>
+            <Text style={[styles.meta, light && { color: active.semantic.textMuted }]}>
               {eventTimestamp
                 ? FormatDate(
                     eventTimestamp.toDate
@@ -52,6 +68,7 @@ export default function EventCard({
           <Text
             style={[
               styles.title,
+              light && { color: active.semantic.text },
               { fontSize: title && title.length > 20 ? 20 : 22 },
             ]}
             numberOfLines={2}
@@ -61,7 +78,7 @@ export default function EventCard({
           </Text>
           {location && (
             <Text
-              style={styles.location}
+              style={[styles.location, light && { color: active.semantic.textMuted }]}
               numberOfLines={1}
               ellipsizeMode="tail"
             >
@@ -82,6 +99,13 @@ const styles = StyleSheet.create({
   gradient: {
     borderRadius: 24,
     padding: 3,
+  },
+  gradientLight: {
+    borderRadius: 16,
+    padding: 1.5,
+  },
+  cardLight: {
+    borderRadius: 14.5,
   },
   card: {
     backgroundColor: 'rgba(0, 8, 20, 0.8)', // Less transparent dark navy

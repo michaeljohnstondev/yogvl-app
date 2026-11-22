@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import theme from '../../../theme/themes';
+import { useTheme } from '../../../theme/ThemeContext';
 
 /**
  * VibeButton with variants:
@@ -26,6 +27,7 @@ export default function VibeButton({
   color = 'blue',
   disabled = false,
 }) {
+  const { theme: active } = useTheme();
   // Support both label prop and children
   const buttonText = label || children;
   // Get color values based on color parameter
@@ -125,6 +127,27 @@ export default function VibeButton({
     );
   }
 
+  // Light theme: flat matte button — no neon outline, no layered borders.
+  if (!active.isDark) {
+    return (
+      <Pressable
+        onPress={onPress}
+        disabled={disabled}
+        hitSlop={4}
+        style={({ pressed }) => [
+          styles.flatButton,
+          {
+            backgroundColor: active.semantic.accent,
+            opacity: disabled ? 0.5 : pressed ? 0.85 : 1,
+          },
+          style,
+        ]}
+      >
+        <Text style={[styles.text, styles.flatText, textStyle]}>{buttonText}</Text>
+      </Pressable>
+    );
+  }
+
   // Default variant (existing gradient button) - optimized for immediate response
   return (
     <Pressable
@@ -153,6 +176,17 @@ export default function VibeButton({
 }
 
 const styles = StyleSheet.create({
+  flatButton: {
+    borderRadius: theme.sizes.buttonRadius,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    marginVertical: 10,
+  },
+  flatText: {
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
   // Default variant styles
   outerBorder: {
     borderBottomWidth: 4,

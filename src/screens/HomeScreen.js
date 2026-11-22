@@ -13,7 +13,6 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  VibeButton,
   VibeLoadingScreen,
   VibeCarousel,
 } from '../components/ui/base';
@@ -29,6 +28,7 @@ import { useVibeAlert } from '../components/ui/base/VibeAlertContext';
 import { useStatusBar } from '../components/ui/base/VibeAppWrapper';
 import EventCard from '../events/components/EventCard';
 import NotificationButton from '../components/notifications/NotificationButton';
+import SwipeableButtonDeck from '../components/ui/buttons/SwipeableButtonDeck';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { db } from '../auth/services/firebase';
@@ -422,30 +422,6 @@ export default function HomeScreen({ navigation, route }) {
     }, [])
   );
 
-  // 🐛 DIAGNOSTIC (admin-only on screen, console logs for everyone but
-  // they're invisible to users): tracks insets.bottom and the screen
-  // we navigated back from so we can pinpoint what triggers the
-  // create-button drift. Remove once we've identified the root cause.
-  // Tagged for `react-native log-android | grep INSET-DBG` filtering.
-  useEffect(() => {
-    console.log(
-      `[Screen:Home] INSET-DBG change top=${insets.top} bottom=${insets.bottom}`
-    );
-  }, [insets.top, insets.bottom]);
-
-  useFocusEffect(
-    useCallback(() => {
-      try {
-        const state = navigation.getState?.();
-        const routes = state?.routes || [];
-        const prev = routes.length >= 2 ? routes[routes.length - 2]?.name : null;
-        console.log(
-          `[Screen:Home] INSET-DBG focused from=${prev || '(none)'} bottom=${insets.bottom}`
-        );
-      } catch (e) {}
-    }, [insets.bottom, navigation])
-  );
-
   // Refresh data when screen comes into focus (e.g., returning from CreateEvent)
   useFocusEffect(
     useCallback(() => {
@@ -657,7 +633,7 @@ export default function HomeScreen({ navigation, route }) {
                 activeOpacity={0.6}
                 hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
               >
-                <Text style={[styles.sectionHeader, !activeTheme.isDark && { color: t.text }]}>Your Events</Text>
+                <Text style={[styles.sectionHeader, !activeTheme.isDark && [styles.sectionHeaderPro, { color: t.text }]]}>Your Events</Text>
               </TouchableOpacity>
               <VibeCarousel
                 data={myEvents}
@@ -688,7 +664,7 @@ export default function HomeScreen({ navigation, route }) {
                 activeOpacity={0.6}
                 hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
               >
-                <Text style={[styles.sectionHeader, !activeTheme.isDark && { color: t.text }]}>Invited To</Text>
+                <Text style={[styles.sectionHeader, !activeTheme.isDark && [styles.sectionHeaderPro, { color: t.text }]]}>Invited To</Text>
               </TouchableOpacity>
               <VibeCarousel
                 data={invitedEvents}
@@ -722,7 +698,7 @@ export default function HomeScreen({ navigation, route }) {
                 <Text
                   style={[
                     styles.officialSectionHeader,
-                    !activeTheme.isDark && { color: t.accent, textShadowRadius: 0 },
+                    !activeTheme.isDark && [styles.sectionHeaderPro, { color: t.text }],
                   ]}
                 >
                   Yo{studioNickname}
@@ -757,7 +733,7 @@ export default function HomeScreen({ navigation, route }) {
                 activeOpacity={0.6}
                 hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
               >
-                <Text style={[styles.sectionHeader, !activeTheme.isDark && { color: t.text }]}>
+                <Text style={[styles.sectionHeader, !activeTheme.isDark && [styles.sectionHeaderPro, { color: t.text }]]}>
                   Events from People You Follow
                 </Text>
               </TouchableOpacity>
@@ -790,7 +766,7 @@ export default function HomeScreen({ navigation, route }) {
                 activeOpacity={0.6}
                 hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
               >
-                <Text style={[styles.sectionHeader, !activeTheme.isDark && { color: t.text }]}>
+                <Text style={[styles.sectionHeader, !activeTheme.isDark && [styles.sectionHeaderPro, { color: t.text }]]}>
                   For You in {studioCity}
                 </Text>
               </TouchableOpacity>
@@ -823,7 +799,7 @@ export default function HomeScreen({ navigation, route }) {
                 activeOpacity={0.6}
                 hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
               >
-                <Text style={[styles.sectionHeader, !activeTheme.isDark && { color: t.text }]}>
+                <Text style={[styles.sectionHeader, !activeTheme.isDark && [styles.sectionHeaderPro, { color: t.text }]]}>
                   Discover {studioCity}
                 </Text>
               </TouchableOpacity>
@@ -856,7 +832,7 @@ export default function HomeScreen({ navigation, route }) {
                 activeOpacity={0.6}
                 hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
               >
-                <Text style={[styles.sectionHeader, !activeTheme.isDark && { color: t.text }]}>Your Past Events</Text>
+                <Text style={[styles.sectionHeader, !activeTheme.isDark && [styles.sectionHeaderPro, { color: t.text }]]}>Your Past Events</Text>
               </TouchableOpacity>
               <VibeCarousel
                 data={pastEvents}
@@ -877,31 +853,9 @@ export default function HomeScreen({ navigation, route }) {
             </>
           )}
 
-          {hasAdminAccess(userData) && (
-            <View style={styles.buttonStack}>
-              <VibeButton
-                label="ADMIN TOOLS"
-                onPress={handleAdminMenu}
-                style={styles.fullButton}
-              />
-            </View>
-          )}
         </ScrollView>
       )}
 
-      {/* 🐛 DIAGNOSTIC: admin-only live insets readout pinned to top-
-          right corner so we can watch insets.bottom drift in real
-          time. Remove once the root cause is identified. */}
-      {hasAdminAccess(userData) && (
-        <View
-          pointerEvents="none"
-          style={[styles.insetDebug, { top: insets.top + 4 }]}
-        >
-          <Text style={styles.insetDebugText}>
-            INSET b:{insets.bottom} t:{insets.top}
-          </Text>
-        </View>
-      )}
 
       {/* Sticky Create Event Button */}
       <View
@@ -915,11 +869,20 @@ export default function HomeScreen({ navigation, route }) {
           { paddingBottom: Math.max(insets.bottom, 12) + 12 },
         ]}
       >
-        <VibeButton
-          label="CREATE AN EVENT"
-          onPress={() => navigation.navigate('CreateEvent')}
-          variant="filled"
+        {/* Admins swipe this slot sideways to reach ADMIN TOOLS */}
+        <SwipeableButtonDeck
           style={styles.stickyButton}
+          buttons={[
+            {
+              key: 'create',
+              label: 'CREATE AN EVENT',
+              onPress: () => navigation.navigate('CreateEvent'),
+              variant: 'filled',
+            },
+            ...(hasAdminAccess(userData)
+              ? [{ key: 'admin', label: 'ADMIN TOOLS', onPress: handleAdminMenu, variant: 'filled' }]
+              : []),
+          ]}
         />
       </View>
 
@@ -1034,15 +997,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  buttonStack: {
-    flexDirection: 'column',
-    marginTop: 30,
-    marginBottom: 20,
-    gap: 12,
-  },
-  fullButton: {
-    width: '100%',
-  },
   stickyButtonContainer: {
     position: 'absolute',
     bottom: 0,
@@ -1055,25 +1009,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 2,
     borderTopColor: theme.colors.vibeBlue,
   },
-  // 🐛 DIAGNOSTIC overlay styles — admin-only live insets readout.
-  // Remove together with the JSX block when the root cause is found.
-  insetDebug: {
-    position: 'absolute',
-    right: 6,
-    backgroundColor: 'rgba(0,0,0,0.75)',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    zIndex: 9999,
-    borderWidth: 1,
-    borderColor: theme.colors.vibePink || '#ff66ff',
-  },
-  insetDebugText: {
-    color: '#fff',
-    fontSize: 10,
-    fontFamily: theme.fonts.main,
-    fontWeight: '700',
-  },
   stickyButton: {
     width: '100%',
   },
@@ -1084,6 +1019,17 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     marginTop: 20,
     marginLeft: 4,
+  },
+  // Light theme: system font, tighter tracking — reads like a pro app's
+  // section label instead of a poster headline.
+  sectionHeaderPro: {
+    fontFamily: theme.fonts.main,
+    fontWeight: '700',
+    fontSize: 18,
+    letterSpacing: -0.2,
+    textShadowRadius: 0,
+    marginTop: 24,
+    marginBottom: 12,
   },
   officialSectionHeader: {
     color: theme.colors.vibeGreen,
