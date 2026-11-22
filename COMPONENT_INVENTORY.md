@@ -905,6 +905,12 @@ Based on usage analysis, consider creating:
   - Functions: Event completion notifications, wrap-up triggers
   - Features: Automatic post-event flows
 
+### UI / Animation Hooks
+- **useHideOnScroll** (`src/hooks/useHideOnScroll.js`)
+  - Slides a bottom bar away on scroll-down, back on scroll-up / near top
+  - Returns `{ onScroll, style }` (Animated translateY, native driver)
+  - **Used By**: HomeScreen sticky Create bar
+
 ### User & Social Hooks
 - **useReliability** (`src/hooks/useReliability.js`)
   - User reliability score management

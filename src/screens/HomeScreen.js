@@ -9,6 +9,7 @@ import {
   BackHandler,
   RefreshControl,
   Image,
+  Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,6 +30,7 @@ import { useStatusBar } from '../components/ui/base/VibeAppWrapper';
 import EventCard from '../events/components/EventCard';
 import NotificationButton from '../components/notifications/NotificationButton';
 import SwipeableButtonDeck from '../components/ui/buttons/SwipeableButtonDeck';
+import { useHideOnScroll } from '../hooks/useHideOnScroll';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { db } from '../auth/services/firebase';
@@ -48,6 +50,8 @@ export default function HomeScreen({ navigation, route }) {
   // Themed overrides for the pieces migrated so far (header, sections, sticky bar).
   const { theme: activeTheme, toggleTheme } = useTheme();
   const t = activeTheme.semantic;
+  // Create bar tucks away while scrolling down, returns on scroll-up / at top.
+  const createBar = useHideOnScroll();
   const insets = useSafeAreaInsets();
   const [myEvents, setMyEvents] = useState([]);
   const [invitedEvents, setInvitedEvents] = useState([]);
@@ -569,7 +573,7 @@ export default function HomeScreen({ navigation, route }) {
           onPress={() => setShowSearch(true)}
         >
           <Text style={styles.searchIcon}>🔍</Text>
-          <Text style={[styles.searchPlaceholder, { color: t.textMuted }]}>Search...</Text>
+          <Text style={[styles.searchPlaceholder, { color: t.headerMuted }]}>Search...</Text>
         </Pressable>
         <View style={styles.headerIcons}>
           <NotificationButton
@@ -612,6 +616,7 @@ export default function HomeScreen({ navigation, route }) {
           scrollEnabled={true}
           nestedScrollEnabled={true}
           scrollEventThrottle={16}
+          onScroll={createBar.onScroll}
           directionalLockEnabled={false}
           refreshControl={
             <RefreshControl
@@ -858,8 +863,9 @@ export default function HomeScreen({ navigation, route }) {
 
 
       {/* Sticky Create Event Button */}
-      <View
+      <Animated.View
         style={[
+          createBar.style,
           styles.stickyButtonContainer,
           !activeTheme.isDark && {
             backgroundColor: t.background,
@@ -884,7 +890,7 @@ export default function HomeScreen({ navigation, route }) {
               : []),
           ]}
         />
-      </View>
+      </Animated.View>
 
       {showAccountSettings && (
         <>

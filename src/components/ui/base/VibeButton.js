@@ -49,6 +49,31 @@ export default function VibeButton({
     return colorMap[colorName] || theme.colors.vibeBlue;
   };
 
+  // Light theme: every variant is one flat matte colour — no borders,
+  // no layered frames. The variant/colour only picks the fill.
+  if (!active.isDark) {
+    const p = active.semantic.palette;
+    const fill =
+      variant === 'red' ? p.red
+        : variant === 'green' ? p.green
+          : variant === 'toggle' ? p[color] || p.blue
+            : active.semantic.accent;
+    return (
+      <Pressable
+        onPress={onPress}
+        disabled={disabled}
+        hitSlop={4}
+        style={({ pressed }) => [
+          styles.flatButton,
+          { backgroundColor: fill, opacity: disabled ? 0.5 : pressed ? 0.85 : 1 },
+          style,
+        ]}
+      >
+        <Text style={[styles.text, styles.flatText, textStyle]}>{buttonText}</Text>
+      </Pressable>
+    );
+  }
+
   if (variant === 'toggle') {
     const themeColor = getColorValues(color);
     return (
@@ -123,27 +148,6 @@ export default function VibeButton({
             </View>
           </View>
         </View>
-      </Pressable>
-    );
-  }
-
-  // Light theme: flat matte button — no neon outline, no layered borders.
-  if (!active.isDark) {
-    return (
-      <Pressable
-        onPress={onPress}
-        disabled={disabled}
-        hitSlop={4}
-        style={({ pressed }) => [
-          styles.flatButton,
-          {
-            backgroundColor: active.semantic.accent,
-            opacity: disabled ? 0.5 : pressed ? 0.85 : 1,
-          },
-          style,
-        ]}
-      >
-        <Text style={[styles.text, styles.flatText, textStyle]}>{buttonText}</Text>
       </Pressable>
     );
   }

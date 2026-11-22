@@ -44,12 +44,11 @@ export default function EventCard({
         colors={gradientColors}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[styles.gradient, light && styles.gradientLight]}
+        style={styles.gradient}
       >
         <View
           style={[
             styles.card,
-            light && styles.cardLight,
             { backgroundColor: cardBackgroundColor },
           ]}
         >
@@ -99,13 +98,6 @@ const styles = StyleSheet.create({
   gradient: {
     borderRadius: 24,
     padding: 3,
-  },
-  gradientLight: {
-    borderRadius: 16,
-    padding: 1.5,
-  },
-  cardLight: {
-    borderRadius: 14.5,
   },
   card: {
     backgroundColor: 'rgba(0, 8, 20, 0.8)', // Less transparent dark navy

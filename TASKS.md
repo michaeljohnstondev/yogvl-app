@@ -4,7 +4,10 @@
 Flip: long-press the Yo logo in the Home header (temporary until Settings toggle).
 - [x] Batch 1: ThemeProvider, app background, status bar, Home header/search/sections/sticky bar
 - [x] Retire Big Vibe Studios splash (in-app loader now; native splash on next EAS build)
-- [ ] Batch 2: EventCard + VibeButton
+- [x] Batch 2: matte palette, EventCard, default VibeButton, avatar ring, pro section headers
+- [x] Admin swipe: CREATE AN EVENT ↔ ADMIN TOOLS
+- [x] Fix: Android sticky-bar gap (root KeyboardAvoidingView now iOS-only) — verify on device
+- [ ] Verify keyboard doesn't cover inputs on Android (Create Event, Login, Message Board)
 - [ ] Batch 3: VibeCard, VibeInput, ScreenHeader, VibeModal
 - [ ] Settings toggle (replace the logo long-press)
 - [ ] Remaining screens, one at a time

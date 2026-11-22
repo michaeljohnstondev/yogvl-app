@@ -102,6 +102,7 @@ export const darkTheme = {
     headerGradient: ['#001020', '#001840'],
     headerBorder: theme.colors.vibeBlue,
     headerBorderWidth: 3,
+    headerMuted: theme.colors.textSecondary,
     surface: theme.colors.vibeBackgroundBlue,
     border: theme.colors.vibeBlue,
     borderWidth: 3,
@@ -131,10 +132,13 @@ export const lightTheme = {
   semantic: {
     background: '#FFFFFF',
     backgroundGradient: ['#FFFFFF', '#FFFFFF'],
-    header: '#FFFFFF',
-    headerGradient: ['#FFFFFF', '#FFFFFF'],
-    headerBorder: '#E5E7EB',
-    headerBorderWidth: 1,
+    // Deep matte navy bar over a white page — the cyan Yo logo pops on it,
+    // where a blue bar would swallow it.
+    header: '#1B2A41',
+    headerGradient: ['#1B2A41', '#1B2A41'],
+    headerBorder: '#1B2A41',
+    headerBorderWidth: 0,
+    headerMuted: 'rgba(255, 255, 255, 0.65)',
     surface: '#FFFFFF',
     border: '#E5E7EB',
     borderWidth: 1,
@@ -154,9 +158,9 @@ export const lightTheme = {
       yellow: '#E3B23C',
       gray: '#8A94A6',
     },
-    searchBg: '#F3F4F6',
-    searchBorder: '#E5E7EB',
-    statusBar: 'dark',
+    searchBg: 'rgba(255, 255, 255, 0.12)',
+    searchBorder: 'rgba(255, 255, 255, 0.18)',
+    statusBar: 'light',
   },
 };
 
