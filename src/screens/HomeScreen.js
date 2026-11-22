@@ -50,6 +50,7 @@ export default function HomeScreen({ navigation, route }) {
   // Themed overrides for the pieces migrated so far (header, sections, sticky bar).
   const { theme: activeTheme, toggleTheme } = useTheme();
   const t = activeTheme.semantic;
+  const pro = !activeTheme.isDark;
   // Create bar tucks away while scrolling down, returns on scroll-up / at top.
   const createBar = useHideOnScroll();
   const insets = useSafeAreaInsets();
@@ -102,8 +103,8 @@ export default function HomeScreen({ navigation, route }) {
 
   // Memoize ProfileAvatar to prevent unnecessary re-renders
   const profileAvatar = useMemo(
-    () => <ProfileAvatar userData={userData} size={37} showBorder={true} />,
-    [userData]
+    () => <ProfileAvatar userData={userData} size={pro ? 40 : 37} showBorder={true} />,
+    [userData, pro]
   );
 
   // Handle pull-to-refresh
@@ -558,18 +559,23 @@ export default function HomeScreen({ navigation, route }) {
         style={[
           styles.header,
           { borderBottomColor: t.headerBorder, borderBottomWidth: t.headerBorderWidth },
+          pro && styles.headerPro,
         ]}
       >
         {/* Long-press the logo to flip dark/light — temporary until Settings has a toggle */}
         <Pressable onLongPress={toggleTheme} delayLongPress={400}>
           <Image
             source={require('../../assets/HeaderIcon.png')}
-            style={styles.headerLogo}
+            style={[styles.headerLogo, pro && styles.headerLogoPro]}
             resizeMode="contain"
           />
         </Pressable>
         <Pressable
-          style={[styles.searchBar, { backgroundColor: t.searchBg, borderColor: t.searchBorder }]}
+          style={[
+            styles.searchBar,
+            pro && styles.searchBarPro,
+            { backgroundColor: t.searchBg, borderColor: t.searchBorder },
+          ]}
           onPress={() => setShowSearch(true)}
         >
           <Text style={styles.searchIcon}>🔍</Text>
@@ -954,6 +960,27 @@ const styles = StyleSheet.create({
     paddingBottom: 5,
     borderBottomWidth: 3,
     borderBottomColor: theme.colors.vibeBlue,
+  },
+  // Light theme app bar: ~60px tall, even 10px padding, every item 40px on
+  // one centre line, soft shadow instead of a border.
+  headerPro: {
+    paddingTop: 10,
+    paddingBottom: 10,
+    zIndex: 2,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+  },
+  headerLogoPro: {
+    width: 50,
+    height: 40,
+  },
+  searchBarPro: {
+    height: 40,
+    paddingVertical: 0,
+    borderRadius: 20,
   },
   headerLogo: {
     width: 70,
