@@ -92,6 +92,19 @@ export default theme;
  * Migrated components read `semantic`; un-migrated ones keep importing the
  * default `theme` (dark) until their batch lands, so nothing breaks mid-rollout.
  */
+// Matte button fills — flat, mid-saturation; read on both navy and white.
+const buttonPalette = {
+  blue: '#1877F2',
+  teal: '#2A9D8F',
+  purple: '#6E5BC7',
+  green: '#43A047',
+  red: '#D9534F',
+  orange: '#E8873A',
+  pink: '#D6649A',
+  yellow: '#E3B23C',
+  gray: '#8A94A6',
+};
+
 export const darkTheme = {
   ...theme,
   isDark: true,
@@ -120,6 +133,7 @@ export const darkTheme = {
       yellow: theme.colors.vibeYellow,
       gray: theme.colors.gray,
     },
+    buttonPalette,
     searchBg: 'rgba(255, 255, 255, 0.04)',
     searchBorder: '#444',
     statusBar: 'light',
@@ -158,6 +172,7 @@ export const lightTheme = {
       yellow: '#E3B23C',
       gray: '#8A94A6',
     },
+    buttonPalette,
     searchBg: 'rgba(255, 255, 255, 0.12)',
     searchBorder: 'rgba(255, 255, 255, 0.18)',
     statusBar: 'light',

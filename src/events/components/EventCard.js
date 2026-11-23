@@ -53,7 +53,7 @@ export default function EventCard({
           ]}
         >
           {(eventTimestamp || utcDateTime) && (
-            <Text style={[styles.meta, light && { color: active.semantic.textMuted }]}>
+            <Text style={[styles.meta, light && [styles.metaPro, { color: flat }]]}>
               {eventTimestamp
                 ? FormatDate(
                     eventTimestamp.toDate
@@ -77,7 +77,7 @@ export default function EventCard({
           </Text>
           {location && (
             <Text
-              style={[styles.location, light && { color: active.semantic.textMuted }]}
+              style={[styles.location, light && styles.locationPro]}
               numberOfLines={1}
               ellipsizeMode="tail"
             >
@@ -98,6 +98,19 @@ const styles = StyleSheet.create({
   gradient: {
     borderRadius: 24,
     padding: 3,
+  },
+  // Light theme hierarchy: colour + weight instead of washed-out grey.
+  // Date = small bold label in the card's frame colour, title = dark anchor,
+  // location = dark slate.
+  metaPro: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  locationPro: {
+    color: '#334155',
+    fontWeight: '500',
   },
   card: {
     backgroundColor: 'rgba(0, 8, 20, 0.8)', // Less transparent dark navy
